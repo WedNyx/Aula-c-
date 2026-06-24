@@ -134,17 +134,45 @@ export async function setExamState(state) {
 }
 
 export async function diagnose() {
-  const out = { hasStorage: true, configured: true, writeRead: '—', listOk: false, keys: [], err: '' }
+  const out = { hasStorage: true, configured: true, writeRead: '—', listOk: false, keys: [], err: '', hasAI: null }
+
+  // Verifica variáveis de ambiente do Redis (ação rápida, sem gastar nada)
   try {
-    await kvCall({ action: 'set', key: 'diag:ping', value: String(Date.now()) })
-    const r = await kvCall({ action: 'get', key: 'diag:ping' })
-    out.writeRead = r.value ? 'ok' : 'leitura vazia'
+    const ck = await kvCall({ action: 'check' })
+    if (!ck.configured) {
+      out.hasStorage = false
+      out.configured = false
+      out.writeRead = 'não configurado'
+      out.err = 'KV_REST_API_URL e KV_REST_API_TOKEN não estão definidas no Vercel.'
+    }
   } catch (e) {
-    out.writeRead = 'erro'
     out.hasStorage = false
     out.configured = false
+    out.writeRead = 'erro'
     out.err = String(e?.message || e)
   }
+
+  // Testa escrita/leitura só se parece configurado
+  if (out.configured) {
+    try {
+      await kvCall({ action: 'set', key: 'diag:ping', value: String(Date.now()) })
+      const r = await kvCall({ action: 'get', key: 'diag:ping' })
+      out.writeRead = r.value ? 'ok' : 'leitura vazia'
+    } catch (e) {
+      out.writeRead = 'erro'
+      out.hasStorage = false
+      out.err = String(e?.message || e)
+    }
+  }
+
+  // Verifica se a chave da IA está configurada (GET, sem gastar tokens)
+  try {
+    const r = await fetch('/api/claude')
+    const d = await r.json()
+    out.hasAI = !!d.configured
+  } catch { out.hasAI = null }
+
+  // Lista chaves existentes
   try {
     const r = await kvCall({ action: 'list_with_values', prefix: PREFIX })
     out.keys = (r.items || []).map(i => i.key)
@@ -152,5 +180,6 @@ export async function diagnose() {
   } catch (e) {
     out.err = out.err || String(e?.message || e)
   }
+
   return out
 }

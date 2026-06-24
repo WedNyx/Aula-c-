@@ -530,6 +530,12 @@ async function askClaude(prompt, system){
     body: JSON.stringify({ prompt, system })
   });
   const data = await resp.json();
+  if (data.error === 'missing_api_key') {
+    const e = new Error('ROBOTKEY_MISSING');
+    e.userMsg = data.message || 'ANTHROPIC_API_KEY não configurada no Vercel.';
+    throw e;
+  }
+  if (!resp.ok) throw new Error(data.error || `API ${resp.status}`);
   return data.content?.map(b=>b.text||"").join("")||"";
 }
 function requestFS(){
@@ -755,7 +761,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout }) {
         const parsed = JSON.parse(result.replace(/```json|```/g,"").trim());
         setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
         await persist({ feedback:parsed, hasError:!parsed.ok });
-      } catch { setRobotState("idle"); setRobotMsg(""); }
+      } catch(e) {
+        if (e.message === 'ROBOTKEY_MISSING') {
+          setRobotState("error");
+          setRobotMsg("🔑 Robô IA offline: o professor precisa configurar a chave ANTHROPIC_API_KEY no painel do Vercel. A verificação básica do código continua funcionando!");
+        } else {
+          setRobotState("idle"); setRobotMsg("");
+        }
+      }
       setAnalyzing(false);
     }, 2000);
   }, [activeCode]);
@@ -1311,7 +1324,10 @@ function CodeLab({ accent = "#f59e0b", files = [{ name:"Program.cs", code:"" }],
         );
         const parsed = JSON.parse(result.replace(/```json|```/g,"").trim());
         setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]);
-      } catch { setRobotState("idle"); setRobotMsg(""); }
+      } catch(e) {
+        if (e.message === 'ROBOTKEY_MISSING') { setRobotState("error"); setRobotMsg("🔑 Robô IA offline: configure ANTHROPIC_API_KEY no Vercel."); }
+        else { setRobotState("idle"); setRobotMsg(""); }
+      }
       setAnalyzing(false);
     }, 2000);
   }, [activeCode]);
@@ -1784,11 +1800,39 @@ function TeacherView({ onLogout }) {
               <h4 style={{ color:"#f59e0b", fontSize:13, marginBottom:6 }}>🔧 Conexão</h4>
               {diag ? (
                 <div style={{ color:"#cbd5e1", lineHeight:1.7 }}>
-                  <div>Armazenamento: <b style={{ color:diag.hasStorage?"#22c55e":"#ef4444" }}>{diag.hasStorage?"SIM":"NÃO"}</b> · escrever/ler: <b style={{ color:diag.writeRead==="ok"?"#22c55e":"#ef4444" }}>{diag.writeRead}</b></div>
-                  {!diag.hasStorage && <div style={{ color:"#f59e0b" }}>Publique o app para o tempo real funcionar.</div>}
+                  <div>
+                    Armazenamento: <b style={{ color:diag.hasStorage?"#22c55e":"#ef4444" }}>{diag.hasStorage?"OK":"NÃO"}</b>
+                    {diag.writeRead!=="—" && <> · <b style={{ color:diag.writeRead==="ok"?"#22c55e":"#ef4444" }}>{diag.writeRead}</b></>}
+                  </div>
+                  <div>Robô IA: <b style={{ color:diag.hasAI===true?"#22c55e":diag.hasAI===false?"#ef4444":"#94a3b8" }}>{diag.hasAI===true?"OK":diag.hasAI===false?"NÃO":"—"}</b></div>
+
+                  {!diag.hasStorage && (
+                    <div style={{ background:"#ef444415", border:"1px solid #ef4444", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.8 }}>
+                      <b style={{ color:"#ef4444" }}>❌ Monitoramento sem banco de dados</b><br/>
+                      <span style={{ color:"#94a3b8" }}>
+                        1. Acesse <b style={{color:"#e2e8f0"}}>vercel.com/dashboard</b><br/>
+                        2. Abra o projeto → aba <b style={{color:"#e2e8f0"}}>Storage</b><br/>
+                        3. <b style={{color:"#e2e8f0"}}>Create Database → KV</b> (escolha Upstash)<br/>
+                        4. Clique <b style={{color:"#e2e8f0"}}>Connect to Project</b><br/>
+                        5. Vá em <b style={{color:"#e2e8f0"}}>Deployments → Redeploy</b>
+                      </span>
+                    </div>
+                  )}
+                  {diag.hasAI === false && (
+                    <div style={{ background:"#f59e0b15", border:"1px solid #f59e0b", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.8 }}>
+                      <b style={{ color:"#f59e0b" }}>⚠ Robô IA sem chave de API</b><br/>
+                      <span style={{ color:"#94a3b8" }}>
+                        1. Acesse <b style={{color:"#e2e8f0"}}>console.anthropic.com</b><br/>
+                        2. API Keys → <b style={{color:"#e2e8f0"}}>Create Key</b><br/>
+                        3. No Vercel: projeto → <b style={{color:"#e2e8f0"}}>Settings → Environment Variables</b><br/>
+                        4. Adicione <b style={{color:"#e2e8f0"}}>ANTHROPIC_API_KEY</b> = sua chave<br/>
+                        5. <b style={{color:"#e2e8f0"}}>Redeploy</b>
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : <span style={{ color:"#475569" }}>verificando...</span>}
-              <button style={{ ...styles.btn("#334155"), padding:"4px 10px", fontSize:12, marginTop:6 }} onClick={load}>Atualizar agora</button>
+              <button style={{ ...styles.btn("#334155"), padding:"4px 10px", fontSize:12, marginTop:8 }} onClick={()=>{ diagnose().then(setDiag); load(); }}>↻ Verificar agora</button>
             </div>
 
             <div style={{ ...styles.card, fontSize:12 }}>
