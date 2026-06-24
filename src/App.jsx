@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose } from "./storage.js";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  SYNTAX HIGHLIGHT  (com cores de pares de colchetes/chaves/parênteses do VSCode)
@@ -132,15 +133,17 @@ function VSEditor({ value, onChange, filename }) {
         <span style={{width:11,height:11,borderRadius:"50%",background:"#27c93f",display:"inline-block"}}/>
         <span style={{color:"#cccccc", fontSize:13, marginLeft:10}}>📄 {filename || "Program.cs"}</span>
       </div>
-      <div style={{ display:"flex", position:"relative", minHeight:300, maxHeight:420, overflow:"hidden" }}>
+      <div style={{ display:"flex", minHeight:300, maxHeight:420, overflow:"hidden" }}>
         <div style={{ background:"#1e1e1e", padding:"12px 8px 12px 14px", textAlign:"right", userSelect:"none", minWidth:42, color:"#858585", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:"1.5em", borderRight:"1px solid #3e3e42", flexShrink:0 }}>
           {lineNums.map(n => <div key={n}>{n}</div>)}
         </div>
-        <div ref={highlightRef} style={{ ...shared, position:"absolute", left:42, right:0, top:0, bottom:0, color:"#d4d4d4", pointerEvents:"none", overflow:"hidden", paddingLeft:14 }}>
-          {highlight(value)}
+        <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
+          <div ref={highlightRef} style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, color:"#d4d4d4", pointerEvents:"none", overflow:"hidden", paddingLeft:14 }}>
+            {highlight(value)}
+          </div>
+          <textarea ref={textareaRef} value={value} onChange={e => onChange(e.target.value)} onKeyDown={handleKeyDown} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
+            style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, background:"transparent", color:"transparent", caretColor:"#aeafad", border:"none", outline:"none", resize:"none", zIndex:1, paddingLeft:14, overflow:"auto" }} />
         </div>
-        <textarea ref={textareaRef} value={value} onChange={e => onChange(e.target.value)} onKeyDown={handleKeyDown} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
-          style={{ ...shared, flex:1, background:"transparent", color:"transparent", caretColor:"#aeafad", border:"none", outline:"none", resize:"none", zIndex:1, paddingLeft:14, overflow:"auto" }} />
       </div>
     </div>
   );
@@ -519,114 +522,12 @@ function AvatarBuilder({ value, onChange }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  STORAGE  (cada aluno numa chave própria → tempo real confiável)
-// ════════════════════════════════════════════════════════════════════════════
-const PREFIX = "student:";
-const TEACHER_META_KEY = "teachermeta:main";
-const TEACHER_CODE_KEY = "teachercode:main";
-const hasStorage = () => typeof window !== "undefined" && !!window.storage;
-
-// a chave de cada aluno inclui o turno → o mesmo nome pode existir no matutino e no vespertino
-function safeName(name){ return String(name||"").trim().replace(/\s+/g,"_").replace(/["'\/\\:]/g,""); }
-function nameToKey(shift, name){ return `${PREFIX}${shift||"sem-turno"}:${safeName(name)}`; }
-function nudgeKeyFor(shift, name){ return `nudge:${shift||"sem-turno"}:${safeName(name)}`; }
-function resetFlagKey(shift){ return shift ? `classroom_reset_flag:${shift}` : "classroom_reset_flag"; }
-const RESET_KEY = "classroom_reset_flag"; // flag global (vale para todos os turnos)
-function normalizeKeys(res){
-  let keys = [];
-  if (Array.isArray(res)) keys = res;
-  else if (res && Array.isArray(res.keys)) keys = res.keys;
-  return keys.map(k => typeof k === "string" ? k : (k && (k.key || k.name || k.id)) || "").filter(Boolean);
-}
-async function saveStudent(shift, name, data){
-  if (!hasStorage()) return false;
-  try { await window.storage.set(nameToKey(shift, name), JSON.stringify(data), true); return true; } catch { return false; }
-}
-async function getStudent(shift, name){
-  if (!hasStorage()) return null;
-  try { const r = await window.storage.get(nameToKey(shift, name), true); return r ? JSON.parse(r.value) : null; } catch { return null; }
-}
-// avisos do professor → aluno (chave separada, para o heartbeat do aluno não sobrescrever)
-async function setNudge(shift, name, text){
-  if (!hasStorage()) return false;
-  try { await window.storage.set(nudgeKeyFor(shift, name), JSON.stringify({ text, at: Date.now() }), true); return true; } catch { return false; }
-}
-async function getNudge(shift, name){
-  if (!hasStorage()) return null;
-  try { const r = await window.storage.get(nudgeKeyFor(shift, name), true); return r ? JSON.parse(r.value) : null; } catch { return null; }
-}
-async function listStudents(){
-  if (!hasStorage()) return [];
-  let keys = [];
-  try { keys = normalizeKeys(await window.storage.list(PREFIX, true)); } catch { return []; }
-  const out = [];
-  for (const k of keys){ try { const r = await window.storage.get(k, true); if (r) out.push(JSON.parse(r.value)); } catch {} }
-  return out;
-}
-async function checkReset(shift, joinedAt){
-  if (!hasStorage()) return false;
-  try {
-    for (const k of [resetFlagKey(null), resetFlagKey(shift)]){
-      const r = await window.storage.get(k, true);
-      if (r && parseInt(r.value) > joinedAt) return true;
-    }
-    return false;
-  } catch { return false; }
-}
-async function resetAll(shift){
-  if (!hasStorage()) return false;
-  try {
-    // 1) marca o reset ANTES (qualquer heartbeat depois disso vai parar e deslogar)
-    await window.storage.set(resetFlagKey(shift || null), String(Date.now()), true);
-    const studentPrefix = shift ? `${PREFIX}${shift}:` : PREFIX;
-    const nudgePrefix   = shift ? `nudge:${shift}:`     : "nudge:";
-    // 2) apaga alunos + avisos (duas passadas para pegar quem recadastrar no meio)
-    for (let pass = 0; pass < 2; pass++) {
-      for (const k of normalizeKeys(await window.storage.list(studentPrefix, true))){ try { await window.storage.delete(k, true); } catch {} }
-      for (const k of normalizeKeys(await window.storage.list(nudgePrefix, true))){ try { await window.storage.delete(k, true); } catch {} }
-      await new Promise(r => setTimeout(r, 400));
-    }
-    return true;
-  } catch { return false; }
-}
-async function getTeacherMeta(){
-  const empty = { city:"", classDays:[], contentNames:{} };
-  if (!hasStorage()) return empty;
-  try { const r = await window.storage.get(TEACHER_META_KEY, true); return r ? { ...empty, ...JSON.parse(r.value) } : empty; }
-  catch { return empty; }
-}
-async function saveTeacherMeta(meta){
-  if (!hasStorage()) return;
-  try { await window.storage.set(TEACHER_META_KEY, JSON.stringify(meta), true); } catch {}
-}
-// código que o professor escreve na aba "Meu código" (fica salvo e vira a base do conteúdo do dia)
-async function saveTeacherCode(files){
-  if (!hasStorage()) return false;
-  try { await window.storage.set(TEACHER_CODE_KEY, JSON.stringify({ files, at: Date.now() }), true); return true; } catch { return false; }
-}
-async function getTeacherCode(){
-  if (!hasStorage()) return null;
-  try { const r = await window.storage.get(TEACHER_CODE_KEY, true); return r ? JSON.parse(r.value) : null; } catch { return null; }
-}
-async function diagnose(){
-  const out = { hasStorage: hasStorage(), writeRead:"—", listOk:false, keys:[], err:"" };
-  if (!hasStorage()) { out.err = "window.storage não existe neste ambiente"; return out; }
-  try { await window.storage.set("diag:ping", String(Date.now()), true); const r = await window.storage.get("diag:ping", true); out.writeRead = r && r.value ? "ok" : "leitura vazia"; }
-  catch (e) { out.writeRead = "erro"; out.err = String((e && e.message) || e); }
-  try { out.keys = normalizeKeys(await window.storage.list(PREFIX, true)); out.listOk = true; }
-  catch (e) { out.err = out.err || String((e && e.message) || e); }
-  return out;
-}
-
-// ════════════════════════════════════════════════════════════════════════════
 //  IA + util
 // ════════════════════════════════════════════════════════════════════════════
 async function askClaude(prompt, system){
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+  const resp = await fetch("/api/claude", {
     method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1500,
-      system: system||"Você é um robô assistente de programação para alunos iniciantes de C#. Responda sempre em português brasileiro simples e encorajador.",
-      messages:[{role:"user",content:prompt}] })
+    body: JSON.stringify({ prompt, system })
   });
   const data = await resp.json();
   return data.content?.map(b=>b.text||"").join("")||"";
