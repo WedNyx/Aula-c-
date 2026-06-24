@@ -119,6 +119,20 @@ export async function getTeacherCode() {
   } catch { return null }
 }
 
+export async function getExamState() {
+  try {
+    const r = await kvCall({ action: 'get', key: 'exam:config' })
+    return r.value ? JSON.parse(r.value) : { status: 'idle' }
+  } catch { return { status: 'idle' } }
+}
+
+export async function setExamState(state) {
+  try {
+    await kvCall({ action: 'set', key: 'exam:config', value: JSON.stringify(state) })
+    return true
+  } catch { return false }
+}
+
 export async function diagnose() {
   const out = { hasStorage: true, configured: true, writeRead: '—', listOk: false, keys: [], err: '' }
   try {
