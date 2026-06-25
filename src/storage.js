@@ -136,14 +136,14 @@ export async function setExamState(state) {
 export async function diagnose() {
   const out = { hasStorage: true, configured: true, writeRead: '—', listOk: false, keys: [], err: '', hasAI: null }
 
-  // Verifica variáveis de ambiente do Redis (ação rápida, sem gastar nada)
+  // Verifica variáveis de ambiente (ação rápida, sem gastar nada)
   try {
     const ck = await kvCall({ action: 'check' })
     if (!ck.configured) {
       out.hasStorage = false
       out.configured = false
       out.writeRead = 'não configurado'
-      out.err = 'KV_REST_API_URL e KV_REST_API_TOKEN não estão definidas no Vercel.'
+      out.err = 'Banco não configurado. Adicione SUPABASE_URL + SUPABASE_SERVICE_KEY + DATABASE_PASSWORD no Vercel.'
     }
   } catch (e) {
     out.hasStorage = false
