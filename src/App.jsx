@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState } from "./storage.js";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  SYNTAX HIGHLIGHT  (com cores de pares de colchetes/chaves/parênteses do VSCode)
@@ -132,15 +133,17 @@ function VSEditor({ value, onChange, filename }) {
         <span style={{width:11,height:11,borderRadius:"50%",background:"#27c93f",display:"inline-block"}}/>
         <span style={{color:"#cccccc", fontSize:13, marginLeft:10}}>📄 {filename || "Program.cs"}</span>
       </div>
-      <div style={{ display:"flex", position:"relative", minHeight:300, maxHeight:420, overflow:"hidden" }}>
+      <div style={{ display:"flex", minHeight:300, maxHeight:420, overflow:"hidden" }}>
         <div style={{ background:"#1e1e1e", padding:"12px 8px 12px 14px", textAlign:"right", userSelect:"none", minWidth:42, color:"#858585", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:"1.5em", borderRight:"1px solid #3e3e42", flexShrink:0 }}>
           {lineNums.map(n => <div key={n}>{n}</div>)}
         </div>
-        <div ref={highlightRef} style={{ ...shared, position:"absolute", left:42, right:0, top:0, bottom:0, color:"#d4d4d4", pointerEvents:"none", overflow:"hidden", paddingLeft:14 }}>
-          {highlight(value)}
+        <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
+          <div ref={highlightRef} style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, color:"#d4d4d4", pointerEvents:"none", overflow:"hidden", paddingLeft:14 }}>
+            {highlight(value)}
+          </div>
+          <textarea ref={textareaRef} value={value} onChange={e => onChange(e.target.value)} onKeyDown={handleKeyDown} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
+            style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, background:"transparent", color:"transparent", caretColor:"#aeafad", border:"none", outline:"none", resize:"none", zIndex:1, paddingLeft:14, overflow:"auto" }} />
         </div>
-        <textarea ref={textareaRef} value={value} onChange={e => onChange(e.target.value)} onKeyDown={handleKeyDown} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
-          style={{ ...shared, flex:1, background:"transparent", color:"transparent", caretColor:"#aeafad", border:"none", outline:"none", resize:"none", zIndex:1, paddingLeft:14, overflow:"auto" }} />
       </div>
     </div>
   );
@@ -519,116 +522,20 @@ function AvatarBuilder({ value, onChange }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  STORAGE  (cada aluno numa chave própria → tempo real confiável)
-// ════════════════════════════════════════════════════════════════════════════
-const PREFIX = "student:";
-const TEACHER_META_KEY = "teachermeta:main";
-const TEACHER_CODE_KEY = "teachercode:main";
-const hasStorage = () => typeof window !== "undefined" && !!window.storage;
-
-// a chave de cada aluno inclui o turno → o mesmo nome pode existir no matutino e no vespertino
-function safeName(name){ return String(name||"").trim().replace(/\s+/g,"_").replace(/["'\/\\:]/g,""); }
-function nameToKey(shift, name){ return `${PREFIX}${shift||"sem-turno"}:${safeName(name)}`; }
-function nudgeKeyFor(shift, name){ return `nudge:${shift||"sem-turno"}:${safeName(name)}`; }
-function resetFlagKey(shift){ return shift ? `classroom_reset_flag:${shift}` : "classroom_reset_flag"; }
-const RESET_KEY = "classroom_reset_flag"; // flag global (vale para todos os turnos)
-function normalizeKeys(res){
-  let keys = [];
-  if (Array.isArray(res)) keys = res;
-  else if (res && Array.isArray(res.keys)) keys = res.keys;
-  return keys.map(k => typeof k === "string" ? k : (k && (k.key || k.name || k.id)) || "").filter(Boolean);
-}
-async function saveStudent(shift, name, data){
-  if (!hasStorage()) return false;
-  try { await window.storage.set(nameToKey(shift, name), JSON.stringify(data), true); return true; } catch { return false; }
-}
-async function getStudent(shift, name){
-  if (!hasStorage()) return null;
-  try { const r = await window.storage.get(nameToKey(shift, name), true); return r ? JSON.parse(r.value) : null; } catch { return null; }
-}
-// avisos do professor → aluno (chave separada, para o heartbeat do aluno não sobrescrever)
-async function setNudge(shift, name, text){
-  if (!hasStorage()) return false;
-  try { await window.storage.set(nudgeKeyFor(shift, name), JSON.stringify({ text, at: Date.now() }), true); return true; } catch { return false; }
-}
-async function getNudge(shift, name){
-  if (!hasStorage()) return null;
-  try { const r = await window.storage.get(nudgeKeyFor(shift, name), true); return r ? JSON.parse(r.value) : null; } catch { return null; }
-}
-async function listStudents(){
-  if (!hasStorage()) return [];
-  let keys = [];
-  try { keys = normalizeKeys(await window.storage.list(PREFIX, true)); } catch { return []; }
-  const out = [];
-  for (const k of keys){ try { const r = await window.storage.get(k, true); if (r) out.push(JSON.parse(r.value)); } catch {} }
-  return out;
-}
-async function checkReset(shift, joinedAt){
-  if (!hasStorage()) return false;
-  try {
-    for (const k of [resetFlagKey(null), resetFlagKey(shift)]){
-      const r = await window.storage.get(k, true);
-      if (r && parseInt(r.value) > joinedAt) return true;
-    }
-    return false;
-  } catch { return false; }
-}
-async function resetAll(shift){
-  if (!hasStorage()) return false;
-  try {
-    // 1) marca o reset ANTES (qualquer heartbeat depois disso vai parar e deslogar)
-    await window.storage.set(resetFlagKey(shift || null), String(Date.now()), true);
-    const studentPrefix = shift ? `${PREFIX}${shift}:` : PREFIX;
-    const nudgePrefix   = shift ? `nudge:${shift}:`     : "nudge:";
-    // 2) apaga alunos + avisos (duas passadas para pegar quem recadastrar no meio)
-    for (let pass = 0; pass < 2; pass++) {
-      for (const k of normalizeKeys(await window.storage.list(studentPrefix, true))){ try { await window.storage.delete(k, true); } catch {} }
-      for (const k of normalizeKeys(await window.storage.list(nudgePrefix, true))){ try { await window.storage.delete(k, true); } catch {} }
-      await new Promise(r => setTimeout(r, 400));
-    }
-    return true;
-  } catch { return false; }
-}
-async function getTeacherMeta(){
-  const empty = { city:"", classDays:[], contentNames:{} };
-  if (!hasStorage()) return empty;
-  try { const r = await window.storage.get(TEACHER_META_KEY, true); return r ? { ...empty, ...JSON.parse(r.value) } : empty; }
-  catch { return empty; }
-}
-async function saveTeacherMeta(meta){
-  if (!hasStorage()) return;
-  try { await window.storage.set(TEACHER_META_KEY, JSON.stringify(meta), true); } catch {}
-}
-// código que o professor escreve na aba "Meu código" (fica salvo e vira a base do conteúdo do dia)
-async function saveTeacherCode(files){
-  if (!hasStorage()) return false;
-  try { await window.storage.set(TEACHER_CODE_KEY, JSON.stringify({ files, at: Date.now() }), true); return true; } catch { return false; }
-}
-async function getTeacherCode(){
-  if (!hasStorage()) return null;
-  try { const r = await window.storage.get(TEACHER_CODE_KEY, true); return r ? JSON.parse(r.value) : null; } catch { return null; }
-}
-async function diagnose(){
-  const out = { hasStorage: hasStorage(), writeRead:"—", listOk:false, keys:[], err:"" };
-  if (!hasStorage()) { out.err = "window.storage não existe neste ambiente"; return out; }
-  try { await window.storage.set("diag:ping", String(Date.now()), true); const r = await window.storage.get("diag:ping", true); out.writeRead = r && r.value ? "ok" : "leitura vazia"; }
-  catch (e) { out.writeRead = "erro"; out.err = String((e && e.message) || e); }
-  try { out.keys = normalizeKeys(await window.storage.list(PREFIX, true)); out.listOk = true; }
-  catch (e) { out.err = out.err || String((e && e.message) || e); }
-  return out;
-}
-
-// ════════════════════════════════════════════════════════════════════════════
 //  IA + util
 // ════════════════════════════════════════════════════════════════════════════
 async function askClaude(prompt, system){
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+  const resp = await fetch("/api/claude", {
     method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1500,
-      system: system||"Você é um robô assistente de programação para alunos iniciantes de C#. Responda sempre em português brasileiro simples e encorajador.",
-      messages:[{role:"user",content:prompt}] })
+    body: JSON.stringify({ prompt, system })
   });
   const data = await resp.json();
+  if (data.error === 'missing_api_key') {
+    const e = new Error('ROBOTKEY_MISSING');
+    e.userMsg = data.message || 'ANTHROPIC_API_KEY não configurada no Vercel.';
+    throw e;
+  }
+  if (!resp.ok) throw new Error(data.error || `API ${resp.status}`);
   return data.content?.map(b=>b.text||"").join("")||"";
 }
 function requestFS(){
@@ -706,6 +613,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout }) {
   const [nudge, setNudge2] = useState(null);
   const [nudgeSeenAt, setNudgeSeenAt] = useState(0);
   const [idleHint, setIdleHint] = useState(false);
+  // prova (exame)
+  const [examInfo, setExamInfo] = useState({ status: 'idle' });
+  const [examReady, setExamReady] = useState(false);
+  const [examScore, setExamScore] = useState(null);
+  const [examAnswers, setExamAnswers] = useState({});
+  const [examDone, setExamDone] = useState(false);
+  const [examCurrentQ, setExamCurrentQ] = useState(0);
 
   const sessionStart = useRef(Date.now());
   const stateRef = useRef({});
@@ -714,7 +628,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout }) {
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone };
   });
 
   const persist = useCallback(async (extra = {}) => {
@@ -741,6 +655,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout }) {
       hasError: s.feedback ? !s.feedback.ok : false,
       finalFeedback: s.finalFeedback || "",
       classFeedback: s.classFeedback || null,
+      examReady: s.examReady || false,
+      examScore: s.examScore ?? null,
+      examAnswers: s.examAnswers || {},
+      examDone: s.examDone || false,
       ...extra,
     });
     setConnected(ok);
@@ -766,7 +684,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout }) {
           if (prev.phase && prev.phase !== "generating") setPhase(prev.phase);
           if (prev.classFeedback) { setClassFb(prev.classFeedback); setClassRating(prev.classFeedback.rating||0); setClassText(prev.classFeedback.text||""); setClassSent(true); }
           if (prev.feedback) { setFeedback(prev.feedback); setRobotMsg(prev.feedback.message||""); setRobotState(prev.feedback.ok?"ok":"error"); setKeysToShow(prev.feedback.missingChars||[]); }
+          if (prev.examReady) setExamReady(true);
+          if (prev.examScore != null) setExamScore(prev.examScore);
+          if (prev.examAnswers) setExamAnswers(prev.examAnswers);
+          if (prev.examDone) setExamDone(true);
         }
+        const es = await getExamState();
+        if (alive) setExamInfo(es);
       } finally { if (alive) setLoaded(true); }
     })();
     return () => { alive = false; };
@@ -788,6 +712,25 @@ function StudentView({ studentName, initialAvatar, shift, onLogout }) {
       const s = stateRef.current;
       const codeLen = (s.code || "").trim().length;
       setIdleHint(s.phase === "coding" && codeLen < 10 && (Date.now() - sessionStart.current) > 90000);
+      // prova: busca estado global
+      try {
+        const es = await getExamState();
+        if (es.status === 'done' && !s.examDone) {
+          // professor encerrou, calcula pontuação parcial
+          const qs = es.questions || [];
+          const curA = s.examAnswers || {};
+          let pts = 0;
+          qs.forEach((q, i) => { if (curA[i] === q.correct) pts++; });
+          const partial = pts * 10;
+          setExamScore(partial); setExamDone(true);
+          await persist({ examScore: partial, examDone: true });
+        } else if (es.status === 'idle' && s.examDone) {
+          // professor resetou a prova
+          setExamReady(false); setExamScore(null); setExamAnswers({}); setExamDone(false); setExamCurrentQ(0);
+          await persist({ examReady: false, examScore: null, examAnswers: {}, examDone: false });
+        }
+        setExamInfo(es);
+      } catch {}
       await persist();
     };
     tick();
@@ -818,7 +761,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout }) {
         const parsed = JSON.parse(result.replace(/```json|```/g,"").trim());
         setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
         await persist({ feedback:parsed, hasError:!parsed.ok });
-      } catch { setRobotState("idle"); setRobotMsg(""); }
+      } catch(e) {
+        if (e.message === 'ROBOTKEY_MISSING') {
+          setRobotState("error");
+          setRobotMsg("🔑 Robô IA offline: o professor precisa configurar a chave ANTHROPIC_API_KEY no painel do Vercel. A verificação básica do código continua funcionando!");
+        } else {
+          setRobotState("idle"); setRobotMsg("");
+        }
+      }
       setAnalyzing(false);
     }, 2000);
   }, [activeCode]);
@@ -928,6 +878,27 @@ function StudentView({ studentName, initialAvatar, shift, onLogout }) {
     setFeedbackLoading(false);
   };
 
+  const handleExamReady = async () => {
+    setExamReady(true);
+    await persist({ examReady: true });
+  };
+
+  const handleExamAnswer = async (qIdx, optIdx) => {
+    const newAnswers = { ...examAnswers, [qIdx]: optIdx };
+    setExamAnswers(newAnswers);
+    const qs = examInfo.questions || [];
+    if (qIdx < qs.length - 1) {
+      setExamCurrentQ(qIdx + 1);
+      await persist({ examAnswers: newAnswers });
+    } else {
+      let pts = 0;
+      qs.forEach((q, i) => { if (newAnswers[i] === q.correct) pts++; });
+      const finalScore = pts * 10;
+      setExamScore(finalScore); setExamDone(true);
+      await persist({ examAnswers: newAnswers, examScore: finalScore, examDone: true });
+    }
+  };
+
   const tryFullscreen = () => {
     requestFS().then(()=>setFsMsg("")).catch(()=>{
       setFsMsg("Seu navegador ou aparelho não permite tela cheia aqui (no iPhone, por exemplo, não dá).");
@@ -962,6 +933,83 @@ function StudentView({ studentName, initialAvatar, shift, onLogout }) {
   );
 
   if (!loaded) return (<div style={{ ...styles.container, display:"flex", alignItems:"center", justifyContent:"center" }}><p style={{ color:"#94a3b8" }}>Carregando seu perfil...</p></div>);
+
+  // ── PROVA: telas de exame têm prioridade ──
+  if (examDone) return (
+    <div style={styles.container}>
+      <div style={styles.header}><span>🏆 Prova Concluída — {studentName}</span></div>
+      <div style={{ maxWidth:500, margin:"50px auto", textAlign:"center", padding:"0 16px" }}>
+        <div style={{ background:"linear-gradient(135deg,#22c55e,#16a34a)", borderRadius:18, padding:32, boxShadow:"0 12px 30px #22c55e44" }}>
+          <div style={{ fontSize:52 }}>🏆</div>
+          <h1 style={{ color:"#fff", fontSize:26, margin:"12px 0" }}>Parabéns, {studentName}!</h1>
+          <div style={{ fontSize:56, fontWeight:900, color:"#fff", margin:"8px 0" }}>{examScore ?? 0}</div>
+          <p style={{ color:"#d1fae5", fontSize:15 }}>pontos de {(examInfo.questions||[]).length * 10}</p>
+        </div>
+        <p style={{ color:"#94a3b8", marginTop:20, fontSize:14, lineHeight:1.6 }}>Aguarde o professor encerrar a prova para ver o ranking da turma!</p>
+      </div>
+    </div>
+  );
+
+  if (examInfo.status === 'review') return (
+    <div style={styles.container}>
+      <div style={styles.header}><span>📝 Revisão — {studentName}</span></div>
+      <div style={{ maxWidth:700, margin:"0 auto", padding:"22px 16px 36px" }}>
+        <div style={{ background:"linear-gradient(135deg,#6366f1,#8b5cf6)", borderRadius:18, padding:"24px 22px", textAlign:"center", boxShadow:"0 12px 30px #6366f155" }}>
+          <div style={{ fontSize:44 }}>📝</div>
+          <h1 style={{ color:"#fff", fontSize:24, margin:"8px 0" }}>Hora da Prova!</h1>
+          <p style={{ color:"#e0e7ff", fontSize:14, lineHeight:1.6 }}>Revise o conteúdo abaixo e entre na sala quando estiver pronto.</p>
+        </div>
+        <div style={{ ...styles.card, marginTop:14 }}>
+          <h3 style={{ color:"#6366f1", marginBottom:10 }}>📚 Resumo de Revisão</h3>
+          <div style={{ color:"#cbd5e1", fontSize:14, lineHeight:1.9, whiteSpace:"pre-wrap" }}>{examInfo.summary || "Preparando o resumo..."}</div>
+        </div>
+        {examReady ? (
+          <div style={{ ...styles.card, textAlign:"center", padding:24 }}>
+            <div style={{ fontSize:36 }}>✅</div>
+            <p style={{ color:"#22c55e", fontWeight:700, fontSize:16 }}>Você está na sala!</p>
+            <p style={{ color:"#94a3b8", fontSize:13 }}>Aguardando o professor iniciar a prova...</p>
+          </div>
+        ) : (
+          <button onClick={handleExamReady} style={{ ...styles.btn("#22c55e"), width:"100%", padding:"16px 0", fontSize:16, marginTop:14 }}>
+            ✅ Entrar na Sala da Prova
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  if (examInfo.status === 'active') {
+    const qs = examInfo.questions || [];
+    const q = qs[examCurrentQ];
+    return (
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <span>🏆 Prova — {studentName}</span>
+          <span style={{ color:"#94a3b8", fontSize:13 }}>Questão {examCurrentQ+1} de {qs.length}</span>
+        </div>
+        <div style={{ maxWidth:620, margin:"30px auto", padding:"0 16px" }}>
+          <div style={{ background:"#1e1e3a", borderRadius:14, padding:22, border:"1px solid #334155" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
+              <span style={{ color:"#6366f1", fontWeight:700 }}>Questão {examCurrentQ+1}/{qs.length}</span>
+              <span style={{ color:"#f59e0b", fontWeight:700 }}>10 pts cada</span>
+            </div>
+            <p style={{ color:"#e2e8f0", fontSize:16, lineHeight:1.7, marginBottom:18 }}>{q ? q.q : "Carregando..."}</p>
+            {q && q.opts.map((opt, oi) => (
+              <button key={oi} onClick={() => handleExamAnswer(examCurrentQ, oi)}
+                style={{ display:"block", width:"100%", background:examAnswers[examCurrentQ]===oi?"#6366f133":"#0f172a", border:`2px solid ${examAnswers[examCurrentQ]===oi?"#6366f1":"#334155"}`, borderRadius:10, padding:"12px 16px", color:"#e2e8f0", textAlign:"left", cursor:"pointer", marginBottom:8, fontSize:14 }}>
+                <span style={{ color:"#6366f1", fontWeight:700, marginRight:8 }}>{["A","B","C","D"][oi]}.</span>{opt}
+              </button>
+            ))}
+          </div>
+          <div style={{ display:"flex", gap:6, marginTop:12, flexWrap:"wrap" }}>
+            {qs.map((_,i) => (
+              <div key={i} style={{ width:28, height:28, borderRadius:6, background:i===examCurrentQ?"#6366f1":examAnswers[i]!=null?"#334155":"#1e1e3a", border:`1px solid ${i===examCurrentQ?"#6366f1":examAnswers[i]!=null?"#6366f1":"#334155"}`, display:"flex", alignItems:"center", justifyContent:"center", color:examAnswers[i]!=null?"#e2e8f0":"#475569", fontSize:12, cursor:"pointer" }} onClick={() => setExamCurrentQ(i)}>{i+1}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (phase==="generating") return (
     <div style={styles.container}>
@@ -1276,7 +1324,10 @@ function CodeLab({ accent = "#f59e0b", files = [{ name:"Program.cs", code:"" }],
         );
         const parsed = JSON.parse(result.replace(/```json|```/g,"").trim());
         setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]);
-      } catch { setRobotState("idle"); setRobotMsg(""); }
+      } catch(e) {
+        if (e.message === 'ROBOTKEY_MISSING') { setRobotState("error"); setRobotMsg("🔑 Robô IA offline: configure ANTHROPIC_API_KEY no Vercel."); }
+        else { setRobotState("idle"); setRobotMsg(""); }
+      }
       setAnalyzing(false);
     }, 2000);
   }, [activeCode]);
@@ -1456,11 +1507,18 @@ function TeacherView({ onLogout }) {
   // código do professor (aba "Meu código") — vive aqui para não se perder ao trocar de aba e para nomear o conteúdo
   const [proFiles, setProFiles] = useState([{ name:"Program.cs", code:"" }]);
   const [proLoaded, setProLoaded] = useState(false);
+  // prova
+  const [examConfig, setExamConfig] = useState({ status: 'idle' });
+  const [examGenerating, setExamGenerating] = useState(false);
+  const [examMsg, setExamMsg] = useState("");
+  const [examShift, setExamShift] = useState("all");
+  const [confirmEndExam, setConfirmEndExam] = useState(false);
 
   const load = useCallback(async () => {
     const arr = await listStudents();
     setStudents(arr);
     setLastUpdate(new Date().toLocaleTimeString("pt-BR"));
+    try { const ec = await getExamState(); setExamConfig(ec); } catch {}
     // marca o dia de hoje como aula se houver alunos
     if (arr.length > 0) {
       const tk = todayKey();
@@ -1551,6 +1609,52 @@ function TeacherView({ onLogout }) {
     if (ok) { setNudged(n => ({ ...n, [s.name]: Date.now() })); setTimeout(()=>setNudged(n=>{ const c={...n}; delete c[s.name]; return c; }), 5000); }
   };
 
+  const startExam = async () => {
+    const proCode = (proFiles||[]).map(f => (f.code||"")).join("\n").trim();
+    const studentCodes = students.filter(s=>(s.code||"").trim().length>5).map(s=>s.code).join("\n").slice(0,2000);
+    const codeCtx = proCode || studentCodes;
+    if (!codeCtx) { setExamMsg("Escreva o código de exemplo na aba Meu código primeiro!"); return; }
+    setExamGenerating(true); setExamMsg("Gerando resumo...");
+    try {
+      const summaryResult = await askClaude(
+        `Aqui está o código C# da aula de hoje:\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie um RESUMO DE REVISÃO em tópicos claros (máximo 8 tópicos) para os alunos estudarem antes de uma prova. Cada tópico: emoji + nome do conceito + explicação simples de 1 frase + exemplo curto. Português simples. Sem markdown pesado, use • para tópicos.`,
+        "Você cria resumos de revisão de C# para alunos iniciantes. Português simples."
+      );
+      setExamMsg("Gerando questões...");
+      const questionsResult = await askClaude(
+        `Com base neste código C# da aula:\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie 10 questões de múltipla escolha sobre os CONCEITOS do código (não matemática). Varie a dificuldade. Responda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
+        "Crie questões de múltipla escolha sobre C#. APENAS JSON puro sem markdown."
+      );
+      const parsed = JSON.parse(questionsResult.replace(/```json|```/g,"").trim());
+      const newConfig = { status: 'review', questions: parsed.questions, summary: summaryResult.trim(), shift: examShift, startedAt: Date.now() };
+      await setExamState(newConfig);
+      setExamConfig(newConfig);
+      setExamMsg("✅ Prova criada! Os alunos estão revisando. Quando todos estiverem prontos, clique em Iniciar Agora.");
+    } catch(e) { setExamMsg("Erro ao gerar a prova. Tente de novo."); }
+    setExamGenerating(false);
+  };
+
+  const activateExam = async () => {
+    const newConfig = { ...examConfig, status: 'active', activatedAt: Date.now() };
+    await setExamState(newConfig);
+    setExamConfig(newConfig);
+    setExamMsg("✅ Prova iniciada! Os alunos estão respondendo.");
+  };
+
+  const endExam = async () => {
+    const newConfig = { ...examConfig, status: 'done', endedAt: Date.now() };
+    await setExamState(newConfig);
+    setExamConfig(newConfig);
+    setExamMsg("✅ Prova encerrada! Veja o ranking abaixo.");
+    setConfirmEndExam(false);
+  };
+
+  const resetExam = async () => {
+    await setExamState({ status: 'idle' });
+    setExamConfig({ status: 'idle' });
+    setExamMsg("");
+  };
+
   const now = Date.now();
   const tk = todayKey();
   const isOnline = (s) => s.lastSeen && (now - s.lastSeen) < 9000;
@@ -1601,6 +1705,7 @@ function TeacherView({ onLogout }) {
           <button style={styles.tab(tab==="code")} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
           <button style={styles.tab(tab==="calendar")} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
           <button style={styles.tab(tab==="feedback")} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
+          <button style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle'?{borderColor:"#f59e0b",color:tab==="exam"?"#fff":"#f59e0b"}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
           <button style={styles.btn("#ef4444")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>
           <button style={{ ...styles.btn("#475569"), fontSize:13 }} onClick={onLogout}>Sair</button>
         </div>
@@ -1695,11 +1800,39 @@ function TeacherView({ onLogout }) {
               <h4 style={{ color:"#f59e0b", fontSize:13, marginBottom:6 }}>🔧 Conexão</h4>
               {diag ? (
                 <div style={{ color:"#cbd5e1", lineHeight:1.7 }}>
-                  <div>Armazenamento: <b style={{ color:diag.hasStorage?"#22c55e":"#ef4444" }}>{diag.hasStorage?"SIM":"NÃO"}</b> · escrever/ler: <b style={{ color:diag.writeRead==="ok"?"#22c55e":"#ef4444" }}>{diag.writeRead}</b></div>
-                  {!diag.hasStorage && <div style={{ color:"#f59e0b" }}>Publique o app para o tempo real funcionar.</div>}
+                  <div>
+                    Armazenamento: <b style={{ color:diag.hasStorage?"#22c55e":"#ef4444" }}>{diag.hasStorage?"OK":"NÃO"}</b>
+                    {diag.writeRead!=="—" && <> · <b style={{ color:diag.writeRead==="ok"?"#22c55e":"#ef4444" }}>{diag.writeRead}</b></>}
+                  </div>
+                  <div>Robô IA: <b style={{ color:diag.hasAI===true?"#22c55e":diag.hasAI===false?"#ef4444":"#94a3b8" }}>{diag.hasAI===true?"OK":diag.hasAI===false?"NÃO":"—"}</b></div>
+
+                  {!diag.hasStorage && (
+                    <div style={{ background:"#ef444415", border:"1px solid #ef4444", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.8 }}>
+                      <b style={{ color:"#ef4444" }}>❌ Monitoramento sem banco de dados</b><br/>
+                      <span style={{ color:"#94a3b8" }}>
+                        1. Acesse <b style={{color:"#e2e8f0"}}>vercel.com/dashboard</b><br/>
+                        2. Abra o projeto → aba <b style={{color:"#e2e8f0"}}>Storage</b><br/>
+                        3. <b style={{color:"#e2e8f0"}}>Create Database → KV</b> (escolha Upstash)<br/>
+                        4. Clique <b style={{color:"#e2e8f0"}}>Connect to Project</b><br/>
+                        5. Vá em <b style={{color:"#e2e8f0"}}>Deployments → Redeploy</b>
+                      </span>
+                    </div>
+                  )}
+                  {diag.hasAI === false && (
+                    <div style={{ background:"#f59e0b15", border:"1px solid #f59e0b", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.8 }}>
+                      <b style={{ color:"#f59e0b" }}>⚠ Robô IA sem chave de API</b><br/>
+                      <span style={{ color:"#94a3b8" }}>
+                        1. Acesse <b style={{color:"#e2e8f0"}}>console.anthropic.com</b><br/>
+                        2. API Keys → <b style={{color:"#e2e8f0"}}>Create Key</b><br/>
+                        3. No Vercel: projeto → <b style={{color:"#e2e8f0"}}>Settings → Environment Variables</b><br/>
+                        4. Adicione <b style={{color:"#e2e8f0"}}>ANTHROPIC_API_KEY</b> = sua chave<br/>
+                        5. <b style={{color:"#e2e8f0"}}>Redeploy</b>
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : <span style={{ color:"#475569" }}>verificando...</span>}
-              <button style={{ ...styles.btn("#334155"), padding:"4px 10px", fontSize:12, marginTop:6 }} onClick={load}>Atualizar agora</button>
+              <button style={{ ...styles.btn("#334155"), padding:"4px 10px", fontSize:12, marginTop:8 }} onClick={()=>{ diagnose().then(setDiag); load(); }}>↻ Verificar agora</button>
             </div>
 
             <div style={{ ...styles.card, fontSize:12 }}>
@@ -1888,6 +2021,154 @@ function TeacherView({ onLogout }) {
           </div>
         </div>
       )}
+
+      {/* ─────────── PROVA ─────────── */}
+      {tab==="exam" && (() => {
+        const examStudents = shiftFilter==="all" ? students : students.filter(s=>(s.shift||"sem-turno")===shiftFilter);
+        const readyStudents = examStudents.filter(s => s.examReady);
+        const doneStudents  = examStudents.filter(s => s.examDone);
+        const ranking = [...examStudents].filter(s=>s.examScore!=null).sort((a,b)=>(b.examScore||0)-(a.examScore||0));
+        const qLen = (examConfig.questions||[]).length;
+        const medal = (i) => i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
+        return (
+          <div style={{ padding:14, maxWidth:900, margin:"0 auto" }}>
+            {/* confirmação de encerrar */}
+            {confirmEndExam && (
+              <div style={{ position:"fixed", inset:0, background:"#000000aa", display:"flex", alignItems:"center", justifyContent:"center", zIndex:999, padding:16 }}>
+                <div style={{ background:"#1e1e3a", border:"2px solid #f59e0b", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
+                  <div style={{ fontSize:40, textAlign:"center" }}>⚠️</div>
+                  <h3 style={{ color:"#f59e0b", textAlign:"center", margin:"8px 0" }}>Encerrar a prova agora?</h3>
+                  <p style={{ color:"#cbd5e1", fontSize:14, textAlign:"center", lineHeight:1.6 }}>Os alunos que ainda não terminaram terão a pontuação parcial registrada.</p>
+                  <div style={{ display:"flex", gap:10, marginTop:18 }}>
+                    <button onClick={()=>setConfirmEndExam(false)} style={{ ...styles.btn("#334155"), flex:1 }}>Cancelar</button>
+                    <button onClick={endExam} style={{ ...styles.btn("#ef4444"), flex:1 }}>Encerrar</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* estado: idle */}
+            {examConfig.status === 'idle' && (
+              <div style={styles.card}>
+                <h3 style={{ color:"#f59e0b", marginBottom:4 }}>🏆 Criar Prova</h3>
+                <p style={{ color:"#94a3b8", fontSize:13, marginBottom:14, lineHeight:1.6 }}>A IA gera automaticamente um resumo de revisão e 10 questões de múltipla escolha com base no código de hoje. Os alunos revisam, entram na sala e então você inicia.</p>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>
+                  <span style={{ color:"#94a3b8", fontSize:13, alignSelf:"center" }}>Turma:</span>
+                  <button onClick={()=>setExamShift("all")} style={styles.tab(examShift==="all")}>Todas</button>
+                  {SHIFTS.map(sh=>(
+                    <button key={sh.id} onClick={()=>setExamShift(sh.id)} style={styles.tab(examShift===sh.id)}>{sh.emoji} {sh.label}</button>
+                  ))}
+                </div>
+                <p style={{ color:"#94a3b8", fontSize:12, marginBottom:10 }}>As questões são geradas a partir do código que você escreveu na aba <b>Meu código</b>. Se não houver, usa o código dos alunos.</p>
+                <button onClick={startExam} disabled={examGenerating} style={{ ...styles.btn("#6366f1"), opacity:examGenerating?0.6:1, padding:"12px 24px", fontSize:15 }}>
+                  {examGenerating ? "Gerando..." : "🚀 Gerar e Iniciar Prova"}
+                </button>
+                {examMsg && <p style={{ color:examMsg.startsWith("✅")?"#22c55e":"#f59e0b", fontSize:13, marginTop:10, lineHeight:1.5 }}>{examMsg}</p>}
+              </div>
+            )}
+
+            {/* estado: review */}
+            {examConfig.status === 'review' && (
+              <>
+                <div style={styles.card}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:10 }}>
+                    <div>
+                      <h3 style={{ color:"#f59e0b", margin:"0 0 4px" }}>📝 Fase de Revisão</h3>
+                      <p style={{ color:"#94a3b8", fontSize:13 }}>Os alunos estão revisando o conteúdo. Quando estiverem prontos, iniciam a prova.</p>
+                    </div>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={activateExam} style={{ ...styles.btn("#22c55e") }}>▶ Iniciar Agora ({readyStudents.length} prontos)</button>
+                      <button onClick={resetExam} style={{ ...styles.btn("#475569"), fontSize:13 }}>Cancelar</button>
+                    </div>
+                  </div>
+                  {examMsg && <p style={{ color:"#22c55e", fontSize:13, marginTop:10 }}>{examMsg}</p>}
+                </div>
+                <div style={styles.card}>
+                  <h4 style={{ color:"#f59e0b", marginBottom:10 }}>Alunos prontos ({readyStudents.length}/{examStudents.length})</h4>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                    {examStudents.map(s=>(
+                      <div key={s.name} style={{ display:"flex", alignItems:"center", gap:8, background:"#0f172a", border:`1px solid ${s.examReady?"#22c55e":"#334155"}`, borderRadius:10, padding:"8px 12px" }}>
+                        <Avatar cfg={s.avatar} size={26} />
+                        <span style={{ fontSize:13 }}>{s.name}</span>
+                        <span style={{ fontSize:14 }}>{s.examReady?"✅":"⏳"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* estado: active */}
+            {examConfig.status === 'active' && (
+              <>
+                <div style={styles.card}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
+                    <div>
+                      <h3 style={{ color:"#f59e0b", margin:"0 0 4px" }}>🏆 Prova em andamento</h3>
+                      <p style={{ color:"#94a3b8", fontSize:13 }}>{doneStudents.length}/{examStudents.length} alunos concluíram · {qLen} questões · {qLen*10} pts no máximo</p>
+                    </div>
+                    <button onClick={()=>setConfirmEndExam(true)} style={styles.btn("#ef4444")}>⏹ Encerrar Prova</button>
+                  </div>
+                  {examMsg && <p style={{ color:"#22c55e", fontSize:13, marginTop:8 }}>{examMsg}</p>}
+                </div>
+                <div style={styles.card}>
+                  <h4 style={{ color:"#f59e0b", marginBottom:12 }}>📊 Ranking ao vivo</h4>
+                  {ranking.length===0 ? <p style={{ color:"#475569", fontSize:13 }}>Aguardando alunos terminarem...</p> : (
+                    ranking.map((s,i)=>(
+                      <div key={s.name} style={{ display:"flex", alignItems:"center", gap:12, background:"#0f172a", border:`1px solid ${i===0?"#f59e0b":"#334155"}`, borderRadius:10, padding:"10px 14px", marginBottom:8 }}>
+                        <span style={{ fontSize:22, width:28 }}>{medal(i)||`#${i+1}`}</span>
+                        <Avatar cfg={s.avatar} size={28} />
+                        <span style={{ flex:1, fontWeight:600 }}>{s.name}</span>
+                        <span style={{ color:"#22c55e", fontWeight:700, fontSize:16 }}>{s.examScore} pts</span>
+                        <span style={styles.badge(s.examDone?"#22c55e":"#f59e0b")}>{s.examDone?"Concluído":"Respondendo"}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* estado: done */}
+            {examConfig.status === 'done' && (
+              <>
+                <div style={styles.card}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
+                    <div>
+                      <h3 style={{ color:"#22c55e", margin:"0 0 4px" }}>✅ Prova Encerrada</h3>
+                      <p style={{ color:"#94a3b8", fontSize:13 }}>Resultado final · {doneStudents.length}/{examStudents.length} alunos concluíram</p>
+                    </div>
+                    <button onClick={resetExam} style={styles.btn("#475569")}>🔄 Nova Prova</button>
+                  </div>
+                </div>
+                <div style={styles.card}>
+                  <h4 style={{ color:"#f59e0b", marginBottom:12 }}>🏆 Ranking Final</h4>
+                  {ranking.length===0 ? <p style={{ color:"#475569", fontSize:13 }}>Nenhum aluno respondeu.</p> : (
+                    ranking.map((s,i)=>(
+                      <div key={s.name} style={{ display:"flex", alignItems:"center", gap:12, background:i===0?"#f59e0b22":"#0f172a", border:`2px solid ${i===0?"#f59e0b":i===1?"#94a3b8":i===2?"#c2410c":"#334155"}`, borderRadius:12, padding:"12px 16px", marginBottom:8 }}>
+                        <span style={{ fontSize:26, width:32 }}>{medal(i)||<span style={{color:"#475569",fontSize:16}}>#{i+1}</span>}</span>
+                        <Avatar cfg={s.avatar} size={32} />
+                        <span style={{ flex:1, fontWeight:700, fontSize:15 }}>{s.name}</span>
+                        <span style={{ color:"#22c55e", fontWeight:800, fontSize:20 }}>{s.examScore ?? 0}</span>
+                        <span style={{ color:"#94a3b8", fontSize:12 }}>/{qLen*10}</span>
+                      </div>
+                    ))
+                  )}
+                  {examStudents.filter(s=>!s.examDone && s.examScore==null).length > 0 && (
+                    <div style={{ marginTop:12, padding:"10px 14px", background:"#1e293b", borderRadius:8 }}>
+                      <p style={{ color:"#94a3b8", fontSize:12, marginBottom:6 }}>Não concluíram:</p>
+                      <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                        {examStudents.filter(s=>!s.examDone && s.examScore==null).map(s=>(
+                          <span key={s.name} style={{ background:"#334155", color:"#94a3b8", borderRadius:8, padding:"4px 10px", fontSize:12 }}>{s.name}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
