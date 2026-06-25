@@ -1,30 +1,33 @@
-// One-shot endpoint to initialize the database.
-// Works when DATABASE_URL (Postgres) is set — creates the kv_store table if needed.
-// Also accepts SUPABASE_URL + DATABASE_URL derived from project ref.
+// Cria a tabela kv_store automaticamente.
+// Usa DATABASE_URL diretamente, ou deriva de SUPABASE_URL + DATABASE_PASSWORD.
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const DATABASE_URL = process.env.DATABASE_URL || ''
+  const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '')
+  const DATABASE_PASSWORD = process.env.DATABASE_PASSWORD || ''
 
-  if (!DATABASE_URL) {
+  let pgUrl = process.env.DATABASE_URL || ''
+  if (!pgUrl && SUPABASE_URL && DATABASE_PASSWORD) {
+    const ref = SUPABASE_URL.match(/([a-z0-9]+)\.supabase\.co/)?.[1]
+    if (ref) pgUrl = `postgresql://postgres:${encodeURIComponent(DATABASE_PASSWORD)}@db.${ref}.supabase.co:5432/postgres`
+  }
+
+  if (!pgUrl) {
     return res.status(503).json({
       ok: false,
-      error: 'DATABASE_URL não configurada no Vercel.',
+      error: 'Configuração incompleta.',
       help:
-        'Adicione DATABASE_URL nas variáveis de ambiente do Vercel.\n' +
-        'Formato: postgresql://postgres:[SENHA]@db.[PROJECT-REF].supabase.co:5432/postgres\n' +
-        'O PROJECT-REF aparece na URL do seu projeto no Supabase.',
+        'Adicione no Vercel (Settings → Environment Variables):\n' +
+        '• SUPABASE_URL = URL do projeto (de Settings → API)\n' +
+        '• DATABASE_PASSWORD = senha que você escolheu ao criar o projeto',
     })
   }
 
   try {
     const pgPkg = await import('pg')
     const Client = pgPkg.default?.Client || pgPkg.Client
-    const client = new Client({
-      connectionString: DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
-    })
+    const client = new Client({ connectionString: pgUrl, ssl: { rejectUnauthorized: false } })
     await client.connect()
     try {
       await client.query(`
@@ -34,15 +37,14 @@ export default async function handler(req, res) {
           updated_at  TIMESTAMPTZ DEFAULT NOW()
         )
       `)
-      // Quick smoke test
       await client.query(
         `INSERT INTO kv_store(key,value,updated_at) VALUES($1,$2,NOW())
          ON CONFLICT(key) DO UPDATE SET value=$2,updated_at=NOW()`,
         ['setup:ping', String(Date.now())]
       )
       const r = await client.query(`SELECT value FROM kv_store WHERE key=$1`, ['setup:ping'])
-      const ok = !!r.rows[0]?.value
-      return res.json({ ok, message: ok ? 'Banco configurado com sucesso!' : 'Tabela criada, mas leitura falhou.' })
+      if (!r.rows[0]?.value) throw new Error('Tabela criada mas leitura falhou.')
+      return res.json({ ok: true, message: 'Banco configurado com sucesso! Tabela criada.' })
     } finally {
       await client.end().catch(() => {})
     }

@@ -1832,16 +1832,13 @@ function TeacherView({ onLogout }) {
                     <div style={{ background:"#ef444415", border:"1px solid #ef4444", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.9 }}>
                       <b style={{ color:"#ef4444" }}>❌ Banco de dados não configurado</b><br/>
                       <span style={{ color:"#94a3b8" }}>
-                        <b style={{color:"#22c55e"}}>Supabase (grátis) — sem SQL, sem configurações:</b><br/>
-                        1. Crie conta em <b style={{color:"#e2e8f0"}}>supabase.com</b> → New Project<br/>
-                        &nbsp;&nbsp;&nbsp;<span style={{color:"#64748b"}}>(anote a senha do banco que você criar)</span><br/>
-                        2. Olhe a URL no seu navegador:<br/>
-                        &nbsp;&nbsp;&nbsp;<span style={{color:"#60a5fa", fontFamily:"monospace", fontSize:11}}>supabase.com/dashboard/project/<b style={{color:"#fbbf24"}}>CÓDIGO</b>/home</span><br/>
-                        3. No Vercel → Settings → Environment Variables, adicione:<br/>
-                        &nbsp;&nbsp;&nbsp;<b style={{color:"#e2e8f0"}}>DATABASE_URL</b> =<br/>
-                        &nbsp;&nbsp;&nbsp;<span style={{color:"#60a5fa", fontFamily:"monospace", fontSize:10}}>postgresql://postgres:[SENHA]@db.[CÓDIGO].supabase.co:5432/postgres</span><br/>
-                        4. Clique <b style={{color:"#e2e8f0"}}>Redeploy</b> no Vercel<br/>
-                        5. Volte aqui e clique <b style={{color:"#22c55e"}}>Inicializar banco</b> abaixo
+                        <b style={{color:"#22c55e"}}>Supabase — só 3 variáveis, tudo automático:</b><br/>
+                        1. No Supabase: <b style={{color:"#e2e8f0"}}>Settings → API</b><br/>
+                        &nbsp;&nbsp;&nbsp;Copie <b style={{color:"#fbbf24"}}>Project URL</b> → <span style={{fontFamily:"monospace",fontSize:11,color:"#60a5fa"}}>SUPABASE_URL</span><br/>
+                        &nbsp;&nbsp;&nbsp;Copie <b style={{color:"#fbbf24"}}>service_role</b> secret → <span style={{fontFamily:"monospace",fontSize:11,color:"#60a5fa"}}>SUPABASE_SERVICE_KEY</span><br/>
+                        2. A senha que você criou no projeto → <span style={{fontFamily:"monospace",fontSize:11,color:"#60a5fa"}}>DATABASE_PASSWORD</span><br/>
+                        3. Adicione as 3 no Vercel → <b style={{color:"#e2e8f0"}}>Settings → Environment Variables</b><br/>
+                        4. <b style={{color:"#e2e8f0"}}>Redeploy</b> → clique <b style={{color:"#22c55e"}}>Inicializar banco</b> abaixo
                       </span>
                       <div style={{marginTop:8}}>
                         <button
