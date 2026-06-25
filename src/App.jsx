@@ -1515,6 +1515,7 @@ function TeacherView({ onLogout }) {
   const [confirmEndExam, setConfirmEndExam] = useState(false);
   const [dbSetupMsg, setDbSetupMsg] = useState("");
   const [dbSetupLoading, setDbSetupLoading] = useState(false);
+  const [dbSetupSQL, setDbSetupSQL] = useState(null); // { sql, sqlEditorUrl }
 
   const load = useCallback(async () => {
     const arr = await listStudents();
@@ -1660,6 +1661,7 @@ function TeacherView({ onLogout }) {
   const setupDb = async () => {
     setDbSetupLoading(true);
     setDbSetupMsg("");
+    setDbSetupSQL(null);
     try {
       const r = await fetch("/api/setup-db", { method: "POST" });
       const d = await r.json();
@@ -1667,6 +1669,9 @@ function TeacherView({ onLogout }) {
         setDbSetupMsg("✅ " + (d.message || "Banco configurado!"));
         diagnose().then(setDiag);
         load();
+      } else if (d.needsSQL) {
+        setDbSetupSQL({ sql: d.sql, sqlEditorUrl: d.sqlEditorUrl });
+        setDbSetupMsg("Cole o SQL abaixo no Supabase e clique Verificar agora.");
       } else {
         setDbSetupMsg("❌ " + (d.error || "Erro ao configurar banco."));
       }
@@ -1830,47 +1835,49 @@ function TeacherView({ onLogout }) {
 
                   {!diag.hasStorage && (
                     <div style={{ background:"#ef444415", border:"1px solid #ef4444", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.9 }}>
-                      <b style={{ color:"#ef4444" }}>❌ Banco de dados não configurado</b><br/>
+                      <b style={{ color:"#ef4444" }}>❌ Banco não configurado</b><br/>
                       <span style={{ color:"#94a3b8" }}>
-                        <b style={{color:"#22c55e"}}>Supabase — só 3 variáveis, tudo automático:</b><br/>
-                        1. No Supabase: <b style={{color:"#e2e8f0"}}>Settings → API</b><br/>
-                        &nbsp;&nbsp;&nbsp;Copie <b style={{color:"#fbbf24"}}>Project URL</b> → <span style={{fontFamily:"monospace",fontSize:11,color:"#60a5fa"}}>SUPABASE_URL</span><br/>
-                        &nbsp;&nbsp;&nbsp;Copie <b style={{color:"#fbbf24"}}>service_role</b> secret → <span style={{fontFamily:"monospace",fontSize:11,color:"#60a5fa"}}>SUPABASE_SERVICE_KEY</span><br/>
-                        2. A senha que você criou no projeto → <span style={{fontFamily:"monospace",fontSize:11,color:"#60a5fa"}}>DATABASE_PASSWORD</span><br/>
-                        3. Adicione as 3 no Vercel → <b style={{color:"#e2e8f0"}}>Settings → Environment Variables</b><br/>
-                        4. <b style={{color:"#e2e8f0"}}>Redeploy</b> → clique <b style={{color:"#22c55e"}}>Inicializar banco</b> abaixo
+                        No Supabase → <b style={{color:"#e2e8f0"}}>Settings → API</b>:<br/>
+                        &nbsp;• Copie <b style={{color:"#fbbf24"}}>Project URL</b> → adicione no Vercel como <code style={{color:"#60a5fa"}}>SUPABASE_URL</code><br/>
+                        &nbsp;• Copie <b style={{color:"#fbbf24"}}>service_role</b> → adicione no Vercel como <code style={{color:"#60a5fa"}}>SUPABASE_SERVICE_KEY</code><br/>
+                        Depois clique <b style={{color:"#22c55e"}}>Inicializar banco</b> abaixo.
                       </span>
-                      <div style={{marginTop:8}}>
-                        <button
-                          style={{...styles.btn("#166534"), padding:"5px 12px", fontSize:12, opacity:dbSetupLoading?0.6:1}}
-                          onClick={setupDb}
-                          disabled={dbSetupLoading}
-                        >{dbSetupLoading?"Configurando...":"🔧 Inicializar banco"}</button>
-                        {dbSetupMsg && <span style={{marginLeft:8, color:dbSetupMsg.startsWith("✅")?"#22c55e":"#ef4444", fontSize:12}}>{dbSetupMsg}</span>}
-                      </div>
                     </div>
                   )}
+
+                  {/* SQL manual quando não tem DATABASE_PASSWORD */}
+                  {dbSetupSQL && (
+                    <div style={{ background:"#1e3a5f", border:"1px solid #3b82f6", borderRadius:8, padding:"10px 12px", marginTop:8 }}>
+                      <b style={{ color:"#93c5fd", fontSize:12 }}>Execute este SQL no Supabase:</b>
+                      <pre style={{ background:"#0f172a", borderRadius:6, padding:"8px 10px", margin:"6px 0", fontSize:11, color:"#22d3ee", overflowX:"auto", userSelect:"all" }}>{dbSetupSQL.sql}</pre>
+                      <a href={dbSetupSQL.sqlEditorUrl} target="_blank" rel="noreferrer"
+                        style={{ display:"inline-block", background:"#3b82f6", color:"#fff", borderRadius:6, padding:"4px 12px", fontSize:12, textDecoration:"none", marginRight:8 }}>
+                        Abrir SQL Editor →
+                      </a>
+                      <span style={{color:"#94a3b8",fontSize:11}}>Cole o SQL acima, clique Run, depois ↻ Verificar agora</span>
+                    </div>
+                  )}
+
                   {diag.hasAI === false && (
                     <div style={{ background:"#f59e0b15", border:"1px solid #f59e0b", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.8 }}>
                       <b style={{ color:"#f59e0b" }}>⚠ Robô IA sem chave de API</b><br/>
                       <span style={{ color:"#94a3b8" }}>
                         1. Acesse <b style={{color:"#e2e8f0"}}>console.anthropic.com</b><br/>
                         2. API Keys → <b style={{color:"#e2e8f0"}}>Create Key</b><br/>
-                        3. No Vercel: projeto → <b style={{color:"#e2e8f0"}}>Settings → Environment Variables</b><br/>
-                        4. Adicione <b style={{color:"#e2e8f0"}}>ANTHROPIC_API_KEY</b> = sua chave<br/>
-                        5. <b style={{color:"#e2e8f0"}}>Redeploy</b>
+                        3. No Vercel: Settings → Environment Variables<br/>
+                        4. Adicione <code style={{color:"#60a5fa"}}>ANTHROPIC_API_KEY</code> = sua chave → Redeploy
                       </span>
                     </div>
                   )}
                 </div>
               ) : <span style={{ color:"#475569" }}>verificando...</span>}
-              <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
-                <button style={{ ...styles.btn("#334155"), padding:"4px 10px", fontSize:12 }} onClick={()=>{ diagnose().then(setDiag); load(); }}>↻ Verificar agora</button>
-                {diag && !diag.hasStorage && (
-                  <button style={{...styles.btn("#166534"),padding:"4px 10px",fontSize:12,opacity:dbSetupLoading?0.6:1}} onClick={setupDb} disabled={dbSetupLoading}>{dbSetupLoading?"...":"🔧 Inicializar banco"}</button>
-                )}
+              <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap",alignItems:"center"}}>
+                <button style={{ ...styles.btn("#334155"), padding:"4px 10px", fontSize:12 }} onClick={()=>{ setDbSetupSQL(null); setDbSetupMsg(""); diagnose().then(setDiag); load(); }}>↻ Verificar agora</button>
+                <button style={{...styles.btn("#166534"),padding:"4px 10px",fontSize:12,opacity:dbSetupLoading?0.6:1}} onClick={setupDb} disabled={dbSetupLoading}>{dbSetupLoading?"...":"🔧 Inicializar banco"}</button>
               </div>
-              {dbSetupMsg && <p style={{color:dbSetupMsg.startsWith("✅")?"#22c55e":"#ef4444",fontSize:12,marginTop:6}}>{dbSetupMsg}</p>}
+              {dbSetupMsg && (
+                <p style={{color:dbSetupMsg.startsWith("✅")?"#22c55e":dbSetupMsg.startsWith("Cole")?"#93c5fd":"#ef4444",fontSize:12,marginTop:6}}>{dbSetupMsg}</p>
+              )}
             </div>
 
             <div style={{ ...styles.card, fontSize:12 }}>
