@@ -1513,6 +1513,8 @@ function TeacherView({ onLogout }) {
   const [examMsg, setExamMsg] = useState("");
   const [examShift, setExamShift] = useState("all");
   const [confirmEndExam, setConfirmEndExam] = useState(false);
+  const [dbSetupMsg, setDbSetupMsg] = useState("");
+  const [dbSetupLoading, setDbSetupLoading] = useState(false);
 
   const load = useCallback(async () => {
     const arr = await listStudents();
@@ -1653,6 +1655,26 @@ function TeacherView({ onLogout }) {
     await setExamState({ status: 'idle' });
     setExamConfig({ status: 'idle' });
     setExamMsg("");
+  };
+
+  const setupDb = async () => {
+    setDbSetupLoading(true);
+    setDbSetupMsg("");
+    try {
+      const r = await fetch("/api/setup-db", { method: "POST" });
+      const d = await r.json();
+      if (d.ok) {
+        setDbSetupMsg("✅ " + (d.message || "Banco configurado!"));
+        diagnose().then(setDiag);
+        load();
+      } else {
+        setDbSetupMsg("❌ " + (d.error || "Erro ao configurar banco."));
+      }
+    } catch (e) {
+      setDbSetupMsg("❌ " + String(e.message || e));
+    } finally {
+      setDbSetupLoading(false);
+    }
   };
 
   const now = Date.now();
@@ -1807,20 +1829,28 @@ function TeacherView({ onLogout }) {
                   <div>Robô IA: <b style={{ color:diag.hasAI===true?"#22c55e":diag.hasAI===false?"#ef4444":"#94a3b8" }}>{diag.hasAI===true?"OK":diag.hasAI===false?"NÃO":"—"}</b></div>
 
                   {!diag.hasStorage && (
-                    <div style={{ background:"#ef444415", border:"1px solid #ef4444", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.8 }}>
-                      <b style={{ color:"#ef4444" }}>❌ Monitoramento sem banco de dados</b><br/>
+                    <div style={{ background:"#ef444415", border:"1px solid #ef4444", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.9 }}>
+                      <b style={{ color:"#ef4444" }}>❌ Banco de dados não configurado</b><br/>
                       <span style={{ color:"#94a3b8" }}>
-                        <b style={{color:"#e2e8f0"}}>Opção A — Supabase (recomendado, grátis):</b><br/>
+                        <b style={{color:"#22c55e"}}>Supabase (grátis) — sem SQL, sem configurações:</b><br/>
                         1. Crie conta em <b style={{color:"#e2e8f0"}}>supabase.com</b> → New Project<br/>
-                        2. Em <b style={{color:"#e2e8f0"}}>Project Settings → Database</b><br/>
-                        3. Copie a <b style={{color:"#e2e8f0"}}>Connection string</b> (URI, porta 6543)<br/>
-                        4. No Vercel: Settings → Environment Variables<br/>
-                        &nbsp;&nbsp;&nbsp;Adicione <b style={{color:"#e2e8f0"}}>DATABASE_URL</b> = a connection string<br/>
-                        5. <b style={{color:"#e2e8f0"}}>Redeploy</b> — a tabela é criada automaticamente!<br/><br/>
-                        <b style={{color:"#e2e8f0"}}>Opção B — Vercel KV:</b><br/>
-                        1. Vercel → Storage → Create Database → KV<br/>
-                        2. Connect to Project → Redeploy
+                        &nbsp;&nbsp;&nbsp;<span style={{color:"#64748b"}}>(anote a senha do banco que você criar)</span><br/>
+                        2. Olhe a URL no seu navegador:<br/>
+                        &nbsp;&nbsp;&nbsp;<span style={{color:"#60a5fa", fontFamily:"monospace", fontSize:11}}>supabase.com/dashboard/project/<b style={{color:"#fbbf24"}}>CÓDIGO</b>/home</span><br/>
+                        3. No Vercel → Settings → Environment Variables, adicione:<br/>
+                        &nbsp;&nbsp;&nbsp;<b style={{color:"#e2e8f0"}}>DATABASE_URL</b> =<br/>
+                        &nbsp;&nbsp;&nbsp;<span style={{color:"#60a5fa", fontFamily:"monospace", fontSize:10}}>postgresql://postgres:[SENHA]@db.[CÓDIGO].supabase.co:5432/postgres</span><br/>
+                        4. Clique <b style={{color:"#e2e8f0"}}>Redeploy</b> no Vercel<br/>
+                        5. Volte aqui e clique <b style={{color:"#22c55e"}}>Inicializar banco</b> abaixo
                       </span>
+                      <div style={{marginTop:8}}>
+                        <button
+                          style={{...styles.btn("#166534"), padding:"5px 12px", fontSize:12, opacity:dbSetupLoading?0.6:1}}
+                          onClick={setupDb}
+                          disabled={dbSetupLoading}
+                        >{dbSetupLoading?"Configurando...":"🔧 Inicializar banco"}</button>
+                        {dbSetupMsg && <span style={{marginLeft:8, color:dbSetupMsg.startsWith("✅")?"#22c55e":"#ef4444", fontSize:12}}>{dbSetupMsg}</span>}
+                      </div>
                     </div>
                   )}
                   {diag.hasAI === false && (
@@ -1837,7 +1867,13 @@ function TeacherView({ onLogout }) {
                   )}
                 </div>
               ) : <span style={{ color:"#475569" }}>verificando...</span>}
-              <button style={{ ...styles.btn("#334155"), padding:"4px 10px", fontSize:12, marginTop:8 }} onClick={()=>{ diagnose().then(setDiag); load(); }}>↻ Verificar agora</button>
+              <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
+                <button style={{ ...styles.btn("#334155"), padding:"4px 10px", fontSize:12 }} onClick={()=>{ diagnose().then(setDiag); load(); }}>↻ Verificar agora</button>
+                {diag && !diag.hasStorage && (
+                  <button style={{...styles.btn("#166534"),padding:"4px 10px",fontSize:12,opacity:dbSetupLoading?0.6:1}} onClick={setupDb} disabled={dbSetupLoading}>{dbSetupLoading?"...":"🔧 Inicializar banco"}</button>
+                )}
+              </div>
+              {dbSetupMsg && <p style={{color:dbSetupMsg.startsWith("✅")?"#22c55e":"#ef4444",fontSize:12,marginTop:6}}>{dbSetupMsg}</p>}
             </div>
 
             <div style={{ ...styles.card, fontSize:12 }}>
