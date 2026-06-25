@@ -1810,11 +1810,16 @@ function TeacherView({ onLogout }) {
                     <div style={{ background:"#ef444415", border:"1px solid #ef4444", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.8 }}>
                       <b style={{ color:"#ef4444" }}>❌ Monitoramento sem banco de dados</b><br/>
                       <span style={{ color:"#94a3b8" }}>
-                        1. Acesse <b style={{color:"#e2e8f0"}}>vercel.com/dashboard</b><br/>
-                        2. Abra o projeto → aba <b style={{color:"#e2e8f0"}}>Storage</b><br/>
-                        3. <b style={{color:"#e2e8f0"}}>Create Database → KV</b> (escolha Upstash)<br/>
-                        4. Clique <b style={{color:"#e2e8f0"}}>Connect to Project</b><br/>
-                        5. Vá em <b style={{color:"#e2e8f0"}}>Deployments → Redeploy</b>
+                        <b style={{color:"#e2e8f0"}}>Opção A — Supabase (recomendado, grátis):</b><br/>
+                        1. Crie conta em <b style={{color:"#e2e8f0"}}>supabase.com</b> → New Project<br/>
+                        2. Em <b style={{color:"#e2e8f0"}}>Project Settings → Database</b><br/>
+                        3. Copie a <b style={{color:"#e2e8f0"}}>Connection string</b> (URI, porta 6543)<br/>
+                        4. No Vercel: Settings → Environment Variables<br/>
+                        &nbsp;&nbsp;&nbsp;Adicione <b style={{color:"#e2e8f0"}}>DATABASE_URL</b> = a connection string<br/>
+                        5. <b style={{color:"#e2e8f0"}}>Redeploy</b> — a tabela é criada automaticamente!<br/><br/>
+                        <b style={{color:"#e2e8f0"}}>Opção B — Vercel KV:</b><br/>
+                        1. Vercel → Storage → Create Database → KV<br/>
+                        2. Connect to Project → Redeploy
                       </span>
                     </div>
                   )}
