@@ -393,7 +393,7 @@ function Avatar({ cfg, size=72 }) {
         <img src={uri} width={size} height={size} alt="" draggable={false} style={{ display:"block" }} />
       </div>
       {c.pet && (
-        <span style={{ position:"absolute", right:-1, bottom:-1, fontSize:Math.max(11, Math.round(size*0.44)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
+        <span style={{ position:"absolute", right:Math.round(size*-0.14), bottom:Math.round(size*-0.08), fontSize:Math.max(10, Math.round(size*0.34)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
       )}
     </div>
   );
@@ -533,7 +533,8 @@ function quickCheck(code){
 // ════════════════════════════════════════════════════════════════════════════
 //  ALUNO
 // ════════════════════════════════════════════════════════════════════════════
-function StudentView({ studentName, initialAvatar, shift, onLogout }) {
+function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
+  const [showIntro, setShowIntro] = useState(!!isNew);
   const [files, setFiles] = useState([{ name:"Program.cs", code:"" }]);
   const [active, setActive] = useState(0);
   const [renaming, setRenaming] = useState(null);
@@ -1113,6 +1114,33 @@ function StudentView({ studentName, initialAvatar, shift, onLogout }) {
   // ── CODING ──
   return (
     <div style={styles.container}>
+      {/* apresentação do Nyx no primeiro acesso */}
+      {showIntro && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"26px 24px", maxWidth:440, width:"100%", textAlign:"center", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 44px #7c83ff22" }}>
+            <div style={{ animation:"nyx-float 3s ease-in-out .8s infinite" }}>
+              <NyxRobot state="ok" size={112} showName={false} />
+            </div>
+            <div style={{ fontWeight:900, fontSize:14, letterSpacing:3, color:"#7c83ff", marginTop:4 }}>NYX</div>
+            {/* balão de fala */}
+            <div style={{ position:"relative", background:"#0d1122", border:"1px solid #2c3358", borderRadius:16, padding:"16px 18px", marginTop:16, textAlign:"left" }}>
+              <div style={{ position:"absolute", top:-8, left:"50%", width:14, height:14, background:"#0d1122", borderLeft:"1px solid #2c3358", borderTop:"1px solid #2c3358", transform:"translateX(-50%) rotate(45deg)" }} />
+              <p style={{ color:"#e8ebfa", fontSize:16.5, fontWeight:800, margin:0, animation:"rise .5s ease .3s both" }}>
+                Oi, {String(studentName).split(" ")[0]}! Eu sou o <span style={{color:"#7c83ff"}}>Nyx</span> 🤖
+              </p>
+              <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, margin:"10px 0 0", animation:"rise .5s ease 1s both" }}>
+                Eu fico do lado do seu editor conferindo o código enquanto você escreve.
+              </p>
+              <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, margin:"10px 0 0", animation:"rise .5s ease 1.7s both" }}>
+                Se algo estiver errado, eu mostro <b style={{color:"#fbbf24"}}>onde está</b> e <b style={{color:"#34d399"}}>como corrigir</b> — até as teclas que você precisa apertar!
+              </p>
+            </div>
+            <button onClick={()=>setShowIntro(false)} style={{ ...styles.btn("#7c83ff"), width:"100%", padding:"13px 0", fontSize:15, marginTop:16, animation:"rise .5s ease 2.4s both" }}>
+              Vamos programar! 🚀
+            </button>
+          </div>
+        </div>
+      )}
       <div style={styles.header}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <Avatar cfg={avatar} size={34} />
@@ -2197,8 +2225,8 @@ function Login({ onJoin }) {
   }, []);
   useEffect(() => { if (role==="student") loadProfiles(); }, [role, loadProfiles]);
 
-  const enterStudent = (studentName, avatarCfg, shiftId) => { goFullscreen(); onJoin("student", studentName, avatarCfg, shiftId || "matutino"); };
-  const handleNewStudent = () => { if(!name.trim()){ setError("Digite seu nome!"); return; } enterStudent(name.trim(), avatar, shift); };
+  const enterStudent = (studentName, avatarCfg, shiftId, isNew) => { goFullscreen(); onJoin("student", studentName, avatarCfg, shiftId || "matutino", isNew); };
+  const handleNewStudent = () => { if(!name.trim()){ setError("Digite seu nome!"); return; } enterStudent(name.trim(), avatar, shift, true); };
   const handleTeacher = () => { if(password===TEACHER_PASS) onJoin("teacher","Professor"); else setError("Senha incorreta!"); };
 
   const styles = {
@@ -2307,7 +2335,7 @@ function Login({ onJoin }) {
 // ════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [session, setSession] = useState(null);
-  if (!session) return <Login onJoin={(role,name,avatar,shift)=>setSession({role,name,avatar,shift})} />;
+  if (!session) return <Login onJoin={(role,name,avatar,shift,isNew)=>setSession({role,name,avatar,shift,isNew})} />;
   if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} />;
-  return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} onLogout={()=>setSession(null)} />;
+  return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} onLogout={()=>setSession(null)} />;
 }
