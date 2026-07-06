@@ -402,42 +402,54 @@ function Avatar({ cfg, size=72 }) {
         {c.hairStyle==="rabo" && (<g><path d="M67 30 C82 34 85 50 79 64 C76 72 69 73 67 66 C73 54 71 42 63 34 Z" fill={c.hair}/><ellipse cx="68" cy="34" rx="5" ry="3.5" fill={shade(c.hair,-0.28)}/></g>)}
 
         {/* orelhas */}
-        <circle cx="28" cy="55" r="5.5" fill={c.skin} />
-        <circle cx="72" cy="55" r="5.5" fill={c.skin} />
+        <circle cx="25.5" cy="57" r="5.2" fill={c.skin} />
+        <circle cx="74.5" cy="57" r="5.2" fill={c.skin} />
+        <circle cx="25.5" cy="57" r="2" fill={shade(c.skin,-0.14)} opacity="0.6" />
+        <circle cx="74.5" cy="57" r="2" fill={shade(c.skin,-0.14)} opacity="0.6" />
 
-        {/* rosto */}
-        <ellipse cx="50" cy="53" rx="23" ry="25" fill={c.skin} />
+        {/* rosto (bochechas largas + queixo suave) */}
+        <path d="M50 79 C38 79 27 68.5 26 53 C25 36.5 36 25.5 50 25.5 C64 25.5 75 36.5 74 53 C73 68.5 62 79 50 79 Z" fill={c.skin} />
 
         {/* ── cabelo (frente) por estilo ── */}
         {(c.hairStyle==="curto"||c.hairStyle==="longo") && (
-          <path d="M26 54 C24 30 35 17 50 17 C65 17 76 30 74 54 C71 40 63 34 50 34 C37 34 29 40 26 54 Z" fill={c.hair} />
+          <g fill={c.hair}>
+            {/* franja repicada estilo anime */}
+            <path d="M23.5 58 C20 29 33 16 50 16 C67 16 80 29 76.5 58 C74.5 49.5 73.5 45.5 71.5 43 C72.8 49.5 69.5 52 66.5 45.5 C67 53 62.5 53.5 59.5 45.5 C58.5 53.5 53.5 54 51 46 C48.5 53.5 43.5 53.5 42 45.5 C40.5 53 36 52.5 35 45.5 C32.5 51.5 29.5 49.5 30.5 43 C28 46 25.5 50.5 23.5 58 Z" />
+            {/* mechas laterais sobre as orelhas */}
+            <path d="M23.5 52 C22 61 23.5 68 27 72.5 C29.5 66.5 28.5 58 28.5 51 Z" />
+            <path d="M76.5 52 C78 61 76.5 68 73 72.5 C70.5 66.5 71.5 58 71.5 51 Z" />
+            {/* fios rebeldes no topo */}
+            <path d="M35 19 Q39 11.5 46 12.5" stroke={c.hair} strokeWidth="2.6" fill="none" strokeLinecap="round" />
+            <path d="M56 12.5 Q63 12 67.5 18" stroke={c.hair} strokeWidth="2.6" fill="none" strokeLinecap="round" />
+            <path d="M48 12.5 Q51 8.5 56 9.5" stroke={c.hair} strokeWidth="2.2" fill="none" strokeLinecap="round" />
+          </g>
         )}
         {c.hairStyle==="topete" && (
-          <path d="M26 51 C24 31 32 16 50 17 C58 17 64 12 70 17 C80 25 77 40 74 51 C71 39 63 33 50 33 C37 33 29 40 26 51 Z" fill={c.hair} />
+          <path d="M26 52 C24 31 32 15.5 50 16.5 C58 16.5 64 11.5 70 16.5 C80 25 77 40 74 52 C71 40 63 35.5 50 35.5 C37 35.5 29 41 26 52 Z" fill={c.hair} />
         )}
         {c.hairStyle==="chanel" && (
-          <path d="M24 56 C22 30 34 17 50 17 C66 17 78 30 76 56 L76 67 Q76 71 72 70 L72 43 C66 35 58 33 50 33 C42 33 34 35 28 43 L28 70 Q24 71 24 67 Z" fill={c.hair} />
+          <path d="M24 56 C22 30 34 16.5 50 16.5 C66 16.5 78 30 76 56 L76 68 Q76 72 72 71 L72 45 Q50 38.5 28 45 L28 71 Q24 72 24 68 Z" fill={c.hair} />
         )}
         {c.hairStyle==="afro" && (
-          <path d="M28 50 C28 36 38 30 50 30 C62 30 72 36 72 50 C69 42 61 38 50 38 C39 38 31 42 28 50 Z" fill={c.hair} />
+          <path d="M26.5 52 C26 32 37 24.5 50 24.5 C63 24.5 74 32 73.5 52 C70 43.5 61.5 40 50 40 C38.5 40 30 43.5 26.5 52 Z" fill={c.hair} />
         )}
         {c.hairStyle==="coque" && (
-          <path d="M27 47 C26 29 37 20 50 20 C63 20 74 29 73 47 C70 37 62 33 50 33 C38 33 30 37 27 47 Z" fill={c.hair} />
+          <path d="M26 50 C25 30 37 20.5 50 20.5 C63 20.5 75 30 74 50 C70.5 39.5 62 35.5 50 35.5 C38 35.5 29.5 39.5 26 50 Z" fill={c.hair} />
         )}
         {c.hairStyle==="rabo" && (
-          <path d="M27 49 C26 31 37 21 50 21 C63 21 74 31 73 49 C70 39 62 34 50 34 C38 34 30 40 27 49 Z" fill={c.hair} />
+          <path d="M26 51 C25 31 37 21.5 50 21.5 C63 21.5 75 31 74 51 C70.5 40.5 62 36 50 36 C38 36 29.5 41 26 51 Z" fill={c.hair} />
         )}
         {c.hairStyle==="espetado" && (
           <g fill={c.hair}>
-            <path d="M27 53 C26 35 36 24 50 24 C64 24 74 35 73 53 C70 43 62 38 50 38 C38 38 30 43 27 53 Z" />
-            <path d="M29 41 L32 21 L40 38 Z" /><path d="M41 38 L47 17 L54 38 Z" /><path d="M54 38 L61 20 L68 41 Z" />
+            <path d="M23.5 55 C21 29 34 17 50 17 C66 17 79 29 76.5 55 C74 46 71.5 42.5 68.5 40.5 C69.5 46.5 65 48 62 42.5 C60.5 48.5 55 49 52 42.5 C49.5 49 44 48.5 41.5 42.5 C38.5 48 34.5 46.5 31.5 40.5 C28.5 42.5 26 46 23.5 55 Z" />
+            <path d="M27 36 L20 20 L35 29 Z" /><path d="M37 27 L36 8 L47 24 Z" /><path d="M50 23 L57 4 L61 24 Z" /><path d="M63 26 L74 12 L71 30 Z" /><path d="M71 34 L82 26 L76 40 Z" />
           </g>
         )}
         {c.hairStyle==="cacheado" && (
           <g fill={c.hair}>
-            <circle cx="32" cy="35" r="8" /><circle cx="42" cy="27" r="9" /><circle cx="54" cy="26" r="9" />
-            <circle cx="65" cy="31" r="8" /><circle cx="71" cy="41" r="7" /><circle cx="28" cy="43" r="7" />
-            <path d="M28 53 C28 39 38 31 50 31 C62 31 72 39 72 53 C69 45 61 41 50 41 C39 41 31 45 28 53 Z" />
+            <circle cx="29.5" cy="39" r="8.5" /><circle cx="38" cy="29.5" r="9.5" /><circle cx="50" cy="26" r="10" />
+            <circle cx="62" cy="29.5" r="9.5" /><circle cx="70.5" cy="39" r="8.5" /><circle cx="25.5" cy="49" r="7" /><circle cx="74.5" cy="49" r="7" />
+            <path d="M26 55 C26 39 37 31.5 50 31.5 C63 31.5 74 39 74 55 C70 46 61.5 42.5 50 42.5 C38.5 42.5 30 46 26 55 Z" />
           </g>
         )}
         {c.hairStyle==="moicano" && (
@@ -446,55 +458,82 @@ function Avatar({ cfg, size=72 }) {
             <path d="M45 12 L47 2 L50 12 Z" /><path d="M50 11 L53 1 L56 11 Z" /><path d="M44 17 L40 7 L46 15 Z" /><path d="M56 17 L60 7 L54 15 Z" />
           </g>
         )}
-        {/* brilho do cabelo */}
-        {hasTopHair && <path d="M35 28 Q42 22 50 22" stroke={hi} strokeWidth="2.6" fill="none" strokeLinecap="round" opacity="0.65" />}
+        {/* brilho do cabelo (mechas) */}
+        {hasTopHair && (
+          <g stroke={hi} strokeWidth="2.2" fill="none" strokeLinecap="round" opacity="0.6">
+            <path d="M34 27 Q40 21 48 20.5" />
+            <path d="M55 21 Q61 22 66 27" />
+          </g>
+        )}
 
-        {/* sobrancelhas */}
-        <path d="M36 45.5 Q41 42.5 46 45.5" stroke={brow} strokeWidth="2" fill="none" strokeLinecap="round" />
-        <path d="M54 45.5 Q59 42.5 64 45.5" stroke={brow} strokeWidth="2" fill="none" strokeLinecap="round" />
+        {/* sobrancelhas finas */}
+        <path d="M33 46 Q39 43.5 45 45.8" stroke={brow} strokeWidth="1.9" fill="none" strokeLinecap="round" />
+        <path d="M55 45.8 Q61 43.5 67 46" stroke={brow} strokeWidth="1.9" fill="none" strokeLinecap="round" />
 
-        {/* olhos */}
-        <ellipse cx="41" cy="53" rx="4.6" ry="5.3" fill="#fff" />
-        <ellipse cx="59" cy="53" rx="4.6" ry="5.3" fill="#fff" />
-        <circle cx="41.5" cy="53.6" r="2.7" fill="#3b2a1a" />
-        <circle cx="59.5" cy="53.6" r="2.7" fill="#3b2a1a" />
-        <circle cx="42.6" cy="52.3" r="0.95" fill="#fff" />
-        <circle cx="60.6" cy="52.3" r="0.95" fill="#fff" />
+        {/* ── olhos grandes estilo anime ── */}
+        {/* linha dos cílios */}
+        <path d="M33 51.5 Q39 47.5 45.3 50.8" stroke="#241a12" strokeWidth="2.3" fill="none" strokeLinecap="round" />
+        <path d="M54.7 50.8 Q61 47.5 67 51.5" stroke="#241a12" strokeWidth="2.3" fill="none" strokeLinecap="round" />
+        {/* branco do olho */}
+        <ellipse cx="39" cy="55.5" rx="5.7" ry="6.6" fill="#fff" />
+        <ellipse cx="61" cy="55.5" rx="5.7" ry="6.6" fill="#fff" />
+        {/* íris grande */}
+        <ellipse cx="39.3" cy="56" rx="4.4" ry="5.5" fill="#33261b" />
+        <ellipse cx="60.7" cy="56" rx="4.4" ry="5.5" fill="#33261b" />
+        {/* reflexo de vida na parte de baixo */}
+        <ellipse cx="39.3" cy="58.6" rx="2.7" ry="2.1" fill="#8a6544" opacity="0.85" />
+        <ellipse cx="60.7" cy="58.6" rx="2.7" ry="2.1" fill="#8a6544" opacity="0.85" />
+        {/* pupila */}
+        <circle cx="39.3" cy="55.6" r="1.8" fill="#150e08" />
+        <circle cx="60.7" cy="55.6" r="1.8" fill="#150e08" />
+        {/* brilhos */}
+        <circle cx="41.2" cy="53" r="1.6" fill="#fff" />
+        <circle cx="62.6" cy="53" r="1.6" fill="#fff" />
+        <circle cx="37.4" cy="58.8" r="0.85" fill="#fff" opacity="0.9" />
+        <circle cx="58.8" cy="58.8" r="0.85" fill="#fff" opacity="0.9" />
+        {/* pálpebra inferior sutil */}
+        <path d="M34.5 60.5 Q39 62.5 43.5 60.8" stroke={shade(c.skin,-0.16)} strokeWidth="1.1" fill="none" strokeLinecap="round" opacity="0.7" />
+        <path d="M56.5 60.8 Q61 62.5 65.5 60.5" stroke={shade(c.skin,-0.16)} strokeWidth="1.1" fill="none" strokeLinecap="round" opacity="0.7" />
 
-        {/* bochechas */}
-        <ellipse cx="34" cy="61" rx="4" ry="2.5" fill="#ff8da1" opacity="0.5" />
-        <ellipse cx="66" cy="61" rx="4" ry="2.5" fill="#ff8da1" opacity="0.5" />
+        {/* bochechas coradas + tracinhos */}
+        <ellipse cx="31" cy="63.5" rx="4.8" ry="2.7" fill="#ff9eae" opacity="0.5" />
+        <ellipse cx="69" cy="63.5" rx="4.8" ry="2.7" fill="#ff9eae" opacity="0.5" />
+        <g stroke="#f27d92" strokeWidth="1" opacity="0.5" strokeLinecap="round">
+          <line x1="29" y1="62" x2="31" y2="65" /><line x1="32" y1="61.6" x2="34" y2="64.6" />
+          <line x1="66" y1="61.6" x2="68" y2="64.6" /><line x1="69" y1="62" x2="71" y2="65" />
+        </g>
 
-        {/* nariz */}
-        <path d="M50 55 L50 59" stroke="rgba(0,0,0,0.18)" strokeWidth="2" strokeLinecap="round" />
+        {/* nariz pequeno */}
+        <path d="M50 60 L50 61.8" stroke="rgba(0,0,0,0.15)" strokeWidth="1.6" strokeLinecap="round" />
 
-        {/* boca */}
-        <path d="M43 65 Q50 71 57 65" stroke="#a23b3b" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+        {/* boca pequena e fofa */}
+        <path d="M45.5 66.8 Q50 71.5 54.5 66.8 Q50 69.6 45.5 66.8 Z" fill="#c9566a" />
+        <path d="M45.5 66.8 Q50 71.5 54.5 66.8" stroke="#a84355" strokeWidth="1.3" fill="none" strokeLinecap="round" />
 
         {/* ── óculos / máscara ── */}
         {c.eyewear==="oculos" && (
-          <g stroke="#1f2937" strokeWidth="2.2" fill="rgba(120,180,255,0.18)">
-            <rect x="32" y="48" width="14" height="10.5" rx="5" /><rect x="54" y="48" width="14" height="10.5" rx="5" />
-            <line x1="46" y1="52.5" x2="54" y2="52.5" /><line x1="32" y1="50" x2="27" y2="49" /><line x1="68" y1="50" x2="73" y2="49" />
+          <g stroke="#1f2937" strokeWidth="2" fill="rgba(120,180,255,0.15)">
+            <circle cx="39" cy="55.5" r="8.6" /><circle cx="61" cy="55.5" r="8.6" />
+            <path d="M47.6 54 Q50 52.4 52.4 54" fill="none" /><line x1="30.5" y1="53" x2="25.5" y2="52" /><line x1="69.5" y1="53" x2="74.5" y2="52" />
           </g>
         )}
         {c.eyewear==="oculos_sol" && (
           <g>
-            <rect x="31" y="47.5" width="15" height="11" rx="4" fill="#111827" /><rect x="54" y="47.5" width="15" height="11" rx="4" fill="#111827" />
-            <line x1="46" y1="51" x2="54" y2="51" stroke="#111827" strokeWidth="2.6" /><line x1="31" y1="49.5" x2="26" y2="48" stroke="#111827" strokeWidth="2" /><line x1="69" y1="49.5" x2="74" y2="48" stroke="#111827" strokeWidth="2" />
-            <line x1="34" y1="50" x2="37" y2="53.5" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" /><line x1="57" y1="50" x2="60" y2="53.5" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" />
+            <rect x="30.5" y="49" width="17" height="12.5" rx="6" fill="#111827" /><rect x="52.5" y="49" width="17" height="12.5" rx="6" fill="#111827" />
+            <line x1="47.5" y1="53" x2="52.5" y2="53" stroke="#111827" strokeWidth="2.6" /><line x1="30.5" y1="51.5" x2="25.5" y2="50" stroke="#111827" strokeWidth="2" /><line x1="69.5" y1="51.5" x2="74.5" y2="50" stroke="#111827" strokeWidth="2" />
+            <line x1="34" y1="51.5" x2="37.5" y2="55.5" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" /><line x1="56" y1="51.5" x2="59.5" y2="55.5" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" />
           </g>
         )}
         {c.eyewear==="mascara" && (
-          <path fillRule="evenodd" d="M27 47 Q50 42 73 47 Q73 59 63 60 Q56 60 55 54 Q50 51 45 54 Q44 60 37 60 Q27 59 27 47 Z M41 51.5 a4.9 5.6 0 1 0 0.1 0 Z M59 51.5 a4.9 5.6 0 1 0 0.1 0 Z" fill="#1f2937" />
+          <path fillRule="evenodd" d="M26 49 Q50 44 74 49 Q74 61.5 63.5 62.5 Q56.5 62.5 55.5 56.5 Q50 53.5 44.5 56.5 Q43.5 62.5 36.5 62.5 Q26 61.5 26 49 Z M39 52.5 a5.4 6.2 0 1 0 0.1 0 Z M61 52.5 a5.4 6.2 0 1 0 0.1 0 Z" fill="#1f2937" />
         )}
 
         {/* ── extra: fone / laço / flor / brinco ── */}
         {c.extra==="fone" && (
           <g>
-            <path d="M27 53 A23 23 0 0 1 73 53" stroke="#1f2937" strokeWidth="4" fill="none" />
-            <rect x="22" y="50" width="9" height="17" rx="4" fill="#1f2937" /><rect x="69" y="50" width="9" height="17" rx="4" fill="#1f2937" />
-            <rect x="24" y="53" width="5" height="11" rx="2.5" fill="#7c83ff" /><rect x="71" y="53" width="5" height="11" rx="2.5" fill="#7c83ff" />
+            <path d="M25.5 55 A24.5 24.5 0 0 1 74.5 55" stroke="#1f2937" strokeWidth="4" fill="none" />
+            <rect x="20" y="51" width="9.5" height="17" rx="4.5" fill="#1f2937" /><rect x="70.5" y="51" width="9.5" height="17" rx="4.5" fill="#1f2937" />
+            <rect x="22.2" y="54" width="5" height="11" rx="2.5" fill="#7c83ff" /><rect x="72.7" y="54" width="5" height="11" rx="2.5" fill="#7c83ff" />
           </g>
         )}
         {c.extra==="laco" && (
@@ -504,7 +543,7 @@ function Avatar({ cfg, size=72 }) {
           </g>
         )}
         {c.extra==="flor" && <Flower x={65} y={22} p="#f9a8d4" />}
-        {c.extra==="brinco" && (<g><circle cx="28" cy="62.5" r="2.2" fill="#fcd34d" /><circle cx="72" cy="62.5" r="2.2" fill="#fcd34d" /></g>)}
+        {c.extra==="brinco" && (<g><circle cx="25.5" cy="63.5" r="2.2" fill="#fcd34d" /><circle cx="74.5" cy="63.5" r="2.2" fill="#fcd34d" /></g>)}
 
         {/* ── chapéus / touca (sempre no topo) ── */}
         {c.headwear==="chapeu" && (
