@@ -2233,10 +2233,10 @@ function TeacherView({ onLogout }) {
                     <div style={{ background:"#fbbf2415", border:"1px solid #fbbf24", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.8 }}>
                       <b style={{ color:"#fbbf24" }}>⚠ Nyx (IA) sem chave de API</b><br/>
                       <span style={{ color:"#96a0cc" }}>
-                        1. Acesse <b style={{color:"#e8ebfa"}}>console.anthropic.com</b><br/>
-                        2. API Keys → <b style={{color:"#e8ebfa"}}>Create Key</b><br/>
-                        3. No Vercel: Settings → Environment Variables<br/>
-                        4. Adicione <code style={{color:"#60a5fa"}}>ANTHROPIC_API_KEY</code> = sua chave → Redeploy
+                        Escolha UMA opção e adicione no Vercel → Settings → Environment Variables:<br/>
+                        &nbsp;• <b style={{color:"#e8ebfa"}}>NVIDIA</b>: build.nvidia.com → adicione <code style={{color:"#60a5fa"}}>NVIDIA_API_KEY</code> + <code style={{color:"#60a5fa"}}>NVIDIA_MODEL</code><br/>
+                        &nbsp;• <b style={{color:"#e8ebfa"}}>Claude</b>: console.anthropic.com → adicione <code style={{color:"#60a5fa"}}>ANTHROPIC_API_KEY</code><br/>
+                        Depois é só dar <b style={{color:"#e8ebfa"}}>Redeploy</b>.
                       </span>
                     </div>
                   )}
