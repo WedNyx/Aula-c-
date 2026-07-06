@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createAvatar } from "@dicebear/core";
+import { lorelei } from "@dicebear/collection";
 import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState } from "./storage.js";
 
 // ── tema ──
@@ -317,13 +319,19 @@ function isLight(hex){ const [r,g,b]=hexToRgb(hex); return (0.299*r+0.587*g+0.11
 
 const AVATAR_OPTS = {
   bg:   ["#7c83ff","#34d399","#fbbf24","#f87171","#06b6d4","#ec4899","#8b5cf6","#3b82f6","#14b8a6","#0ea5e9","#f43f5e","#64748b"],
-  skin: ["#ffe0bd","#ffdbac","#f1c27d","#e0ac69","#c68642","#a86b3c","#8d5524","#5c3a21"],
-  shirt:["#e8ebfa","#7c83ff","#ec4899","#34d399","#fbbf24","#f87171","#06b6d4","#1f2937"],
-  hair: ["#2b2b2b","#3b2417","#6b3e26","#a0522d","#c2410c","#d9a441","#f0d58c","#c7cfee","#ec4899","#a855f7","#3b82f6","#06b6d4","#34d399","#f87171"],
-  hairStyle: ["curto","longo","espetado","cacheado","afro","moicano","coque","rabo","chanel","topete","careca"],
-  headwear: ["nenhum","chapeu","bone","coroa","tiara","bandana","flores"],
-  eyewear:  ["nenhum","oculos","oculos_sol","mascara"],
-  extra:    ["nenhum","fone","laco","flor","brinco"],
+  skin: ["#ffe0bd","#ffd6c0","#f1c27d","#e0ac69","#c68642","#a86b3c","#8d5524","#5c3a21"],
+  hair: ["#2b2b2b","#3b2417","#6b3e26","#a0522d","#c2410c","#d9a441","#f0d58c","#cbd5e1","#ec4899","#a855f7","#3b82f6","#06b6d4","#34d399","#f87171"],
+  hairV: [
+    ["variant11","Repicado"],["variant04","Arrepiado"],["variant01","Curto"],["variant05","Cachinhos"],
+    ["variant12","Franja"],["variant42","Ondulado"],["variant16","Longo"],["variant17","Longo repicado"],
+    ["variant19","Chanel"],["variant23","Franjinha"],["variant24","Cacheado"],["variant39","Crespo"],
+    ["variant26","Coquinhos"],["variant36","Coque"],["variant45","Coque solto"],["variant40","Lateral"],
+    ["variant27","Moicano"],["variant47","Raspado"],
+  ],
+  eyesV: [["variant09","Brilhantes"],["variant04","Grandes"],["variant06","Curiosos"],["variant13","Felizes"],["variant15","Piscada"],["variant24","Sonhadores"]],
+  mouthV: [["happy05","Feliz"],["happy01","Sorriso"],["happy02","Sorrisinho"],["happy03","Contente"],["happy07","Sorrisão"],["happy09","Dentinho"]],
+  glassesV: [["","Nenhum"],["variant01","Óculos 1"],["variant02","Óculos 2"],["variant03","Óculos 3"],["variant04","Óculos 4"],["variant05","Óculos 5"]],
+  earringsV: [["","Nenhum"],["variant01","Brinco 1"],["variant02","Brinco 2"],["variant03","Brinco 3"]],
   pet: [
     { e:"", label:"Nenhum" },
     { e:"🐉", label:"Dragão" },
@@ -340,281 +348,70 @@ const AVATAR_OPTS = {
     { e:"🐢", label:"Tartaruga" },
   ],
 };
-const DEFAULT_AVATAR = { bg:"#7c83ff", skin:"#ffdbac", hair:"#2b2b2b", hairStyle:"curto", shirt:"#e8ebfa", headwear:"nenhum", eyewear:"nenhum", extra:"nenhum", pet:"" };
+const DEFAULT_AVATAR = { bg:"#7c83ff", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"variant11", eyesV:"variant09", mouthV:"happy05", glassesV:"", earringsV:"", flores:false, freckles:false, pet:"" };
 
-let __avatarSeq = 0;
-function Avatar({ cfg, size=72 }) {
+// compatibilidade: converte perfis salvos no formato antigo para o novo estilo
+const OLD_HAIR_MAP = { curto:"variant04", longo:"variant16", espetado:"variant27", cacheado:"variant24", afro:"variant39", moicano:"variant27", coque:"variant36", rabo:"variant45", chanel:"variant23", topete:"variant01", careca:"variant47" };
+function normalizeAvatar(cfg) {
   const c = { ...DEFAULT_AVATAR, ...(cfg||{}) };
-  // compatibilidade com avatares antigos (campo único "accessory")
-  if (cfg && cfg.accessory && cfg.accessory!=="nenhum" && !cfg.headwear && !cfg.eyewear && !cfg.extra) {
-    const a = cfg.accessory;
-    if (a==="oculos"||a==="oculos_sol"||a==="mascara") c.eyewear = a;
-    else if (a==="fone"||a==="laco"||a==="flor"||a==="brinco") c.extra = a;
-    else c.headwear = a; // chapeu, bone, coroa
+  if (cfg && cfg.hairStyle && !cfg.hairV) {
+    c.hairV = OLD_HAIR_MAP[cfg.hairStyle] || DEFAULT_AVATAR.hairV;
+    if (cfg.eyewear === "oculos") c.glassesV = "variant01";
+    if (cfg.eyewear === "oculos_sol") c.glassesV = "variant04";
+    if (cfg.extra === "brinco") c.earringsV = "variant01";
+    if (cfg.headwear === "flores" || cfg.extra === "flor") c.flores = true;
   }
-  const idRef = useRef(null);
-  if (idRef.current === null) idRef.current = ++__avatarSeq;
-  const clip = "cl" + idRef.current;
-  const hi = shade(c.hair, 0.30);                          // brilho do cabelo
-  const brow = isLight(c.hair) ? shade(c.hair,-0.45) : c.hair;
-  const hasTopHair = !["careca","afro","cacheado","moicano"].includes(c.hairStyle);
-  const Flower = ({x,y,p,m="#fcd34d"}) => (
-    <g>
-      <circle cx={x} cy={y-3.2} r="2.5" fill={p}/><circle cx={x-3} cy={y-0.6} r="2.5" fill={p}/>
-      <circle cx={x+3} cy={y-0.6} r="2.5" fill={p}/><circle cx={x-1.9} cy={y+2.6} r="2.5" fill={p}/>
-      <circle cx={x+1.9} cy={y+2.6} r="2.5" fill={p}/><circle cx={x} cy={y} r="2" fill={m}/>
-    </g>
-  );
+  return c;
+}
+
+const hx = (h) => String(h||"").replace("#","");
+
+// gera o rosto no estilo anime (Lorelei, por Lisa Wischofsky — CC BY 4.0, via DiceBear)
+function loreleiSvg(c) {
+  return createAvatar(lorelei, {
+    seed: "aluno",
+    hair: [c.hairV], hairColor: [hx(c.hair)],
+    skinColor: [hx(c.skin)],
+    eyes: [c.eyesV],
+    mouth: [c.mouthV],
+    eyebrows: ["variant03"], nose: ["variant01"], head: ["variant01"],
+    beardProbability: 0,
+    freckles: ["variant01"], frecklesProbability: c.freckles ? 100 : 0,
+    glasses: c.glassesV ? [c.glassesV] : ["variant01"], glassesProbability: c.glassesV ? 100 : 0,
+    earrings: c.earringsV ? [c.earringsV] : ["variant01"], earringsProbability: c.earringsV ? 100 : 0,
+    hairAccessories: ["flowers"], hairAccessoriesProbability: c.flores ? 100 : 0,
+  }).toString();
+}
+
+function Avatar({ cfg, size=72 }) {
+  const c = normalizeAvatar(cfg);
+  const key = JSON.stringify(c);
+  const uri = useMemo(() => "data:image/svg+xml;utf8," + encodeURIComponent(loreleiSvg(c)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="avatar-pop" style={{ position:"relative", width:size, height:size, display:"inline-block", lineHeight:0, flexShrink:0 }}>
-    <svg width={size} height={size} viewBox="0 0 100 100" style={{ display:"block", filter:"drop-shadow(0 2px 5px rgba(0,0,0,.45))" }}>
-      <defs>
-        <clipPath id={clip}><circle cx="50" cy="50" r="48" /></clipPath>
-        <radialGradient id={clip+"bg"} cx="0.5" cy="0.32" r="0.9">
-          <stop offset="0" stopColor={shade(c.bg, 0.28)} />
-          <stop offset="0.55" stopColor={c.bg} />
-          <stop offset="1" stopColor={shade(c.bg, -0.28)} />
-        </radialGradient>
-      </defs>
-      <g clipPath={`url(#${clip})`}>
-        {/* fundo com profundidade */}
-        <circle cx="50" cy="50" r="48" fill={`url(#${clip}bg)`} />
-        <ellipse cx="50" cy="26" rx="44" ry="30" fill="#ffffff" opacity="0.08" />
-
-        {/* ombros / camiseta */}
-        <path d="M12 100 C14 83 30 79 50 79 C70 79 86 83 88 100 Z" fill={c.shirt} />
-        <path d="M40 79 Q50 90 60 79 L57 79 Q50 86 43 79 Z" fill={shade(c.shirt,-0.14)} />
-
-        {/* pescoço */}
-        <path d="M44 72 L44 83 Q50 86 56 83 L56 72 Z" fill={shade(c.skin,-0.06)} />
-
-        {/* ── cabelo (camada de trás) ── */}
-        {c.hairStyle==="longo" && <path d="M20 46 C18 24 33 15 50 15 C67 15 82 24 80 46 L80 88 Q72 94 68 84 L68 52 C60 42 40 42 32 52 L32 84 Q28 94 20 88 Z" fill={shade(c.hair,-0.16)} />}
-        {c.hairStyle==="afro" && (
-          <g fill={c.hair}>
-            <circle cx="50" cy="31" r="29" />
-            <circle cx="24" cy="30" r="9"/><circle cx="30" cy="15" r="9"/><circle cx="43" cy="8" r="9"/>
-            <circle cx="57" cy="8" r="9"/><circle cx="70" cy="15" r="9"/><circle cx="76" cy="30" r="9"/>
-            <circle cx="22" cy="44" r="8"/><circle cx="78" cy="44" r="8"/>
-          </g>
-        )}
-        {c.hairStyle==="coque" && (<g fill={c.hair}><circle cx="50" cy="13" r="9"/><ellipse cx="50" cy="22" rx="11" ry="6"/></g>)}
-        {c.hairStyle==="rabo" && (<g><path d="M67 30 C82 34 85 50 79 64 C76 72 69 73 67 66 C73 54 71 42 63 34 Z" fill={c.hair}/><ellipse cx="68" cy="34" rx="5" ry="3.5" fill={shade(c.hair,-0.28)}/></g>)}
-
-        {/* orelhas */}
-        <circle cx="25.5" cy="57" r="5.2" fill={c.skin} />
-        <circle cx="74.5" cy="57" r="5.2" fill={c.skin} />
-        <circle cx="25.5" cy="57" r="2" fill={shade(c.skin,-0.14)} opacity="0.6" />
-        <circle cx="74.5" cy="57" r="2" fill={shade(c.skin,-0.14)} opacity="0.6" />
-
-        {/* rosto (bochechas largas + queixo suave) */}
-        <path d="M50 79 C38 79 27 68.5 26 53 C25 36.5 36 25.5 50 25.5 C64 25.5 75 36.5 74 53 C73 68.5 62 79 50 79 Z" fill={c.skin} />
-
-        {/* ── cabelo (frente) por estilo ── */}
-        {(c.hairStyle==="curto"||c.hairStyle==="longo") && (
-          <g fill={c.hair}>
-            {/* franja repicada estilo anime */}
-            <path d="M23.5 58 C20 29 33 16 50 16 C67 16 80 29 76.5 58 C74.5 49.5 73.5 45.5 71.5 43 C72.8 49.5 69.5 52 66.5 45.5 C67 53 62.5 53.5 59.5 45.5 C58.5 53.5 53.5 54 51 46 C48.5 53.5 43.5 53.5 42 45.5 C40.5 53 36 52.5 35 45.5 C32.5 51.5 29.5 49.5 30.5 43 C28 46 25.5 50.5 23.5 58 Z" />
-            {/* mechas laterais sobre as orelhas */}
-            <path d="M23.5 52 C22 61 23.5 68 27 72.5 C29.5 66.5 28.5 58 28.5 51 Z" />
-            <path d="M76.5 52 C78 61 76.5 68 73 72.5 C70.5 66.5 71.5 58 71.5 51 Z" />
-            {/* fios rebeldes no topo */}
-            <path d="M35 19 Q39 11.5 46 12.5" stroke={c.hair} strokeWidth="2.6" fill="none" strokeLinecap="round" />
-            <path d="M56 12.5 Q63 12 67.5 18" stroke={c.hair} strokeWidth="2.6" fill="none" strokeLinecap="round" />
-            <path d="M48 12.5 Q51 8.5 56 9.5" stroke={c.hair} strokeWidth="2.2" fill="none" strokeLinecap="round" />
-          </g>
-        )}
-        {c.hairStyle==="topete" && (
-          <path d="M26 52 C24 31 32 15.5 50 16.5 C58 16.5 64 11.5 70 16.5 C80 25 77 40 74 52 C71 40 63 35.5 50 35.5 C37 35.5 29 41 26 52 Z" fill={c.hair} />
-        )}
-        {c.hairStyle==="chanel" && (
-          <path d="M24 56 C22 30 34 16.5 50 16.5 C66 16.5 78 30 76 56 L76 68 Q76 72 72 71 L72 45 Q50 38.5 28 45 L28 71 Q24 72 24 68 Z" fill={c.hair} />
-        )}
-        {c.hairStyle==="afro" && (
-          <path d="M26.5 52 C26 32 37 24.5 50 24.5 C63 24.5 74 32 73.5 52 C70 43.5 61.5 40 50 40 C38.5 40 30 43.5 26.5 52 Z" fill={c.hair} />
-        )}
-        {c.hairStyle==="coque" && (
-          <path d="M26 50 C25 30 37 20.5 50 20.5 C63 20.5 75 30 74 50 C70.5 39.5 62 35.5 50 35.5 C38 35.5 29.5 39.5 26 50 Z" fill={c.hair} />
-        )}
-        {c.hairStyle==="rabo" && (
-          <path d="M26 51 C25 31 37 21.5 50 21.5 C63 21.5 75 31 74 51 C70.5 40.5 62 36 50 36 C38 36 29.5 41 26 51 Z" fill={c.hair} />
-        )}
-        {c.hairStyle==="espetado" && (
-          <g fill={c.hair}>
-            <path d="M23.5 55 C21 29 34 17 50 17 C66 17 79 29 76.5 55 C74 46 71.5 42.5 68.5 40.5 C69.5 46.5 65 48 62 42.5 C60.5 48.5 55 49 52 42.5 C49.5 49 44 48.5 41.5 42.5 C38.5 48 34.5 46.5 31.5 40.5 C28.5 42.5 26 46 23.5 55 Z" />
-            <path d="M27 36 L20 20 L35 29 Z" /><path d="M37 27 L36 8 L47 24 Z" /><path d="M50 23 L57 4 L61 24 Z" /><path d="M63 26 L74 12 L71 30 Z" /><path d="M71 34 L82 26 L76 40 Z" />
-          </g>
-        )}
-        {c.hairStyle==="cacheado" && (
-          <g fill={c.hair}>
-            <circle cx="29.5" cy="39" r="8.5" /><circle cx="38" cy="29.5" r="9.5" /><circle cx="50" cy="26" r="10" />
-            <circle cx="62" cy="29.5" r="9.5" /><circle cx="70.5" cy="39" r="8.5" /><circle cx="25.5" cy="49" r="7" /><circle cx="74.5" cy="49" r="7" />
-            <path d="M26 55 C26 39 37 31.5 50 31.5 C63 31.5 74 39 74 55 C70 46 61.5 42.5 50 42.5 C38.5 42.5 30 46 26 55 Z" />
-          </g>
-        )}
-        {c.hairStyle==="moicano" && (
-          <g fill={c.hair}>
-            <path d="M44 37 C42 18 46 7 50 7 C54 7 58 18 56 37 Z" />
-            <path d="M45 12 L47 2 L50 12 Z" /><path d="M50 11 L53 1 L56 11 Z" /><path d="M44 17 L40 7 L46 15 Z" /><path d="M56 17 L60 7 L54 15 Z" />
-          </g>
-        )}
-        {/* brilho do cabelo (mechas) */}
-        {hasTopHair && (
-          <g stroke={hi} strokeWidth="2.2" fill="none" strokeLinecap="round" opacity="0.6">
-            <path d="M34 27 Q40 21 48 20.5" />
-            <path d="M55 21 Q61 22 66 27" />
-          </g>
-        )}
-
-        {/* sobrancelhas finas */}
-        <path d="M33 46 Q39 43.5 45 45.8" stroke={brow} strokeWidth="1.9" fill="none" strokeLinecap="round" />
-        <path d="M55 45.8 Q61 43.5 67 46" stroke={brow} strokeWidth="1.9" fill="none" strokeLinecap="round" />
-
-        {/* ── olhos grandes estilo anime ── */}
-        {/* linha dos cílios */}
-        <path d="M33 51.5 Q39 47.5 45.3 50.8" stroke="#241a12" strokeWidth="2.3" fill="none" strokeLinecap="round" />
-        <path d="M54.7 50.8 Q61 47.5 67 51.5" stroke="#241a12" strokeWidth="2.3" fill="none" strokeLinecap="round" />
-        {/* branco do olho */}
-        <ellipse cx="39" cy="55.5" rx="5.7" ry="6.6" fill="#fff" />
-        <ellipse cx="61" cy="55.5" rx="5.7" ry="6.6" fill="#fff" />
-        {/* íris grande */}
-        <ellipse cx="39.3" cy="56" rx="4.4" ry="5.5" fill="#33261b" />
-        <ellipse cx="60.7" cy="56" rx="4.4" ry="5.5" fill="#33261b" />
-        {/* reflexo de vida na parte de baixo */}
-        <ellipse cx="39.3" cy="58.6" rx="2.7" ry="2.1" fill="#8a6544" opacity="0.85" />
-        <ellipse cx="60.7" cy="58.6" rx="2.7" ry="2.1" fill="#8a6544" opacity="0.85" />
-        {/* pupila */}
-        <circle cx="39.3" cy="55.6" r="1.8" fill="#150e08" />
-        <circle cx="60.7" cy="55.6" r="1.8" fill="#150e08" />
-        {/* brilhos */}
-        <circle cx="41.2" cy="53" r="1.6" fill="#fff" />
-        <circle cx="62.6" cy="53" r="1.6" fill="#fff" />
-        <circle cx="37.4" cy="58.8" r="0.85" fill="#fff" opacity="0.9" />
-        <circle cx="58.8" cy="58.8" r="0.85" fill="#fff" opacity="0.9" />
-        {/* pálpebra inferior sutil */}
-        <path d="M34.5 60.5 Q39 62.5 43.5 60.8" stroke={shade(c.skin,-0.16)} strokeWidth="1.1" fill="none" strokeLinecap="round" opacity="0.7" />
-        <path d="M56.5 60.8 Q61 62.5 65.5 60.5" stroke={shade(c.skin,-0.16)} strokeWidth="1.1" fill="none" strokeLinecap="round" opacity="0.7" />
-
-        {/* bochechas coradas + tracinhos */}
-        <ellipse cx="31" cy="63.5" rx="4.8" ry="2.7" fill="#ff9eae" opacity="0.5" />
-        <ellipse cx="69" cy="63.5" rx="4.8" ry="2.7" fill="#ff9eae" opacity="0.5" />
-        <g stroke="#f27d92" strokeWidth="1" opacity="0.5" strokeLinecap="round">
-          <line x1="29" y1="62" x2="31" y2="65" /><line x1="32" y1="61.6" x2="34" y2="64.6" />
-          <line x1="66" y1="61.6" x2="68" y2="64.6" /><line x1="69" y1="62" x2="71" y2="65" />
-        </g>
-
-        {/* nariz pequeno */}
-        <path d="M50 60 L50 61.8" stroke="rgba(0,0,0,0.15)" strokeWidth="1.6" strokeLinecap="round" />
-
-        {/* boca pequena e fofa */}
-        <path d="M45.5 66.8 Q50 71.5 54.5 66.8 Q50 69.6 45.5 66.8 Z" fill="#c9566a" />
-        <path d="M45.5 66.8 Q50 71.5 54.5 66.8" stroke="#a84355" strokeWidth="1.3" fill="none" strokeLinecap="round" />
-
-        {/* ── óculos / máscara ── */}
-        {c.eyewear==="oculos" && (
-          <g stroke="#1f2937" strokeWidth="2" fill="rgba(120,180,255,0.15)">
-            <circle cx="39" cy="55.5" r="8.6" /><circle cx="61" cy="55.5" r="8.6" />
-            <path d="M47.6 54 Q50 52.4 52.4 54" fill="none" /><line x1="30.5" y1="53" x2="25.5" y2="52" /><line x1="69.5" y1="53" x2="74.5" y2="52" />
-          </g>
-        )}
-        {c.eyewear==="oculos_sol" && (
-          <g>
-            <rect x="30.5" y="49" width="17" height="12.5" rx="6" fill="#111827" /><rect x="52.5" y="49" width="17" height="12.5" rx="6" fill="#111827" />
-            <line x1="47.5" y1="53" x2="52.5" y2="53" stroke="#111827" strokeWidth="2.6" /><line x1="30.5" y1="51.5" x2="25.5" y2="50" stroke="#111827" strokeWidth="2" /><line x1="69.5" y1="51.5" x2="74.5" y2="50" stroke="#111827" strokeWidth="2" />
-            <line x1="34" y1="51.5" x2="37.5" y2="55.5" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" /><line x1="56" y1="51.5" x2="59.5" y2="55.5" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" />
-          </g>
-        )}
-        {c.eyewear==="mascara" && (
-          <path fillRule="evenodd" d="M26 49 Q50 44 74 49 Q74 61.5 63.5 62.5 Q56.5 62.5 55.5 56.5 Q50 53.5 44.5 56.5 Q43.5 62.5 36.5 62.5 Q26 61.5 26 49 Z M39 52.5 a5.4 6.2 0 1 0 0.1 0 Z M61 52.5 a5.4 6.2 0 1 0 0.1 0 Z" fill="#1f2937" />
-        )}
-
-        {/* ── extra: fone / laço / flor / brinco ── */}
-        {c.extra==="fone" && (
-          <g>
-            <path d="M25.5 55 A24.5 24.5 0 0 1 74.5 55" stroke="#1f2937" strokeWidth="4" fill="none" />
-            <rect x="20" y="51" width="9.5" height="17" rx="4.5" fill="#1f2937" /><rect x="70.5" y="51" width="9.5" height="17" rx="4.5" fill="#1f2937" />
-            <rect x="22.2" y="54" width="5" height="11" rx="2.5" fill="#7c83ff" /><rect x="72.7" y="54" width="5" height="11" rx="2.5" fill="#7c83ff" />
-          </g>
-        )}
-        {c.extra==="laco" && (
-          <g>
-            <path d="M64 21 L54 16 L54 28 Z" fill="#ec4899" /><path d="M64 21 L74 16 L74 28 Z" fill="#ec4899" />
-            <circle cx="64" cy="21.5" r="3" fill="#db2777" />
-          </g>
-        )}
-        {c.extra==="flor" && <Flower x={65} y={22} p="#f9a8d4" />}
-        {c.extra==="brinco" && (<g><circle cx="25.5" cy="63.5" r="2.2" fill="#fcd34d" /><circle cx="74.5" cy="63.5" r="2.2" fill="#fcd34d" /></g>)}
-
-        {/* ── chapéus / touca (sempre no topo) ── */}
-        {c.headwear==="chapeu" && (
-          <g>
-            <ellipse cx="50" cy="31" rx="31" ry="6.5" fill="#7c3aed" />
-            <path d="M34 31 Q33 12 50 12 Q67 12 66 31 Z" fill="#8b5cf6" />
-            <rect x="34" y="27" width="32" height="5" rx="2.5" fill="#6d28d9" />
-          </g>
-        )}
-        {c.headwear==="bone" && (
-          <g>
-            <path d="M27 31 Q29 15 50 15 Q71 15 73 31 Q61 26 50 26 Q39 26 27 31 Z" fill="#f87171" />
-            <path d="M25 32 Q17 32 15 37 Q29 35 41 31 Z" fill="#dc2626" />
-            <circle cx="50" cy="18" r="2.4" fill="#dc2626" />
-          </g>
-        )}
-        {c.headwear==="coroa" && (
-          <g>
-            <path d="M31 31 L31 17 L40 25 L50 13 L60 25 L69 17 L69 31 Z" fill="#fbbf24" stroke="#fbbf24" strokeWidth="1" />
-            <circle cx="50" cy="20" r="2" fill="#f87171" /><circle cx="35" cy="24" r="1.4" fill="#3b82f6" /><circle cx="65" cy="24" r="1.4" fill="#3b82f6" />
-          </g>
-        )}
-        {c.headwear==="tiara" && (
-          <g>
-            <path d="M32 27 Q50 18 68 27" stroke="#fcd34d" strokeWidth="3" fill="none" strokeLinecap="round" />
-            <path d="M46 23 L50 15 L54 23 Z" fill="#fde68a" stroke="#fbbf24" strokeWidth="0.8" />
-            <circle cx="50" cy="20.5" r="1.8" fill="#60a5fa" /><circle cx="40" cy="24.5" r="1.2" fill="#f9a8d4" /><circle cx="60" cy="24.5" r="1.2" fill="#f9a8d4" />
-          </g>
-        )}
-        {c.headwear==="bandana" && (
-          <g>
-            <path d="M26 30 Q50 22 74 30 L74 37 Q50 29 26 37 Z" fill="#f87171" />
-            <path d="M73 33 L82 30 L80 38 Z" fill="#dc2626" />
-            <circle cx="36" cy="32.5" r="1.1" fill="#fff" opacity="0.7" /><circle cx="50" cy="30.5" r="1.1" fill="#fff" opacity="0.7" /><circle cx="64" cy="32.5" r="1.1" fill="#fff" opacity="0.7" />
-          </g>
-        )}
-        {c.headwear==="flores" && (
-          <g>
-            <Flower x={36} y={25} p="#f9a8d4" /><Flower x={50} y={20} p="#fef08a" m="#fbbf24" /><Flower x={64} y={25} p="#c4b5fd" />
-          </g>
-        )}
-      </g>
-      {/* aro sutil por cima */}
-      <circle cx="50" cy="50" r="46.5" fill="none" stroke="rgba(0,0,0,0.15)" strokeWidth="3" />
-      <circle cx="50" cy="50" r="48.6" fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="1.4" />
-    </svg>
-    {c.pet && (
-      <span style={{ position:"absolute", right:-1, bottom:-1, fontSize:Math.max(11, Math.round(size*0.44)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
-    )}
+      <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", background:`radial-gradient(circle at 50% 30%, ${shade(c.bg,0.25)}, ${c.bg} 58%, ${shade(c.bg,-0.25)})`, boxShadow:"0 2px 5px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.14)" }}>
+        <img src={uri} width={size} height={size} alt="" draggable={false} style={{ display:"block" }} />
+      </div>
+      {c.pet && (
+        <span style={{ position:"absolute", right:-1, bottom:-1, fontSize:Math.max(11, Math.round(size*0.44)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
+      )}
     </div>
   );
 }
 
 function AvatarBuilder({ value, onChange }) {
-  const v = { ...DEFAULT_AVATAR, ...(value||{}) };
+  const v = normalizeAvatar(value);
   const set = (k, val) => onChange({ ...v, [k]: val });
-  const labels = {
-    hairStyle:["Curto","Longo","Espetado","Cacheado","Afro","Moicano","Coque","Rabo","Chanel","Topete","Careca"],
-    headwear:["Nenhum","Chapéu","Boné","Coroa","Tiara","Bandana","Flores"],
-    eyewear:["Nenhum","Óculos","Óculos de sol","Máscara"],
-    extra:["Nenhum","Fone","Laço","Flor","Brinco"],
-  };
   const randomize = () => {
     const pick = a => a[Math.floor(Math.random()*a.length)];
     onChange({
-      bg:pick(AVATAR_OPTS.bg), skin:pick(AVATAR_OPTS.skin), shirt:pick(AVATAR_OPTS.shirt),
-      hair:pick(AVATAR_OPTS.hair), hairStyle:pick(AVATAR_OPTS.hairStyle.filter(s=>s!=="careca")),
-      headwear: Math.random()<0.5 ? "nenhum" : pick(AVATAR_OPTS.headwear),
-      eyewear:  Math.random()<0.6 ? "nenhum" : pick(AVATAR_OPTS.eyewear),
-      extra:    Math.random()<0.6 ? "nenhum" : pick(AVATAR_OPTS.extra),
-      pet: v.pet,
+      ...v,
+      bg:pick(AVATAR_OPTS.bg), skin:pick(AVATAR_OPTS.skin), hair:pick(AVATAR_OPTS.hair),
+      hairV:pick(AVATAR_OPTS.hairV)[0], eyesV:pick(AVATAR_OPTS.eyesV)[0], mouthV:pick(AVATAR_OPTS.mouthV)[0],
+      glassesV: Math.random()<0.7 ? "" : pick(AVATAR_OPTS.glassesV.slice(1))[0],
+      earringsV: Math.random()<0.7 ? "" : pick(AVATAR_OPTS.earringsV.slice(1))[0],
+      flores: Math.random()<0.85,
+      freckles: Math.random()>=0.75,
     });
   };
   const Swatches = ({ k }) => (
@@ -625,13 +422,21 @@ function AvatarBuilder({ value, onChange }) {
       ))}
     </div>
   );
-  const Choices = ({ k }) => (
+  const Thumbs = ({ k, field }) => (
     <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-      {AVATAR_OPTS[k].map((o,i)=>(
-        <button key={o} type="button" onClick={()=>set(k,o)}
-          style={{ padding:"4px 10px", borderRadius:8, background:v[k]===o?"#7c83ff":"#0d1122", color:"#e8ebfa", border:`1px solid ${v[k]===o?"#7c83ff":"#2a3154"}`, cursor:"pointer", fontSize:12 }}>{labels[k][i]}</button>
+      {AVATAR_OPTS[k].map(([opt,label]) => (
+        <button key={opt||"nenhum"} type="button" onClick={()=>set(field,opt)} title={label}
+          style={{ background:v[field]===opt?"#7c83ff33":"#0d1122", border:`2px solid ${v[field]===opt?"#7c83ff":"#2a3154"}`, borderRadius:12, padding:3, cursor:"pointer", lineHeight:0 }}>
+          <Avatar cfg={{ ...v, pet:"", [field]:opt }} size={46} />
+        </button>
       ))}
     </div>
+  );
+  const Toggle = ({ field, label }) => (
+    <button type="button" onClick={()=>set(field, !v[field])}
+      style={{ padding:"5px 12px", borderRadius:10, background:v[field]?"#7c83ff":"#0d1122", color:"#e8ebfa", border:`1px solid ${v[field]?"#7c83ff":"#2a3154"}`, cursor:"pointer", fontSize:12, fontWeight:700 }}>
+      {v[field] ? "✓ " : ""}{label}
+    </button>
   );
   const Row = ({ label, children }) => (
     <div style={{ marginBottom:10 }}>
@@ -660,12 +465,13 @@ function AvatarBuilder({ value, onChange }) {
       <div style={{ flex:1, minWidth:240 }}>
         <Row label="Cor de fundo"><Swatches k="bg" /></Row>
         <Row label="Tom de pele"><Swatches k="skin" /></Row>
-        <Row label="Cor da camiseta"><Swatches k="shirt" /></Row>
         <Row label="Cor do cabelo"><Swatches k="hair" /></Row>
-        <Row label="Estilo do cabelo"><Choices k="hairStyle" /></Row>
-        <Row label="Chapéu / touca"><Choices k="headwear" /></Row>
-        <Row label="Óculos"><Choices k="eyewear" /></Row>
-        <Row label="Extra"><Choices k="extra" /></Row>
+        <Row label="Estilo do cabelo"><Thumbs k="hairV" field="hairV" /></Row>
+        <Row label="Olhos"><Thumbs k="eyesV" field="eyesV" /></Row>
+        <Row label="Boca"><Thumbs k="mouthV" field="mouthV" /></Row>
+        <Row label="Óculos"><Thumbs k="glassesV" field="glassesV" /></Row>
+        <Row label="Brincos"><Thumbs k="earringsV" field="earringsV" /></Row>
+        <Row label="Detalhes"><div style={{ display:"flex", gap:6, flexWrap:"wrap" }}><Toggle field="freckles" label="Sardas" /><Toggle field="flores" label="Flores no cabelo" /></div></Row>
         <Row label="🐉 Pet / Animal mitológico"><Pets /></Row>
       </div>
     </div>
