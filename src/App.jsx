@@ -20,6 +20,8 @@ const CS_SYSTEM = `Você é Nyx, um robô professor especialista em C# e .NET qu
 - NESTA TURMA: usa-se os tipos em minúsculo (string, int, double, bool — não String, Int32, Double, Boolean).
 - Erros comuns de iniciantes que você reconhece: esquecer ; , não fechar chaves/parênteses/aspas, errar maiúsculas/minúsculas, usar variável sem declarar, usar = em vez de ==, ler número sem Convert/Parse, palavras-chave digitadas erradas (publik, voi, whille, pritn), ponto no lugar de vírgula em declarações.
 - Vários arquivos .cs do mesmo projeto compilam JUNTOS: classes e métodos de um arquivo podem ser usados em outro, como no VS Code. Nunca aponte "classe não existe" se ela estiver em outro arquivo do projeto.
+- Programas de iniciante podem usar "top-level statements": código direto no arquivo, sem class Program e sem Main — isso é VÁLIDO no .NET moderno. Também NÃO é obrigatório escrever using System (implicit usings). Nunca marque essas duas coisas como erro.
+- PROTOCOLO DE VERIFICAÇÃO: analise o código linha por linha como um compilador faria. Primeiro liste mentalmente os possíveis problemas; depois CONFIRA cada um com calma (a variável foi mesmo usada antes de declarar? a chave aberta realmente não fecha em nenhuma linha abaixo? o nome está mesmo com a letra errada?); só então dê o veredito.
 - NUNCA invente erro em código que está correto. Aponte o lugar exato do problema e mostre a forma certa.
 Fale sempre em português brasileiro simples, gentil e encorajador.`;
 
@@ -538,7 +540,8 @@ function Terminal({ files, dataTour }) {
         `Execute "dotnet run" (a partir do método Main). Responda APENAS com o texto EXATO que o console mostraria desde o início da execução até agora, incluindo o eco das entradas digitadas nas posições em que foram digitadas. Sem explicações, sem markdown, sem crases.\n` +
         `Se houver erro de compilação, mostre os erros no formato real do compilador (ex: Program.cs(8,32): error CS1002: ; expected).\n` +
         `Depois da saída, escreva UMA última linha contendo exatamente:\n__AGUARDA__ se a execução parou em um Console.ReadLine esperando o usuário digitar\n__FIM__ se o programa terminou (ou se houve erro de compilação)`,
-        RUN_SYSTEM
+        RUN_SYSTEM,
+        { temperature: 0 }
       );
       let t = res.replace(/```/g, "");
       const waiting = /__AGUARDA__/.test(t);
@@ -569,7 +572,8 @@ function Terminal({ files, dataTour }) {
     try {
       const res = await askClaude(
         `Projeto C# (arquivos compilam juntos):\n\n${projectSrc()}\n\nAja como o comando "dotnet build". Se o projeto compilar sem erros, responda exatamente:\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\nSe houver erros de compilação, mostre-os no formato real do compilador (Arquivo.cs(linha,coluna): error CSxxxx: mensagem) seguidos de "Build FAILED.". Sem markdown, sem explicações.`,
-        RUN_SYSTEM
+        RUN_SYSTEM,
+        { temperature: 0 }
       );
       setHist(prev => [...prev.slice(0, runStartRef.current), ...res.replace(/```/g,"").trim().split("\n"), ""]);
     } catch {
@@ -701,7 +705,8 @@ function NyxChat({ who = "student", context, onTheme, accent = "#7c83ff", dataTo
         : "Você é o assistente do PROFESSOR dentro da plataforma, num chat pequeno. Responda curto e direto (máximo 6 frases), com base nos dados da turma fornecidos. Sugira a quem dar atenção, ideias de exercícios e próximos passos quando fizer sentido.";
       const out = await askClaude(
         `${context ? context() : ""}\n\nConversa até agora:\n${histTxt}\n\nResponda como Nyx à última mensagem.`,
-        CS_SYSTEM + "\n\n" + persona
+        CS_SYSTEM + "\n\n" + persona,
+        { temperature: 0.6 }
       );
       let reply = out.trim();
       const m = reply.match(/\[TEMA:([^\]]+)\]/i);
@@ -818,10 +823,10 @@ function TourOverlay({ step, onNext, onSkip }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  IA + util
 // ════════════════════════════════════════════════════════════════════════════
-async function askClaude(prompt, system){
+async function askClaude(prompt, system, opts = {}){
   const resp = await fetch("/api/claude", {
     method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ prompt, system })
+    body: JSON.stringify({ prompt, system, ...opts })
   });
   const data = await resp.json();
   if (data.error === 'missing_api_key') {
@@ -831,6 +836,29 @@ async function askClaude(prompt, system){
   }
   if (!resp.ok) throw new Error(data.error || `API ${resp.status}`);
   return data.content?.map(b=>b.text||"").join("")||"";
+}
+
+// extrai JSON mesmo se vier com texto/markdown em volta
+function extractJson(text) {
+  const cleaned = String(text || "").replace(/```json|```/g, "").trim();
+  try { return JSON.parse(cleaned); } catch {}
+  const a = cleaned.indexOf("{");
+  const b = cleaned.lastIndexOf("}");
+  if (a >= 0 && b > a) { try { return JSON.parse(cleaned.slice(a, b + 1)); } catch {} }
+  throw new Error("bad_json");
+}
+
+// pede JSON à IA com uma segunda tentativa automática se a resposta vier malformada
+async function askClaudeJson(prompt, system, opts = {}) {
+  try {
+    return extractJson(await askClaude(prompt, system, opts));
+  } catch (e) {
+    if (e.message === "ROBOTKEY_MISSING") throw e;
+    return extractJson(await askClaude(
+      prompt + "\n\nATENÇÃO: responda SOMENTE o objeto JSON válido, sem nenhum texto antes ou depois.",
+      system, opts
+    ));
+  }
 }
 function requestFS(){
   if (typeof document === "undefined") return Promise.reject(new Error("no-document"));
@@ -854,7 +882,11 @@ const isSameDayTs = (ts) => !!ts && new Date(ts).toDateString() === new Date().t
 
 // verificação local instantânea (sem IA)
 function quickCheck(code){
-  const c = code.replace(/"(?:[^"\\]|\\.)*"/g, '""').replace(/\/\/.*$/gm, "");
+  const c = code
+    .replace(/\/\*[\s\S]*?\*\//g, "")      // comentários /* */
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""')     // conteúdo de strings
+    .replace(/'(?:[^'\\]|\\.)'/g, "''")      // chars como '{'
+    .replace(/\/\/.*$/gm, "");               // comentários //
   const count = (ch) => c.split(ch).length - 1;
   const pairs = { "{":"}", "(":")", "[":"]" };
   for (const o of Object.keys(pairs)){
@@ -1053,11 +1085,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         return;
       }
       try {
-        const result = await askClaude(
-          `Você é um robô professor que revisa com ATENÇÃO o código C# de um aluno iniciante. Lembre-se: C# diferencia maiúsculas de minúsculas.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nConfira com cuidado, entre outras coisas:\n- Maiúsculas/minúsculas dos nomes: Console, WriteLine, ReadLine, Main, Convert, Parse. Ex: "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS; o certo é "Console.WriteLine".\n- Nesta turma usamos os tipos em MINÚSCULO do C#: string, int, double, bool, char, long, float. Se o aluno escreveu a versão com maiúscula (String, Int32, Double, Boolean, Char), avise que aqui usamos a versão minúscula e mostre a forma certa (ex: troque "String" por "string").\n- Ponto e vírgula ; faltando no fim das instruções.\n- Chaves { }, parênteses ( ) e aspas " abertas e não fechadas.\n- Palavras-chave escritas erradas (ex: "publik", "voi", "statics", "clas").\n- Nomes de variáveis usados sem ter sido criados.\n\nResponda APENAS em JSON puro, sem markdown:\n{"ok": true ou false, "message": "se estiver tudo certo, um elogio bem curto; se houver erro, explique de forma MUITO simples e gentil ONDE está (qual parte/linha) e COMO corrigir, mostrando a forma certa, em 1 a 3 frases", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se não faltar nenhum"]}\n\nSó marque ok=true se realmente NÃO houver nenhum desses problemas. Mas não invente erros em código que já está correto.`,
-          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown."
+        const parsed = await askClaudeJson(
+          `Revise o código C# de um aluno iniciante como um COMPILADOR faria, linha por linha.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nO que verificar (nesta ordem):\n1. Maiúsculas/minúsculas: Console.WriteLine, Console.ReadLine, Convert.ToInt32, int.Parse — "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS.\n2. Tipos em minúsculo (regra da turma): string, int, double, bool, char — se usou String/Int32/Double/Boolean, avise para trocar pela forma minúscula.\n3. Ponto e vírgula ; faltando no fim de instruções (declarações, chamadas, atribuições).\n4. Chaves { }, parênteses ( ) e aspas " — conte os pares no arquivo INTEIRO antes de acusar falta.\n5. Palavras-chave erradas (publik, voi, whille, pritn, statics, clas).\n6. Variáveis usadas sem declarar (confira TODAS as linhas anteriores antes de acusar) e comparação com = em vez de ==.\n7. Console.ReadLine lido direto para int/double sem Convert/Parse.\n\nLembretes IMPORTANTES:\n- Top-level statements (código sem class/Main) e ausência de using System são VÁLIDOS — não são erro.\n- Não aponte classe/método "inexistente" se estiver definido em outro arquivo do projeto.\n- NÃO invente erro em código correto. Na dúvida real, prefira ok=true.\n\nResponda APENAS em JSON puro, sem markdown, com os campos NESTA ordem:\n{"analise": "sua verificação rápida linha a linha, citando o que conferiu (máx 3 frases — o aluno não vê isto)", "ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: onde está (linha/trecho) e como corrigir mostrando a forma certa, em 1 a 3 frases gentis", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se nenhum"]}`,
+          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
+          { temperature: 0 }
         );
-        const parsed = JSON.parse(result.replace(/```json|```/g,"").trim());
         setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
         await persist({ feedback:parsed, hasError:!parsed.ok });
       } catch(e) {
@@ -1139,7 +1171,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         "Você é um professor de C# paciente e organizado, para iniciantes. Português correto e simples. Responda APENAS JSON puro válido."
       );
       let summaryData;
-      try { summaryData = JSON.parse(summaryResult.replace(/```json|```/g,"").trim()); }
+      try { summaryData = extractJson(summaryResult); }
       catch { summaryData = { raw: summaryResult }; }
       setDynamicSummary(summaryData);
       setGeneratingMsg("📝 Criando atividade sobre seu código...");
@@ -1147,7 +1179,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         `Um aluno de C# escreveu este código:\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nCrie 8 questões de múltipla escolha focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
         "Crie questões sobre conceitos de código C#, não matemática. APENAS JSON puro."
       );
-      const parsed = JSON.parse(activityResult.replace(/```json|```/g,"").trim());
+      const parsed = extractJson(activityResult);
       setDynamicActivity(parsed.questions);
       await persist({ phase:"summary", dynamicActivity:parsed.questions, dynamicSummary:summaryData });
       setPhase("summary");
@@ -1653,11 +1685,11 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
       const quick = quickCheck(activeCode);
       if (quick) { setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setAnalyzing(false); return; }
       try {
-        const result = await askClaude(
-          `Revise com atenção este código C#.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nResponda APENAS JSON puro: {"ok":true/false,"message":"elogio curto se ok; se houver erro, onde está e como corrigir em 1-3 frases","missingChars":["símbolos que faltam"]}`,
-          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown."
+        const parsed = await askClaudeJson(
+          `Revise este código C# como um compilador faria, linha por linha. Top-level statements e ausência de using System são válidos. Confira pares de chaves/parênteses/aspas no arquivo inteiro antes de acusar falta, e todas as linhas anteriores antes de acusar variável não declarada. Não invente erro em código correto.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nResponda APENAS JSON puro com os campos NESTA ordem: {"analise":"verificação curta linha a linha (interno)","ok":true/false,"message":"elogio curto se ok; se houver erro, onde está e como corrigir em 1-3 frases","missingChars":["símbolos que faltam"]}`,
+          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
+          { temperature: 0 }
         );
-        const parsed = JSON.parse(result.replace(/```json|```/g,"").trim());
         setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]);
       } catch(e) {
         if (e.message === 'ROBOTKEY_MISSING') { setRobotState("error"); setRobotMsg("🔑 Nyx está offline: configure ANTHROPIC_API_KEY no Vercel."); }
@@ -1935,7 +1967,7 @@ function TeacherView({ onLogout }) {
         `Com base neste código C# da aula:\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie 10 questões de múltipla escolha sobre os CONCEITOS do código (não matemática). Varie a dificuldade. Responda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
         "Crie questões de múltipla escolha sobre C#. APENAS JSON puro sem markdown."
       );
-      const parsed = JSON.parse(questionsResult.replace(/```json|```/g,"").trim());
+      const parsed = extractJson(questionsResult);
       const newConfig = { status: 'review', questions: parsed.questions, summary: summaryResult.trim(), shift: examShift, startedAt: Date.now() };
       await setExamState(newConfig);
       setExamConfig(newConfig);

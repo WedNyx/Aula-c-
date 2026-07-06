@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     })
   }
 
-  const { prompt, system } = req.body || {}
+  const { prompt, system, temperature, max_tokens } = req.body || {}
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -26,8 +26,9 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
+        model: 'claude-sonnet-5',
+        max_tokens: Math.min(Number(max_tokens) || 2000, 4000),
+        temperature: typeof temperature === 'number' ? temperature : 0.2,
         system:
           system ||
           'Você é um robô assistente de programação para alunos iniciantes de C#. Responda sempre em português brasileiro simples e encorajador.',
