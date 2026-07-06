@@ -244,9 +244,24 @@ function KeyVisual({ char }) {
     </div>
   );
 }
+// ── loja de acessórios do Nyx (desbloqueados com pontos de acerto) ──
+const NYX_ITEMS = [
+  { id:"fone",   label:"Fone de ouvido", emoji:"🎧", slot:"head", cost:5 },
+  { id:"laco",   label:"Laço",           emoji:"🎀", slot:"neck", cost:8 },
+  { id:"oculos", label:"Óculos escuros", emoji:"🕶️", slot:"face", cost:10 },
+  { id:"chapeu", label:"Cartola",        emoji:"🎩", slot:"head", cost:15 },
+  { id:"escudo", label:"Escudo",         emoji:"🛡️", slot:"hand", cost:20 },
+  { id:"espada", label:"Espada",         emoji:"⚔️", slot:"hand", cost:30 },
+  { id:"coroa",  label:"Coroa",          emoji:"👑", slot:"head", cost:40 },
+  { id:"arco",   label:"Arco e flecha",  emoji:"🏹", slot:"hand", cost:50 },
+];
+const DEFAULT_NYX_GEAR = { head:null, face:null, neck:null, hand:null };
+const nyxItemUnlocked = (points, item) => points >= item.cost;
+
 // ── NYX: o robô assistente da turma (SVG + animações CSS) ──
 let __nyxSeq = 0;
-function NyxRobot({ state = "idle", size = 100, showName = true }) {
+function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
+  const G = { ...DEFAULT_NYX_GEAR, ...(gear||{}) };
   const idRef = useRef(null);
   if (idRef.current === null) idRef.current = ++__nyxSeq;
   const uid = "nyx" + idRef.current;
@@ -283,11 +298,6 @@ function NyxRobot({ state = "idle", size = 100, showName = true }) {
           {/* sombra no chão */}
           <ellipse cx="60" cy="128" rx="26" ry="5" fill="#000" opacity="0.35" />
 
-          {/* antena */}
-          <line x1="60" y1="22" x2="60" y2="9" stroke={P.dark} strokeWidth="3.4" strokeLinecap="round" />
-          <circle cx="60" cy="7" r="7" fill={P.main} opacity="0.25" />
-          <circle cx="60" cy="7" r="4" fill={P.eye} style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite` }} />
-
           {/* orelhas */}
           <rect x="21" y="34" width="9" height="16" rx="4.5" fill={P.dark} />
           <rect x="90" y="34" width="9" height="16" rx="4.5" fill={P.dark} />
@@ -295,6 +305,33 @@ function NyxRobot({ state = "idle", size = 100, showName = true }) {
           {/* cabeça */}
           <rect x="28" y="20" width="64" height="44" rx="17" fill={`url(#${uid}h)`} />
           <rect x="28" y="20" width="64" height="20" rx="17" fill="#ffffff" opacity="0.12" />
+
+          {/* acessório de cabeça (por cima da cabeça; a antena sempre aparece por cima dele) */}
+          {G.head === "fone" && (
+            <g>
+              <path d="M23 38 Q60 8 97 38" stroke="#20242f" strokeWidth="5" fill="none" strokeLinecap="round" />
+              <circle cx="23" cy="41" r="8.5" fill="#20242f" /><circle cx="23" cy="41" r="4" fill={P.main} />
+              <circle cx="97" cy="41" r="8.5" fill="#20242f" /><circle cx="97" cy="41" r="4" fill={P.main} />
+            </g>
+          )}
+          {G.head === "chapeu" && (
+            <g stroke="#8b83b0" strokeWidth="1">
+              <ellipse cx="60" cy="19.5" rx="20" ry="4" fill="#241c3d" />
+              <rect x="46" y="4" width="28" height="16" rx="2.5" fill="#2d2447" />
+              <rect x="46" y="12" width="28" height="4" fill={P.main} stroke="none" />
+            </g>
+          )}
+          {G.head === "coroa" && (
+            <g>
+              <path d="M42 19 L42 9 L50 15 L60 5 L70 15 L78 9 L78 19 Z" fill="#fbbf24" stroke="#d99b0d" strokeWidth="1" />
+              <circle cx="60" cy="10" r="2" fill="#ef4444" />
+            </g>
+          )}
+
+          {/* antena (sempre por cima) */}
+          <line x1="60" y1="22" x2="60" y2="9" stroke={P.dark} strokeWidth="3.4" strokeLinecap="round" />
+          <circle cx="60" cy="7" r="7" fill={P.main} opacity="0.25" />
+          <circle cx="60" cy="7" r="4" fill={P.eye} style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite` }} />
 
           {/* visor */}
           <rect x="36" y="29" width="48" height="27" rx="12" fill="#0b0e1d" />
@@ -327,12 +364,52 @@ function NyxRobot({ state = "idle", size = 100, showName = true }) {
             </g>
           )}
 
+          {/* óculos escuros (cobre os olhos, como acessório de rosto) */}
+          {G.face === "oculos" && (
+            <g>
+              <rect x="36" y="35" width="20" height="13" rx="6" fill="#0d0f18" stroke="#1f2430" strokeWidth="1.5" />
+              <rect x="64" y="35" width="20" height="13" rx="6" fill="#0d0f18" stroke="#1f2430" strokeWidth="1.5" />
+              <rect x="56" y="39" width="8" height="3" fill="#1f2430" />
+              <ellipse cx="43" cy="39" rx="5" ry="3" fill="#ffffff" opacity="0.15" />
+              <ellipse cx="71" cy="39" rx="5" ry="3" fill="#ffffff" opacity="0.15" />
+            </g>
+          )}
+
           {/* pescoço */}
           <rect x="53" y="62" width="14" height="8" rx="3" fill={P.dark} />
+
+          {/* laço no pescoço */}
+          {G.neck === "laco" && (
+            <g>
+              <path d="M60 66 L52 62 L52 70 Z" fill="#ec4899" /><path d="M60 66 L68 62 L68 70 Z" fill="#ec4899" />
+              <circle cx="60" cy="66" r="2.6" fill="#db2777" />
+            </g>
+          )}
 
           {/* braços */}
           <rect x="26" y="74" width="10" height="24" rx="5" fill={P.dark} transform={state==="ok" ? "rotate(-38 31 76)" : "rotate(8 31 76)"} style={{ transition:"transform .3s" }} />
           <rect x="84" y="74" width="10" height="24" rx="5" fill={P.dark} transform={state==="ok" ? "rotate(38 89 76)" : "rotate(-8 89 76)"} style={{ transition:"transform .3s" }} />
+
+          {/* item na mão */}
+          {G.hand === "escudo" && (
+            <g>
+              <path d="M14 88 Q14 80 22 78 Q30 80 30 88 Q30 98 22 104 Q14 98 14 88 Z" fill="#94a3b8" stroke="#475569" strokeWidth="1.5" />
+              <path d="M22 82 L22 100 M16 91 L28 91" stroke="#475569" strokeWidth="1.5" />
+            </g>
+          )}
+          {G.hand === "espada" && (
+            <g transform="rotate(-25 24 90)">
+              <rect x="21" y="68" width="4" height="30" rx="1.5" fill="#cbd5e1" />
+              <rect x="15" y="96" width="16" height="4" rx="1.5" fill="#57534e" />
+              <rect x="21" y="100" width="4" height="10" rx="1.5" fill="#78350f" />
+            </g>
+          )}
+          {G.hand === "arco" && (
+            <g transform="rotate(10 20 90)">
+              <path d="M17 70 Q30 90 17 110" stroke="#78350f" strokeWidth="3" fill="none" strokeLinecap="round" />
+              <line x1="17" y1="70" x2="17" y2="110" stroke="#e5e7eb" strokeWidth="1" />
+            </g>
+          )}
 
           {/* corpo */}
           <rect x="38" y="68" width="44" height="38" rx="14" fill={`url(#${uid}b)`} />
@@ -704,7 +781,7 @@ function Terminal({ files, dataTour }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  CHAT COM O NYX  (botão flutuante — aluno e professor)
 // ════════════════════════════════════════════════════════════════════════════
-function NyxChat({ who = "student", context, onTheme, accent = "#7c83ff", dataTour }) {
+function NyxChat({ who = "student", context, onTheme, accent = "#7c83ff", dataTour, gear }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
@@ -754,7 +831,7 @@ function NyxChat({ who = "student", context, onTheme, accent = "#7c83ff", dataTo
       {open && (
         <div className="pop" style={{ position:"fixed", right:18, bottom:88, zIndex:900, width:"min(370px, calc(100vw - 36px))", height:"min(460px, calc(100vh - 120px))", background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:18, boxShadow:"0 24px 60px rgba(0,0,0,.55)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
           <div style={{ padding:"8px 14px", borderBottom:"1px solid #272e52", display:"flex", alignItems:"center", gap:10, background:"#0d1122" }}>
-            <NyxRobot state="idle" size={30} showName={false} />
+            <NyxRobot state="idle" size={30} showName={false} gear={gear} />
             <div>
               <div style={{ fontWeight:900, letterSpacing:2, fontSize:13, color:accent }}>NYX</div>
               <div style={{ fontSize:11, color:"#96a0cc" }}>{who==="student" ? "seu ajudante de C#" : "assistente do professor"}</div>
@@ -793,6 +870,7 @@ const TOUR_STEPS = [
   { sel:'[data-tour="editor"]',   emoji:"📝", title:"Seu editor de código",  text:"É aqui que você escreve seus programas em C#. Ele colore o código e fecha chaves, parênteses e aspas sozinho!" },
   { sel:'[data-tour="arquivos"]', emoji:"📄", title:"Seus arquivos",         text:"Crie quantos arquivos .cs quiser. Eles fazem parte do mesmo projeto e funcionam juntos, como no VS Code!" },
   { sel:'[data-tour="nyx"]',      emoji:"🤖", title:"Eu fico aqui!",          text:"Enquanto você escreve, eu confiro seu código. Se algo estiver errado, mostro onde está, como corrigir e até as teclas para apertar." },
+  { sel:'[data-tour="loja"]',     emoji:"🎁", title:"Loja do Nyx",            text:"Cada resposta certa nas atividades e provas vira pontos! Use-os aqui para desbloquear e equipar acessórios em mim: chapéu, fone, espada e muito mais." },
   { sel:'[data-tour="terminal"]', emoji:"⌨️", title:"Terminal como o do VS Code", text:"Digite dotnet run e aperte Enter para executar seu programa! Também tem dotnet build, dir, cls e ajuda. Quando o programa pedir algo, é só digitar." },
   { sel:'[data-tour="salvar"]',   emoji:"💾", title:"Salvar e finalizar",    text:"Quando terminar o código do dia, clique aqui: eu crio um resumo da aula e uma atividade feita só para você." },
   { sel:'[data-tour="tema"]',     emoji:"🎨", title:"Tema do fundo",         text:"Prefere claro ou escuro? Troque aqui. Quer outra cor? É só me pedir no chat que eu mudo para você!" },
@@ -836,6 +914,62 @@ function TourOverlay({ step, onNext, onSkip }) {
             <span style={{ color:"#5d679c", fontSize:12 }}>{step+1}/{TOUR_STEPS.length}</span>
             <button onClick={onNext} style={{ background:"linear-gradient(135deg,#7c83ff,#5a61e8)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"7px 16px", cursor:"pointer", fontSize:13 }}>{step === TOUR_STEPS.length-1 ? "Entendi! 🚀" : "Próximo →"}</button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
+// ════════════════════════════════════════════════════════════════════════════
+function NyxShop({ points, gear, onEquip, onClose }) {
+  const toggle = (item) => {
+    if (points < item.cost) return;
+    const isEquipped = gear[item.slot] === item.id;
+    onEquip({ ...gear, [item.slot]: isEquipped ? null : item.id });
+  };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:560, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎁 Loja do Nyx</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Cada resposta certa nas atividades e provas vira 1 ponto. Use para desbloquear e equipar acessórios!</p>
+
+        <div style={{ display:"flex", alignItems:"center", gap:16, background:"#0d1122", border:"1px solid #2a3154", borderRadius:16, padding:16, marginBottom:16 }}>
+          <NyxRobot state="ok" size={72} showName={false} gear={gear} />
+          <div>
+            <div style={{ color:"#fbbf24", fontWeight:900, fontSize:22 }}>{points} pts</div>
+            <div style={{ color:"#5d679c", fontSize:12 }}>Toque num item desbloqueado para vestir ou tirar</div>
+          </div>
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
+          {NYX_ITEMS.map(item => {
+            const unlocked = nyxItemUnlocked(points, item);
+            const equipped = gear[item.slot] === item.id;
+            return (
+              <button key={item.id} data-item={item.id} onClick={()=>toggle(item)} disabled={!unlocked}
+                style={{
+                  background: equipped ? "#7c83ff26" : "#0d1122",
+                  border: `2px solid ${equipped ? "#7c83ff" : unlocked ? "#2a3154" : "#241f38"}`,
+                  borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: unlocked?"pointer":"default",
+                  opacity: unlocked ? 1 : 0.55, position:"relative",
+                }}>
+                <div style={{ fontSize:30, filter: unlocked?"none":"grayscale(1)" }}>{item.emoji}</div>
+                <div style={{ color:"#e8ebfa", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
+                {unlocked ? (
+                  equipped
+                    ? <div style={{ color:"#7c83ff", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
+                    : <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>{item.cost} pts</div>
+                ) : (
+                  <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>🔒 {points}/{item.cost} pts</div>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -990,6 +1124,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [examAnswers, setExamAnswers] = useState({});
   const [examDone, setExamDone] = useState(false);
   const [examCurrentQ, setExamCurrentQ] = useState(0);
+  // loja do Nyx (pontos ganhos por acerto + acessórios equipados)
+  const [nyxPoints, setNyxPoints] = useState(0);
+  const [nyxGear, setNyxGear] = useState(DEFAULT_NYX_GEAR);
+  const [showNyxShop, setShowNyxShop] = useState(false);
 
   const sessionStart = useRef(Date.now());
   const stateRef = useRef({});
@@ -998,7 +1136,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxGear };
   });
 
   const persist = useCallback(async (extra = {}) => {
@@ -1030,6 +1168,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       examAnswers: s.examAnswers || {},
       examDone: s.examDone || false,
       theme: s.theme || "dark",
+      nyxPoints: s.nyxPoints || 0,
+      nyxGear: s.nyxGear || DEFAULT_NYX_GEAR,
       ...extra,
     });
     setConnected(ok);
@@ -1060,6 +1200,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.examAnswers) setExamAnswers(prev.examAnswers);
           if (prev.examDone) setExamDone(true);
           if (prev.theme) setTheme(prev.theme);
+          if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
+          if (prev.nyxGear) setNyxGear({ ...DEFAULT_NYX_GEAR, ...prev.nyxGear });
         }
         const es = await getExamState();
         if (alive) setExamInfo(es);
@@ -1100,7 +1242,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           qs.forEach((q, i) => { if (curA[i] === q.correct) pts++; });
           const partial = pts * 10;
           setExamScore(partial); setExamDone(true);
-          await persist({ examScore: partial, examDone: true });
+          const newNyxPoints = (s.nyxPoints || 0) + pts;
+          setNyxPoints(newNyxPoints);
+          await persist({ examScore: partial, examDone: true, nyxPoints: newNyxPoints });
         } else if (es.status === 'idle' && s.examDone) {
           // professor resetou a prova
           setExamReady(false); setExamScore(null); setExamAnswers({}); setExamDone(false); setExamCurrentQ(0);
@@ -1245,7 +1389,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     setScore(finalScore);
     setPhase("done");
     setFeedbackLoading(true);
-    await persist({ phase:"done", score:finalScore, answers });
+    const newNyxPoints = nyxPoints + pts;
+    setNyxPoints(newNyxPoints);
+    await persist({ phase:"done", score:finalScore, answers, nyxPoints: newNyxPoints });
     try {
       const list = activity.map((q,i)=>`- ${q.q} → ${answers[i]===q.correct?"acertou":"errou"}`).join("\n");
       const fb = await askClaude(
@@ -1275,7 +1421,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       qs.forEach((q, i) => { if (newAnswers[i] === q.correct) pts++; });
       const finalScore = pts * 10;
       setExamScore(finalScore); setExamDone(true);
-      await persist({ examAnswers: newAnswers, examScore: finalScore, examDone: true });
+      const newNyxPoints = nyxPoints + pts;
+      setNyxPoints(newNyxPoints);
+      await persist({ examAnswers: newAnswers, examScore: finalScore, examDone: true, nyxPoints: newNyxPoints });
     }
   };
 
@@ -1706,9 +1854,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         {/* Robô + atalhos */}
         <div style={{ width:250, flex:"0 0 250px" }}>
           <div data-tour="nyx" style={styles.card}>
-            <NyxRobot state={robotState} size={88} />
+            <NyxRobot state={robotState} size={88} gear={nyxGear} />
             {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6 }}>{robotMsg}</div>)}
             {keysToShow.length>0&&(<div style={{ marginTop:10 }}><p style={{ color:"#fbbf24", fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
+            <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
+              🎁 Loja do Nyx · {nyxPoints} pts
+            </button>
           </div>
           <div style={{ ...styles.card, fontSize:12, color:"#5d679c", lineHeight:1.8 }}>
             <p style={{ color:"#7c83ff", fontWeight:600, marginBottom:6 }}>⌨️ Atalhos do editor</p>
@@ -1725,9 +1876,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         <TourOverlay step={tourStep} onSkip={()=>setTourStep(-1)} onNext={()=>setTourStep(s => (s+1 >= TOUR_STEPS.length ? -1 : s+1))} />
       )}
 
+      {showNyxShop && (
+        <NyxShop
+          points={nyxPoints}
+          gear={nyxGear}
+          onEquip={(newGear)=>{ setNyxGear(newGear); persist({ nyxGear: newGear }); }}
+          onClose={()=>setShowNyxShop(false)}
+        />
+      )}
+
       <NyxChat
         who="student"
         dataTour="chat"
+        gear={nyxGear}
         onTheme={setThemeAndSave}
         context={() => `Contexto: você conversa com o aluno ${studentName}. Código atual dele (${files[active]?.name || "Program.cs"}):\n${activeCode || "(vazio ainda)"}\n${robotMsg ? `Seu último aviso sobre o código: ${robotMsg}` : ""}`}
       />
