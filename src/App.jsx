@@ -327,22 +327,34 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
           {/* acessório de cabeça (por cima da cabeça; a antena sempre aparece por cima dele) */}
           {G.head === "fone" && (
             <g>
-              <path d="M23 38 Q60 8 97 38" stroke="#20242f" strokeWidth="5" fill="none" strokeLinecap="round" />
-              <circle cx="23" cy="41" r="8.5" fill="#20242f" /><circle cx="23" cy="41" r="4" fill={P.main} />
-              <circle cx="97" cy="41" r="8.5" fill="#20242f" /><circle cx="97" cy="41" r="4" fill={P.main} />
+              <path d="M23 38 Q60 6 97 38" stroke="#20242f" strokeWidth="6" fill="none" strokeLinecap="round" />
+              <path d="M28 35 Q60 11 92 35" stroke="#3a4152" strokeWidth="2" fill="none" strokeLinecap="round" />
+              <rect x="15" y="31" width="16" height="21" rx="7" fill="#20242f" />
+              <rect x="18.5" y="34.5" width="9" height="14" rx="4.5" fill={P.main} />
+              <ellipse cx="20" cy="37" rx="2.5" ry="3.5" fill="#ffffff" opacity="0.25" />
+              <rect x="89" y="31" width="16" height="21" rx="7" fill="#20242f" />
+              <rect x="92.5" y="34.5" width="9" height="14" rx="4.5" fill={P.main} />
+              <ellipse cx="94" cy="37" rx="2.5" ry="3.5" fill="#ffffff" opacity="0.25" />
             </g>
           )}
           {G.head === "chapeu" && (
-            <g stroke="#8b83b0" strokeWidth="1">
-              <ellipse cx="60" cy="19.5" rx="20" ry="4" fill="#241c3d" />
-              <rect x="46" y="4" width="28" height="16" rx="2.5" fill="#2d2447" />
-              <rect x="46" y="12" width="28" height="4" fill={P.main} stroke="none" />
+            <g>
+              <ellipse cx="60" cy="20" rx="23" ry="4.5" fill="#1c1530" stroke="#8b83b0" strokeWidth="1" />
+              <path d="M46 20 L47.5 4 Q60 1 72.5 4 L74 20 Z" fill="#2d2447" stroke="#8b83b0" strokeWidth="1" />
+              <ellipse cx="60" cy="4.5" rx="12.5" ry="2.6" fill="#3a2f5c" />
+              <rect x="46.8" y="13" width="26.4" height="5" fill={P.main} />
+              <path d="M50 6 Q52 12 51.5 18" stroke="#ffffff" strokeWidth="1.6" opacity="0.18" fill="none" strokeLinecap="round" />
             </g>
           )}
           {G.head === "coroa" && (
             <g>
-              <path d="M42 19 L42 9 L50 15 L60 5 L70 15 L78 9 L78 19 Z" fill="#fbbf24" stroke="#d99b0d" strokeWidth="1" />
-              <circle cx="60" cy="10" r="2" fill="#ef4444" />
+              <path d="M40 20 L40 7 L49 14 L60 3 L71 14 L80 7 L80 20 Z" fill="#fbbf24" stroke="#d99b0d" strokeWidth="1.3" />
+              <path d="M44 10 L47 12" stroke="#fff7d6" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
+              <rect x="40" y="17" width="40" height="5" rx="2.2" fill="#f59e0b" stroke="#d99b0d" strokeWidth="1" />
+              <circle cx="60" cy="9" r="2.4" fill="#ef4444" stroke="#b91c1c" strokeWidth="0.8" />
+              <circle cx="48" cy="15" r="1.7" fill="#22d3ee" />
+              <circle cx="72" cy="15" r="1.7" fill="#22d3ee" />
+              <circle cx="60" cy="19.5" r="1.5" fill="#a855f7" />
             </g>
           )}
 
@@ -385,11 +397,12 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
           {/* óculos escuros (cobre os olhos, como acessório de rosto) */}
           {G.face === "oculos" && (
             <g>
-              <rect x="36" y="35" width="20" height="13" rx="6" fill="#0d0f18" stroke="#1f2430" strokeWidth="1.5" />
-              <rect x="64" y="35" width="20" height="13" rx="6" fill="#0d0f18" stroke="#1f2430" strokeWidth="1.5" />
-              <rect x="56" y="39" width="8" height="3" fill="#1f2430" />
-              <ellipse cx="43" cy="39" rx="5" ry="3" fill="#ffffff" opacity="0.15" />
-              <ellipse cx="71" cy="39" rx="5" ry="3" fill="#ffffff" opacity="0.15" />
+              <path d="M29 38 L36 38 M84 38 L91 38" stroke="#1f2430" strokeWidth="2.6" strokeLinecap="round" />
+              <rect x="36" y="34" width="21" height="14" rx="7" fill="#0d0f18" stroke="#2a3040" strokeWidth="1.5" />
+              <rect x="63" y="34" width="21" height="14" rx="7" fill="#0d0f18" stroke="#2a3040" strokeWidth="1.5" />
+              <path d="M57 39 Q60 36.5 63 39" stroke="#2a3040" strokeWidth="2.6" fill="none" />
+              <path d="M40 39 q4 -3.5 9 0" stroke="#8be9fd" strokeWidth="1.6" opacity="0.55" fill="none" strokeLinecap="round" />
+              <path d="M67 39 q4 -3.5 9 0" stroke="#8be9fd" strokeWidth="1.6" opacity="0.55" fill="none" strokeLinecap="round" />
             </g>
           )}
 
@@ -399,8 +412,11 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
           {/* laço no pescoço */}
           {G.neck === "laco" && (
             <g>
-              <path d="M60 66 L52 62 L52 70 Z" fill="#ec4899" /><path d="M60 66 L68 62 L68 70 Z" fill="#ec4899" />
-              <circle cx="60" cy="66" r="2.6" fill="#db2777" />
+              <path d="M60 66 Q51 59 47 62 Q44.5 65 47 69 Q51 73 60 66 Z" fill="#ec4899" stroke="#db2777" strokeWidth="1" />
+              <path d="M60 66 Q69 59 73 62 Q75.5 65 73 69 Q69 73 60 66 Z" fill="#ec4899" stroke="#db2777" strokeWidth="1" />
+              <path d="M52 63 Q55 64.5 57 66" stroke="#f9a8d4" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+              <path d="M68 63 Q65 64.5 63 66" stroke="#f9a8d4" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+              <circle cx="60" cy="66" r="3.2" fill="#db2777" stroke="#be185d" strokeWidth="0.8" />
             </g>
           )}
 
@@ -411,21 +427,33 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
           {/* item na mão */}
           {G.hand === "escudo" && (
             <g>
-              <path d="M14 88 Q14 80 22 78 Q30 80 30 88 Q30 98 22 104 Q14 98 14 88 Z" fill="#94a3b8" stroke="#475569" strokeWidth="1.5" />
-              <path d="M22 82 L22 100 M16 91 L28 91" stroke="#475569" strokeWidth="1.5" />
+              <path d="M12 82 Q12 78 22 76 Q32 78 32 82 L32 92 Q32 101 22 106 Q12 101 12 92 Z" fill="#94a3b8" stroke="#475569" strokeWidth="1.6" />
+              <path d="M14.5 83 Q14.5 80 22 78.5 Q29.5 80 29.5 83 L29.5 91.5 Q29.5 98.5 22 102.5 Q14.5 98.5 14.5 91.5 Z" fill="#cbd5e1" stroke="none" opacity="0.5" />
+              <path d="M22 84 L24.5 89 L22 97 L19.5 89 Z" fill={P.main} stroke={P.dark} strokeWidth="0.8" />
+              <circle cx="22" cy="80.5" r="1.2" fill="#475569" />
+              <circle cx="15.5" cy="90" r="1.2" fill="#475569" />
+              <circle cx="28.5" cy="90" r="1.2" fill="#475569" />
             </g>
           )}
           {G.hand === "espada" && (
             <g transform="rotate(-25 24 90)">
-              <rect x="21" y="68" width="4" height="30" rx="1.5" fill="#cbd5e1" />
-              <rect x="15" y="96" width="16" height="4" rx="1.5" fill="#57534e" />
-              <rect x="21" y="100" width="4" height="10" rx="1.5" fill="#78350f" />
+              <path d="M23.5 62 L26.5 67 L26 94 L21 94 L20.5 67 Z" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.8" />
+              <line x1="23.5" y1="66" x2="23.5" y2="92" stroke="#94a3b8" strokeWidth="1" />
+              <path d="M13 94 Q23.5 90.5 34 94 L34 97 Q23.5 93.5 13 97 Z" fill="#eab308" stroke="#a16207" strokeWidth="0.8" />
+              <rect x="21" y="97" width="5" height="10" rx="2" fill="#78350f" />
+              <line x1="21.5" y1="100" x2="25.5" y2="100" stroke="#5b2c0c" strokeWidth="1" />
+              <line x1="21.5" y1="103" x2="25.5" y2="103" stroke="#5b2c0c" strokeWidth="1" />
+              <circle cx="23.5" cy="109.5" r="3" fill="#eab308" stroke="#a16207" strokeWidth="0.8" />
             </g>
           )}
           {G.hand === "arco" && (
             <g transform="rotate(10 20 90)">
-              <path d="M17 70 Q30 90 17 110" stroke="#78350f" strokeWidth="3" fill="none" strokeLinecap="round" />
-              <line x1="17" y1="70" x2="17" y2="110" stroke="#e5e7eb" strokeWidth="1" />
+              <path d="M16 68 Q34 90 16 112" stroke="#92400e" strokeWidth="3.6" fill="none" strokeLinecap="round" />
+              <path d="M17.5 72 Q30 90 17.5 108" stroke="#c2703d" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+              <line x1="16" y1="68" x2="16" y2="112" stroke="#e5e7eb" strokeWidth="1.2" />
+              <line x1="10" y1="90" x2="34" y2="90" stroke="#a16207" strokeWidth="2" />
+              <path d="M34 90 L28 86.5 L28 93.5 Z" fill="#64748b" />
+              <path d="M10 87 L14 90 L10 93" stroke="#ef4444" strokeWidth="1.8" fill="none" strokeLinecap="round" />
             </g>
           )}
 
@@ -493,22 +521,23 @@ const AVATAR_OPTS = {
 };
 const DEFAULT_AVATAR = { bg:"#7c83ff", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"variant11", eyesV:"variant09", mouthV:"happy05", glassesV:"", earringsV:"", flores:false, freckles:false, pet:"", roupa:"", acessorio:"" };
 
-// ── loja de roupas e acessórios do avatar (mesma moeda de pontos do Nyx) ──
+// ── roupas e acessórios do avatar (escolhidos na criação do perfil) ──
 const ROUPA_ITEMS = [
-  { id:"camiseta-azul",  label:"Camiseta Azul",   cor:"#3b82f6", cost:5  },
-  { id:"jaqueta-vermelha", label:"Jaqueta Vermelha", cor:"#ef4444", cost:12 },
-  { id:"moletom-verde",  label:"Moletom Verde",   cor:"#22c55e", cost:18 },
-  { id:"camisa-roxa",    label:"Camisa Roxa",     cor:"#a855f7", cost:24 },
-  { id:"regata-amarela", label:"Regata Amarela",  cor:"#facc15", cost:30 },
-  { id:"casaco-rosa",    label:"Casaco Rosa",     cor:"#ec4899", cost:36 },
+  { id:"",         label:"Nenhuma" },
+  { id:"camiseta", label:"Camiseta",         cor:"#3b82f6" },
+  { id:"moletom",  label:"Moletom c/ capuz", cor:"#22c55e" },
+  { id:"jaqueta",  label:"Jaqueta",          cor:"#ef4444" },
+  { id:"camisa",   label:"Camisa",           cor:"#a855f7" },
+  { id:"regata",   label:"Regata",           cor:"#facc15" },
+  { id:"casaco",   label:"Casaco",           cor:"#ec4899" },
 ];
 const AVATAR_ACC_ITEMS = [
-  { id:"cachecol", label:"Cachecol", emoji:"🧣", cost:8  },
-  { id:"fitinha",  label:"Fita",     emoji:"🎗️", cost:16 },
-  { id:"estrela",  label:"Estrela",  emoji:"⭐", cost:26 },
-  { id:"medalha",  label:"Medalha",  emoji:"🎖️", cost:38 },
+  { id:"",      label:"Nenhum" },
+  { id:"fone",  label:"Fone de ouvido" },
+  { id:"touca", label:"Touca" },
+  { id:"bone",  label:"Boné" },
+  { id:"coroa", label:"Coroa" },
 ];
-const roupaUnlocked = (points, item) => points >= item.cost;
 
 // compatibilidade: converte perfis salvos no formato antigo para o novo estilo
 const OLD_HAIR_MAP = { curto:"variant04", longo:"variant16", espetado:"variant27", cacheado:"variant24", afro:"variant39", moicano:"variant27", coque:"variant36", rabo:"variant45", chanel:"variant23", topete:"variant01", careca:"variant47" };
@@ -543,28 +572,122 @@ function loreleiSvg(c) {
   }).toString();
 }
 
+// desenhos das roupas sobre o avatar (viewBox 0 0 100 100; tronco na base do círculo)
+function RoupaSvg({ tipo, cor }) {
+  const dark = shade(cor, -0.32), light = shade(cor, 0.3);
+  const base = <path d="M 16 100 Q 16 72 50 67 Q 84 72 84 100 Z" fill={cor} stroke={dark} strokeWidth="2" />;
+  if (tipo === "camiseta") return (
+    <g>{base}
+      <path d="M 40 68 Q 50 77 60 68" fill="none" stroke={dark} strokeWidth="3" strokeLinecap="round" />
+      <path d="M 16 92 L 22 92 M 78 92 L 84 92" stroke={dark} strokeWidth="2" />
+    </g>
+  );
+  if (tipo === "moletom") return (
+    <g>
+      <path d="M 22 100 Q 20 68 50 62 Q 80 68 78 100 Z" fill={dark} />
+      {base}
+      <line x1="45" y1="71" x2="44" y2="83" stroke={light} strokeWidth="2" strokeLinecap="round" />
+      <line x1="55" y1="71" x2="56" y2="83" stroke={light} strokeWidth="2" strokeLinecap="round" />
+      <circle cx="45" cy="83.5" r="1.4" fill={light} /><circle cx="56" cy="83.5" r="1.4" fill={light} />
+      <path d="M 38 91 L 62 91 L 58 100 L 42 100 Z" fill={dark} opacity="0.55" />
+    </g>
+  );
+  if (tipo === "jaqueta") return (
+    <g>{base}
+      <line x1="50" y1="68" x2="50" y2="100" stroke={light} strokeWidth="2.4" />
+      <path d="M 41 68 L 50 79 L 50 68 Z" fill={dark} />
+      <path d="M 59 68 L 50 79 L 50 68 Z" fill={dark} opacity="0.8" />
+      <circle cx="50" cy="83" r="1.8" fill={light} />
+      <path d="M 22 84 L 30 84 M 70 84 L 78 84" stroke={dark} strokeWidth="2.4" strokeLinecap="round" />
+    </g>
+  );
+  if (tipo === "camisa") return (
+    <g>{base}
+      <path d="M 42 67 L 50 76 L 46 66 Z" fill="#f8fafc" stroke={dark} strokeWidth="1" />
+      <path d="M 58 67 L 50 76 L 54 66 Z" fill="#f8fafc" stroke={dark} strokeWidth="1" />
+      <line x1="50" y1="76" x2="50" y2="100" stroke={dark} strokeWidth="1.4" />
+      <circle cx="50" cy="82" r="1.6" fill="#f8fafc" />
+      <circle cx="50" cy="89" r="1.6" fill="#f8fafc" />
+      <circle cx="50" cy="96" r="1.6" fill="#f8fafc" />
+    </g>
+  );
+  if (tipo === "regata") return (
+    <g>
+      <path d="M 18 100 Q 18 74 36 69 L 42 68 Q 50 84 58 68 L 64 69 Q 82 74 82 100 Z" fill={cor} stroke={dark} strokeWidth="2" />
+      <path d="M 42 68 Q 50 82 58 68" fill="none" stroke={dark} strokeWidth="2" />
+    </g>
+  );
+  if (tipo === "casaco") return (
+    <g>{base}
+      <path d="M 44 67 L 47 100 L 41 100 Q 38 82 44 67 Z" fill={dark} opacity="0.5" />
+      <path d="M 56 67 L 53 100 L 59 100 Q 62 82 56 67 Z" fill={dark} opacity="0.5" />
+      <circle cx="45" cy="84" r="1.7" fill={light} /><circle cx="45" cy="92" r="1.7" fill={light} />
+      <circle cx="55" cy="84" r="1.7" fill={light} /><circle cx="55" cy="92" r="1.7" fill={light} />
+    </g>
+  );
+  return base;
+}
+
+// desenhos dos acessórios de cabeça do avatar (viewBox 0 0 100 100)
+function AcessorioSvg({ tipo }) {
+  if (tipo === "fone") return (
+    <g>
+      <path d="M 17 48 Q 50 2 83 48" fill="none" stroke="#20242f" strokeWidth="7" strokeLinecap="round" />
+      <path d="M 22 43 Q 50 8 78 43" fill="none" stroke="#3a4152" strokeWidth="2.2" strokeLinecap="round" />
+      <rect x="9" y="42" width="16" height="23" rx="7" fill="#20242f" />
+      <rect x="12.5" y="45.5" width="9" height="16" rx="4.5" fill="#ef4444" />
+      <ellipse cx="14.5" cy="49" rx="2.2" ry="3.2" fill="#ffffff" opacity="0.3" />
+      <rect x="75" y="42" width="16" height="23" rx="7" fill="#20242f" />
+      <rect x="78.5" y="45.5" width="9" height="16" rx="4.5" fill="#ef4444" />
+      <ellipse cx="80.5" cy="49" rx="2.2" ry="3.2" fill="#ffffff" opacity="0.3" />
+    </g>
+  );
+  if (tipo === "touca") return (
+    <g>
+      <path d="M 22 34 Q 22 4 50 4 Q 78 4 78 34 Q 50 22 22 34 Z" fill="#ef4444" stroke="#b91c1c" strokeWidth="1.5" />
+      <path d="M 20 28 Q 50 16 80 28 L 80 38 Q 50 26 20 38 Z" fill="#dc2626" stroke="#b91c1c" strokeWidth="1.5" />
+      <circle cx="50" cy="5" r="5" fill="#fecaca" stroke="#ef4444" strokeWidth="1.5" />
+    </g>
+  );
+  if (tipo === "bone") return (
+    <g>
+      <path d="M 24 32 Q 24 8 50 8 Q 76 8 76 32 Q 50 22 24 32 Z" fill="#2563eb" stroke="#1e40af" strokeWidth="1.5" />
+      <path d="M 48 26 Q 78 20 92 28 Q 80 35 50 32 Z" fill="#1d4ed8" stroke="#1e40af" strokeWidth="1.5" />
+      <circle cx="50" cy="9" r="2.4" fill="#1e40af" />
+      <path d="M 50 8 Q 50 20 49 28" fill="none" stroke="#1e40af" strokeWidth="1.2" opacity="0.6" />
+    </g>
+  );
+  if (tipo === "coroa") return (
+    <g>
+      <path d="M 34 24 L 34 8 L 44 15 L 50 4 L 56 15 L 66 8 L 66 24 Z" fill="#fbbf24" stroke="#d99b0d" strokeWidth="1.4" />
+      <rect x="34" y="20" width="32" height="5" rx="2" fill="#f59e0b" stroke="#d99b0d" strokeWidth="1" />
+      <circle cx="50" cy="10" r="2.2" fill="#ef4444" />
+      <circle cx="41" cy="16" r="1.6" fill="#22d3ee" />
+      <circle cx="59" cy="16" r="1.6" fill="#22d3ee" />
+    </g>
+  );
+  return null;
+}
+
 function Avatar({ cfg, size=72 }) {
   const c = normalizeAvatar(cfg);
   const key = JSON.stringify(c);
   const uri = useMemo(() => "data:image/svg+xml;utf8," + encodeURIComponent(loreleiSvg(c)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  const roupa = ROUPA_ITEMS.find(r => r.id === c.roupa);
-  const acc = AVATAR_ACC_ITEMS.find(a => a.id === c.acessorio);
+  const roupa = ROUPA_ITEMS.find(r => r.id && r.id === c.roupa);
+  const acc = AVATAR_ACC_ITEMS.find(a => a.id && a.id === c.acessorio);
   return (
     <div className="avatar-pop" style={{ position:"relative", width:size, height:size, display:"inline-block", lineHeight:0, flexShrink:0 }}>
       <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", position:"relative", background:`radial-gradient(circle at 50% 30%, ${shade(c.bg,0.25)}, ${c.bg} 58%, ${shade(c.bg,-0.25)})`, boxShadow:"0 2px 5px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.14)" }}>
         <img src={uri} width={size} height={size} alt="" draggable={false} style={{ display:"block" }} />
-        {roupa && (
+        {(roupa || acc) && (
           <svg width={size} height={size} viewBox="0 0 100 100" style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
-            <path d="M 18 100 Q 18 72 50 68 Q 82 72 82 100 Z" fill={roupa.cor} stroke={shade(roupa.cor,-0.3)} strokeWidth="2" />
-            <path d="M 50 68 Q 42 77 39 88 L 46 93 L 50 81 L 54 93 L 61 88 Q 58 77 50 68 Z" fill={shade(roupa.cor,0.18)} />
+            {roupa && <RoupaSvg tipo={roupa.id} cor={roupa.cor} />}
+            {acc && <AcessorioSvg tipo={acc.id} />}
           </svg>
         )}
       </div>
       {c.pet && (
         <span style={{ position:"absolute", right:Math.round(size*-0.14), bottom:Math.round(size*-0.08), fontSize:Math.max(10, Math.round(size*0.34)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
-      )}
-      {acc && (
-        <span style={{ position:"absolute", left:Math.round(size*-0.12), top:Math.round(size*-0.08), fontSize:Math.max(10, Math.round(size*0.32)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{acc.emoji}</span>
       )}
     </div>
   );
@@ -583,6 +706,8 @@ function AvatarBuilder({ value, onChange }) {
       earringsV: Math.random()<0.7 ? "" : pick(AVATAR_OPTS.earringsV.slice(1))[0],
       flores: Math.random()<0.85,
       freckles: Math.random()>=0.75,
+      roupa: Math.random()<0.35 ? "" : pick(ROUPA_ITEMS.slice(1)).id,
+      acessorio: Math.random()<0.6 ? "" : pick(AVATAR_ACC_ITEMS.slice(1)).id,
     });
   };
   const Swatches = ({ k }) => (
@@ -625,6 +750,16 @@ function AvatarBuilder({ value, onChange }) {
       ))}
     </div>
   );
+  const ItemThumbs = ({ items, field }) => (
+    <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+      {items.map(it => (
+        <button key={it.id||"nenhum"} type="button" onClick={()=>set(field, it.id)} title={it.label}
+          style={{ background:v[field]===it.id?"#7c83ff33":"#0d1122", border:`2px solid ${v[field]===it.id?"#7c83ff":"#2a3154"}`, borderRadius:12, padding:3, cursor:"pointer", lineHeight:0 }}>
+          <Avatar cfg={{ ...v, pet:"", [field]:it.id }} size={46} />
+        </button>
+      ))}
+    </div>
+  );
   return (
     <div style={{ display:"flex", gap:16, alignItems:"flex-start", flexWrap:"wrap" }}>
       <div style={{ flexShrink:0, display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
@@ -643,6 +778,8 @@ function AvatarBuilder({ value, onChange }) {
         <Row label="Óculos"><Thumbs k="glassesV" field="glassesV" /></Row>
         <Row label="Brincos"><Thumbs k="earringsV" field="earringsV" /></Row>
         <Row label="Detalhes"><div style={{ display:"flex", gap:6, flexWrap:"wrap" }}><Toggle field="freckles" label="Sardas" /><Toggle field="flores" label="Flores no cabelo" /></div></Row>
+        <Row label="👕 Roupa"><ItemThumbs items={ROUPA_ITEMS} field="roupa" /></Row>
+        <Row label="🎧 Acessório"><ItemThumbs items={AVATAR_ACC_ITEMS} field="acessorio" /></Row>
         <Row label="🐉 Pet / Animal mitológico"><Pets /></Row>
       </div>
     </div>
@@ -969,57 +1106,12 @@ function TourOverlay({ step, onNext, onSkip }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
 // ════════════════════════════════════════════════════════════════════════════
-function NyxShop({ points, gear, onEquip, avatar, onEquipAvatar, isTestShift, onClose }) {
-  const [tab, setTab] = useState("nyx");
+function NyxShop({ points, gear, onEquip, isTestShift, onClose }) {
   const toggle = (item) => {
     if (!isTestShift && points < item.cost) return;
     const isEquipped = gear[item.slot] === item.id;
     onEquip({ ...gear, [item.slot]: isEquipped ? null : item.id });
   };
-  const toggleRoupa = (item) => {
-    if (!isTestShift && points < item.cost) return;
-    onEquipAvatar({ ...avatar, roupa: avatar.roupa === item.id ? "" : item.id });
-  };
-  const toggleAcc = (item) => {
-    if (!isTestShift && points < item.cost) return;
-    onEquipAvatar({ ...avatar, acessorio: avatar.acessorio === item.id ? "" : item.id });
-  };
-  const Tab = ({ id, label }) => (
-    <button onClick={()=>setTab(id)} style={{ flex:1, padding:"8px 0", borderRadius:10, background: tab===id?"#7c83ff":"#0d1122", color: tab===id?"#fff":"#96a0cc", border:`1px solid ${tab===id?"#7c83ff":"#2a3154"}`, fontWeight:800, fontSize:12.5, cursor:"pointer" }}>
-      {label}
-    </button>
-  );
-  const Grid = ({ items, unlockedFn, equippedFn, onToggle }) => (
-    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
-      {items.map(item => {
-        const unlocked = isTestShift || unlockedFn(points, item);
-        const equipped = equippedFn(item);
-        return (
-          <button key={item.id} data-item={item.id} onClick={()=>onToggle(item)} disabled={!unlocked}
-            style={{
-              background: equipped ? "#7c83ff26" : "#0d1122",
-              border: `2px solid ${equipped ? "#7c83ff" : unlocked ? "#2a3154" : "#241f38"}`,
-              borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: unlocked?"pointer":"default",
-              opacity: unlocked ? 1 : 0.55, position:"relative",
-            }}>
-            {item.emoji ? (
-              <div style={{ fontSize:30, filter: unlocked?"none":"grayscale(1)" }}>{item.emoji}</div>
-            ) : (
-              <div style={{ width:28, height:28, borderRadius:"50%", background:item.cor, margin:"0 auto", filter: unlocked?"none":"grayscale(1)", boxShadow:"inset 0 0 0 2px rgba(255,255,255,.25)" }} />
-            )}
-            <div style={{ color:"#e8ebfa", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
-            {unlocked ? (
-              equipped
-                ? <div style={{ color:"#7c83ff", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
-                : <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>{item.cost} pts</div>
-            ) : (
-              <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>🔒 {points}/{item.cost} pts</div>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
       <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:560, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
@@ -1028,33 +1120,42 @@ function NyxShop({ points, gear, onEquip, avatar, onEquipAvatar, isTestShift, on
           <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
         <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>
-          {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa nas atividades e provas vira 1 ponto. Use para desbloquear e equipar acessórios!"}
+          {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa nas atividades e provas vira 1 ponto. Use para desbloquear e equipar acessórios no Nyx!"}
         </p>
 
         <div style={{ display:"flex", alignItems:"center", gap:16, background:"#0d1122", border:"1px solid #2a3154", borderRadius:16, padding:16, marginBottom:16 }}>
           <NyxRobot state="ok" size={72} showName={false} gear={gear} />
-          <Avatar cfg={avatar} size={72} />
           <div>
             <div style={{ color:"#fbbf24", fontWeight:900, fontSize:22 }}>{points} pts</div>
             <div style={{ color:"#5d679c", fontSize:12 }}>Toque num item desbloqueado para vestir ou tirar</div>
           </div>
         </div>
 
-        <div style={{ display:"flex", gap:8, marginBottom:14 }}>
-          <Tab id="nyx" label="🤖 Nyx" />
-          <Tab id="roupas" label="👕 Roupas" />
-          <Tab id="acessorios" label="🎗️ Acessórios" />
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
+          {NYX_ITEMS.map(item => {
+            const unlocked = isTestShift || nyxItemUnlocked(points, item);
+            const equipped = gear[item.slot] === item.id;
+            return (
+              <button key={item.id} data-item={item.id} onClick={()=>toggle(item)} disabled={!unlocked}
+                style={{
+                  background: equipped ? "#7c83ff26" : "#0d1122",
+                  border: `2px solid ${equipped ? "#7c83ff" : unlocked ? "#2a3154" : "#241f38"}`,
+                  borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: unlocked?"pointer":"default",
+                  opacity: unlocked ? 1 : 0.55, position:"relative",
+                }}>
+                <div style={{ fontSize:30, filter: unlocked?"none":"grayscale(1)" }}>{item.emoji}</div>
+                <div style={{ color:"#e8ebfa", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
+                {unlocked ? (
+                  equipped
+                    ? <div style={{ color:"#7c83ff", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
+                    : <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>{item.cost} pts</div>
+                ) : (
+                  <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>🔒 {points}/{item.cost} pts</div>
+                )}
+              </button>
+            );
+          })}
         </div>
-
-        {tab === "nyx" && (
-          <Grid items={NYX_ITEMS} unlockedFn={nyxItemUnlocked} equippedFn={item=>gear[item.slot]===item.id} onToggle={toggle} />
-        )}
-        {tab === "roupas" && (
-          <Grid items={ROUPA_ITEMS} unlockedFn={roupaUnlocked} equippedFn={item=>avatar.roupa===item.id} onToggle={toggleRoupa} />
-        )}
-        {tab === "acessorios" && (
-          <Grid items={AVATAR_ACC_ITEMS} unlockedFn={roupaUnlocked} equippedFn={item=>avatar.acessorio===item.id} onToggle={toggleAcc} />
-        )}
       </div>
     </div>
   );
@@ -1109,8 +1210,8 @@ function CoderMode({ baseCode, onAward, onExit }) {
     (async () => {
       try {
         const res = await askClaude(
-          `Código atual do aluno (contexto, pode ou não estar relacionado):\n\`\`\`csharp\n${baseCode || "// (vazio)"}\n\`\`\`\n\n` +
-          `Crie 4 exercícios de "completar o código" em C# para um aluno iniciante. Cada exercício deve ter um trecho de código C# curto e válido, com EXATAMENTE UMA lacuna marcada como ___LACUNA___ no lugar de uma expressão, valor ou linha que o aluno precisa escrever. Varie o assunto (variáveis, condicionais, laços, métodos, listas, etc). Responda APENAS com JSON no formato exato:\n` +
+          `Código que o aluno escreveu HOJE na aula:\n\`\`\`csharp\n${baseCode || "// (vazio)"}\n\`\`\`\n\n` +
+          `Crie 4 exercícios de "completar o código" em C# BASEADOS NO CÓDIGO ACIMA: use trechos do próprio código do aluno, ou pequenas variações dele, cobrando SOMENTE conceitos que aparecem no que ele escreveu hoje (nada de assunto que ele ainda não viu). Cada exercício deve ter um trecho de código C# curto e válido, com EXATAMENTE UMA lacuna marcada como ___LACUNA___ no lugar de uma expressão, valor ou linha que o aluno precisa escrever. Comece com um exercício bem fácil e aumente um pouco a dificuldade nos seguintes. Responda APENAS com JSON no formato exato:\n` +
           `[{"titulo":"...", "enunciado":"explique o que o código deve fazer", "codigo":"...com ___LACUNA___ em algum ponto...", "dica":"uma dica curta"}]`,
           CODER_SYSTEM,
           { temperature: 0.6 }
@@ -1888,7 +1989,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   if (phase==="done" && showCoder) {
     return (
       <CoderMode
-        baseCode={activeCode}
+        baseCode={(files||[]).filter(f=>(f.code||"").trim()).map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n") || activeCode}
         onAward={async (pts) => { const np = nyxPoints + pts; setNyxPoints(np); await persist({ nyxPoints: np }); }}
         onExit={() => setShowCoder(false)}
       />
@@ -1931,7 +2032,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
           <div style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#34d399" }}>
             <h4 style={{ color:"#34d399", marginBottom:8 }}>💻 Modo Programador</h4>
-            <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, marginBottom:10 }}>Quer ganhar pontos extras? No Modo Programador você mesmo escreve o código para completar exercícios — cada acerto vale 2x ou 3x mais pontos que o normal!</p>
+            <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, marginBottom:10 }}>Quer ganhar pontos extras? No Modo Programador você mesmo escreve o código para completar exercícios feitos a partir do código que VOCÊ escreveu hoje — cada acerto vale 2x ou 3x mais pontos que o normal!</p>
             <button style={styles.btn("#34d399")} onClick={()=>setShowCoder(true)}>💻 Entrar no Modo Programador</button>
           </div>
 
@@ -2148,8 +2249,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           points={nyxPoints}
           gear={nyxGear}
           onEquip={(newGear)=>{ setNyxGear(newGear); persist({ nyxGear: newGear }); }}
-          avatar={avatar}
-          onEquipAvatar={(newAvatar)=>{ setAvatar(newAvatar); persist({ avatar: newAvatar }); }}
           isTestShift={shift === TEST_SHIFT.id}
           onClose={()=>setShowNyxShop(false)}
         />
