@@ -573,56 +573,69 @@ function loreleiSvg(c) {
 }
 
 // desenhos das roupas sobre o avatar (viewBox 0 0 100 100; tronco na base do círculo)
+// estilo combinando com o traço do personagem: contorno escuro grosso + sombra + brilho
+const ROUPA_OUT = "#16162a"; // cor do contorno, igual ao traço do boneco
 function RoupaSvg({ tipo, cor }) {
-  const dark = shade(cor, -0.32), light = shade(cor, 0.3);
-  const base = <path d="M 16 100 Q 16 72 50 67 Q 84 72 84 100 Z" fill={cor} stroke={dark} strokeWidth="2" />;
+  const dark = shade(cor, -0.32), light = shade(cor, 0.35);
+  const torso = "M 15 100 Q 14 76 33 69.5 Q 41.5 66.5 50 66.5 Q 58.5 66.5 67 69.5 Q 86 76 85 100 Z";
+  const base = <path d={torso} fill={cor} stroke={ROUPA_OUT} strokeWidth="2.6" strokeLinejoin="round" />;
+  const sombra = <path d="M 67 69.5 Q 86 76 85 100 L 71 100 Q 73 83 66 70 Z" fill="#000" opacity="0.14" />;
+  const brilho = <path d="M 22 81 Q 26 72.5 35 69.5" fill="none" stroke="#fff" strokeWidth="2.4" opacity="0.4" strokeLinecap="round" />;
   if (tipo === "camiseta") return (
-    <g>{base}
-      <path d="M 40 68 Q 50 77 60 68" fill="none" stroke={dark} strokeWidth="3" strokeLinecap="round" />
-      <path d="M 16 92 L 22 92 M 78 92 L 84 92" stroke={dark} strokeWidth="2" />
+    <g>{base}{sombra}{brilho}
+      <path d="M 40 67.5 Q 50 76.5 60 67.5" fill="none" stroke={ROUPA_OUT} strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M 42 67 Q 50 74 58 67" fill="none" stroke={dark} strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M 27 91 q 3 2.5 6 0 M 67 91 q 3 2.5 6 0" stroke={dark} strokeWidth="1.6" fill="none" strokeLinecap="round" />
     </g>
   );
   if (tipo === "moletom") return (
     <g>
-      <path d="M 22 100 Q 20 68 50 62 Q 80 68 78 100 Z" fill={dark} />
-      {base}
-      <line x1="45" y1="71" x2="44" y2="83" stroke={light} strokeWidth="2" strokeLinecap="round" />
-      <line x1="55" y1="71" x2="56" y2="83" stroke={light} strokeWidth="2" strokeLinecap="round" />
-      <circle cx="45" cy="83.5" r="1.4" fill={light} /><circle cx="56" cy="83.5" r="1.4" fill={light} />
-      <path d="M 38 91 L 62 91 L 58 100 L 42 100 Z" fill={dark} opacity="0.55" />
+      <path d="M 20 100 Q 18 70 50 63 Q 82 70 80 100 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="2.6" strokeLinejoin="round" />
+      {base}{sombra}{brilho}
+      <path d="M 45.5 70.5 Q 44 78 42.5 85.5" fill="none" stroke={light} strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M 54.5 70.5 Q 56 78 57.5 85.5" fill="none" stroke={light} strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M 37 90 L 63 90 L 59 100 L 41 100 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
     </g>
   );
   if (tipo === "jaqueta") return (
-    <g>{base}
-      <line x1="50" y1="68" x2="50" y2="100" stroke={light} strokeWidth="2.4" />
-      <path d="M 41 68 L 50 79 L 50 68 Z" fill={dark} />
-      <path d="M 59 68 L 50 79 L 50 68 Z" fill={dark} opacity="0.8" />
-      <circle cx="50" cy="83" r="1.8" fill={light} />
-      <path d="M 22 84 L 30 84 M 70 84 L 78 84" stroke={dark} strokeWidth="2.4" strokeLinecap="round" />
+    <g>{base}{sombra}{brilho}
+      <line x1="50" y1="67" x2="50" y2="100" stroke={ROUPA_OUT} strokeWidth="3" />
+      <line x1="50" y1="69" x2="50" y2="100" stroke={light} strokeWidth="1.2" strokeDasharray="1.6 1.6" />
+      <path d="M 41 67.5 L 50 79 L 49.5 66.5 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M 59 67.5 L 50 79 L 50.5 66.5 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
+      <rect x="48.6" y="81" width="2.8" height="5" rx="1.2" fill={light} stroke={ROUPA_OUT} strokeWidth="0.9" />
+      <path d="M 26 88 l 9 2 M 74 88 l -9 2" stroke={ROUPA_OUT} strokeWidth="2" strokeLinecap="round" />
     </g>
   );
   if (tipo === "camisa") return (
-    <g>{base}
-      <path d="M 42 67 L 50 76 L 46 66 Z" fill="#f8fafc" stroke={dark} strokeWidth="1" />
-      <path d="M 58 67 L 50 76 L 54 66 Z" fill="#f8fafc" stroke={dark} strokeWidth="1" />
-      <line x1="50" y1="76" x2="50" y2="100" stroke={dark} strokeWidth="1.4" />
-      <circle cx="50" cy="82" r="1.6" fill="#f8fafc" />
-      <circle cx="50" cy="89" r="1.6" fill="#f8fafc" />
-      <circle cx="50" cy="96" r="1.6" fill="#f8fafc" />
+    <g>{base}{sombra}
+      <path d="M 47.6 76 Q 47.2 88 47.2 100 M 52.4 76 Q 52.8 88 52.8 100" fill="none" stroke={dark} strokeWidth="1.4" />
+      <path d="M 41 66.8 L 50 77 L 44.6 64.6 Z" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M 59 66.8 L 50 77 L 55.4 64.6 Z" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
+      <circle cx="50" cy="82" r="1.7" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="0.9" />
+      <circle cx="50" cy="89" r="1.7" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="0.9" />
+      <circle cx="50" cy="96" r="1.7" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="0.9" />
+      {brilho}
     </g>
   );
   if (tipo === "regata") return (
     <g>
-      <path d="M 18 100 Q 18 74 36 69 L 42 68 Q 50 84 58 68 L 64 69 Q 82 74 82 100 Z" fill={cor} stroke={dark} strokeWidth="2" />
-      <path d="M 42 68 Q 50 82 58 68" fill="none" stroke={dark} strokeWidth="2" />
+      <path d="M 26 100 Q 24 84 32 72.5 L 38.5 68 Q 50 79 61.5 68 L 68 72.5 Q 76 84 74 100 Z" fill={cor} stroke={ROUPA_OUT} strokeWidth="2.6" strokeLinejoin="round" />
+      <path d="M 40 69.5 Q 50 77.5 60 69.5" fill="none" stroke={dark} strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M 33 74 Q 27 84 28 100 M 67 74 Q 73 84 72 100" fill="none" stroke={dark} strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M 68 72.5 Q 76 84 74 100 L 66 100 Q 68 84 64 72 Z" fill="#000" opacity="0.14" />
+      <path d="M 30 80 Q 32 74.5 36 71" fill="none" stroke="#fff" strokeWidth="2.2" opacity="0.4" strokeLinecap="round" />
     </g>
   );
   if (tipo === "casaco") return (
-    <g>{base}
-      <path d="M 44 67 L 47 100 L 41 100 Q 38 82 44 67 Z" fill={dark} opacity="0.5" />
-      <path d="M 56 67 L 53 100 L 59 100 Q 62 82 56 67 Z" fill={dark} opacity="0.5" />
-      <circle cx="45" cy="84" r="1.7" fill={light} /><circle cx="45" cy="92" r="1.7" fill={light} />
-      <circle cx="55" cy="84" r="1.7" fill={light} /><circle cx="55" cy="92" r="1.7" fill={light} />
+    <g>{base}{sombra}
+      <path d="M 43 67.5 Q 46.5 80 47 100 L 40 100 Q 37.5 81 43 67.5 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M 57 67.5 Q 53.5 80 53 100 L 60 100 Q 62.5 81 57 67.5 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
+      <circle cx="44" cy="84" r="1.7" fill={light} stroke={ROUPA_OUT} strokeWidth="0.9" />
+      <circle cx="44" cy="92" r="1.7" fill={light} stroke={ROUPA_OUT} strokeWidth="0.9" />
+      <circle cx="56" cy="84" r="1.7" fill={light} stroke={ROUPA_OUT} strokeWidth="0.9" />
+      <circle cx="56" cy="92" r="1.7" fill={light} stroke={ROUPA_OUT} strokeWidth="0.9" />
+      {brilho}
     </g>
   );
   return base;
@@ -632,38 +645,48 @@ function RoupaSvg({ tipo, cor }) {
 function AcessorioSvg({ tipo }) {
   if (tipo === "fone") return (
     <g>
-      <path d="M 17 48 Q 50 2 83 48" fill="none" stroke="#20242f" strokeWidth="7" strokeLinecap="round" />
-      <path d="M 22 43 Q 50 8 78 43" fill="none" stroke="#3a4152" strokeWidth="2.2" strokeLinecap="round" />
-      <rect x="9" y="42" width="16" height="23" rx="7" fill="#20242f" />
-      <rect x="12.5" y="45.5" width="9" height="16" rx="4.5" fill="#ef4444" />
-      <ellipse cx="14.5" cy="49" rx="2.2" ry="3.2" fill="#ffffff" opacity="0.3" />
-      <rect x="75" y="42" width="16" height="23" rx="7" fill="#20242f" />
-      <rect x="78.5" y="45.5" width="9" height="16" rx="4.5" fill="#ef4444" />
-      <ellipse cx="80.5" cy="49" rx="2.2" ry="3.2" fill="#ffffff" opacity="0.3" />
+      <path d="M 16 46 Q 50 0 84 46" fill="none" stroke={ROUPA_OUT} strokeWidth="9" strokeLinecap="round" />
+      <path d="M 16 46 Q 50 2 84 46" fill="none" stroke="#3d4257" strokeWidth="5" strokeLinecap="round" />
+      <path d="M 24 39 Q 50 10 76 39" fill="none" stroke="#5b6180" strokeWidth="1.8" strokeLinecap="round" />
+      <rect x="8" y="40" width="17" height="24" rx="8" fill="#23263a" stroke={ROUPA_OUT} strokeWidth="2.4" />
+      <rect x="11.2" y="43.6" width="10.6" height="16.8" rx="5.3" fill="#ef4444" stroke="#b91c1c" strokeWidth="1.2" />
+      <ellipse cx="14" cy="48" rx="2.2" ry="3.4" fill="#fff" opacity="0.35" />
+      <rect x="75" y="40" width="17" height="24" rx="8" fill="#23263a" stroke={ROUPA_OUT} strokeWidth="2.4" />
+      <rect x="78.2" y="43.6" width="10.6" height="16.8" rx="5.3" fill="#ef4444" stroke="#b91c1c" strokeWidth="1.2" />
+      <ellipse cx="81" cy="48" rx="2.2" ry="3.4" fill="#fff" opacity="0.35" />
     </g>
   );
   if (tipo === "touca") return (
     <g>
-      <path d="M 22 34 Q 22 4 50 4 Q 78 4 78 34 Q 50 22 22 34 Z" fill="#ef4444" stroke="#b91c1c" strokeWidth="1.5" />
-      <path d="M 20 28 Q 50 16 80 28 L 80 38 Q 50 26 20 38 Z" fill="#dc2626" stroke="#b91c1c" strokeWidth="1.5" />
-      <circle cx="50" cy="5" r="5" fill="#fecaca" stroke="#ef4444" strokeWidth="1.5" />
+      <path d="M 21 34 Q 20 3 50 3 Q 80 3 79 34 Q 50 21 21 34 Z" fill="#ef4444" stroke={ROUPA_OUT} strokeWidth="2.6" strokeLinejoin="round" />
+      <path d="M 36 7.5 Q 34.5 16 33 26 M 50 4 Q 50 13 50 23 M 64 7.5 Q 65.5 16 67 26" fill="none" stroke="#c22b2b" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M 18 28 Q 50 14 82 28 L 82 40 Q 50 26 18 40 Z" fill="#dc2626" stroke={ROUPA_OUT} strokeWidth="2.4" strokeLinejoin="round" />
+      <path d="M 30 24.5 L 30 36 M 40 21.8 L 40 33.4 M 50 20.8 L 50 32.4 M 60 21.8 L 60 33.4 M 70 24.5 L 70 36" stroke="#b91c1c" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="50" cy="4.5" r="5.6" fill="#fecaca" stroke={ROUPA_OUT} strokeWidth="2" />
+      <circle cx="48" cy="3" r="1" fill="#fff" opacity="0.8" /><circle cx="52.5" cy="5.5" r="1" fill="#f7a6a6" />
     </g>
   );
   if (tipo === "bone") return (
     <g>
-      <path d="M 24 32 Q 24 8 50 8 Q 76 8 76 32 Q 50 22 24 32 Z" fill="#2563eb" stroke="#1e40af" strokeWidth="1.5" />
-      <path d="M 48 26 Q 78 20 92 28 Q 80 35 50 32 Z" fill="#1d4ed8" stroke="#1e40af" strokeWidth="1.5" />
-      <circle cx="50" cy="9" r="2.4" fill="#1e40af" />
-      <path d="M 50 8 Q 50 20 49 28" fill="none" stroke="#1e40af" strokeWidth="1.2" opacity="0.6" />
+      <path d="M 23 32 Q 22 7 50 7 Q 78 7 77 32 Q 50 21 23 32 Z" fill="#2563eb" stroke={ROUPA_OUT} strokeWidth="2.6" strokeLinejoin="round" />
+      <path d="M 50 7 Q 49.5 16 48.5 26.5 M 36 10 Q 34 18 32.5 28.5 M 64 10 Q 66 18 67.5 28.5" fill="none" stroke="#1e40af" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M 30 14 Q 36 9.5 43 8.5" fill="none" stroke="#60a5fa" strokeWidth="1.8" opacity="0.7" strokeLinecap="round" />
+      <circle cx="50" cy="7.5" r="2.6" fill="#1e40af" stroke={ROUPA_OUT} strokeWidth="1.3" />
+      <path d="M 47 27 Q 78 19.5 93 28 Q 82 37.5 49 33 Z" fill="#1d4ed8" stroke={ROUPA_OUT} strokeWidth="2.4" strokeLinejoin="round" />
+      <path d="M 53 31.5 Q 76 32.5 88 28.5" fill="none" stroke="#3b82f6" strokeWidth="1.6" strokeLinecap="round" />
     </g>
   );
   if (tipo === "coroa") return (
     <g>
-      <path d="M 34 24 L 34 8 L 44 15 L 50 4 L 56 15 L 66 8 L 66 24 Z" fill="#fbbf24" stroke="#d99b0d" strokeWidth="1.4" />
-      <rect x="34" y="20" width="32" height="5" rx="2" fill="#f59e0b" stroke="#d99b0d" strokeWidth="1" />
-      <circle cx="50" cy="10" r="2.2" fill="#ef4444" />
-      <circle cx="41" cy="16" r="1.6" fill="#22d3ee" />
-      <circle cx="59" cy="16" r="1.6" fill="#22d3ee" />
+      <path d="M 33 25 L 32 7 L 42 14.5 L 50 3 L 58 14.5 L 68 7 L 67 25 Z" fill="#fbbf24" stroke={ROUPA_OUT} strokeWidth="2.4" strokeLinejoin="round" />
+      <circle cx="32" cy="6" r="2.1" fill="#fde68a" stroke={ROUPA_OUT} strokeWidth="1.2" />
+      <circle cx="50" cy="2.6" r="2.1" fill="#fde68a" stroke={ROUPA_OUT} strokeWidth="1.2" />
+      <circle cx="68" cy="6" r="2.1" fill="#fde68a" stroke={ROUPA_OUT} strokeWidth="1.2" />
+      <path d="M 33 19.5 L 67 19.5 L 67 25 L 33 25 Z" fill="#f59e0b" stroke={ROUPA_OUT} strokeWidth="1.6" strokeLinejoin="round" />
+      <circle cx="50" cy="13.5" r="2.6" fill="#ef4444" stroke="#b91c1c" strokeWidth="1" />
+      <circle cx="41" cy="16.5" r="1.8" fill="#22d3ee" stroke="#0891b2" strokeWidth="0.9" />
+      <circle cx="59" cy="16.5" r="1.8" fill="#22d3ee" stroke="#0891b2" strokeWidth="0.9" />
+      <path d="M 36 10 l 1.8 1.8 M 37.8 10 l -1.8 1.8" stroke="#fff" strokeWidth="1" strokeLinecap="round" opacity="0.9" />
     </g>
   );
   return null;
