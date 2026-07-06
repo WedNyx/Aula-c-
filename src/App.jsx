@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, setCorrection, getCorrection, clearCorrection, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState } from "./storage.js";
 
 // ── tema ──
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
@@ -880,6 +880,18 @@ const shiftMeta  = id => SHIFTS.find(s=>s.id===id) || { id:id||"", label:"Sem tu
 const shiftLabel = id => { const m = shiftMeta(id); return `${m.emoji} ${m.label}`.trim(); };
 const isSameDayTs = (ts) => !!ts && new Date(ts).toDateString() === new Date().toDateString();
 
+// conteúdo do dia por turno — aceita o formato antigo (string única) como legado
+function contentNameFor(value, shift) {
+  if (!value) return "";
+  if (typeof value === "string") return value; // legado: mesmo texto pros dois turnos
+  return value[shift] || "";
+}
+function withContentName(contentNames, date, shift, title) {
+  const prev = (contentNames || {})[date];
+  const prevObj = prev && typeof prev === "object" ? prev : {};
+  return { ...(contentNames || {}), [date]: { ...prevObj, [shift]: title } };
+}
+
 // verificação local instantânea (sem IA)
 function quickCheck(code){
   const c = code
@@ -942,6 +954,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [nudge, setNudge2] = useState(null);
   const [nudgeSeenAt, setNudgeSeenAt] = useState(0);
   const [idleHint, setIdleHint] = useState(false);
+  // correção sugerida pelo Nyx (via autocorreção do professor)
+  const [correction, setCorrection2] = useState(null);
+  const [correctionSeenAt, setCorrectionSeenAt] = useState(0);
+  const [showCorrectionDetail, setShowCorrectionDetail] = useState(false);
   // prova (exame)
   const [examInfo, setExamInfo] = useState({ status: 'idle' });
   const [examReady, setExamReady] = useState(false);
@@ -1038,6 +1054,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       try {
         const n = await getNudge(shift, studentName);
         if (n && n.at && n.at > sessionStart.current) setNudge2(n);
+      } catch {}
+      // correção sugerida pelo Nyx
+      try {
+        const c = await getCorrection(shift, studentName);
+        if (c && c.at && c.at > sessionStart.current) setCorrection2(c);
       } catch {}
       // dica automática: entrou mas está parado há mais de 90s sem código
       const s = stateRef.current;
@@ -1249,6 +1270,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
   const dismissNudge = () => { if (nudge) setNudgeSeenAt(nudge.at); setNudge2(null); };
   const showNudge = nudge && nudge.at > nudgeSeenAt;
+
+  const dismissCorrection = () => { if (correction) setCorrectionSeenAt(correction.at); setCorrection2(null); setShowCorrectionDetail(false); };
+  const showCorrection = correction && correction.at > correctionSeenAt;
+  const applyCorrection = async () => {
+    if (!correction?.files?.length) return;
+    setFiles(correction.files.map(f => ({ name: f.name, code: f.code })));
+    setActive(0);
+    await clearCorrection(shift, studentName);
+    dismissCorrection();
+  };
 
   // ── estilos ──
   const styles = {
@@ -1561,6 +1592,33 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         </div>
       )}
 
+      {showCorrection && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div style={{ background:"#34d39918", border:"2px solid #34d399", borderRadius:12, padding:"12px 16px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <span style={{ fontSize:26 }}>🩹</span>
+              <div style={{ flex:1 }}>
+                <b style={{ color:"#34d399" }}>O Nyx sugeriu uma correção no seu código!</b>
+                <p style={{ color:"#c7f5e3", fontSize:14, margin:"2px 0 0", lineHeight:1.5 }}>{correction.notes || "Encontrei alguns pontos para ajustar."}</p>
+              </div>
+              <button onClick={()=>setShowCorrectionDetail(s=>!s)} style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:13 }}>{showCorrectionDetail ? "Ocultar" : "Ver o que mudou"}</button>
+              <button onClick={applyCorrection} style={{ ...styles.btn("#34d399"), padding:"6px 12px", fontSize:13 }}>✅ Aplicar</button>
+              <button onClick={dismissCorrection} style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:13 }}>Ignorar</button>
+            </div>
+            {showCorrectionDetail && (
+              <div style={{ marginTop:12, display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap:10 }}>
+                {(correction.files||[]).map((f,i)=>(
+                  <div key={i} style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, overflow:"hidden" }}>
+                    <div style={{ background:"#161a2e", padding:"4px 10px", fontSize:12, color:"#96a0cc" }}>📄 {f.name}</div>
+                    <pre style={{ margin:0, padding:10, color:"#a5f3fc", fontFamily:"'Courier New',monospace", fontSize:12, maxHeight:220, overflow:"auto", whiteSpace:"pre-wrap" }}>{f.code}</pre>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {idleHint && !showNudge && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
           <div style={{ background:"#7c83ff18", border:"1px solid #7c83ff", color:"#c7d2fe", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
@@ -1840,9 +1898,22 @@ function TeacherView({ onLogout }) {
   const [nameMsg, setNameMsg] = useState("");
   const [nudged, setNudged] = useState({});
   const metaRef = useRef({ city:"", classDays:[], contentNames:{} });
-  // código do professor (aba "Meu código") — vive aqui para não se perder ao trocar de aba e para nomear o conteúdo
-  const [proFiles, setProFiles] = useState([{ name:"Program.cs", code:"" }]);
+  // código do professor (aba "Meu código") — um exemplo independente por turno
+  const [proFilesByShift, setProFilesByShift] = useState({
+    matutino: [{ name:"Program.cs", code:"" }],
+    vespertino: [{ name:"Program.cs", code:"" }],
+  });
   const [proLoaded, setProLoaded] = useState(false);
+  const [codeShift, setCodeShift] = useState("matutino"); // turno em edição/visualização (Meu código + Calendário)
+  const proFiles = proFilesByShift[codeShift];
+  const setProFiles = (updater) => setProFilesByShift(prev => ({
+    ...prev,
+    [codeShift]: typeof updater === "function" ? updater(prev[codeShift]) : updater,
+  }));
+  // autocorreção do Nyx
+  const [correcting, setCorrecting] = useState(false);
+  const [correctionProgress, setCorrectionProgress] = useState({ done:0, total:0 });
+  const [correctionResults, setCorrectionResults] = useState(null);
   // prova
   const [examConfig, setExamConfig] = useState({ status: 'idle' });
   const [examGenerating, setExamGenerating] = useState(false);
@@ -1881,14 +1952,26 @@ function TeacherView({ onLogout }) {
 
   useEffect(() => { diagnose().then(setDiag); }, []);
   useEffect(() => { getTeacherMeta().then(m => { metaRef.current = m; setMeta(m); setCityInput(m.city||""); }); }, []);
-  // carrega o código salvo do professor uma vez
-  useEffect(() => { getTeacherCode().then(c => { if (c && Array.isArray(c.files) && c.files.length) setProFiles(c.files); setProLoaded(true); }); }, []);
-  // salva o código do professor (sem pressa) sempre que ele mexe — só depois de já ter carregado, para não apagar o que estava salvo
+  // carrega o código salvo do professor uma vez, para cada turno
+  useEffect(() => {
+    (async () => {
+      const [m, v] = await Promise.all([getTeacherCode("matutino"), getTeacherCode("vespertino")]);
+      setProFilesByShift(prev => ({
+        matutino: (m && Array.isArray(m.files) && m.files.length) ? m.files : prev.matutino,
+        vespertino: (v && Array.isArray(v.files) && v.files.length) ? v.files : prev.vespertino,
+      }));
+      setProLoaded(true);
+    })();
+  }, []);
+  // salva o código do professor de cada turno (sem pressa) sempre que ele mexe
   useEffect(() => {
     if (!proLoaded) return;
-    const id = setTimeout(() => { saveTeacherCode(proFiles); }, 1000);
+    const id = setTimeout(() => {
+      saveTeacherCode(proFilesByShift.matutino, "matutino");
+      saveTeacherCode(proFilesByShift.vespertino, "vespertino");
+    }, 1000);
     return () => clearTimeout(id);
-  }, [proFiles, proLoaded]);
+  }, [proFilesByShift, proLoaded]);
 
   const saveCity = async () => { const nm = { ...metaRef.current, city:cityInput.trim() }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm); };
   const toggleClassDay = async (k) => {
@@ -1913,36 +1996,56 @@ function TeacherView({ onLogout }) {
     setTimeout(() => setResetMsg(""), 6000);
   };
 
-  // gera um nome de conteúdo para a aula de hoje — de preferência a partir do exemplo que o professor programou
-  const generateContentName = async () => {
+  // gera um nome de conteúdo para a aula de hoje, para UM turno específico
+  const computeContentName = async (shift) => {
     const tk = todayKey();
-    const proCode = (proFiles||[]).map(f => (f.code||"")).join("\n").trim();
+    const proCode = (proFilesByShift[shift]||[]).map(f => (f.code||"")).join("\n").trim();
     let source = "", origem = "";
     if (proCode.length > 5) {
-      source = (proFiles||[]).filter(f=>(f.code||"").trim()).map(f=>`// ${f.name}\n${f.code}`).join("\n\n");
+      source = (proFilesByShift[shift]||[]).filter(f=>(f.code||"").trim()).map(f=>`// ${f.name}\n${f.code}`).join("\n\n");
       origem = "professor";
     } else {
-      const base = (shiftFilter === "all" ? students : students.filter(s => (s.shift||"sem-turno")===shiftFilter));
+      const base = students.filter(s => (s.shift||"sem-turno")===shift);
       const codes = base.filter(s => (s.code||"").trim().length > 5).map((s,i)=>`Aluno ${i+1}:\n${s.code}`).join("\n\n---\n\n");
       if (codes) { source = codes; origem = "alunos"; }
     }
-    if (!source) { setNameMsg("Programe o exemplo de hoje na aba “Meu código” (ou espere os alunos começarem a escrever) para eu gerar o nome."); setTimeout(()=>setNameMsg(""), 6000); return; }
+    if (!source) throw new Error(`Programe o exemplo de ${shiftMeta(shift).label} na aba "Meu código" (ou espere os alunos dessa turma começarem a escrever).`);
+    const ctx = origem === "professor"
+      ? "Este é o código C# que o professor escreveu como exemplo na aula de hoje"
+      : "Estes são os códigos C# que os alunos escreveram na aula de hoje";
+    const out = await askClaude(
+      `${ctx}:\n\n${source}\n\nGere um TÍTULO curto de conteúdo para esta aula, em português, com no máximo 6 palavras, que resuma o principal tema/conceito trabalhado (ex: "Variáveis e Console.WriteLine", "Condições com if e else", "Entrada de dados com ReadLine"). Responda APENAS com o título, sem aspas e sem ponto final.`,
+      "Você nomeia o conteúdo de aulas de C# para iniciantes. Responda só com um título curto."
+    );
+    const title = out.replace(/["\n`]/g,"").trim().slice(0,80);
+    const nm = { ...metaRef.current, contentNames: withContentName(metaRef.current.contentNames, tk, shift, title) };
+    metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm);
+    return { title, origem };
+  };
+
+  // usado nas abas "Meu código" e "Calendário" — sempre para o turno selecionado ali
+  const generateContentName = async (shift) => {
     setGenName(true); setNameMsg("");
     try {
-      const ctx = origem === "professor"
-        ? "Este é o código C# que o professor escreveu como exemplo na aula de hoje"
-        : "Estes são os códigos C# que os alunos escreveram na aula de hoje";
-      const out = await askClaude(
-        `${ctx}:\n\n${source}\n\nGere um TÍTULO curto de conteúdo para esta aula, em português, com no máximo 6 palavras, que resuma o principal tema/conceito trabalhado (ex: "Variáveis e Console.WriteLine", "Condições com if e else", "Entrada de dados com ReadLine"). Responda APENAS com o título, sem aspas e sem ponto final.`,
-        "Você nomeia o conteúdo de aulas de C# para iniciantes. Responda só com um título curto."
-      );
-      const title = out.replace(/["\n`]/g,"").trim().slice(0,80);
-      const nm = { ...metaRef.current, contentNames: { ...(metaRef.current.contentNames||{}), [tk]: title } };
-      metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm);
-      setNameMsg(`✅ Conteúdo de hoje: ${title}${origem==="alunos"?" (gerado pelo código dos alunos)":""}`);
-      setTimeout(()=>setNameMsg(""), 6000);
-    } catch { setNameMsg("Não consegui gerar agora. Tente de novo em instantes."); setTimeout(()=>setNameMsg(""), 5000); }
+      const { title, origem } = await computeContentName(shift);
+      setNameMsg(`✅ Conteúdo de hoje (${shiftMeta(shift).label}): ${title}${origem==="alunos"?" (gerado pelo código dos alunos)":""}`);
+    } catch (e) { setNameMsg(e.message || "Não consegui gerar agora. Tente de novo em instantes."); }
     setGenName(false);
+    setTimeout(()=>setNameMsg(""), 6000);
+  };
+
+  // usado no Monitoramento — respeita o filtro de turma (gera para os dois se "Todas" estiver selecionada)
+  const generateContentNameFiltered = async () => {
+    setGenName(true); setNameMsg("");
+    const shifts = shiftFilter === "all" ? ["matutino","vespertino"] : [shiftFilter];
+    const parts = [];
+    for (const sh of shifts) {
+      try { const { title } = await computeContentName(sh); parts.push(`${shiftMeta(sh).emoji} ${title}`); }
+      catch { parts.push(`${shiftMeta(sh).emoji} não consegui gerar`); }
+    }
+    setNameMsg(`✅ ${parts.join(" · ")}`);
+    setGenName(false);
+    setTimeout(()=>setNameMsg(""), 7000);
   };
 
   // envia um aviso para um aluno específico aparecer na tela dele
@@ -1951,11 +2054,47 @@ function TeacherView({ onLogout }) {
     if (ok) { setNudged(n => ({ ...n, [s.name]: Date.now() })); setTimeout(()=>setNudged(n=>{ const c={...n}; delete c[s.name]; return c; }), 5000); }
   };
 
+  // autocorreção: o Nyx lê o código de cada aluno (da turma filtrada) e sugere uma correção pontual
+  const runAutocorrecao = async () => {
+    const targets = shown.filter(s => Array.isArray(s.files)
+      ? s.files.some(f => (f.code||"").trim().length > 5)
+      : (s.code||"").trim().length > 5);
+    setCorrectionResults(null);
+    if (!targets.length) { setCorrectionResults([]); return; }
+    setCorrecting(true);
+    setCorrectionProgress({ done:0, total: targets.length });
+    const results = await Promise.all(targets.map(async (s) => {
+      try {
+        const srcFiles = (Array.isArray(s.files) && s.files.length) ? s.files : [{ name:"Program.cs", code: s.code||"" }];
+        const filesCtx = srcFiles.map(f=>`// ===== ${f.name} =====\n${f.code||""}`).join("\n\n");
+        const parsed = await askClaudeJson(
+          `Corrija SOMENTE os erros reais deste código C# de um aluno iniciante. Preserve ao máximo a estrutura, os nomes de variáveis e a lógica que o aluno escreveu.\n\nRegras rígidas:\n- NÃO adicione funcionalidades, comentários explicativos ou trechos que o aluno não escreveu.\n- NÃO reescreva o estilo do código nem "melhore" o que já está correto.\n- Corrija apenas problemas reais: maiúsculas/minúsculas erradas (Console.WriteLine etc.), ; faltando, chaves/parênteses/aspas não fechadas, palavras-chave erradas, tipos que deveriam ser minúsculos (string/int/double/bool), variáveis usadas sem declarar, comparação = no lugar de ==, leitura de número sem Convert/Parse.\n- Se um arquivo já estiver certo, devolva-o EXATAMENTE igual, sem nenhuma alteração.\n- Top-level statements (sem class/Main) e ausência de using System são válidos — não mexa nisso.\n\nArquivos do projeto deste aluno (compilam juntos):\n${filesCtx}\n\nResponda APENAS JSON puro com os campos NESTA ordem: {"analise":"o que você conferiu, curto (interno)","changed": true ou false, "notes": "resumo bem curto em português do que foi corrigido — vazio se nada mudou", "files": [{"name":"...","code":"..."}]}\nA lista "files" deve ter TODOS os arquivos, na mesma ordem e mesmos nomes, corrigidos ou idênticos.`,
+          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
+          { temperature: 0 }
+        );
+        const outFiles = (Array.isArray(parsed.files) && parsed.files.length) ? parsed.files : srcFiles;
+        if (parsed.changed) {
+          await setCorrection(s.shift, s.name, { files: outFiles, notes: parsed.notes || "Corrigi alguns pontos no seu código." });
+        }
+        return { name: s.name, shift: s.shift, avatar: s.avatar, changed: !!parsed.changed, notes: parsed.notes || "" };
+      } catch (e) {
+        return { name: s.name, shift: s.shift, avatar: s.avatar, changed:false, error: e.message === "ROBOTKEY_MISSING" ? "Nyx (IA) offline" : "erro ao corrigir" };
+      } finally {
+        setCorrectionProgress(p => ({ ...p, done: p.done + 1 }));
+      }
+    }));
+    setCorrectionResults(results);
+    setCorrecting(false);
+  };
+
+
   const startExam = async () => {
-    const proCode = (proFiles||[]).map(f => (f.code||"")).join("\n").trim();
-    const studentCodes = students.filter(s=>(s.code||"").trim().length>5).map(s=>s.code).join("\n").slice(0,2000);
+    const examShifts = examShift === "all" ? ["matutino","vespertino"] : [examShift];
+    const proCode = examShifts.flatMap(sh => proFilesByShift[sh]||[]).map(f => (f.code||"")).join("\n").trim();
+    const examStudents = examShift === "all" ? students : students.filter(s=>(s.shift||"sem-turno")===examShift);
+    const studentCodes = examStudents.filter(s=>(s.code||"").trim().length>5).map(s=>s.code).join("\n").slice(0,2000);
     const codeCtx = proCode || studentCodes;
-    if (!codeCtx) { setExamMsg("Escreva o código de exemplo na aba Meu código primeiro!"); return; }
+    if (!codeCtx) { setExamMsg(`Escreva o código de exemplo na aba Meu código (turma ${examShift==="all"?"Manhã ou Tarde":shiftMeta(examShift).label}) primeiro!`); return; }
     setExamGenerating(true); setExamMsg("Gerando resumo...");
     try {
       const summaryResult = await askClaude(
@@ -2068,7 +2207,31 @@ function TeacherView({ onLogout }) {
   const presentList = sorted.filter(s => attStatus(s)==="present");
   const idleList    = sorted.filter(s => attStatus(s)==="idle");
   const absentList  = sorted.filter(s => attStatus(s)==="absent");
-  const todayContent = (meta.contentNames||{})[tk];
+  const contentFor = (sh) => contentNameFor((meta.contentNames||{})[tk], sh);
+  const todayContentM = contentFor("matutino");
+  const todayContentV = contentFor("vespertino");
+  const todayContent = todayContentM || todayContentV; // uso legado (NyxChat, etc.)
+  // mapa de conteúdo por dia já resolvido para o turno em foco (usado no Calendário)
+  const calContentNames = Object.fromEntries(
+    Object.entries(meta.contentNames || {})
+      .map(([k, v]) => [k, contentNameFor(v, codeShift)])
+      .filter(([, v]) => v)
+  );
+
+  // lista de chamada separada por turno
+  const chamadaGroups = SHIFTS
+    .filter(sh => shiftFilter === "all" || shiftFilter === sh.id)
+    .map(sh => {
+      const list = students.filter(s => (s.shift||"sem-turno")===sh.id).sort((a,b)=>(a.name||"").localeCompare(b.name||"","pt-BR"));
+      return {
+        shift: sh,
+        list,
+        online: list.filter(isOnline).length,
+        present: list.filter(s=>attStatus(s)==="present"),
+        idle: list.filter(s=>attStatus(s)==="idle"),
+        absent: list.filter(s=>attStatus(s)==="absent"),
+      };
+    });
 
   const styles = {
     container:{ minHeight:"100vh", background:PAGE_BG, color:"#e8ebfa", fontFamily:FONT },
@@ -2085,7 +2248,10 @@ function TeacherView({ onLogout }) {
       <div style={styles.header}>
         <div>
           <span style={{ fontWeight:900, fontSize:18, background:"linear-gradient(135deg,#fbbf24,#fb923c)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
-          <span style={{ color:"#96a0cc", marginLeft:12, fontSize:12 }}>● ao vivo · {lastUpdate}{meta.city?` · 📍 ${meta.city}`:""}{todayContent?` · 📖 ${todayContent}`:""}</span>
+          <span style={{ color:"#96a0cc", marginLeft:12, fontSize:12 }}>
+            ● ao vivo · {lastUpdate}{meta.city?` · 📍 ${meta.city}`:""}
+            {(todayContentM||todayContentV) ? ` · 📖 ${[todayContentM&&`☀️ ${todayContentM}`, todayContentV&&`🌙 ${todayContentV}`].filter(Boolean).join(" · ")}` : ""}
+          </span>
         </div>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
           <button style={styles.tab(tab==="monitor")} onClick={()=>setTab("monitor")}>👥 Monitoramento</button>
@@ -2253,54 +2419,68 @@ function TeacherView({ onLogout }) {
 
             <div style={{ ...styles.card, fontSize:12 }}>
               <h4 style={{ color:"#fbbf24", fontSize:13, marginBottom:6 }}>📖 Conteúdo de hoje</h4>
-              {todayContent
-                ? <p style={{ color:"#34d399", fontSize:14, fontWeight:600, lineHeight:1.5 }}>{todayContent}</p>
-                : <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.5 }}>Programe o exemplo do dia na aba <b>Meu código</b> e gere um nome automático para a aula. (Se ainda não programou, uso o código dos alunos.)</p>}
-              <button style={{ ...styles.btn("#7c83ff"), padding:"6px 12px", fontSize:13, marginTop:8, width:"100%", opacity:genName?0.6:1 }} onClick={generateContentName} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo"}</button>
+              {todayContentM
+                ? <p style={{ color:"#34d399", fontSize:13, fontWeight:600, lineHeight:1.5, margin:0 }}>☀️ Manhã: {todayContentM}</p>
+                : <p style={{ color:"#96a0cc", fontSize:12.5, lineHeight:1.5, margin:0 }}>☀️ Manhã: ainda não definido</p>}
+              {todayContentV
+                ? <p style={{ color:"#34d399", fontSize:13, fontWeight:600, lineHeight:1.5, margin:"4px 0 0" }}>🌙 Tarde: {todayContentV}</p>
+                : <p style={{ color:"#96a0cc", fontSize:12.5, lineHeight:1.5, margin:"4px 0 0" }}>🌙 Tarde: ainda não definido</p>}
+              <p style={{ color:"#5d679c", fontSize:11.5, lineHeight:1.5, margin:"8px 0 0" }}>Programe o exemplo na aba <b>Meu código</b> e gere um nome automático. (Se ainda não programou, uso o código dos alunos.)</p>
+              <button style={{ ...styles.btn("#7c83ff"), padding:"6px 12px", fontSize:13, marginTop:8, width:"100%", opacity:genName?0.6:1 }} onClick={generateContentNameFiltered} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo"}</button>
               {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12, marginTop:8, lineHeight:1.5 }}>{nameMsg}</p>}
             </div>
           </div>
 
           {/* direita */}
           <div style={{ flex:"1 1 420px", minWidth:300 }}>
-            {/* Chamada */}
+            {/* Chamada — separada por turno */}
             <div style={styles.card}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
                 <h3 style={{ color:"#fbbf24" }}>📋 Lista de Chamada</h3>
                 <span style={styles.badge("#34d399")}>{present} online / {shown.length}</span>
               </div>
               {shown.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno na chamada ainda.</p> : (
-                <>
-                  <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:12 }}>
-                    <span style={styles.badge("#34d399")}>✅ {presentList.length} presente{presentList.length!==1?"s":""}</span>
-                    <span style={styles.badge("#fbbf24")}>⚠ {idleList.length} sem atividade</span>
-                    <span style={styles.badge("#f87171")}>❌ {absentList.length} falta{absentList.length!==1?"s":""}</span>
-                  </div>
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))", gap:8 }}>
-                    {sorted.map(s=>{
-                      const st = attStatus(s);
-                      const stColor = st==="present"?"#34d399":st==="idle"?"#fbbf24":"#f87171";
-                      const stLabel = st==="present"?"✅ Presente":st==="idle"?"⚠ Sem atividade":"❌ Falta";
-                      return (
-                        <div key={s.name} style={{ background:"#0d1122", border:`1px solid ${st==="absent"?"#3f2530":"#2a3154"}`, borderRadius:8, padding:"8px 10px", opacity:st==="absent"?0.7:1 }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                            <Avatar cfg={s.avatar} size={28} />
-                            <span style={{ fontSize:14, flex:1 }}>{dot(isOnline(s))}{s.name}</span>
-                            <span style={{ color:"#5d679c", fontSize:11 }}>{hhmm(s.joinedAt)}</span>
-                          </div>
-                          <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, flexWrap:"wrap" }}>
-                            <span style={styles.badge(stColor)}>{stLabel}</span>
-                            {st==="idle" && (
-                              nudged[s.name]
-                                ? <span style={{ color:"#34d399", fontSize:11, fontWeight:600 }}>aviso enviado ✓</span>
-                                : <button onClick={()=>nudgeStudent(s)} style={{ background:"transparent", color:"#fbbf24", border:"1px solid #fbbf24", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>👀 Enviar aviso</button>
-                            )}
-                          </div>
+                chamadaGroups.map((g, gi) => (
+                  <div key={g.shift.id} style={{ marginTop: gi>0 ? 18 : 0, paddingTop: gi>0 ? 16 : 0, borderTop: gi>0 ? "1px solid #2a3154" : "none" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                      <b style={{ color:"#e8ebfa", fontSize:14 }}>{g.shift.emoji} {g.shift.label}</b>
+                      <span style={styles.badge("#34d399")}>{g.online} online / {g.list.length}</span>
+                    </div>
+                    {g.list.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno nesta turma ainda.</p> : (
+                      <>
+                        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
+                          <span style={styles.badge("#34d399")}>✅ {g.present.length} presente{g.present.length!==1?"s":""}</span>
+                          <span style={styles.badge("#fbbf24")}>⚠ {g.idle.length} sem atividade</span>
+                          <span style={styles.badge("#f87171")}>❌ {g.absent.length} falta{g.absent.length!==1?"s":""}</span>
                         </div>
-                      );
-                    })}
+                        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))", gap:8 }}>
+                          {g.list.map(s=>{
+                            const st = attStatus(s);
+                            const stColor = st==="present"?"#34d399":st==="idle"?"#fbbf24":"#f87171";
+                            const stLabel = st==="present"?"✅ Presente":st==="idle"?"⚠ Sem atividade":"❌ Falta";
+                            return (
+                              <div key={s.name} style={{ background:"#0d1122", border:`1px solid ${st==="absent"?"#3f2530":"#2a3154"}`, borderRadius:8, padding:"8px 10px", opacity:st==="absent"?0.7:1 }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                  <Avatar cfg={s.avatar} size={28} />
+                                  <span style={{ fontSize:14, flex:1 }}>{dot(isOnline(s))}{s.name}</span>
+                                  <span style={{ color:"#5d679c", fontSize:11 }}>{hhmm(s.joinedAt)}</span>
+                                </div>
+                                <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, flexWrap:"wrap" }}>
+                                  <span style={styles.badge(stColor)}>{stLabel}</span>
+                                  {st==="idle" && (
+                                    nudged[s.name]
+                                      ? <span style={{ color:"#34d399", fontSize:11, fontWeight:600 }}>aviso enviado ✓</span>
+                                      : <button onClick={()=>nudgeStudent(s)} style={{ background:"transparent", color:"#fbbf24", border:"1px solid #fbbf24", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>👀 Enviar aviso</button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
-                </>
+                ))
               )}
             </div>
 
@@ -2321,6 +2501,45 @@ function TeacherView({ onLogout }) {
                   ))}
                 </div>
               </div>
+            </div>
+
+            {/* Autocorreção do Nyx */}
+            <div style={{ ...styles.card, borderColor:"#34d399" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
+                <div>
+                  <h3 style={{ color:"#34d399", margin:0 }}>🩹 Autocorreção do Nyx</h3>
+                  <p style={{ color:"#96a0cc", fontSize:13, margin:"4px 0 0", maxWidth:520 }}>
+                    O Nyx lê o código de cada aluno ({shiftFilter==="all"?"todas as turmas":shiftMeta(shiftFilter).label}) e sugere correções pontuais, sem inventar nada que o aluno não escreveu. Cada aluno recebe a sugestão e decide se aplica.
+                  </p>
+                </div>
+                <button onClick={runAutocorrecao} disabled={correcting || shown.length===0} style={{ ...styles.btn("#34d399"), opacity:(correcting||shown.length===0)?0.6:1, whiteSpace:"nowrap" }}>
+                  {correcting ? `Corrigindo ${correctionProgress.done}/${correctionProgress.total}...` : "🩹 Corrigir código da turma"}
+                </button>
+              </div>
+              {correctionResults && (
+                <div style={{ marginTop:14, borderTop:"1px solid #2a3154", paddingTop:12 }}>
+                  {correctionResults.length===0 ? (
+                    <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno com código para corrigir ainda.</p>
+                  ) : (
+                    <>
+                      <p style={{ color:"#96a0cc", fontSize:13, marginBottom:8 }}>
+                        {correctionResults.filter(r=>r.changed).length} sugestão(ões) enviada(s) · {correctionResults.filter(r=>!r.changed && !r.error).length} já estavam certos · {correctionResults.filter(r=>r.error).length} com erro
+                      </p>
+                      {correctionResults.map(r => (
+                        <div key={r.shift+":"+r.name} style={{ display:"flex", alignItems:"center", gap:10, padding:"6px 0", borderBottom:"1px solid #2a3154" }}>
+                          <Avatar cfg={r.avatar} size={26} />
+                          <span style={{ flex:1, fontSize:13 }}>{r.name} <span style={{ color:"#5d679c", fontSize:11 }}>{shiftMeta(r.shift).emoji}</span></span>
+                          {r.error
+                            ? <span style={{ color:"#f87171", fontSize:12 }}>⚠ {r.error}</span>
+                            : r.changed
+                              ? <span style={{ color:"#34d399", fontSize:12 }}>🩹 {r.notes || "corrigido"}</span>
+                              : <span style={{ color:"#5d679c", fontSize:12 }}>✅ sem correções</span>}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Detalhe do aluno */}
@@ -2376,14 +2595,19 @@ function TeacherView({ onLogout }) {
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, flexWrap:"wrap" }}>
               <div style={{ flex:"1 1 260px" }}>
                 <h3 style={{ color:"#fbbf24", margin:0 }}>👨‍💻 Meu código</h3>
-                <p style={{ color:"#96a0cc", fontSize:13, margin:"4px 0 0", lineHeight:1.5 }}>Programe aqui o exemplo de hoje. Quando terminar, gere o nome do conteúdo a partir dele — é isso que aparece no calendário.</p>
+                <p style={{ color:"#96a0cc", fontSize:13, margin:"4px 0 0", lineHeight:1.5 }}>Cada turma tem seu próprio exemplo. Programe aqui e gere o nome do conteúdo a partir dele — é isso que aparece no calendário.</p>
               </div>
-              <button style={{ ...styles.btn("#7c83ff"), opacity:genName?0.6:1 }} onClick={generateContentName} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo de hoje"}</button>
+              <button style={{ ...styles.btn("#7c83ff"), opacity:genName?0.6:1 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift).label})`}</button>
             </div>
-            {todayContent && <p style={{ color:"#34d399", fontSize:14, fontWeight:600, margin:"10px 0 0" }}>📖 Conteúdo de hoje: {todayContent}</p>}
+            <div style={{ display:"flex", gap:8, marginTop:12 }}>
+              {SHIFTS.map(sh => (
+                <button key={sh.id} onClick={()=>setCodeShift(sh.id)} style={styles.tab(codeShift===sh.id)}>{sh.emoji} {sh.label}</button>
+              ))}
+            </div>
+            {contentFor(codeShift) && <p style={{ color:"#34d399", fontSize:14, fontWeight:600, margin:"10px 0 0" }}>📖 Conteúdo de hoje ({shiftMeta(codeShift).label}): {contentFor(codeShift)}</p>}
             {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:13, margin:"10px 0 0", lineHeight:1.5 }}>{nameMsg}</p>}
           </div>
-          <CodeLab accent="#fbbf24" files={proFiles} onChange={setProFiles} />
+          <CodeLab key={codeShift} accent="#fbbf24" files={proFiles} onChange={setProFiles} />
         </div>
       )}
 
@@ -2391,9 +2615,16 @@ function TeacherView({ onLogout }) {
       {tab==="calendar" && (
         <div style={{ display:"flex", gap:14, padding:14, maxWidth:900, margin:"0 auto", alignItems:"flex-start", flexWrap:"wrap" }}>
           <div style={{ ...styles.card, flex:"1 1 380px" }}>
-            <h3 style={{ color:"#fbbf24", marginBottom:12 }}>🗓️ Calendário de aulas</h3>
-            <p style={{ color:"#96a0cc", fontSize:13, marginBottom:12 }}>Os dias com aula ficam em verde (são marcados sozinhos quando há alunos online, e você também pode clicar para marcar/desmarcar). O 📖 indica os dias que já têm um nome de conteúdo gerado — passe o mouse para ver o tema.</p>
-            <Calendar classDays={meta.classDays||[]} contentNames={meta.contentNames||{}} onToggle={toggleClassDay} />
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8, marginBottom:12 }}>
+              <h3 style={{ color:"#fbbf24", margin:0 }}>🗓️ Calendário de aulas</h3>
+              <div style={{ display:"flex", gap:8 }}>
+                {SHIFTS.map(sh => (
+                  <button key={sh.id} onClick={()=>setCodeShift(sh.id)} style={styles.tab(codeShift===sh.id)}>{sh.emoji} {sh.label}</button>
+                ))}
+              </div>
+            </div>
+            <p style={{ color:"#96a0cc", fontSize:13, marginBottom:12 }}>Os dias com aula ficam em verde (são marcados sozinhos quando há alunos online, e você também pode clicar para marcar/desmarcar). O 📖 indica os dias que já têm conteúdo gerado para a turma {shiftMeta(codeShift).label} — passe o mouse para ver o tema.</p>
+            <Calendar classDays={meta.classDays||[]} contentNames={calContentNames} onToggle={toggleClassDay} />
           </div>
           <div style={{ ...styles.card, flex:"1 1 260px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:12 }}>📍 Sua cidade no DF</h3>
@@ -2406,11 +2637,11 @@ function TeacherView({ onLogout }) {
             <p style={{ color:"#96a0cc", fontSize:13 }}>Total de dias de aula registrados: <b style={{ color:"#e8ebfa" }}>{(meta.classDays||[]).length}</b></p>
           </div>
           <div style={{ ...styles.card, flex:"1 1 260px" }}>
-            <h3 style={{ color:"#fbbf24", marginBottom:8 }}>📖 Conteúdo da aula de hoje</h3>
-            {todayContent
-              ? <p style={{ color:"#34d399", fontSize:16, fontWeight:600, lineHeight:1.5, margin:"4px 0 12px" }}>{todayContent}</p>
+            <h3 style={{ color:"#fbbf24", marginBottom:8 }}>📖 Conteúdo de hoje ({shiftMeta(codeShift).label})</h3>
+            {contentFor(codeShift)
+              ? <p style={{ color:"#34d399", fontSize:16, fontWeight:600, lineHeight:1.5, margin:"4px 0 12px" }}>{contentFor(codeShift)}</p>
               : <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, margin:"4px 0 12px" }}>Ainda não gerado. Programe o exemplo do dia na aba <b>Meu código</b> e clique abaixo para criar um nome automático.</p>}
-            <button style={{ ...styles.btn("#7c83ff"), width:"100%", opacity:genName?0.6:1 }} onClick={generateContentName} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo de hoje"}</button>
+            <button style={{ ...styles.btn("#7c83ff"), width:"100%", opacity:genName?0.6:1 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo de hoje"}</button>
             {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12, marginTop:10, lineHeight:1.5 }}>{nameMsg}</p>}
           </div>
         </div>
@@ -2609,7 +2840,7 @@ function TeacherView({ onLogout }) {
             const att = Object.values(s.attendance||{}).filter(v => v === "present").length;
             return `- ${s.name} [${shiftLabel(s.shift)}]: fase=${s.phase||"aguardando"}, presenças=${att}, nota atividade=${s.score ?? "—"}, nota prova=${s.examScore ?? "—"}, erro no código agora=${s.hasError ? "sim: " + (s.feedback?.message || "") : "não"}`;
           }).join("\n");
-          return `Contexto: você é o assistente do professor. Situação da turma AGORA:\n${rows || "(nenhum aluno entrou ainda)"}\nConteúdo de hoje: ${todayContent || "ainda não definido"}.`;
+          return `Contexto: você é o assistente do professor. Situação da turma AGORA:\n${rows || "(nenhum aluno entrou ainda)"}\nConteúdo de hoje — Manhã: ${todayContentM || "ainda não definido"} · Tarde: ${todayContentV || "ainda não definido"}.`;
         }}
       />
     </div>
@@ -2682,19 +2913,29 @@ function Login({ onJoin }) {
           <>
             <p style={{ color:"#fbbf24", fontWeight:600, marginBottom:10 }}>👤 Entrar como Aluno</p>
 
+            <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 8px" }}>🕑 Qual é a sua turma?</p>
+            <div style={{ display:"flex", gap:10, marginBottom:18 }}>
+              {SHIFTS.map(sh => (
+                <button key={sh.id} onClick={()=>setShift(sh.id)}
+                  style={{ ...styles.rBtn(), ...(shift===sh.id ? { borderColor:"#7c83ff", color:"#fff", background:"#7c83ff22" } : {}) }}>
+                  {sh.emoji} {sh.label}
+                </button>
+              ))}
+            </div>
+
             <div style={{ marginBottom:16 }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                <span style={{ color:"#96a0cc", fontSize:13 }}>Já tem um perfil? Toque no seu nome:</span>
+                <span style={{ color:"#96a0cc", fontSize:13 }}>Já tem um perfil da turma {shiftMeta(shift).label}? Toque no seu nome:</span>
                 <button onClick={loadProfiles} style={{ background:"transparent", border:"none", color:"#7c83ff", cursor:"pointer", fontSize:12 }}>↻ atualizar</button>
               </div>
               {loadingProfiles ? <p style={{ color:"#5d679c", fontSize:13 }}>Procurando perfis salvos...</p>
-                : profiles.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum perfil salvo ainda. Crie o seu abaixo 👇</p>
+                : profiles.filter(p => (p.shift||"matutino")===shift).length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum perfil salvo ainda nesta turma. Crie o seu abaixo 👇</p>
                 : (
                   <div style={{ maxHeight:170, overflowY:"auto", display:"flex", flexDirection:"column", gap:8 }}>
-                    {profiles.map(p=>(
+                    {profiles.filter(p => (p.shift||"matutino")===shift).map(p=>(
                       <button key={`${p.shift||"x"}:${p.name}`} onClick={()=>enterStudent(p.name, p.avatar, p.shift)} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"2px solid #2a3154", borderRadius:10, padding:"8px 12px", cursor:"pointer", color:"#e8ebfa", textAlign:"left" }}>
                         <Avatar cfg={p.avatar} size={32} />
-                        <span style={{ fontWeight:600, flex:1 }}>{p.name}{p.shift?<span style={{ color:"#96a0cc", fontWeight:500, fontSize:12, marginLeft:8 }}>{shiftMeta(p.shift).emoji} {shiftMeta(p.shift).label}</span>:null}</span>
+                        <span style={{ fontWeight:600, flex:1 }}>{p.name}</span>
                         <span style={{ color:"#7c83ff", fontSize:13, fontWeight:700 }}>Entrar →</span>
                       </button>
                     ))}
@@ -2704,20 +2945,11 @@ function Login({ onJoin }) {
 
             <div style={{ display:"flex", alignItems:"center", gap:10, margin:"6px 0 14px" }}>
               <div style={{ flex:1, height:1, background:"#2a3154" }}/>
-              <span style={{ color:"#5d679c", fontSize:12 }}>ou crie um novo perfil</span>
+              <span style={{ color:"#5d679c", fontSize:12 }}>ou crie um novo perfil na turma {shiftMeta(shift).label}</span>
               <div style={{ flex:1, height:1, background:"#2a3154" }}/>
             </div>
 
             <input style={styles.input} placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} />
-            <p style={{ color:"#96a0cc", fontSize:13, margin:"14px 0 8px" }}>🕑 Qual é a sua turma?</p>
-            <div style={{ display:"flex", gap:10 }}>
-              {SHIFTS.map(sh => (
-                <button key={sh.id} onClick={()=>setShift(sh.id)}
-                  style={{ ...styles.rBtn(), ...(shift===sh.id ? { borderColor:"#7c83ff", color:"#fff", background:"#7c83ff22" } : {}) }}>
-                  {sh.emoji} {sh.label}
-                </button>
-              ))}
-            </div>
             <p style={{ color:"#96a0cc", fontSize:13, margin:"14px 0 8px" }}>🎨 Monte seu boneco:</p>
             <AvatarBuilder value={avatar} onChange={setAvatar} />
             {error&&<p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{error}</p>}
