@@ -6,6 +6,30 @@ import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, 
 // ── tema ──
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
 const PAGE_BG = "radial-gradient(1000px 620px at 85% -10%, rgba(124,131,255,.16), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.09), transparent 55%), linear-gradient(180deg,#0a0c18 0%,#0c0f20 100%)";
+const LIGHT_BG = "radial-gradient(1000px 620px at 85% -10%, rgba(124,131,255,.20), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.14), transparent 55%), linear-gradient(180deg,#eef1fb 0%,#dde4f5 100%)";
+const customBg = (hex) => `radial-gradient(1000px 620px at 85% -10%, ${shade(hex,0.15)}, transparent 65%), linear-gradient(180deg, ${shade(hex,-0.55)} 0%, ${shade(hex,-0.72)} 100%)`;
+const pageBgFor = (theme) => theme === "light" ? LIGHT_BG : (typeof theme === "string" && theme.startsWith("#")) ? customBg(theme) : PAGE_BG;
+
+// ── conhecimento de C# do Nyx (usado em todas as chamadas de IA) ──
+const CS_SYSTEM = `Você é Nyx, um robô professor especialista em C# e .NET que ajuda uma turma de iniciantes (adolescentes). Domine e aplique com precisão absoluta:
+- Sintaxe: using, namespace, class, static void Main, tipos (string, int, double, bool, char, long, float, decimal), var, const, arrays, List<>, operadores aritméticos/lógicos/comparação, casting, Convert.ToInt32/ToDouble, int.Parse, double.Parse.
+- Console: Console.WriteLine, Console.Write, Console.ReadLine (SEMPRE retorna string — para número precisa converter), Console.ReadKey, Console.Clear, interpolação $"texto {variavel}" e concatenação com +.
+- Controle de fluxo: if / else if / else, switch-case, for, while, do-while, foreach, break, continue.
+- Métodos: static, parâmetros, retorno, void. Classes, objetos, propriedades e construtores em nível básico.
+- REGRAS DA LINGUAGEM: C# diferencia MAIÚSCULAS de minúsculas (Console.WriteLine, nunca console.writeline). Todo comando termina com ; . Blocos usam { }. Strings usam aspas duplas ". Comparação usa == (um = sozinho é atribuição).
+- NESTA TURMA: usa-se os tipos em minúsculo (string, int, double, bool — não String, Int32, Double, Boolean).
+- Erros comuns de iniciantes que você reconhece: esquecer ; , não fechar chaves/parênteses/aspas, errar maiúsculas/minúsculas, usar variável sem declarar, usar = em vez de ==, ler número sem Convert/Parse, palavras-chave digitadas erradas (publik, voi, whille, pritn), ponto no lugar de vírgula em declarações.
+- Vários arquivos .cs do mesmo projeto compilam JUNTOS: classes e métodos de um arquivo podem ser usados em outro, como no VS Code. Nunca aponte "classe não existe" se ela estiver em outro arquivo do projeto.
+- NUNCA invente erro em código que está correto. Aponte o lugar exato do problema e mostre a forma certa.
+Fale sempre em português brasileiro simples, gentil e encorajador.`;
+
+const RUN_SYSTEM = "Você é o compilador e o runtime do .NET 8 executando um projeto C# com precisão absoluta (ordem das instruções, conversões, formatação padrão). Responda apenas com o texto do console, sem explicações e sem markdown.";
+
+function otherFilesCtx(files, active) {
+  const others = (files||[]).filter((f,i)=>i!==active && (f.code||"").trim());
+  if (!others.length) return "";
+  return `Outros arquivos do MESMO projeto (compilam juntos com o arquivo em edição — classes daqui podem ser usadas nele):\n\`\`\`csharp\n${others.map(f=>`// ${f.name}\n${f.code}`).join("\n\n")}\n\`\`\`\n\n`;
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 //  SYNTAX HIGHLIGHT  (com cores de pares de colchetes/chaves/parênteses do VSCode)
@@ -479,6 +503,227 @@ function AvatarBuilder({ value, onChange }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  TERMINAL INTERATIVO  (executa o projeto todo; aceita entradas digitadas nele)
+// ════════════════════════════════════════════════════════════════════════════
+function Terminal({ files, dataTour }) {
+  const [out, setOut] = useState("");
+  const [running, setRunning] = useState(false);
+  const [awaiting, setAwaiting] = useState(false);
+  const [inpVal, setInpVal] = useState("");
+  const inputsRef = useRef([]);
+  const boxRef = useRef(null);
+  const inputRef = useRef(null);
+  useEffect(() => { if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight; }, [out, awaiting]);
+  useEffect(() => { if (awaiting && !running && inputRef.current) inputRef.current.focus(); }, [awaiting, running]);
+
+  const projectSrc = () => (files||[]).filter(f => (f.code||"").trim()).map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n");
+
+  const simulate = async () => {
+    setRunning(true);
+    try {
+      const ins = inputsRef.current;
+      const res = await askClaude(
+        `Projeto C# (todos os arquivos abaixo fazem parte do MESMO projeto e compilam juntos — classes de um arquivo podem ser usadas em outro):\n\n${projectSrc()}\n\n` +
+        (ins.length ? `O usuário já digitou estas entradas no console, em ordem (uma para cada Console.ReadLine):\n${ins.map((v,i)=>`${i+1}) ${v}`).join("\n")}\n\n` : "") +
+        `Execute "dotnet run" (a partir do método Main). Responda APENAS com o texto EXATO que o console mostraria desde o início da execução até agora, incluindo o eco das entradas digitadas nas posições em que foram digitadas. Sem explicações, sem markdown, sem crases.\n` +
+        `Se houver erro de compilação, mostre os erros no formato real do compilador (ex: Program.cs(8,32): error CS1002: ; expected).\n` +
+        `Depois da saída, escreva UMA última linha contendo exatamente:\n__AGUARDA__ se a execução parou em um Console.ReadLine esperando o usuário digitar\n__FIM__ se o programa terminou (ou se houve erro de compilação)`,
+        RUN_SYSTEM
+      );
+      let t = res.replace(/```/g, "");
+      const waiting = /__AGUARDA__/.test(t);
+      t = t.replace(/__AGUARDA__/g, "").replace(/__FIM__/g, "").replace(/^\s*\n/, "").replace(/\s+$/, "");
+      setOut("$ dotnet run\n" + (t || "(sem saída)"));
+      setAwaiting(waiting);
+    } catch (e) {
+      setOut(prev => (prev ? prev + "\n" : "") + (e.message === "ROBOTKEY_MISSING" ? "⚠ Terminal offline: o professor precisa configurar a ANTHROPIC_API_KEY no Vercel." : "Não consegui executar agora. Tente de novo."));
+      setAwaiting(false);
+    }
+    setRunning(false);
+  };
+
+  const run = () => {
+    if (!projectSrc().trim()) { setOut("Escreva um código antes de executar."); return; }
+    inputsRef.current = [];
+    setAwaiting(false);
+    setOut("$ dotnet run\n⏳ compilando...");
+    simulate();
+  };
+
+  const submitInput = () => {
+    if (running) return;
+    inputsRef.current = [...inputsRef.current, inpVal];
+    setOut(prev => prev + "\n" + inpVal + "\n⏳ ...");
+    setInpVal("");
+    setAwaiting(false);
+    simulate();
+  };
+
+  return (
+    <div data-tour={dataTour} style={{ background:"#0a0a0a", border:"1px solid #333", borderRadius:10, marginTop:12, overflow:"hidden" }}>
+      <div style={{ background:"#161616", padding:"6px 12px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #333" }}>
+        <span style={{ color:"#bbb", fontSize:13 }}>⌨️ Terminal</span>
+        <div style={{ display:"flex", gap:6 }}>
+          <button onClick={()=>{ setOut(""); setAwaiting(false); inputsRef.current = []; }} style={{ background:"#222", border:"1px solid #444", color:"#bbb", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:12 }}>limpar</button>
+          <button onClick={run} disabled={running} style={{ background:"#34d399", border:"none", color:"#03301f", borderRadius:6, padding:"3px 12px", cursor:"pointer", fontSize:12, fontWeight:800, opacity:running?0.6:1 }}>{running?"executando...":"▶ dotnet run"}</button>
+        </div>
+      </div>
+      <div ref={boxRef} style={{ minHeight:96, maxHeight:230, overflow:"auto", padding:12 }} onClick={()=>{ if (awaiting && inputRef.current) inputRef.current.focus(); }}>
+        <pre style={{ margin:0, color:"#d4d4d4", fontFamily:"'Courier New',monospace", fontSize:13, whiteSpace:"pre-wrap" }}>{out}</pre>
+        {awaiting && !running && (
+          <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:2 }}>
+            <span style={{ color:"#34d399", fontFamily:"'Courier New',monospace", fontSize:13 }}>❯</span>
+            <input ref={inputRef} value={inpVal} onChange={e=>setInpVal(e.target.value)} onKeyDown={e=>{ if (e.key==="Enter") submitInput(); }}
+              placeholder="o programa está esperando... digite e aperte Enter"
+              style={{ flex:1, background:"transparent", border:"none", outline:"none", boxShadow:"none", color:"#34d399", fontFamily:"'Courier New',monospace", fontSize:13, caretColor:"#34d399" }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  CHAT COM O NYX  (botão flutuante — aluno e professor)
+// ════════════════════════════════════════════════════════════════════════════
+function NyxChat({ who = "student", context, onTheme, accent = "#7c83ff", dataTour }) {
+  const [open, setOpen] = useState(false);
+  const [msgs, setMsgs] = useState([]);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const listRef = useRef(null);
+  useEffect(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, [msgs, open, busy]);
+
+  const send = async () => {
+    const t = text.trim();
+    if (!t || busy) return;
+    const hist = [...msgs, { from:"user", text:t }];
+    setMsgs(hist); setText(""); setBusy(true);
+    try {
+      const histTxt = hist.slice(-8).map(m => (m.from==="user" ? "Pessoa: " : "Nyx: ") + m.text).join("\n");
+      const themeRule = who === "student"
+        ? "\nSe (e SOMENTE se) o aluno pedir para mudar a cor ou o tema do fundo, termine sua resposta com uma linha exata: [TEMA:claro] ou [TEMA:escuro] ou [TEMA:#rrggbb] (escolha um tom hexadecimal bonito que combine com o que ele pediu). Nunca use isso em outras situações."
+        : "";
+      const persona = who === "student"
+        ? `Você está conversando com um aluno dentro da plataforma, num chat pequeno. Responda CURTO (no máximo 5 frases), simples e animado. Ajude com dúvidas de C#, dicas de estudo e o que ele precisar. Não resolva a atividade por ele — explique o caminho.${themeRule}`
+        : "Você é o assistente do PROFESSOR dentro da plataforma, num chat pequeno. Responda curto e direto (máximo 6 frases), com base nos dados da turma fornecidos. Sugira a quem dar atenção, ideias de exercícios e próximos passos quando fizer sentido.";
+      const out = await askClaude(
+        `${context ? context() : ""}\n\nConversa até agora:\n${histTxt}\n\nResponda como Nyx à última mensagem.`,
+        CS_SYSTEM + "\n\n" + persona
+      );
+      let reply = out.trim();
+      const m = reply.match(/\[TEMA:([^\]]+)\]/i);
+      if (m && onTheme) {
+        const val = m[1].trim().toLowerCase();
+        onTheme(val === "claro" ? "light" : val === "escuro" ? "dark" : val);
+        reply = reply.replace(/\[TEMA:[^\]]+\]/ig, "").trim() || "Prontinho, fundo novo! 🎨";
+      }
+      setMsgs(ms => [...ms, { from:"nyx", text:reply }]);
+    } catch (e) {
+      setMsgs(ms => [...ms, { from:"nyx", text: e.message === "ROBOTKEY_MISSING" ? "Estou offline 😴 — o professor precisa configurar a ANTHROPIC_API_KEY no Vercel." : "Tive um probleminha agora. Tenta de novo?" }]);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <>
+      <button data-tour={dataTour} onClick={()=>setOpen(o=>!o)} title="Conversar com o Nyx"
+        style={{ position:"fixed", right:18, bottom:18, zIndex:900, width:60, height:60, borderRadius:"50%", border:"none", cursor:"pointer", background:`linear-gradient(135deg, ${accent}, ${shade(accent,-0.25)})`, boxShadow:`0 6px 22px ${accent}66`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <span style={{ fontSize:25, lineHeight:1 }}>{open ? "✕" : "🤖"}</span>
+        {!open && <span style={{ position:"absolute", top:-4, right:-2, background:"#34d399", borderRadius:10, fontSize:9, fontWeight:900, color:"#03301f", padding:"2px 6px" }}>NYX</span>}
+      </button>
+      {open && (
+        <div className="pop" style={{ position:"fixed", right:18, bottom:88, zIndex:900, width:"min(370px, calc(100vw - 36px))", height:"min(460px, calc(100vh - 120px))", background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:18, boxShadow:"0 24px 60px rgba(0,0,0,.55)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+          <div style={{ padding:"8px 14px", borderBottom:"1px solid #272e52", display:"flex", alignItems:"center", gap:10, background:"#0d1122" }}>
+            <NyxRobot state="idle" size={30} showName={false} />
+            <div>
+              <div style={{ fontWeight:900, letterSpacing:2, fontSize:13, color:accent }}>NYX</div>
+              <div style={{ fontSize:11, color:"#96a0cc" }}>{who==="student" ? "seu ajudante de C#" : "assistente do professor"}</div>
+            </div>
+          </div>
+          <div ref={listRef} style={{ flex:1, overflowY:"auto", padding:12 }}>
+            {msgs.length === 0 && (
+              <div style={{ background:"#0d1122", border:"1px solid #272e52", borderRadius:"12px 12px 12px 4px", padding:"10px 12px", fontSize:13, color:"#c7cfee", lineHeight:1.6, maxWidth:"88%" }}>
+                {who === "student"
+                  ? "Oi! Pode me perguntar qualquer coisa de C#, pedir uma dica… ou até pedir para mudar a cor do fundo! 🎨"
+                  : "Olá, professor! Pergunte sobre a turma, peça sugestões de exercícios ou o que precisar. 👨‍🏫"}
+              </div>
+            )}
+            {msgs.map((m,i)=>(
+              <div key={i} style={{ display:"flex", justifyContent:m.from==="user"?"flex-end":"flex-start", marginTop:8 }}>
+                <div style={{ background:m.from==="user"?accent+"2e":"#0d1122", border:`1px solid ${m.from==="user"?accent+"66":"#272e52"}`, borderRadius:m.from==="user"?"12px 12px 4px 12px":"12px 12px 12px 4px", padding:"9px 12px", fontSize:13, color:"#e8ebfa", lineHeight:1.6, maxWidth:"88%", whiteSpace:"pre-wrap" }}>{m.text}</div>
+              </div>
+            ))}
+            {busy && <div style={{ color:"#96a0cc", fontSize:12, marginTop:8 }}>Nyx está digitando…</div>}
+          </div>
+          <div style={{ display:"flex", gap:8, padding:10, borderTop:"1px solid #272e52", background:"#0d1122" }}>
+            <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if (e.key==="Enter") send(); }} placeholder="Escreva para o Nyx..."
+              style={{ flex:1, background:"#131730", border:"1px solid #2a3154", borderRadius:10, padding:"9px 12px", color:"#e8ebfa", fontSize:13, outline:"none" }} />
+            <button onClick={send} disabled={busy} style={{ background:`linear-gradient(135deg, ${accent}, ${shade(accent,-0.25)})`, border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"0 16px", cursor:"pointer", opacity:busy?0.6:1 }}>➤</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  TOUR GUIADO DO NYX  (destaca cada área da tela do aluno)
+// ════════════════════════════════════════════════════════════════════════════
+const TOUR_STEPS = [
+  { sel:'[data-tour="editor"]',   emoji:"📝", title:"Seu editor de código",  text:"É aqui que você escreve seus programas em C#. Ele colore o código e fecha chaves, parênteses e aspas sozinho!" },
+  { sel:'[data-tour="arquivos"]', emoji:"📄", title:"Seus arquivos",         text:"Crie quantos arquivos .cs quiser. Eles fazem parte do mesmo projeto e funcionam juntos, como no VS Code!" },
+  { sel:'[data-tour="nyx"]',      emoji:"🤖", title:"Eu fico aqui!",          text:"Enquanto você escreve, eu confiro seu código. Se algo estiver errado, mostro onde está, como corrigir e até as teclas para apertar." },
+  { sel:'[data-tour="terminal"]', emoji:"⌨️", title:"Terminal de verdade",   text:"Clique em ▶ dotnet run para executar seu programa. Se ele pedir algo com Console.ReadLine, é só digitar aqui dentro e apertar Enter!" },
+  { sel:'[data-tour="salvar"]',   emoji:"💾", title:"Salvar e finalizar",    text:"Quando terminar o código do dia, clique aqui: eu crio um resumo da aula e uma atividade feita só para você." },
+  { sel:'[data-tour="tema"]',     emoji:"🎨", title:"Tema do fundo",         text:"Prefere claro ou escuro? Troque aqui. Quer outra cor? É só me pedir no chat que eu mudo para você!" },
+  { sel:'[data-tour="chat"]',     emoji:"💬", title:"Fale comigo!",          text:"Qualquer dúvida de C#, abre este botão e conversa comigo. Estou sempre por aqui. Bora programar? 🚀" },
+];
+
+function TourOverlay({ step, onNext, onSkip }) {
+  const [rect, setRect] = useState(null);
+  const s = TOUR_STEPS[step];
+  useEffect(() => {
+    const el = document.querySelector(s.sel);
+    if (!el) { setRect(null); return; }
+    el.scrollIntoView({ block:"center" });
+    const t = setTimeout(() => {
+      const r = el.getBoundingClientRect();
+      setRect({ top:r.top, left:r.left, width:r.width, height:r.height, bottom:r.bottom });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [step, s.sel]);
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1000;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  const below = rect ? rect.bottom + 200 < vh : true;
+  const tipTop = rect ? (below ? Math.min(rect.bottom + 14, vh - 210) : Math.max(rect.top - 206, 10)) : vh/2 - 100;
+  const tipLeft = rect ? Math.max(12, Math.min(rect.left + rect.width/2 - 170, vw - 356)) : 20;
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:990 }}>
+      {rect
+        ? <div style={{ position:"fixed", top:rect.top-6, left:rect.left-6, width:rect.width+12, height:rect.height+12, borderRadius:14, border:"3px solid #7c83ff", boxShadow:"0 0 0 9999px rgba(5,7,18,.78), 0 0 24px #7c83ff88", transition:"all .3s ease", pointerEvents:"none" }} />
+        : <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.78)" }} />}
+      <div className="pop" key={step} style={{ position:"fixed", top:tipTop, left:tipLeft, width:340, maxWidth:"calc(100vw - 24px)", background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #7c83ff66", borderRadius:16, padding:"14px 16px", boxShadow:"0 18px 50px rgba(0,0,0,.6)" }}>
+        <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+          <div style={{ flexShrink:0, marginTop:-6 }}><NyxRobot state="idle" size={46} showName={false} /></div>
+          <div>
+            <div style={{ fontWeight:800, color:"#e8ebfa", fontSize:14.5 }}>{s.emoji} {s.title}</div>
+            <p style={{ color:"#c7cfee", fontSize:13, lineHeight:1.6, margin:"6px 0 0" }}>{s.text}</p>
+          </div>
+        </div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12 }}>
+          <button onClick={onSkip} style={{ background:"transparent", border:"none", color:"#5d679c", cursor:"pointer", fontSize:12, fontWeight:700 }}>Pular tour</button>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ color:"#5d679c", fontSize:12 }}>{step+1}/{TOUR_STEPS.length}</span>
+            <button onClick={onNext} style={{ background:"linear-gradient(135deg,#7c83ff,#5a61e8)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"7px 16px", cursor:"pointer", fontSize:13 }}>{step === TOUR_STEPS.length-1 ? "Entendi! 🚀" : "Próximo →"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  IA + util
 // ════════════════════════════════════════════════════════════════════════════
 async function askClaude(prompt, system){
@@ -555,12 +800,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [connected, setConnected] = useState(null);
   const [finalFeedback, setFinalFeedback] = useState("");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
-  // terminal
-  const [terminalOut, setTerminalOut] = useState("");
-  const [stdin, setStdin] = useState("");
-  const [running, setRunning] = useState(false);
-  const [showStdin, setShowStdin] = useState(false);
   const [saveWarn, setSaveWarn] = useState("");
+  // tema do fundo: 'dark' | 'light' | cor hex escolhida pelo Nyx
+  const [theme, setTheme] = useState("dark");
+  // tour guiado do Nyx
+  const [tourStep, setTourStep] = useState(-1);
+  // explicações do Nyx sobre os erros da atividade
+  const [errorExplains, setErrorExplains] = useState("");
+  const [explaining, setExplaining] = useState(false);
   const [fsMsg, setFsMsg] = useState("");
   // avaliação da aula (aluno → professor)
   const [classRating, setClassRating] = useState(0);
@@ -586,7 +833,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme };
   });
 
   const persist = useCallback(async (extra = {}) => {
@@ -617,6 +864,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       examScore: s.examScore ?? null,
       examAnswers: s.examAnswers || {},
       examDone: s.examDone || false,
+      theme: s.theme || "dark",
       ...extra,
     });
     setConnected(ok);
@@ -646,6 +894,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.examScore != null) setExamScore(prev.examScore);
           if (prev.examAnswers) setExamAnswers(prev.examAnswers);
           if (prev.examDone) setExamDone(true);
+          if (prev.theme) setTheme(prev.theme);
         }
         const es = await getExamState();
         if (alive) setExamInfo(es);
@@ -713,8 +962,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       }
       try {
         const result = await askClaude(
-          `Você é um robô professor que revisa com ATENÇÃO o código C# de um aluno iniciante. Lembre-se: C# diferencia maiúsculas de minúsculas.\n\nCódigo:\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nConfira com cuidado, entre outras coisas:\n- Maiúsculas/minúsculas dos nomes: Console, WriteLine, ReadLine, Main, Convert, Parse. Ex: "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS; o certo é "Console.WriteLine".\n- Nesta turma usamos os tipos em MINÚSCULO do C#: string, int, double, bool, char, long, float. Se o aluno escreveu a versão com maiúscula (String, Int32, Double, Boolean, Char), avise que aqui usamos a versão minúscula e mostre a forma certa (ex: troque "String" por "string").\n- Ponto e vírgula ; faltando no fim das instruções.\n- Chaves { }, parênteses ( ) e aspas " abertas e não fechadas.\n- Palavras-chave escritas erradas (ex: "publik", "voi", "statics", "clas").\n- Nomes de variáveis usados sem ter sido criados.\n\nResponda APENAS em JSON puro, sem markdown:\n{"ok": true ou false, "message": "se estiver tudo certo, um elogio bem curto; se houver erro, explique de forma MUITO simples e gentil ONDE está (qual parte/linha) e COMO corrigir, mostrando a forma certa, em 1 a 3 frases", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se não faltar nenhum"]}\n\nSó marque ok=true se realmente NÃO houver nenhum desses problemas. Mas não invente erros em código que já está correto.`,
-          "Você é um revisor de código C# atento e gentil, para uma turma de iniciantes. C# diferencia maiúsculas de minúsculas. Português simples. Responda APENAS JSON puro."
+          `Você é um robô professor que revisa com ATENÇÃO o código C# de um aluno iniciante. Lembre-se: C# diferencia maiúsculas de minúsculas.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nConfira com cuidado, entre outras coisas:\n- Maiúsculas/minúsculas dos nomes: Console, WriteLine, ReadLine, Main, Convert, Parse. Ex: "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS; o certo é "Console.WriteLine".\n- Nesta turma usamos os tipos em MINÚSCULO do C#: string, int, double, bool, char, long, float. Se o aluno escreveu a versão com maiúscula (String, Int32, Double, Boolean, Char), avise que aqui usamos a versão minúscula e mostre a forma certa (ex: troque "String" por "string").\n- Ponto e vírgula ; faltando no fim das instruções.\n- Chaves { }, parênteses ( ) e aspas " abertas e não fechadas.\n- Palavras-chave escritas erradas (ex: "publik", "voi", "statics", "clas").\n- Nomes de variáveis usados sem ter sido criados.\n\nResponda APENAS em JSON puro, sem markdown:\n{"ok": true ou false, "message": "se estiver tudo certo, um elogio bem curto; se houver erro, explique de forma MUITO simples e gentil ONDE está (qual parte/linha) e COMO corrigir, mostrando a forma certa, em 1 a 3 frases", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se não faltar nenhum"]}\n\nSó marque ok=true se realmente NÃO houver nenhum desses problemas. Mas não invente erros em código que já está correto.`,
+          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown."
         );
         const parsed = JSON.parse(result.replace(/```json|```/g,"").trim());
         setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
@@ -766,20 +1015,23 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   };
   const cancelRename = () => { setRenaming(null); setRenameValue(""); };
 
-  // terminal (simulado por IA)
-  const runCode = async () => {
-    setRunning(true);
-    setTerminalOut(prev => prev + `\n$ dotnet run\n`);
+  const setThemeAndSave = (t) => { setTheme(t); persist({ theme: t }); };
+
+  // Nyx explica os erros da atividade
+  const explainErrors = async () => {
+    const activity = dynamicActivity || [];
+    const wrong = activity.map((q,i)=>({ q, i })).filter(({ q, i }) => answers[i] !== q.correct);
+    if (!wrong.length || explaining) return;
+    setExplaining(true);
     try {
+      const list = wrong.map(({ q, i }) => `Pergunta: ${q.q}\nO aluno respondeu: ${q.opts[answers[i]] ?? "(não respondeu)"}\nResposta correta: ${q.opts[q.correct]}`).join("\n\n");
       const out = await askClaude(
-        `Aja como o compilador e runtime do .NET executando "dotnet run" neste programa C#.\nArquivo ${files[active].name}:\n\`\`\`csharp\n${activeCode}\n\`\`\`\n` +
-        (stdin.trim() ? `\nO usuário digitou esta entrada no teclado (cada linha é um Console.ReadLine):\n${stdin}\n` : ``) +
-        `\nResponda APENAS com a saída EXATA que apareceria no console. Se houver erro de compilação, responda com a(s) mensagem(ns) de erro do compilador C# no formato real (ex: Program.cs(8,32): error CS1002: ; expected). Sem explicações, sem markdown.`,
-        "Você é o compilador e runtime do .NET (C#). Responda apenas com a saída do console ou erros. Sem explicações, sem markdown."
+        `Um aluno iniciante errou estas questões sobre o próprio código C# dele:\n\n${list}\n\nExplique cada questão em 1 ou 2 frases bem simples: por que a resposta correta é a certa e onde ele provavelmente se confundiu. Seja gentil e encorajador. Formato: um parágrafo curto por questão, começando com "• ". Sem markdown além disso.`,
+        CS_SYSTEM
       );
-      setTerminalOut(prev => prev + (out.replace(/```/g,"").trim() || "(sem saída)") + "\n");
-    } catch { setTerminalOut(prev => prev + "Não consegui executar agora. Tente de novo.\n"); }
-    setRunning(false);
+      setErrorExplains(out.trim());
+    } catch { setErrorExplains("Não consegui gerar as explicações agora. Tente de novo em instantes."); }
+    setExplaining(false);
   };
 
   const handleSave = async () => {
@@ -876,7 +1128,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
   // ── estilos ──
   const styles = {
-    container:{ minHeight:"100vh", background:PAGE_BG, color:"#e8ebfa", fontFamily:FONT },
+    container:{ minHeight:"100vh", background:pageBgFor(theme), color:"#e8ebfa", fontFamily:FONT },
     header:{ background:"rgba(17,21,42,.85)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", padding:"10px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #2a3154", boxShadow:"0 1px 0 #7c83ff33, 0 8px 24px rgba(3,5,16,.35)", position:"sticky", top:0, zIndex:40 },
     card:{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #272e52", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:"10px 18px", cursor:"pointer", fontWeight:800, fontSize:14, boxShadow:`0 4px 14px ${c}44` }),
@@ -1090,6 +1342,20 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             ))}
           </div>
 
+          {(dynamicActivity||[]).some((q,i)=>answers[i]!==q.correct) && (
+            <div style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#7c83ff" }}>
+              <h4 style={{ color:"#7c83ff", marginBottom:8 }}>🤖 Não entendeu algum erro?</h4>
+              {errorExplains
+                ? <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.8, whiteSpace:"pre-wrap", margin:0 }}>{errorExplains}</p>
+                : (
+                  <>
+                    <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, marginBottom:10 }}>O Nyx pode explicar cada questão que você errou, com calma e do seu jeito.</p>
+                    <button style={{ ...styles.btn("#7c83ff"), opacity:explaining?0.6:1 }} onClick={explainErrors} disabled={explaining}>{explaining ? "Nyx está escrevendo..." : "✨ Nyx, me explica meus erros!"}</button>
+                  </>
+                )}
+            </div>
+          )}
+
           {/* Avaliação da aula → professor */}
           <div style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#fbbf24" }}>
             <h4 style={{ color:"#fbbf24", marginBottom:8 }}>💬 O que você achou da aula?</h4>
@@ -1135,8 +1401,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
                 Se algo estiver errado, eu mostro <b style={{color:"#fbbf24"}}>onde está</b> e <b style={{color:"#34d399"}}>como corrigir</b> — até as teclas que você precisa apertar!
               </p>
             </div>
-            <button onClick={()=>setShowIntro(false)} style={{ ...styles.btn("#7c83ff"), width:"100%", padding:"13px 0", fontSize:15, marginTop:16, animation:"rise .5s ease 2.4s both" }}>
-              Vamos programar! 🚀
+            <button onClick={()=>{ setShowIntro(false); setTourStep(0); }} style={{ ...styles.btn("#7c83ff"), width:"100%", padding:"13px 0", fontSize:15, marginTop:16, animation:"rise .5s ease 2.4s both" }}>
+              Conhecer minha sala! ✨
             </button>
           </div>
         </div>
@@ -1152,6 +1418,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           </span>
           <span style={{ background:"#7c83ff22", padding:"4px 12px", borderRadius:20, fontSize:13 }}>👤 {studentName}</span>
           <span style={{ background:"#0d1122", border:"1px solid #2a3154", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#96a0cc" }}>{shiftLabel(shift)}</span>
+          <button data-tour="tema" style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
           <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={tryFullscreen}>⛶ Tela cheia</button>
           <button style={{ ...styles.btn("#f87171"), padding:"6px 12px", fontSize:12 }} onClick={onLogout}>Sair</button>
         </div>
@@ -1206,7 +1473,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       <div style={{ display:"flex", gap:14, padding:14, maxWidth:1180, margin:"0 auto", flexWrap:"wrap" }}>
         <div style={{ flex:"1 1 560px", minWidth:320 }}>
           {/* abas de arquivos */}
-          <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8, flexWrap:"wrap" }}>
+          <div data-tour="arquivos" style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8, flexWrap:"wrap" }}>
             {files.map((f,i)=>(
               <div key={i} onClick={()=>setActive(i)} style={{ display:"flex", alignItems:"center", gap:6, background:i===active?"#1e1e1e":"#101425", border:`1px solid ${i===active?"#7c83ff":"#2a3154"}`, color:i===active?"#fff":"#96a0cc", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>
                 <span>📄 {f.name}</span>
@@ -1217,36 +1484,21 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             <button onClick={addFile} style={{ background:"#0d1122", border:"1px dashed #7c83ff", color:"#7c83ff", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>＋ Novo arquivo</button>
           </div>
 
-          <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} />
+          <div data-tour="editor">
+            <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} />
+          </div>
 
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
             <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Nyx confere seu código 2s depois que você para de escrever")}</span>
-            <button style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
+            <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
           </div>
 
-          {/* Terminal */}
-          <div style={{ background:"#0a0a0a", border:"1px solid #333", borderRadius:8, marginTop:12, overflow:"hidden" }}>
-            <div style={{ background:"#161616", padding:"6px 12px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #333" }}>
-              <span style={{ color:"#bbb", fontSize:13 }}>⌨️ Terminal <span style={{ color:"#666" }}>(simulado)</span></span>
-              <div style={{ display:"flex", gap:6 }}>
-                <button onClick={()=>setShowStdin(s=>!s)} style={{ background:"#222", border:"1px solid #444", color:"#bbb", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:12 }}>entrada</button>
-                <button onClick={()=>setTerminalOut("")} style={{ background:"#222", border:"1px solid #444", color:"#bbb", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:12 }}>limpar</button>
-                <button onClick={runCode} disabled={running} style={{ background:"#34d399", border:"none", color:"#fff", borderRadius:6, padding:"3px 12px", cursor:"pointer", fontSize:12, fontWeight:700 }}>{running?"executando...":"▶ dotnet run"}</button>
-              </div>
-            </div>
-            {showStdin && (
-              <div style={{ padding:"8px 12px", borderBottom:"1px solid #333" }}>
-                <p style={{ color:"#666", fontSize:11, marginBottom:4 }}>Entrada do teclado (uma linha por Console.ReadLine):</p>
-                <textarea value={stdin} onChange={e=>setStdin(e.target.value)} placeholder="ex: João\n15" style={{ width:"100%", background:"#000", border:"1px solid #333", color:"#0f0", fontFamily:"monospace", fontSize:13, borderRadius:6, padding:8, minHeight:44, boxSizing:"border-box", resize:"vertical" }} />
-              </div>
-            )}
-            <pre style={{ margin:0, padding:12, color:"#d4d4d4", fontFamily:"'Courier New',monospace", fontSize:13, minHeight:90, maxHeight:200, overflow:"auto", whiteSpace:"pre-wrap" }}>{terminalOut || "Clique em ▶ dotnet run para testar seu código."}</pre>
-          </div>
+          <Terminal files={files} dataTour="terminal" />
         </div>
 
         {/* Robô + atalhos */}
         <div style={{ width:250, flex:"0 0 250px" }}>
-          <div style={styles.card}>
+          <div data-tour="nyx" style={styles.card}>
             <NyxRobot state={robotState} size={88} />
             {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6 }}>{robotMsg}</div>)}
             {keysToShow.length>0&&(<div style={{ marginTop:10 }}><p style={{ color:"#fbbf24", fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
@@ -1261,6 +1513,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           </div>
         </div>
       </div>
+
+      {tourStep >= 0 && tourStep < TOUR_STEPS.length && (
+        <TourOverlay step={tourStep} onSkip={()=>setTourStep(-1)} onNext={()=>setTourStep(s => (s+1 >= TOUR_STEPS.length ? -1 : s+1))} />
+      )}
+
+      <NyxChat
+        who="student"
+        dataTour="chat"
+        onTheme={setThemeAndSave}
+        context={() => `Contexto: você conversa com o aluno ${studentName}. Código atual dele (${files[active]?.name || "Program.cs"}):\n${activeCode || "(vazio ainda)"}\n${robotMsg ? `Seu último aviso sobre o código: ${robotMsg}` : ""}`}
+      />
     </div>
   );
 }
@@ -1277,10 +1540,6 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
   const [robotMsg, setRobotMsg] = useState("");
   const [keysToShow, setKeysToShow] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
-  const [terminalOut, setTerminalOut] = useState("");
-  const [stdin, setStdin] = useState("");
-  const [running, setRunning] = useState(false);
-  const [showStdin, setShowStdin] = useState(false);
   const debounceRef = useRef(null);
   const activeCode = files[active]?.code || "";
 
@@ -1303,8 +1562,8 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
       if (quick) { setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setAnalyzing(false); return; }
       try {
         const result = await askClaude(
-          `Revise com atenção este código C#. C# diferencia maiúsculas de minúsculas (Console.WriteLine, etc). Nesta turma usamos os tipos em minúsculo (string, int, double, bool). Confira ; faltando, chaves/parênteses/aspas abertas, palavras-chave erradas e variáveis não declaradas.\n\nCódigo:\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nResponda APENAS JSON puro: {"ok":true/false,"message":"elogio curto se ok; se houver erro, onde está e como corrigir em 1-3 frases","missingChars":["símbolos que faltam"]}`,
-          "Revisor de C# atento e objetivo. Responda APENAS JSON puro."
+          `Revise com atenção este código C#.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nResponda APENAS JSON puro: {"ok":true/false,"message":"elogio curto se ok; se houver erro, onde está e como corrigir em 1-3 frases","missingChars":["símbolos que faltam"]}`,
+          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown."
         );
         const parsed = JSON.parse(result.replace(/```json|```/g,"").trim());
         setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]);
@@ -1315,21 +1574,6 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
       setAnalyzing(false);
     }, 2000);
   }, [activeCode]);
-
-  const runCode = async () => {
-    setRunning(true);
-    setTerminalOut(prev => prev + `\n$ dotnet run\n`);
-    try {
-      const out = await askClaude(
-        `Aja como o compilador e runtime do .NET executando "dotnet run" neste programa C#.\nArquivo ${files[active].name}:\n\`\`\`csharp\n${activeCode}\n\`\`\`\n` +
-        (stdin.trim() ? `\nEntrada digitada (cada linha é um Console.ReadLine):\n${stdin}\n` : ``) +
-        `\nResponda APENAS com a saída EXATA do console. Se houver erro de compilação, responda com a(s) mensagem(ns) reais do compilador C# (ex: Program.cs(8,32): error CS1002: ; expected). Sem explicações, sem markdown.`,
-        "Você é o compilador/runtime do .NET (C#). Responda apenas com a saída do console ou erros. Sem markdown."
-      );
-      setTerminalOut(prev => prev + (out.replace(/```/g,"").trim() || "(sem saída)") + "\n");
-    } catch { setTerminalOut(prev => prev + "Não consegui executar agora. Tente de novo.\n"); }
-    setRunning(false);
-  };
 
   const card = { background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #272e52", boxShadow:"0 8px 24px rgba(3,5,16,.35)" };
 
@@ -1370,23 +1614,7 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
           <span style={{ color:"#5d679c", fontSize:12 }}>{analyzing?"🔍 Verificando...":"✨ Nyx confere seu código 2s depois que você para de escrever"}</span>
         </div>
 
-        <div style={{ background:"#0a0a0a", border:"1px solid #333", borderRadius:8, marginTop:12, overflow:"hidden" }}>
-          <div style={{ background:"#161616", padding:"6px 12px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #333" }}>
-            <span style={{ color:"#bbb", fontSize:13 }}>⌨️ Terminal <span style={{ color:"#666" }}>(simulado)</span></span>
-            <div style={{ display:"flex", gap:6 }}>
-              <button onClick={()=>setShowStdin(s=>!s)} style={{ background:"#222", border:"1px solid #444", color:"#bbb", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:12 }}>entrada</button>
-              <button onClick={()=>setTerminalOut("")} style={{ background:"#222", border:"1px solid #444", color:"#bbb", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:12 }}>limpar</button>
-              <button onClick={runCode} disabled={running} style={{ background:"#34d399", border:"none", color:"#fff", borderRadius:6, padding:"3px 12px", cursor:"pointer", fontSize:12, fontWeight:700 }}>{running?"executando...":"▶ dotnet run"}</button>
-            </div>
-          </div>
-          {showStdin && (
-            <div style={{ padding:"8px 12px", borderBottom:"1px solid #333" }}>
-              <p style={{ color:"#666", fontSize:11, marginBottom:4 }}>Entrada do teclado (uma linha por Console.ReadLine):</p>
-              <textarea value={stdin} onChange={e=>setStdin(e.target.value)} placeholder={"ex: João\\n15"} style={{ width:"100%", background:"#000", border:"1px solid #333", color:"#0f0", fontFamily:"monospace", fontSize:13, borderRadius:6, padding:8, minHeight:44, boxSizing:"border-box", resize:"vertical" }} />
-            </div>
-          )}
-          <pre style={{ margin:0, padding:12, color:"#d4d4d4", fontFamily:"'Courier New',monospace", fontSize:13, minHeight:90, maxHeight:220, overflow:"auto", whiteSpace:"pre-wrap" }}>{terminalOut || "Clique em ▶ dotnet run para testar seu código."}</pre>
-        </div>
+        <Terminal files={files} />
       </div>
 
       <div style={{ width:250, flex:"0 0 250px" }}>
@@ -1500,6 +1728,9 @@ function TeacherView({ onLogout }) {
   const [dbSetupMsg, setDbSetupMsg] = useState("");
   const [dbSetupLoading, setDbSetupLoading] = useState(false);
   const [dbSetupSQL, setDbSetupSQL] = useState(null); // { sql, sqlEditorUrl }
+  // análise do Nyx (período + prova)
+  const [examAnalysis, setExamAnalysis] = useState("");
+  const [analyzingExam, setAnalyzingExam] = useState(false);
 
   const load = useCallback(async () => {
     const arr = await listStudents();
@@ -1666,6 +1897,27 @@ function TeacherView({ onLogout }) {
     }
   };
 
+  // Nyx analisa o desempenho da turma no período + prova
+  const nyxExamAnalysis = async () => {
+    if (analyzingExam) return;
+    setAnalyzingExam(true);
+    try {
+      const base = shiftFilter === "all" ? students : students.filter(s => (s.shift||"sem-turno") === shiftFilter);
+      const rows = base.map(s => {
+        const att = Object.values(s.attendance||{}).filter(v => v === "present").length;
+        return `- ${s.name}: presenças com atividade=${att}, nota da atividade do dia=${s.score ?? "não fez"}, nota da prova=${s.examScore ?? "não fez"}, código com erro agora=${s.hasError ? "sim" : "não"}`;
+      }).join("\n");
+      const out = await askClaude(
+        `Você é o Nyx analisando a turma para o PROFESSOR ao final de uma prova.\nDados de cada aluno (período de aulas + prova, provas valem 10 pontos por questão):\n${rows || "(sem alunos)"}\n\nEscreva uma análise curta e útil para o professor:\n• Quem foi bem no período E na prova — cite os números que justificam.\n• Quem se destacou ou surpreendeu (positivo ou negativo).\n• Quem precisa de atenção e em quê, com sugestão prática do que reforçar.\nUse marcadores "•", no máximo ~12 frases no total, sem markdown pesado.`,
+        CS_SYSTEM
+      );
+      setExamAnalysis(out.trim());
+    } catch (e) {
+      setExamAnalysis(e.message === "ROBOTKEY_MISSING" ? "Nyx está offline: configure a ANTHROPIC_API_KEY no Vercel." : "Não consegui analisar agora. Tente de novo em instantes.");
+    }
+    setAnalyzingExam(false);
+  };
+
   const now = Date.now();
   const tk = todayKey();
   const isOnline = (s) => s.lastSeen && (now - s.lastSeen) < 9000;
@@ -1769,6 +2021,17 @@ function TeacherView({ onLogout }) {
         <div style={{ display:"flex", gap:14, padding:14, maxWidth:1180, margin:"0 auto", alignItems:"flex-start", flexWrap:"wrap" }}>
           {/* esquerda */}
           <div style={{ width:300, flex:"0 0 300px" }}>
+            {/* Nyx de olho na turma */}
+            <div style={{ ...styles.card, textAlign:"center", borderColor: needHelp.length>0 ? "#f87171" : "#272e52" }}>
+              <NyxRobot state={needHelp.length>0 ? "error" : shown.length>0 ? "ok" : "idle"} size={64} showName={false} />
+              <div style={{ fontWeight:900, letterSpacing:2, fontSize:12, color:"#fbbf24", marginTop:2 }}>NYX DE OLHO</div>
+              <p style={{ color: needHelp.length>0 ? "#fca5a5" : "#96a0cc", fontSize:13, lineHeight:1.6, margin:"6px 0 0" }}>
+                {needHelp.length > 0
+                  ? <>⚠ Atenção com: <b style={{color:"#e8ebfa"}}>{needHelp.slice(0,4).map(s=>String(s.name).split(" ")[0]).join(", ")}{needHelp.length>4 ? ` e mais ${needHelp.length-4}` : ""}</b> — clique no aluno para ver o que houve.</>
+                  : shown.length > 0 ? "Turma indo bem! Ninguém travado no momento. 👍" : "Aguardando alunos entrarem..."}
+              </p>
+            </div>
+
             <div style={styles.card}>
               <h3 style={{ color:"#fbbf24", marginBottom:12 }}>👥 Monitoramento ({shown.length})</h3>
               {shown.length===0 && <p style={{ color:"#5d679c", fontSize:13 }}>{students.length===0 ? "Aguardando alunos entrarem..." : "Nenhum aluno nesta turma. Veja outra turma no filtro acima."}</p>}
@@ -2169,6 +2432,21 @@ function TeacherView({ onLogout }) {
                     <button onClick={resetExam} style={styles.btn("#5d679c")}>🔄 Nova Prova</button>
                   </div>
                 </div>
+                <div style={{ ...styles.card, borderColor:"#7c83ff" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <NyxRobot state="thinking" size={44} showName={false} />
+                      <div>
+                        <h4 style={{ color:"#7c83ff", margin:0 }}>Análise do Nyx — período + prova</h4>
+                        <p style={{ color:"#96a0cc", fontSize:12, margin:"2px 0 0" }}>Quem foi bem nas aulas e na prova, e quem precisa de atenção — com o porquê.</p>
+                      </div>
+                    </div>
+                    <button onClick={nyxExamAnalysis} disabled={analyzingExam} style={{ ...styles.btn("#7c83ff"), fontSize:13, opacity:analyzingExam?0.6:1 }}>
+                      {analyzingExam ? "Analisando..." : examAnalysis ? "↻ Refazer análise" : "✨ Pedir análise"}
+                    </button>
+                  </div>
+                  {examAnalysis && <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.8, whiteSpace:"pre-wrap", margin:"12px 0 0" }}>{examAnalysis}</p>}
+                </div>
                 <div style={styles.card}>
                   <h4 style={{ color:"#fbbf24", marginBottom:12 }}>🏆 Ranking Final</h4>
                   {ranking.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno respondeu.</p> : (
@@ -2198,6 +2476,18 @@ function TeacherView({ onLogout }) {
           </div>
         );
       })()}
+
+      <NyxChat
+        who="teacher"
+        accent="#fbbf24"
+        context={() => {
+          const rows = students.map(s => {
+            const att = Object.values(s.attendance||{}).filter(v => v === "present").length;
+            return `- ${s.name} [${shiftLabel(s.shift)}]: fase=${s.phase||"aguardando"}, presenças=${att}, nota atividade=${s.score ?? "—"}, nota prova=${s.examScore ?? "—"}, erro no código agora=${s.hasError ? "sim: " + (s.feedback?.message || "") : "não"}`;
+          }).join("\n");
+          return `Contexto: você é o assistente do professor. Situação da turma AGORA:\n${rows || "(nenhum aluno entrou ainda)"}\nConteúdo de hoje: ${todayContent || "ainda não definido"}.`;
+        }}
+      />
     </div>
   );
 }
