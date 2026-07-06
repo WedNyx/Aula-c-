@@ -7,8 +7,26 @@ import { saveStudent, getStudent, setNudge, getNudge, setCorrection, getCorrecti
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
 const PAGE_BG = "radial-gradient(1000px 620px at 85% -10%, rgba(124,131,255,.16), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.09), transparent 55%), linear-gradient(180deg,#0a0c18 0%,#0c0f20 100%)";
 const LIGHT_BG = "radial-gradient(1000px 620px at 85% -10%, rgba(124,131,255,.20), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.14), transparent 55%), linear-gradient(180deg,#eef1fb 0%,#dde4f5 100%)";
-const customBg = (hex) => `radial-gradient(1000px 620px at 85% -10%, ${shade(hex,0.15)}, transparent 65%), linear-gradient(180deg, ${shade(hex,-0.55)} 0%, ${shade(hex,-0.72)} 100%)`;
+function customBg(spec) {
+  const colors = String(spec).split(",").map(c=>c.trim()).filter(c=>/^#/.test(c)).slice(0,3);
+  if (colors.length <= 1) {
+    const hex = colors[0] || "#7c83ff";
+    return `radial-gradient(1000px 620px at 85% -10%, ${shade(hex,0.15)}, transparent 65%), linear-gradient(180deg, ${shade(hex,-0.55)} 0%, ${shade(hex,-0.72)} 100%)`;
+  }
+  const stops = colors.map(c => shade(c, -0.32)).join(", ");
+  return `linear-gradient(135deg, ${stops})`;
+}
 const pageBgFor = (theme) => theme === "light" ? LIGHT_BG : (typeof theme === "string" && theme.startsWith("#")) ? customBg(theme) : PAGE_BG;
+
+// ── notas por faixa (usadas na atividade e no feedback do Nyx) ──
+function gradeInfo(score) {
+  if (score >= 100) return { label:"GOD", emoji:"🐐", color:"#f472b6" };
+  if (score >= 90)  return { label:"Excelente", emoji:"🏆", color:"#fbbf24" };
+  if (score >= 75)  return { label:"Ótimo", emoji:"⭐", color:"#34d399" };
+  if (score >= 60)  return { label:"Bom", emoji:"👍", color:"#60a5fa" };
+  if (score >= 40)  return { label:"Médio", emoji:"😐", color:"#f59e0b" };
+  return { label:"Ruim", emoji:"📚", color:"#f87171" };
+}
 
 // ── conhecimento de C# do Nyx (usado em todas as chamadas de IA) ──
 const CS_SYSTEM = `Você é Nyx: um especialista sênior em revisão de código C# e .NET, atuando como professor de uma turma de iniciantes (adolescentes). Seu papel é o de um code reviewer profissional — rigoroso como um compilador, didático como um bom professor.
@@ -473,7 +491,24 @@ const AVATAR_OPTS = {
     { e:"🐢", label:"Tartaruga" },
   ],
 };
-const DEFAULT_AVATAR = { bg:"#7c83ff", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"variant11", eyesV:"variant09", mouthV:"happy05", glassesV:"", earringsV:"", flores:false, freckles:false, pet:"" };
+const DEFAULT_AVATAR = { bg:"#7c83ff", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"variant11", eyesV:"variant09", mouthV:"happy05", glassesV:"", earringsV:"", flores:false, freckles:false, pet:"", roupa:"", acessorio:"" };
+
+// ── loja de roupas e acessórios do avatar (mesma moeda de pontos do Nyx) ──
+const ROUPA_ITEMS = [
+  { id:"camiseta-azul",  label:"Camiseta Azul",   cor:"#3b82f6", cost:5  },
+  { id:"jaqueta-vermelha", label:"Jaqueta Vermelha", cor:"#ef4444", cost:12 },
+  { id:"moletom-verde",  label:"Moletom Verde",   cor:"#22c55e", cost:18 },
+  { id:"camisa-roxa",    label:"Camisa Roxa",     cor:"#a855f7", cost:24 },
+  { id:"regata-amarela", label:"Regata Amarela",  cor:"#facc15", cost:30 },
+  { id:"casaco-rosa",    label:"Casaco Rosa",     cor:"#ec4899", cost:36 },
+];
+const AVATAR_ACC_ITEMS = [
+  { id:"cachecol", label:"Cachecol", emoji:"🧣", cost:8  },
+  { id:"fitinha",  label:"Fita",     emoji:"🎗️", cost:16 },
+  { id:"estrela",  label:"Estrela",  emoji:"⭐", cost:26 },
+  { id:"medalha",  label:"Medalha",  emoji:"🎖️", cost:38 },
+];
+const roupaUnlocked = (points, item) => points >= item.cost;
 
 // compatibilidade: converte perfis salvos no formato antigo para o novo estilo
 const OLD_HAIR_MAP = { curto:"variant04", longo:"variant16", espetado:"variant27", cacheado:"variant24", afro:"variant39", moicano:"variant27", coque:"variant36", rabo:"variant45", chanel:"variant23", topete:"variant01", careca:"variant47" };
@@ -512,13 +547,24 @@ function Avatar({ cfg, size=72 }) {
   const c = normalizeAvatar(cfg);
   const key = JSON.stringify(c);
   const uri = useMemo(() => "data:image/svg+xml;utf8," + encodeURIComponent(loreleiSvg(c)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const roupa = ROUPA_ITEMS.find(r => r.id === c.roupa);
+  const acc = AVATAR_ACC_ITEMS.find(a => a.id === c.acessorio);
   return (
     <div className="avatar-pop" style={{ position:"relative", width:size, height:size, display:"inline-block", lineHeight:0, flexShrink:0 }}>
-      <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", background:`radial-gradient(circle at 50% 30%, ${shade(c.bg,0.25)}, ${c.bg} 58%, ${shade(c.bg,-0.25)})`, boxShadow:"0 2px 5px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.14)" }}>
+      <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", position:"relative", background:`radial-gradient(circle at 50% 30%, ${shade(c.bg,0.25)}, ${c.bg} 58%, ${shade(c.bg,-0.25)})`, boxShadow:"0 2px 5px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.14)" }}>
         <img src={uri} width={size} height={size} alt="" draggable={false} style={{ display:"block" }} />
+        {roupa && (
+          <svg width={size} height={size} viewBox="0 0 100 100" style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
+            <path d="M 18 100 Q 18 72 50 68 Q 82 72 82 100 Z" fill={roupa.cor} stroke={shade(roupa.cor,-0.3)} strokeWidth="2" />
+            <path d="M 50 68 Q 42 77 39 88 L 46 93 L 50 81 L 54 93 L 61 88 Q 58 77 50 68 Z" fill={shade(roupa.cor,0.18)} />
+          </svg>
+        )}
       </div>
       {c.pet && (
         <span style={{ position:"absolute", right:Math.round(size*-0.14), bottom:Math.round(size*-0.08), fontSize:Math.max(10, Math.round(size*0.34)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
+      )}
+      {acc && (
+        <span style={{ position:"absolute", left:Math.round(size*-0.12), top:Math.round(size*-0.08), fontSize:Math.max(10, Math.round(size*0.32)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{acc.emoji}</span>
       )}
     </div>
   );
@@ -797,7 +843,7 @@ function NyxChat({ who = "student", context, onTheme, accent = "#7c83ff", dataTo
     try {
       const histTxt = hist.slice(-8).map(m => (m.from==="user" ? "Pessoa: " : "Nyx: ") + m.text).join("\n");
       const themeRule = who === "student"
-        ? "\nSe (e SOMENTE se) o aluno pedir para mudar a cor ou o tema do fundo, termine sua resposta com uma linha exata: [TEMA:claro] ou [TEMA:escuro] ou [TEMA:#rrggbb] (escolha um tom hexadecimal bonito que combine com o que ele pediu). Nunca use isso em outras situações."
+        ? "\nSe (e SOMENTE se) o aluno pedir para mudar a cor ou o tema do fundo, termine sua resposta com uma linha exata: [TEMA:claro] ou [TEMA:escuro] ou [TEMA:#rrggbb] para uma cor só, ou [TEMA:#rrggbb,#rrggbb] / [TEMA:#rrggbb,#rrggbb,#rrggbb] para misturar 2 ou 3 cores num degradê (escolha tons bonitos e combinando com o que ele pediu; NUNCA mais de 3 cores). Nunca use isso em outras situações."
         : "";
       const persona = who === "student"
         ? `Você está conversando com um aluno dentro da plataforma, num chat pequeno. Responda CURTO (no máximo 5 frases), simples e animado. Ajude com dúvidas de C#, dicas de estudo e o que ele precisar. Não resolva a atividade por ele — explique o caminho.${themeRule}`
@@ -923,12 +969,57 @@ function TourOverlay({ step, onNext, onSkip }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
 // ════════════════════════════════════════════════════════════════════════════
-function NyxShop({ points, gear, onEquip, onClose }) {
+function NyxShop({ points, gear, onEquip, avatar, onEquipAvatar, isTestShift, onClose }) {
+  const [tab, setTab] = useState("nyx");
   const toggle = (item) => {
-    if (points < item.cost) return;
+    if (!isTestShift && points < item.cost) return;
     const isEquipped = gear[item.slot] === item.id;
     onEquip({ ...gear, [item.slot]: isEquipped ? null : item.id });
   };
+  const toggleRoupa = (item) => {
+    if (!isTestShift && points < item.cost) return;
+    onEquipAvatar({ ...avatar, roupa: avatar.roupa === item.id ? "" : item.id });
+  };
+  const toggleAcc = (item) => {
+    if (!isTestShift && points < item.cost) return;
+    onEquipAvatar({ ...avatar, acessorio: avatar.acessorio === item.id ? "" : item.id });
+  };
+  const Tab = ({ id, label }) => (
+    <button onClick={()=>setTab(id)} style={{ flex:1, padding:"8px 0", borderRadius:10, background: tab===id?"#7c83ff":"#0d1122", color: tab===id?"#fff":"#96a0cc", border:`1px solid ${tab===id?"#7c83ff":"#2a3154"}`, fontWeight:800, fontSize:12.5, cursor:"pointer" }}>
+      {label}
+    </button>
+  );
+  const Grid = ({ items, unlockedFn, equippedFn, onToggle }) => (
+    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
+      {items.map(item => {
+        const unlocked = isTestShift || unlockedFn(points, item);
+        const equipped = equippedFn(item);
+        return (
+          <button key={item.id} data-item={item.id} onClick={()=>onToggle(item)} disabled={!unlocked}
+            style={{
+              background: equipped ? "#7c83ff26" : "#0d1122",
+              border: `2px solid ${equipped ? "#7c83ff" : unlocked ? "#2a3154" : "#241f38"}`,
+              borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: unlocked?"pointer":"default",
+              opacity: unlocked ? 1 : 0.55, position:"relative",
+            }}>
+            {item.emoji ? (
+              <div style={{ fontSize:30, filter: unlocked?"none":"grayscale(1)" }}>{item.emoji}</div>
+            ) : (
+              <div style={{ width:28, height:28, borderRadius:"50%", background:item.cor, margin:"0 auto", filter: unlocked?"none":"grayscale(1)", boxShadow:"inset 0 0 0 2px rgba(255,255,255,.25)" }} />
+            )}
+            <div style={{ color:"#e8ebfa", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
+            {unlocked ? (
+              equipped
+                ? <div style={{ color:"#7c83ff", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
+                : <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>{item.cost} pts</div>
+            ) : (
+              <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>🔒 {points}/{item.cost} pts</div>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
       <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:560, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
@@ -936,41 +1027,188 @@ function NyxShop({ points, gear, onEquip, onClose }) {
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎁 Loja do Nyx</h2>
           <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Cada resposta certa nas atividades e provas vira 1 ponto. Use para desbloquear e equipar acessórios!</p>
+        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>
+          {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa nas atividades e provas vira 1 ponto. Use para desbloquear e equipar acessórios!"}
+        </p>
 
         <div style={{ display:"flex", alignItems:"center", gap:16, background:"#0d1122", border:"1px solid #2a3154", borderRadius:16, padding:16, marginBottom:16 }}>
           <NyxRobot state="ok" size={72} showName={false} gear={gear} />
+          <Avatar cfg={avatar} size={72} />
           <div>
             <div style={{ color:"#fbbf24", fontWeight:900, fontSize:22 }}>{points} pts</div>
             <div style={{ color:"#5d679c", fontSize:12 }}>Toque num item desbloqueado para vestir ou tirar</div>
           </div>
         </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
-          {NYX_ITEMS.map(item => {
-            const unlocked = nyxItemUnlocked(points, item);
-            const equipped = gear[item.slot] === item.id;
-            return (
-              <button key={item.id} data-item={item.id} onClick={()=>toggle(item)} disabled={!unlocked}
-                style={{
-                  background: equipped ? "#7c83ff26" : "#0d1122",
-                  border: `2px solid ${equipped ? "#7c83ff" : unlocked ? "#2a3154" : "#241f38"}`,
-                  borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: unlocked?"pointer":"default",
-                  opacity: unlocked ? 1 : 0.55, position:"relative",
-                }}>
-                <div style={{ fontSize:30, filter: unlocked?"none":"grayscale(1)" }}>{item.emoji}</div>
-                <div style={{ color:"#e8ebfa", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
-                {unlocked ? (
-                  equipped
-                    ? <div style={{ color:"#7c83ff", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
-                    : <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>{item.cost} pts</div>
-                ) : (
-                  <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>🔒 {points}/{item.cost} pts</div>
-                )}
-              </button>
-            );
-          })}
+        <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+          <Tab id="nyx" label="🤖 Nyx" />
+          <Tab id="roupas" label="👕 Roupas" />
+          <Tab id="acessorios" label="🎗️ Acessórios" />
         </div>
+
+        {tab === "nyx" && (
+          <Grid items={NYX_ITEMS} unlockedFn={nyxItemUnlocked} equippedFn={item=>gear[item.slot]===item.id} onToggle={toggle} />
+        )}
+        {tab === "roupas" && (
+          <Grid items={ROUPA_ITEMS} unlockedFn={roupaUnlocked} equippedFn={item=>avatar.roupa===item.id} onToggle={toggleRoupa} />
+        )}
+        {tab === "acessorios" && (
+          <Grid items={AVATAR_ACC_ITEMS} unlockedFn={roupaUnlocked} equippedFn={item=>avatar.acessorio===item.id} onToggle={toggleAcc} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  FEEDBACK ANIMADO DO NYX  (aparece quando o aluno termina a atividade)
+// ════════════════════════════════════════════════════════════════════════════
+function NyxFeedbackModal({ score, loading, feedback, onClose }) {
+  const g = gradeInfo(score);
+  const robotState = score>=75 ? "ok" : score>=40 ? "idle" : "error";
+  const dica = score < 60 ? "Dica: releia com calma as questões que você errou na revisão abaixo — o Nyx te explica cada uma se você pedir!" : "";
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:`1px solid ${g.color}55`, borderRadius:22, padding:"28px 24px", maxWidth:440, width:"100%", textAlign:"center", boxShadow:`0 24px 70px rgba(0,0,0,.55), 0 0 50px ${g.color}22` }}>
+        <div style={{ animation:"nyx-float 3s ease-in-out infinite" }}>
+          <NyxRobot state={robotState} size={110} showName={false} />
+        </div>
+        <div style={{ fontSize:44, marginTop:6, lineHeight:1 }}>{g.emoji}</div>
+        <h2 style={{ color:g.color, fontSize:26, margin:"4px 0 2px", fontWeight:900 }}>{g.label}!</h2>
+        <div style={{ color:"#96a0cc", fontSize:14, marginBottom:14 }}>Você fez {score} pontos na atividade</div>
+        <div style={{ background:"#0d1122", border:"1px solid #2c3358", borderRadius:16, padding:"16px 18px", textAlign:"left" }}>
+          {loading
+            ? <p style={{ color:"#96a0cc", fontSize:14, margin:0 }}>Nyx está analisando seu desempenho...</p>
+            : <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", margin:0 }}>{feedback || "Parabéns por concluir a aula de hoje!"}</p>}
+          {!loading && dica && <p style={{ color:"#fbbf24", fontSize:12.5, lineHeight:1.6, marginTop:10, marginBottom:0 }}>{dica}</p>}
+        </div>
+        <button onClick={onClose} disabled={loading}
+          style={{ background:`linear-gradient(135deg, ${g.color}, ${shade(g.color,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:"10px 18px", cursor: loading?"default":"pointer", fontWeight:800, fontSize:14, boxShadow:`0 4px 14px ${g.color}44`, marginTop:18, opacity:loading?0.5:1, width:"100%" }}>
+          {loading ? "Aguarde..." : "Entendi, valeu Nyx! →"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  MODO PROGRAMADOR  (o aluno completa código C# — vale 2x a 3x os pontos normais)
+// ════════════════════════════════════════════════════════════════════════════
+const CODER_SYSTEM = "Você cria exercícios de completar código em C# para alunos iniciantes e depois corrige as respostas deles. Responda SEMPRE em português do Brasil, e SOMENTE com JSON puro (sem markdown, sem crases, sem texto fora do JSON).";
+
+function CoderMode({ baseCode, onAward, onExit }) {
+  const [phase, setPhase] = useState("generating"); // generating | solving | grading | done
+  const [exercises, setExercises] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [results, setResults] = useState(null);
+  const [earned, setEarned] = useState(0);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await askClaude(
+          `Código atual do aluno (contexto, pode ou não estar relacionado):\n\`\`\`csharp\n${baseCode || "// (vazio)"}\n\`\`\`\n\n` +
+          `Crie 4 exercícios de "completar o código" em C# para um aluno iniciante. Cada exercício deve ter um trecho de código C# curto e válido, com EXATAMENTE UMA lacuna marcada como ___LACUNA___ no lugar de uma expressão, valor ou linha que o aluno precisa escrever. Varie o assunto (variáveis, condicionais, laços, métodos, listas, etc). Responda APENAS com JSON no formato exato:\n` +
+          `[{"titulo":"...", "enunciado":"explique o que o código deve fazer", "codigo":"...com ___LACUNA___ em algum ponto...", "dica":"uma dica curta"}]`,
+          CODER_SYSTEM,
+          { temperature: 0.6 }
+        );
+        const parsed = JSON.parse(res.replace(/```json|```/g, "").trim());
+        if (alive) {
+          setExercises(parsed.map((e, i) => ({ ...e, id: i, pointValue: Math.random() < 0.5 ? 2 : 3 })));
+          setPhase("solving");
+        }
+      } catch {
+        if (alive) { setErr("Não consegui gerar os exercícios agora. Tente de novo em instantes."); setPhase("solving"); }
+      }
+    })();
+    return () => { alive = false; };
+  }, [baseCode]);
+
+  const submit = async () => {
+    setPhase("grading");
+    setErr("");
+    try {
+      const payload = exercises.map(e => ({ id: e.id, codigo: e.codigo, resposta: answers[e.id] || "" }));
+      const res = await askClaude(
+        `Corrija as respostas do aluno para os exercícios de completar código abaixo. Para cada um, o campo "codigo" tem uma lacuna ___LACUNA___ e "resposta" é o que o aluno escreveu para preencher essa lacuna. Considere correto se o código completo resultante compilaria e funcionaria corretamente para o que foi pedido (aceite variações razoáveis de nome/formatação e pequenos deslizes de digitação que não comprometem o sentido).\n\n${JSON.stringify(payload)}\n\n` +
+        `Responda APENAS com JSON no formato exato: [{"id":0,"correto":true,"feedback":"frase curta explicando"}]`,
+        CODER_SYSTEM,
+        { temperature: 0 }
+      );
+      const parsed = JSON.parse(res.replace(/```json|```/g, "").trim());
+      const pts = parsed.reduce((sum, r) => {
+        const ex = exercises.find(e => e.id === r.id);
+        return sum + (r.correto && ex ? ex.pointValue : 0);
+      }, 0);
+      setResults(parsed);
+      setEarned(pts);
+      setPhase("done");
+      onAward(pts);
+    } catch {
+      setErr("Não consegui corrigir agora. Tente enviar de novo.");
+      setPhase("solving");
+    }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: PAGE_BG, color: "#e8ebfa", fontFamily: FONT }}>
+      <div style={{ background: "rgba(17,21,42,.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #2a3154", position: "sticky", top: 0, zIndex: 40 }}>
+        <span>💻 Modo Programador</span>
+        <button onClick={onExit} style={{ background: "transparent", border: "1px solid #2a3154", color: "#96a0cc", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 700 }}>← Voltar</button>
+      </div>
+      <div style={{ maxWidth: 640, margin: "30px auto", padding: 24 }}>
+        {phase === "generating" && (
+          <div style={{ textAlign: "center", padding: "60px 0" }}>
+            <NyxRobot state="thinking" size={100} showName={false} />
+            <p style={{ color: "#96a0cc", marginTop: 16 }}>Nyx está criando exercícios de código pra você...</p>
+          </div>
+        )}
+        {err && <div style={{ background: "#f8717111", border: "1px solid #f87171", borderRadius: 10, padding: 12, color: "#f87171", marginBottom: 14, fontSize: 13.5 }}>{err}</div>}
+        {(phase === "solving" || phase === "grading") && exercises.map((ex, i) => (
+          <div key={ex.id} style={{ background: "linear-gradient(180deg,#181d38,#131730)", borderRadius: 16, padding: 16, margin: "10px 0", border: "1px solid #272e52" }}>
+            <h4 style={{ color: "#7c83ff", marginBottom: 4 }}>#{i + 1} {ex.titulo} <span style={{ color: "#fbbf24", fontSize: 12, fontWeight: 800 }}>· vale {ex.pointValue} pts</span></h4>
+            <p style={{ color: "#96a0cc", fontSize: 13, marginBottom: 8 }}>{ex.enunciado}</p>
+            <pre style={{ background: "#0d1122", border: "1px solid #2a3154", borderRadius: 8, padding: 12, fontSize: 13, color: "#d4d4d4", overflowX: "auto", whiteSpace: "pre-wrap" }}>{ex.codigo}</pre>
+            <input value={answers[ex.id] || ""} onChange={e => setAnswers(a => ({ ...a, [ex.id]: e.target.value }))} placeholder="Escreva o que substitui ___LACUNA___"
+              style={{ width: "100%", marginTop: 8, background: "#0d1122", border: "2px solid #2a3154", borderRadius: 8, color: "#e8ebfa", padding: 10, fontSize: 14, boxSizing: "border-box", fontFamily: "monospace" }} disabled={phase === "grading"} />
+            <p style={{ color: "#5d679c", fontSize: 11.5, marginTop: 6 }}>💡 {ex.dica}</p>
+          </div>
+        ))}
+        {phase === "solving" && exercises.length > 0 && (
+          <button onClick={submit} disabled={exercises.some(e => !(answers[e.id] || "").trim())}
+            style={{ background: "linear-gradient(135deg,#7c83ff,#5a61e8)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 18px", cursor: "pointer", fontWeight: 800, fontSize: 14, width: "100%", marginTop: 8 }}>
+            Enviar respostas →
+          </button>
+        )}
+        {phase === "grading" && (
+          <div style={{ textAlign: "center", padding: "30px 0" }}>
+            <NyxRobot state="thinking" size={90} showName={false} />
+            <p style={{ color: "#96a0cc", marginTop: 12 }}>Nyx está corrigindo seu código...</p>
+          </div>
+        )}
+        {phase === "done" && results && (
+          <div>
+            <div style={{ textAlign: "center", marginBottom: 18 }}>
+              <div style={{ fontSize: 56 }}>{earned > 0 ? "🚀" : "📚"}</div>
+              <h2 style={{ color: "#fbbf24", fontSize: 22 }}>Você ganhou {earned} pontos extras!</h2>
+            </div>
+            {exercises.map((ex, i) => {
+              const r = results.find(rr => rr.id === ex.id);
+              return (
+                <div key={ex.id} style={{ background: "linear-gradient(180deg,#181d38,#131730)", borderRadius: 16, padding: 16, margin: "10px 0", border: `1px solid ${r?.correto ? "#34d399" : "#f87171"}` }}>
+                  <b style={{ color: r?.correto ? "#34d399" : "#f87171" }}>{r?.correto ? "✅" : "❌"} #{i + 1} {ex.titulo}</b>
+                  <p style={{ color: "#c7cfee", fontSize: 13, marginTop: 6 }}>{r?.feedback}</p>
+                </div>
+              );
+            })}
+            <button onClick={onExit} style={{ background: "linear-gradient(135deg,#7c83ff,#5a61e8)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 18px", cursor: "pointer", fontWeight: 800, fontSize: 14, width: "100%", marginTop: 12 }}>
+              ← Voltar
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1095,6 +1333,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [connected, setConnected] = useState(null);
   const [finalFeedback, setFinalFeedback] = useState("");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showCoder, setShowCoder] = useState(false);
   const [saveWarn, setSaveWarn] = useState("");
   // tema do fundo: 'dark' | 'light' | cor hex escolhida pelo Nyx
   const [theme, setTheme] = useState("dark");
@@ -1388,6 +1628,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     const finalScore = Math.round((pts/activity.length)*100);
     setScore(finalScore);
     setPhase("done");
+    setShowFeedbackModal(true);
     setFeedbackLoading(true);
     const newNyxPoints = nyxPoints + pts;
     setNyxPoints(newNyxPoints);
@@ -1644,14 +1885,32 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     );
   }
 
+  if (phase==="done" && showCoder) {
+    return (
+      <CoderMode
+        baseCode={activeCode}
+        onAward={async (pts) => { const np = nyxPoints + pts; setNyxPoints(np); await persist({ nyxPoints: np }); }}
+        onExit={() => setShowCoder(false)}
+      />
+    );
+  }
+
   if (phase==="done") {
     const activity = dynamicActivity||[];
+    const g = gradeInfo(score);
+    const backToHome = async () => { setPhase("coding"); await persist({ phase:"coding" }); };
     return (
       <div style={styles.container}>
-        <div style={styles.header}><span>🎓 Aula Concluída — {studentName}</span></div>
+        {showFeedbackModal && (
+          <NyxFeedbackModal score={score} loading={feedbackLoading} feedback={finalFeedback} onClose={()=>setShowFeedbackModal(false)} />
+        )}
+        <div style={styles.header}>
+          <span>🎓 Aula Concluída — {studentName}</span>
+          <button onClick={backToHome} style={{ background:"transparent", border:"1px solid #2a3154", color:"#96a0cc", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:12.5, fontWeight:700 }}>← Voltar à tela inicial</button>
+        </div>
         <div style={{ maxWidth:580, margin:"40px auto", textAlign:"center", padding:24 }}>
-          <div style={{ fontSize:72 }}>{score>=80?"🏆":score>=60?"⭐":"📚"}</div>
-          <h2 style={{ color:"#7c83ff", fontSize:26 }}>Você fez {score} pontos!</h2>
+          <div style={{ fontSize:72 }}>{g.emoji}</div>
+          <h2 style={{ color:g.color, fontSize:26, fontWeight:900 }}>{g.label} — Você fez {score} pontos!</h2>
 
           <div style={{ ...styles.card, marginTop:18, textAlign:"left", borderColor:"#7c83ff" }}>
             <h4 style={{ color:"#7c83ff", marginBottom:8 }}>🤖 Feedback do Nyx para você</h4>
@@ -1668,6 +1927,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
                 {answers[i]!==q.correct&&<div style={{ color:"#96a0cc", fontSize:13, marginTop:2 }}>Correto: {q.opts[q.correct]}</div>}
               </div>
             ))}
+          </div>
+
+          <div style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#34d399" }}>
+            <h4 style={{ color:"#34d399", marginBottom:8 }}>💻 Modo Programador</h4>
+            <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, marginBottom:10 }}>Quer ganhar pontos extras? No Modo Programador você mesmo escreve o código para completar exercícios — cada acerto vale 2x ou 3x mais pontos que o normal!</p>
+            <button style={styles.btn("#34d399")} onClick={()=>setShowCoder(true)}>💻 Entrar no Modo Programador</button>
           </div>
 
           {(dynamicActivity||[]).some((q,i)=>answers[i]!==q.correct) && (
@@ -1700,6 +1965,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               </>
             )}
           </div>
+
+          <button onClick={backToHome} style={{ ...styles.btn("#7c83ff"), marginTop:20 }}>← Voltar à tela inicial</button>
         </div>
       </div>
     );
@@ -1881,6 +2148,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           points={nyxPoints}
           gear={nyxGear}
           onEquip={(newGear)=>{ setNyxGear(newGear); persist({ nyxGear: newGear }); }}
+          avatar={avatar}
+          onEquipAvatar={(newAvatar)=>{ setAvatar(newAvatar); persist({ avatar: newAvatar }); }}
+          isTestShift={shift === TEST_SHIFT.id}
           onClose={()=>setShowNyxShop(false)}
         />
       )}
