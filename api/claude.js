@@ -12,7 +12,31 @@ const PROVIDER = NVIDIA_KEY && NVIDIA_MODEL ? 'nvidia' : ANTHROPIC_KEY ? 'anthro
 const DEFAULT_SYSTEM =
   'Você é um robô assistente de programação para alunos iniciantes de C#. Responda sempre em português brasileiro simples e encorajador.'
 
+// Modelos "-ultra-" / "-super-" da Nemotron têm modo de raciocínio (thinking).
+// Ativamos e reservamos parte do orçamento de tokens só para o raciocínio,
+// garantindo que sobre espaço suficiente para a resposta final.
+const NVIDIA_REASONING = /nemotron-3|reasoning|-r1/i.test(NVIDIA_MODEL)
+
 async function callNvidia({ prompt, system, temperature, max_tokens }) {
+  const finalMaxTokens = Math.min(Number(max_tokens) || 2000, 6000)
+  const body = {
+    model: NVIDIA_MODEL,
+    messages: [
+      { role: 'system', content: system || DEFAULT_SYSTEM },
+      { role: 'user', content: prompt },
+    ],
+    temperature: typeof temperature === 'number' ? temperature : 0.2,
+    top_p: 0.95,
+    max_tokens: finalMaxTokens,
+    stream: false,
+  }
+  if (NVIDIA_REASONING) {
+    // Equivalente ao `extra_body` do SDK Python: os campos vão soltos no JSON,
+    // não aninhados — é assim que a API da NVIDIA espera recebê-los.
+    body.chat_template_kwargs = { enable_thinking: true }
+    body.reasoning_budget = Math.max(512, Math.floor(finalMaxTokens * 0.5))
+  }
+
   const resp = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -20,21 +44,15 @@ async function callNvidia({ prompt, system, temperature, max_tokens }) {
       Authorization: `Bearer ${NVIDIA_KEY}`,
       Accept: 'application/json',
     },
-    body: JSON.stringify({
-      model: NVIDIA_MODEL,
-      messages: [
-        { role: 'system', content: system || DEFAULT_SYSTEM },
-        { role: 'user', content: prompt },
-      ],
-      temperature: typeof temperature === 'number' ? temperature : 0.2,
-      max_tokens: Math.min(Number(max_tokens) || 2000, 4000),
-    }),
+    body: JSON.stringify(body),
   })
   const data = await resp.json().catch(() => ({}))
   if (!resp.ok) {
     const msg = data?.error?.message || data?.message || `NVIDIA API error ${resp.status}`
     throw Object.assign(new Error(msg), { status: resp.status })
   }
+  // O texto final vem em message.content; message.reasoning_content (se vier)
+  // é só o "pensamento" interno do modelo e não deve aparecer para o aluno.
   const text = data?.choices?.[0]?.message?.content || ''
   return { content: [{ type: 'text', text }] }
 }
