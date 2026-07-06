@@ -503,19 +503,29 @@ function AvatarBuilder({ value, onChange }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  TERMINAL INTERATIVO  (executa o projeto todo; aceita entradas digitadas nele)
+//  TERMINAL  (estilo VS Code: digite dotnet run, dotnet build, cls, dir, ajuda)
 // ════════════════════════════════════════════════════════════════════════════
+const TERM_PROMPT = "C:\\Aula\\MeuProjeto>";
+
 function Terminal({ files, dataTour }) {
-  const [out, setOut] = useState("");
+  const [hist, setHist] = useState([
+    "Terminal da Aula C#",
+    'Digite "ajuda" para ver os comandos disponíveis.',
+    "",
+  ]);
+  const [mode, setMode] = useState("shell"); // shell = digitando comandos | program = programa pedindo entrada
+  const [val, setVal] = useState("");
   const [running, setRunning] = useState(false);
-  const [awaiting, setAwaiting] = useState(false);
-  const [inpVal, setInpVal] = useState("");
   const inputsRef = useRef([]);
+  const runStartRef = useRef(0);
+  const cmdHistRef = useRef([]);
+  const cmdIdxRef = useRef(-1);
   const boxRef = useRef(null);
   const inputRef = useRef(null);
-  useEffect(() => { if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight; }, [out, awaiting]);
-  useEffect(() => { if (awaiting && !running && inputRef.current) inputRef.current.focus(); }, [awaiting, running]);
 
+  useEffect(() => { if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight; }, [hist, running, mode]);
+
+  const push = (...lines) => setHist(prev => [...prev, ...lines]);
   const projectSrc = () => (files||[]).filter(f => (f.code||"").trim()).map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n");
 
   const simulate = async () => {
@@ -533,49 +543,131 @@ function Terminal({ files, dataTour }) {
       let t = res.replace(/```/g, "");
       const waiting = /__AGUARDA__/.test(t);
       t = t.replace(/__AGUARDA__/g, "").replace(/__FIM__/g, "").replace(/^\s*\n/, "").replace(/\s+$/, "");
-      setOut("$ dotnet run\n" + (t || "(sem saída)"));
-      setAwaiting(waiting);
+      const outLines = (t || "(sem saída)").split("\n");
+      setHist(prev => [...prev.slice(0, runStartRef.current), ...outLines, ...(waiting ? [] : [""])]);
+      setMode(waiting ? "program" : "shell");
     } catch (e) {
-      setOut(prev => (prev ? prev + "\n" : "") + (e.message === "ROBOTKEY_MISSING" ? "⚠ Terminal offline: o professor precisa configurar a ANTHROPIC_API_KEY no Vercel." : "Não consegui executar agora. Tente de novo."));
-      setAwaiting(false);
+      setHist(prev => [...prev.slice(0, runStartRef.current),
+        e.message === "ROBOTKEY_MISSING" ? "⚠ Terminal offline: o professor precisa configurar a ANTHROPIC_API_KEY no Vercel." : "Não consegui executar agora. Tente de novo.", ""]);
+      setMode("shell");
     }
     setRunning(false);
   };
 
-  const run = () => {
-    if (!projectSrc().trim()) { setOut("Escreva um código antes de executar."); return; }
+  const doRun = () => {
+    if (!projectSrc().trim()) { push("Nenhum código para executar. Escreva algo no editor primeiro.", ""); return; }
     inputsRef.current = [];
-    setAwaiting(false);
-    setOut("$ dotnet run\n⏳ compilando...");
+    setMode("shell");
+    setHist(prev => { runStartRef.current = prev.length; return [...prev, "⏳ compilando..."]; });
     simulate();
   };
 
-  const submitInput = () => {
+  const buildProgram = async () => {
+    if (!projectSrc().trim()) { push("Nenhum código para compilar. Escreva algo no editor primeiro.", ""); return; }
+    setRunning(true);
+    setHist(prev => { runStartRef.current = prev.length; return [...prev, "⏳ compilando..."]; });
+    try {
+      const res = await askClaude(
+        `Projeto C# (arquivos compilam juntos):\n\n${projectSrc()}\n\nAja como o comando "dotnet build". Se o projeto compilar sem erros, responda exatamente:\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\nSe houver erros de compilação, mostre-os no formato real do compilador (Arquivo.cs(linha,coluna): error CSxxxx: mensagem) seguidos de "Build FAILED.". Sem markdown, sem explicações.`,
+        RUN_SYSTEM
+      );
+      setHist(prev => [...prev.slice(0, runStartRef.current), ...res.replace(/```/g,"").trim().split("\n"), ""]);
+    } catch {
+      setHist(prev => [...prev.slice(0, runStartRef.current), "Não consegui compilar agora. Tente de novo.", ""]);
+    }
+    setRunning(false);
+  };
+
+  const execCommand = () => {
+    const raw = val;
+    const c = raw.trim();
+    setVal("");
+    setHist(prev => [...prev, TERM_PROMPT + " " + raw]);
+    if (!c) return;
+    cmdHistRef.current = [...cmdHistRef.current, raw];
+    cmdIdxRef.current = -1;
+    const low = c.toLowerCase().replace(/\s+/g, " ");
+    if (low === "cls" || low === "clear") { setHist([]); return; }
+    if (low === "ajuda" || low === "help") {
+      push(
+        "Comandos disponíveis:",
+        "  dotnet run      executa o seu programa",
+        "  dotnet build    só compila e mostra os erros",
+        "  dir  (ou ls)    lista os arquivos do projeto",
+        "  cls  (ou clear) limpa o terminal",
+        "  ajuda           mostra esta lista",
+        ""
+      );
+      return;
+    }
+    if (low === "dir" || low === "ls") {
+      push(...(files||[]).map(f => `  ${f.name}${(f.code||"").trim() ? "" : "  (vazio)"}`), "");
+      return;
+    }
+    if (low === "dotnet run") { doRun(); return; }
+    if (low === "dotnet build") { buildProgram(); return; }
+    if (low === "dotnet" || low.startsWith("dotnet ")) { push("Uso:  dotnet run  |  dotnet build", ""); return; }
+    push(`'${c}' não é reconhecido como um comando. Digite "ajuda" para ver os comandos.`, "");
+  };
+
+  const submitProgramInput = () => {
     if (running) return;
-    inputsRef.current = [...inputsRef.current, inpVal];
-    setOut(prev => prev + "\n" + inpVal + "\n⏳ ...");
-    setInpVal("");
-    setAwaiting(false);
+    inputsRef.current = [...inputsRef.current, val];
+    setVal("");
+    push(val, "⏳ ...");
     simulate();
   };
+
+  const cancelProgram = () => {
+    setMode("shell");
+    push("^C", "");
+  };
+
+  const onKey = (e) => {
+    if (e.key === "Enter") { mode === "shell" ? execCommand() : submitProgramInput(); return; }
+    if (mode === "program" && e.key === "c" && e.ctrlKey) { e.preventDefault(); cancelProgram(); return; }
+    if (mode === "shell" && e.key === "ArrowUp") {
+      e.preventDefault();
+      const h = cmdHistRef.current;
+      if (!h.length) return;
+      cmdIdxRef.current = cmdIdxRef.current === -1 ? h.length - 1 : Math.max(0, cmdIdxRef.current - 1);
+      setVal(h[cmdIdxRef.current]);
+      return;
+    }
+    if (mode === "shell" && e.key === "ArrowDown") {
+      e.preventDefault();
+      const h = cmdHistRef.current;
+      if (cmdIdxRef.current === -1) return;
+      cmdIdxRef.current = cmdIdxRef.current + 1;
+      if (cmdIdxRef.current >= h.length) { cmdIdxRef.current = -1; setVal(""); }
+      else setVal(h[cmdIdxRef.current]);
+    }
+  };
+
+  const mono = { fontFamily:"'Courier New',monospace", fontSize:13 };
 
   return (
     <div data-tour={dataTour} style={{ background:"#0a0a0a", border:"1px solid #333", borderRadius:10, marginTop:12, overflow:"hidden" }}>
       <div style={{ background:"#161616", padding:"6px 12px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #333" }}>
-        <span style={{ color:"#bbb", fontSize:13 }}>⌨️ Terminal</span>
+        <span style={{ color:"#bbb", fontSize:13 }}>⌨️ Terminal <span style={{ color:"#555", fontSize:11 }}>· digite os comandos como no VS Code</span></span>
         <div style={{ display:"flex", gap:6 }}>
-          <button onClick={()=>{ setOut(""); setAwaiting(false); inputsRef.current = []; }} style={{ background:"#222", border:"1px solid #444", color:"#bbb", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:12 }}>limpar</button>
-          <button onClick={run} disabled={running} style={{ background:"#34d399", border:"none", color:"#03301f", borderRadius:6, padding:"3px 12px", cursor:"pointer", fontSize:12, fontWeight:800, opacity:running?0.6:1 }}>{running?"executando...":"▶ dotnet run"}</button>
+          {mode === "program" && !running && (
+            <button onClick={cancelProgram} style={{ background:"#3a1d1d", border:"1px solid #7f1d1d", color:"#fca5a5", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:12 }}>■ parar (Ctrl+C)</button>
+          )}
+          <button onClick={()=>{ setHist([]); setMode("shell"); inputsRef.current = []; }} style={{ background:"#222", border:"1px solid #444", color:"#bbb", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:12 }}>limpar</button>
+          <button onClick={doRun} disabled={running} style={{ background:"#34d399", border:"none", color:"#03301f", borderRadius:6, padding:"3px 12px", cursor:"pointer", fontSize:12, fontWeight:800, opacity:running?0.6:1 }}>{running?"executando...":"▶ dotnet run"}</button>
         </div>
       </div>
-      <div ref={boxRef} style={{ minHeight:96, maxHeight:230, overflow:"auto", padding:12 }} onClick={()=>{ if (awaiting && inputRef.current) inputRef.current.focus(); }}>
-        <pre style={{ margin:0, color:"#d4d4d4", fontFamily:"'Courier New',monospace", fontSize:13, whiteSpace:"pre-wrap" }}>{out}</pre>
-        {awaiting && !running && (
-          <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:2 }}>
-            <span style={{ color:"#34d399", fontFamily:"'Courier New',monospace", fontSize:13 }}>❯</span>
-            <input ref={inputRef} value={inpVal} onChange={e=>setInpVal(e.target.value)} onKeyDown={e=>{ if (e.key==="Enter") submitInput(); }}
-              placeholder="o programa está esperando... digite e aperte Enter"
-              style={{ flex:1, background:"transparent", border:"none", outline:"none", boxShadow:"none", color:"#34d399", fontFamily:"'Courier New',monospace", fontSize:13, caretColor:"#34d399" }} />
+      <div ref={boxRef} style={{ minHeight:110, maxHeight:260, overflow:"auto", padding:12, cursor:"text" }} onClick={()=>{ if (inputRef.current) inputRef.current.focus(); }}>
+        <pre style={{ ...mono, margin:0, color:"#d4d4d4", whiteSpace:"pre-wrap" }}>{hist.join("\n")}</pre>
+        {!running && (
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            {mode === "shell"
+              ? <span style={{ ...mono, color:"#d4d4d4", whiteSpace:"nowrap" }}>{TERM_PROMPT}</span>
+              : <span style={{ ...mono, color:"#34d399" }}>❯</span>}
+            <input ref={inputRef} value={val} onChange={e=>setVal(e.target.value)} onKeyDown={onKey}
+              spellCheck={false} autoCorrect="off" autoCapitalize="off"
+              style={{ ...mono, flex:1, background:"transparent", border:"none", outline:"none", boxShadow:"none", color:mode==="shell"?"#d4d4d4":"#34d399", caretColor:"#d4d4d4", padding:0 }} />
           </div>
         )}
       </div>
@@ -674,7 +766,7 @@ const TOUR_STEPS = [
   { sel:'[data-tour="editor"]',   emoji:"📝", title:"Seu editor de código",  text:"É aqui que você escreve seus programas em C#. Ele colore o código e fecha chaves, parênteses e aspas sozinho!" },
   { sel:'[data-tour="arquivos"]', emoji:"📄", title:"Seus arquivos",         text:"Crie quantos arquivos .cs quiser. Eles fazem parte do mesmo projeto e funcionam juntos, como no VS Code!" },
   { sel:'[data-tour="nyx"]',      emoji:"🤖", title:"Eu fico aqui!",          text:"Enquanto você escreve, eu confiro seu código. Se algo estiver errado, mostro onde está, como corrigir e até as teclas para apertar." },
-  { sel:'[data-tour="terminal"]', emoji:"⌨️", title:"Terminal de verdade",   text:"Clique em ▶ dotnet run para executar seu programa. Se ele pedir algo com Console.ReadLine, é só digitar aqui dentro e apertar Enter!" },
+  { sel:'[data-tour="terminal"]', emoji:"⌨️", title:"Terminal como o do VS Code", text:"Digite dotnet run e aperte Enter para executar seu programa! Também tem dotnet build, dir, cls e ajuda. Quando o programa pedir algo, é só digitar." },
   { sel:'[data-tour="salvar"]',   emoji:"💾", title:"Salvar e finalizar",    text:"Quando terminar o código do dia, clique aqui: eu crio um resumo da aula e uma atividade feita só para você." },
   { sel:'[data-tour="tema"]',     emoji:"🎨", title:"Tema do fundo",         text:"Prefere claro ou escuro? Troque aqui. Quer outra cor? É só me pedir no chat que eu mudo para você!" },
   { sel:'[data-tour="chat"]',     emoji:"💬", title:"Fale comigo!",          text:"Qualquer dúvida de C#, abre este botão e conversa comigo. Estou sempre por aqui. Bora programar? 🚀" },
