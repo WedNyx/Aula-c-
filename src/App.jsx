@@ -898,7 +898,10 @@ const SHIFTS = [
   { id:"matutino",   label:"Matutino",   emoji:"☀️" },
   { id:"vespertino", label:"Vespertino", emoji:"🌙" },
 ];
-const shiftMeta  = id => SHIFTS.find(s=>s.id===id) || { id:id||"", label:"Sem turno", emoji:"" };
+// turma de teste — só entra quem sabe a senha; fica fora do SHIFTS para não aparecer nos filtros normais
+const TEST_SHIFT = { id:"teste", label:"Teste", emoji:"🧪" };
+const TEST_SHIFT_PASSWORD = "T3steSystem";
+const shiftMeta  = id => SHIFTS.find(s=>s.id===id) || (id===TEST_SHIFT.id ? TEST_SHIFT : { id:id||"", label:"Sem turno", emoji:"" });
 const shiftLabel = id => { const m = shiftMeta(id); return `${m.emoji} ${m.label}`.trim(); };
 const isSameDayTs = (ts) => !!ts && new Date(ts).toDateString() === new Date().toDateString();
 
@@ -1112,7 +1115,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     return () => { active2 = false; clearInterval(iv); };
   }, [loaded, persist, onLogout, shift, studentName]);
 
-  // robô: 2 segundos depois que o aluno para de digitar
+  // robô: 5 segundos depois que o aluno para de digitar
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = activeCode.trim();
@@ -1144,7 +1147,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         }
       }
       setAnalyzing(false);
-    }, 2000);
+    }, 5000);
   }, [activeCode]);
 
   // arquivos
@@ -1693,7 +1696,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           </div>
 
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
-            <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Nyx confere seu código 2s depois que você para de escrever")}</span>
+            <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Nyx confere seu código 5s depois que você para de escrever")}</span>
             <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
           </div>
 
@@ -1776,7 +1779,7 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
         else { setRobotState("idle"); setRobotMsg(""); }
       }
       setAnalyzing(false);
-    }, 2000);
+    }, 5000);
   }, [activeCode]);
 
   const card = { background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #272e52", boxShadow:"0 8px 24px rgba(3,5,16,.35)" };
@@ -1815,7 +1818,7 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
         <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} />
 
         <div style={{ display:"flex", justifyContent:"flex-start", alignItems:"center", marginTop:8 }}>
-          <span style={{ color:"#5d679c", fontSize:12 }}>{analyzing?"🔍 Verificando...":"✨ Nyx confere seu código 2s depois que você para de escrever"}</span>
+          <span style={{ color:"#5d679c", fontSize:12 }}>{analyzing?"🔍 Verificando...":"✨ Nyx confere seu código 5s depois que você para de escrever"}</span>
         </div>
 
         <Terminal files={files} />
@@ -2090,7 +2093,7 @@ function TeacherView({ onLogout }) {
         const srcFiles = (Array.isArray(s.files) && s.files.length) ? s.files : [{ name:"Program.cs", code: s.code||"" }];
         const filesCtx = srcFiles.map(f=>`// ===== ${f.name} =====\n${f.code||""}`).join("\n\n");
         const parsed = await askClaudeJson(
-          `Corrija SOMENTE os erros reais deste código C# de um aluno iniciante. Preserve ao máximo a estrutura, os nomes de variáveis e a lógica que o aluno escreveu.\n\nRegras rígidas:\n- NÃO adicione funcionalidades, comentários explicativos ou trechos que o aluno não escreveu.\n- NÃO reescreva o estilo do código nem "melhore" o que já está correto.\n- Corrija apenas problemas reais: maiúsculas/minúsculas erradas (Console.WriteLine etc.), ; faltando, chaves/parênteses/aspas não fechadas, palavras-chave erradas, tipos que deveriam ser minúsculos (string/int/double/bool), variáveis usadas sem declarar, comparação = no lugar de ==, leitura de número sem Convert/Parse.\n- Se um arquivo já estiver certo, devolva-o EXATAMENTE igual, sem nenhuma alteração.\n- Top-level statements (sem class/Main) e ausência de using System são válidos — não mexa nisso.\n\nArquivos do projeto deste aluno (compilam juntos):\n${filesCtx}\n\nResponda APENAS JSON puro com os campos NESTA ordem: {"analise":"o que você conferiu, curto (interno)","changed": true ou false, "notes": "resumo bem curto em português do que foi corrigido — vazio se nada mudou", "files": [{"name":"...","code":"..."}]}\nA lista "files" deve ter TODOS os arquivos, na mesma ordem e mesmos nomes, corrigidos ou idênticos.`,
+          `Corrija este código C# de um aluno iniciante até ele ficar 100% CORRETO — sem nenhum erro de compilação ou de execução restante. Preserve ao máximo a estrutura, os nomes de variáveis e a lógica que o aluno escreveu; conserte, não reescreva do zero.\n\nRegras rígidas:\n- Corrija TODOS os erros reais que encontrar, sem deixar nenhum passar — o resultado final precisa compilar e rodar perfeitamente.\n- NÃO adicione funcionalidades novas, comentários explicativos ou trechos que o aluno não escreveu — só conserte o que já está lá.\n- NÃO reescreva o estilo do código nem "melhore" o que já está correto.\n- Problemas a corrigir sempre que existirem: maiúsculas/minúsculas erradas (Console.WriteLine etc.), ; faltando, chaves/parênteses/aspas não fechadas, palavras-chave erradas, tipos que deveriam ser minúsculos (string/int/double/bool), variáveis usadas sem declarar, comparação = no lugar de ==, leitura de número sem Convert/Parse, e qualquer outro erro real de sintaxe ou lógica óbvia.\n- Se um arquivo já estiver 100% certo, devolva-o EXATAMENTE igual, sem nenhuma alteração.\n- Top-level statements (sem class/Main) e ausência de using System são válidos — não mexa nisso.\n- Método/classe personalizada chamada mas não definida em nenhum arquivo: não é erro do aluno, não mexa nisso.\n\nArquivos do projeto deste aluno (compilam juntos):\n${filesCtx}\n\nResponda APENAS JSON puro com os campos NESTA ordem: {"analise":"o que você conferiu, curto (interno)","changed": true ou false, "notes": "resumo bem curto em português do que foi corrigido — vazio se nada mudou", "files": [{"name":"...","code":"..."}]}\nA lista "files" deve ter TODOS os arquivos, na mesma ordem e mesmos nomes, corrigidos ou idênticos.`,
           CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
           { temperature: 0 }
         );
@@ -2240,9 +2243,9 @@ function TeacherView({ onLogout }) {
       .filter(([, v]) => v)
   );
 
-  // lista de chamada separada por turno
-  const chamadaGroups = SHIFTS
-    .filter(sh => shiftFilter === "all" || shiftFilter === sh.id)
+  // lista de chamada separada por turno (a turma de teste só aparece se filtrada explicitamente)
+  const chamadaGroups = [...SHIFTS, TEST_SHIFT]
+    .filter(sh => shiftFilter === "all" ? sh.id !== TEST_SHIFT.id : shiftFilter === sh.id)
     .map(sh => {
       const list = students.filter(s => (s.shift||"sem-turno")===sh.id).sort((a,b)=>(a.name||"").localeCompare(b.name||"","pt-BR"));
       return {
@@ -2296,6 +2299,11 @@ function TeacherView({ onLogout }) {
               {sh.emoji} {sh.label} ({students.filter(s=>(s.shift||"sem-turno")===sh.id).length})
             </button>
           ))}
+          {students.some(s=>s.shift===TEST_SHIFT.id) && (
+            <button onClick={()=>setShiftFilter(TEST_SHIFT.id)} style={{ ...styles.tab(shiftFilter===TEST_SHIFT.id), opacity:0.75 }}>
+              {TEST_SHIFT.emoji} {TEST_SHIFT.label} ({students.filter(s=>s.shift===TEST_SHIFT.id).length})
+            </button>
+          )}
         </div>
       )}
 
@@ -2531,7 +2539,7 @@ function TeacherView({ onLogout }) {
                 <div>
                   <h3 style={{ color:"#34d399", margin:0 }}>🩹 Autocorreção do Nyx</h3>
                   <p style={{ color:"#96a0cc", fontSize:13, margin:"4px 0 0", maxWidth:520 }}>
-                    O Nyx lê o código de cada aluno ({shiftFilter==="all"?"todas as turmas":shiftMeta(shiftFilter).label}) e sugere correções pontuais, sem inventar nada que o aluno não escreveu. Cada aluno recebe a sugestão e decide se aplica.
+                    O Nyx lê o código de cada aluno ({shiftFilter==="all"?"todas as turmas":shiftMeta(shiftFilter).label}) e corrige tudo até ficar 100% certo, sem inventar nada que o aluno não escreveu. Cada aluno recebe a sugestão e decide se aplica.
                   </p>
                 </div>
                 <button onClick={runAutocorrecao} disabled={correcting || shown.length===0} style={{ ...styles.btn("#34d399"), opacity:(correcting||shown.length===0)?0.6:1, whiteSpace:"nowrap" }}>
@@ -2881,8 +2889,18 @@ function Login({ onJoin }) {
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
   const [shift, setShift] = useState(() => new Date().getHours() < 13 ? "matutino" : "vespertino");
+  // turma de teste (protegida por senha)
+  const [testUnlocking, setTestUnlocking] = useState(false);
+  const [testPass, setTestPass] = useState("");
+  const [testError, setTestError] = useState("");
 
   const TEACHER_PASS = "M1n3cr@ft2006";
+
+  const openTestShift = () => { setTestUnlocking(true); setTestPass(""); setTestError(""); };
+  const confirmTestShift = () => {
+    if (testPass === TEST_SHIFT_PASSWORD) { setShift(TEST_SHIFT.id); setTestUnlocking(false); setTestError(""); }
+    else setTestError("Senha incorreta!");
+  };
 
   const loadProfiles = useCallback(async () => {
     setLoadingProfiles(true);
@@ -2936,14 +2954,30 @@ function Login({ onJoin }) {
             <p style={{ color:"#fbbf24", fontWeight:600, marginBottom:10 }}>👤 Entrar como Aluno</p>
 
             <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 8px" }}>🕑 Qual é a sua turma?</p>
-            <div style={{ display:"flex", gap:10, marginBottom:18 }}>
+            <div style={{ display:"flex", gap:10, marginBottom:10 }}>
               {SHIFTS.map(sh => (
-                <button key={sh.id} onClick={()=>setShift(sh.id)}
+                <button key={sh.id} onClick={()=>{ setShift(sh.id); setTestUnlocking(false); }}
                   style={{ ...styles.rBtn(), ...(shift===sh.id ? { borderColor:"#7c83ff", color:"#fff", background:"#7c83ff22" } : {}) }}>
                   {sh.emoji} {sh.label}
                 </button>
               ))}
             </div>
+            <button onClick={()=> shift===TEST_SHIFT.id ? null : openTestShift()}
+              style={{ background:"transparent", border:"none", color: shift===TEST_SHIFT.id ? "#7c83ff" : "#5d679c", fontSize:12, cursor:"pointer", padding:"2px 0", marginBottom: shift===TEST_SHIFT.id||testUnlocking ? 10 : 18 }}>
+              {shift===TEST_SHIFT.id ? `✓ ${TEST_SHIFT.emoji} Turma de teste selecionada` : `${TEST_SHIFT.emoji} Sou da turma de teste`}
+            </button>
+            {testUnlocking && shift!==TEST_SHIFT.id && (
+              <div style={{ background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:12, marginBottom:18 }}>
+                <p style={{ color:"#96a0cc", fontSize:12, margin:"0 0 8px" }}>Digite a senha da turma de teste:</p>
+                <div style={{ display:"flex", gap:8 }}>
+                  <input type="password" autoFocus value={testPass} onChange={e=>setTestPass(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter"&&confirmTestShift()} placeholder="Senha"
+                    style={{ ...styles.input, padding:"8px 12px", fontSize:14 }} />
+                  <button onClick={confirmTestShift} style={{ ...styles.btn("#7c83ff"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
+                </div>
+                {testError && <p style={{ color:"#f87171", fontSize:12, marginTop:6 }}>{testError}</p>}
+              </div>
+            )}
 
             <div style={{ marginBottom:16 }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
