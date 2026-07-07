@@ -519,7 +519,7 @@ const AVATAR_OPTS = {
     { e:"🐢", label:"Tartaruga" },
   ],
 };
-const DEFAULT_AVATAR = { bg:"#7c83ff", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"variant11", eyesV:"variant09", mouthV:"happy05", glassesV:"", earringsV:"", flores:false, freckles:false, pet:"", roupa:"", acessorio:"" };
+const DEFAULT_AVATAR = { bg:"#7c83ff", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"variant11", eyesV:"variant09", mouthV:"happy05", glassesV:"", earringsV:"", flores:false, freckles:false, pet:"", roupa:"" };
 
 // ── roupas e acessórios do avatar (escolhidos na criação do perfil) ──
 const ROUPA_ITEMS = [
@@ -530,13 +530,6 @@ const ROUPA_ITEMS = [
   { id:"camisa",   label:"Camisa",           cor:"#a855f7" },
   { id:"regata",   label:"Regata",           cor:"#facc15" },
   { id:"casaco",   label:"Casaco",           cor:"#ec4899" },
-];
-const AVATAR_ACC_ITEMS = [
-  { id:"",      label:"Nenhum" },
-  { id:"fone",  label:"Fone de ouvido" },
-  { id:"touca", label:"Touca" },
-  { id:"bone",  label:"Boné" },
-  { id:"coroa", label:"Coroa" },
 ];
 
 // compatibilidade: converte perfis salvos no formato antigo para o novo estilo
@@ -641,71 +634,18 @@ function RoupaSvg({ tipo, cor }) {
   return base;
 }
 
-// desenhos dos acessórios de cabeça do avatar (viewBox 0 0 100 100)
-function AcessorioSvg({ tipo }) {
-  if (tipo === "fone") return (
-    <g>
-      <path d="M 16 46 Q 50 0 84 46" fill="none" stroke={ROUPA_OUT} strokeWidth="9" strokeLinecap="round" />
-      <path d="M 16 46 Q 50 2 84 46" fill="none" stroke="#3d4257" strokeWidth="5" strokeLinecap="round" />
-      <path d="M 24 39 Q 50 10 76 39" fill="none" stroke="#5b6180" strokeWidth="1.8" strokeLinecap="round" />
-      <rect x="8" y="40" width="17" height="24" rx="8" fill="#23263a" stroke={ROUPA_OUT} strokeWidth="2.4" />
-      <rect x="11.2" y="43.6" width="10.6" height="16.8" rx="5.3" fill="#ef4444" stroke="#b91c1c" strokeWidth="1.2" />
-      <ellipse cx="14" cy="48" rx="2.2" ry="3.4" fill="#fff" opacity="0.35" />
-      <rect x="75" y="40" width="17" height="24" rx="8" fill="#23263a" stroke={ROUPA_OUT} strokeWidth="2.4" />
-      <rect x="78.2" y="43.6" width="10.6" height="16.8" rx="5.3" fill="#ef4444" stroke="#b91c1c" strokeWidth="1.2" />
-      <ellipse cx="81" cy="48" rx="2.2" ry="3.4" fill="#fff" opacity="0.35" />
-    </g>
-  );
-  if (tipo === "touca") return (
-    <g>
-      <path d="M 21 34 Q 20 3 50 3 Q 80 3 79 34 Q 50 21 21 34 Z" fill="#ef4444" stroke={ROUPA_OUT} strokeWidth="2.6" strokeLinejoin="round" />
-      <path d="M 36 7.5 Q 34.5 16 33 26 M 50 4 Q 50 13 50 23 M 64 7.5 Q 65.5 16 67 26" fill="none" stroke="#c22b2b" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M 18 28 Q 50 14 82 28 L 82 40 Q 50 26 18 40 Z" fill="#dc2626" stroke={ROUPA_OUT} strokeWidth="2.4" strokeLinejoin="round" />
-      <path d="M 30 24.5 L 30 36 M 40 21.8 L 40 33.4 M 50 20.8 L 50 32.4 M 60 21.8 L 60 33.4 M 70 24.5 L 70 36" stroke="#b91c1c" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="50" cy="4.5" r="5.6" fill="#fecaca" stroke={ROUPA_OUT} strokeWidth="2" />
-      <circle cx="48" cy="3" r="1" fill="#fff" opacity="0.8" /><circle cx="52.5" cy="5.5" r="1" fill="#f7a6a6" />
-    </g>
-  );
-  if (tipo === "bone") return (
-    <g>
-      <path d="M 23 32 Q 22 7 50 7 Q 78 7 77 32 Q 50 21 23 32 Z" fill="#2563eb" stroke={ROUPA_OUT} strokeWidth="2.6" strokeLinejoin="round" />
-      <path d="M 50 7 Q 49.5 16 48.5 26.5 M 36 10 Q 34 18 32.5 28.5 M 64 10 Q 66 18 67.5 28.5" fill="none" stroke="#1e40af" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M 30 14 Q 36 9.5 43 8.5" fill="none" stroke="#60a5fa" strokeWidth="1.8" opacity="0.7" strokeLinecap="round" />
-      <circle cx="50" cy="7.5" r="2.6" fill="#1e40af" stroke={ROUPA_OUT} strokeWidth="1.3" />
-      <path d="M 47 27 Q 78 19.5 93 28 Q 82 37.5 49 33 Z" fill="#1d4ed8" stroke={ROUPA_OUT} strokeWidth="2.4" strokeLinejoin="round" />
-      <path d="M 53 31.5 Q 76 32.5 88 28.5" fill="none" stroke="#3b82f6" strokeWidth="1.6" strokeLinecap="round" />
-    </g>
-  );
-  if (tipo === "coroa") return (
-    <g>
-      <path d="M 33 25 L 32 7 L 42 14.5 L 50 3 L 58 14.5 L 68 7 L 67 25 Z" fill="#fbbf24" stroke={ROUPA_OUT} strokeWidth="2.4" strokeLinejoin="round" />
-      <circle cx="32" cy="6" r="2.1" fill="#fde68a" stroke={ROUPA_OUT} strokeWidth="1.2" />
-      <circle cx="50" cy="2.6" r="2.1" fill="#fde68a" stroke={ROUPA_OUT} strokeWidth="1.2" />
-      <circle cx="68" cy="6" r="2.1" fill="#fde68a" stroke={ROUPA_OUT} strokeWidth="1.2" />
-      <path d="M 33 19.5 L 67 19.5 L 67 25 L 33 25 Z" fill="#f59e0b" stroke={ROUPA_OUT} strokeWidth="1.6" strokeLinejoin="round" />
-      <circle cx="50" cy="13.5" r="2.6" fill="#ef4444" stroke="#b91c1c" strokeWidth="1" />
-      <circle cx="41" cy="16.5" r="1.8" fill="#22d3ee" stroke="#0891b2" strokeWidth="0.9" />
-      <circle cx="59" cy="16.5" r="1.8" fill="#22d3ee" stroke="#0891b2" strokeWidth="0.9" />
-      <path d="M 36 10 l 1.8 1.8 M 37.8 10 l -1.8 1.8" stroke="#fff" strokeWidth="1" strokeLinecap="round" opacity="0.9" />
-    </g>
-  );
-  return null;
-}
-
 function Avatar({ cfg, size=72 }) {
   const c = normalizeAvatar(cfg);
   const key = JSON.stringify(c);
   const uri = useMemo(() => "data:image/svg+xml;utf8," + encodeURIComponent(loreleiSvg(c)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const roupa = ROUPA_ITEMS.find(r => r.id && r.id === c.roupa);
-  const acc = AVATAR_ACC_ITEMS.find(a => a.id && a.id === c.acessorio);
   return (
     <div className="avatar-pop" style={{ position:"relative", width:size, height:size, display:"inline-block", lineHeight:0, flexShrink:0 }}>
       <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", position:"relative", background:`radial-gradient(circle at 50% 30%, ${shade(c.bg,0.25)}, ${c.bg} 58%, ${shade(c.bg,-0.25)})`, boxShadow:"0 2px 5px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.14)" }}>
         <img src={uri} width={size} height={size} alt="" draggable={false} style={{ display:"block" }} />
-        {(roupa || acc) && (
+        {roupa && (
           <svg width={size} height={size} viewBox="0 0 100 100" style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
-            {roupa && <RoupaSvg tipo={roupa.id} cor={roupa.cor} />}
-            {acc && <AcessorioSvg tipo={acc.id} />}
+            <RoupaSvg tipo={roupa.id} cor={roupa.cor} />
           </svg>
         )}
       </div>
@@ -730,7 +670,6 @@ function AvatarBuilder({ value, onChange }) {
       flores: Math.random()<0.85,
       freckles: Math.random()>=0.75,
       roupa: Math.random()<0.35 ? "" : pick(ROUPA_ITEMS.slice(1)).id,
-      acessorio: Math.random()<0.6 ? "" : pick(AVATAR_ACC_ITEMS.slice(1)).id,
     });
   };
   const Swatches = ({ k }) => (
@@ -802,7 +741,6 @@ function AvatarBuilder({ value, onChange }) {
         <Row label="Brincos"><Thumbs k="earringsV" field="earringsV" /></Row>
         <Row label="Detalhes"><div style={{ display:"flex", gap:6, flexWrap:"wrap" }}><Toggle field="freckles" label="Sardas" /><Toggle field="flores" label="Flores no cabelo" /></div></Row>
         <Row label="👕 Roupa"><ItemThumbs items={ROUPA_ITEMS} field="roupa" /></Row>
-        <Row label="🎧 Acessório"><ItemThumbs items={AVATAR_ACC_ITEMS} field="acessorio" /></Row>
         <Row label="🐉 Pet / Animal mitológico"><Pets /></Row>
       </div>
     </div>
@@ -1216,129 +1154,6 @@ function NyxFeedbackModal({ score, loading, feedback, onClose }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  MODO PROGRAMADOR  (o aluno completa código C# — vale 2x a 3x os pontos normais)
-// ════════════════════════════════════════════════════════════════════════════
-const CODER_SYSTEM = "Você cria exercícios de completar código em C# para alunos iniciantes e depois corrige as respostas deles. Responda SEMPRE em português do Brasil, e SOMENTE com JSON puro (sem markdown, sem crases, sem texto fora do JSON).";
-
-function CoderMode({ baseCode, onAward, onExit }) {
-  const [phase, setPhase] = useState("generating"); // generating | solving | grading | done
-  const [exercises, setExercises] = useState([]);
-  const [answers, setAnswers] = useState({});
-  const [results, setResults] = useState(null);
-  const [earned, setEarned] = useState(0);
-  const [err, setErr] = useState("");
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const res = await askClaude(
-          `Código que o aluno escreveu HOJE na aula:\n\`\`\`csharp\n${baseCode || "// (vazio)"}\n\`\`\`\n\n` +
-          `Crie 4 exercícios de "completar o código" em C# BASEADOS NO CÓDIGO ACIMA: use trechos do próprio código do aluno, ou pequenas variações dele, cobrando SOMENTE conceitos que aparecem no que ele escreveu hoje (nada de assunto que ele ainda não viu). Cada exercício deve ter um trecho de código C# curto e válido, com EXATAMENTE UMA lacuna marcada como ___LACUNA___ no lugar de uma expressão, valor ou linha que o aluno precisa escrever. Comece com um exercício bem fácil e aumente um pouco a dificuldade nos seguintes. Responda APENAS com JSON no formato exato:\n` +
-          `[{"titulo":"...", "enunciado":"explique o que o código deve fazer", "codigo":"...com ___LACUNA___ em algum ponto...", "dica":"uma dica curta"}]`,
-          CODER_SYSTEM,
-          { temperature: 0.6 }
-        );
-        const parsed = JSON.parse(res.replace(/```json|```/g, "").trim());
-        if (alive) {
-          setExercises(parsed.map((e, i) => ({ ...e, id: i, pointValue: Math.random() < 0.5 ? 2 : 3 })));
-          setPhase("solving");
-        }
-      } catch {
-        if (alive) { setErr("Não consegui gerar os exercícios agora. Tente de novo em instantes."); setPhase("solving"); }
-      }
-    })();
-    return () => { alive = false; };
-  }, [baseCode]);
-
-  const submit = async () => {
-    setPhase("grading");
-    setErr("");
-    try {
-      const payload = exercises.map(e => ({ id: e.id, codigo: e.codigo, resposta: answers[e.id] || "" }));
-      const res = await askClaude(
-        `Corrija as respostas do aluno para os exercícios de completar código abaixo. Para cada um, o campo "codigo" tem uma lacuna ___LACUNA___ e "resposta" é o que o aluno escreveu para preencher essa lacuna. Considere correto se o código completo resultante compilaria e funcionaria corretamente para o que foi pedido (aceite variações razoáveis de nome/formatação e pequenos deslizes de digitação que não comprometem o sentido).\n\n${JSON.stringify(payload)}\n\n` +
-        `Responda APENAS com JSON no formato exato: [{"id":0,"correto":true,"feedback":"frase curta explicando"}]`,
-        CODER_SYSTEM,
-        { temperature: 0 }
-      );
-      const parsed = JSON.parse(res.replace(/```json|```/g, "").trim());
-      const pts = parsed.reduce((sum, r) => {
-        const ex = exercises.find(e => e.id === r.id);
-        return sum + (r.correto && ex ? ex.pointValue : 0);
-      }, 0);
-      setResults(parsed);
-      setEarned(pts);
-      setPhase("done");
-      onAward(pts);
-    } catch {
-      setErr("Não consegui corrigir agora. Tente enviar de novo.");
-      setPhase("solving");
-    }
-  };
-
-  return (
-    <div style={{ minHeight: "100vh", background: PAGE_BG, color: "#e8ebfa", fontFamily: FONT }}>
-      <div style={{ background: "rgba(17,21,42,.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #2a3154", position: "sticky", top: 0, zIndex: 40 }}>
-        <span>💻 Modo Programador</span>
-        <button onClick={onExit} style={{ background: "transparent", border: "1px solid #2a3154", color: "#96a0cc", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 700 }}>← Voltar</button>
-      </div>
-      <div style={{ maxWidth: 640, margin: "30px auto", padding: 24 }}>
-        {phase === "generating" && (
-          <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <NyxRobot state="thinking" size={100} showName={false} />
-            <p style={{ color: "#96a0cc", marginTop: 16 }}>Nyx está criando exercícios de código pra você...</p>
-          </div>
-        )}
-        {err && <div style={{ background: "#f8717111", border: "1px solid #f87171", borderRadius: 10, padding: 12, color: "#f87171", marginBottom: 14, fontSize: 13.5 }}>{err}</div>}
-        {(phase === "solving" || phase === "grading") && exercises.map((ex, i) => (
-          <div key={ex.id} style={{ background: "linear-gradient(180deg,#181d38,#131730)", borderRadius: 16, padding: 16, margin: "10px 0", border: "1px solid #272e52" }}>
-            <h4 style={{ color: "#7c83ff", marginBottom: 4 }}>#{i + 1} {ex.titulo} <span style={{ color: "#fbbf24", fontSize: 12, fontWeight: 800 }}>· vale {ex.pointValue} pts</span></h4>
-            <p style={{ color: "#96a0cc", fontSize: 13, marginBottom: 8 }}>{ex.enunciado}</p>
-            <pre style={{ background: "#0d1122", border: "1px solid #2a3154", borderRadius: 8, padding: 12, fontSize: 13, color: "#d4d4d4", overflowX: "auto", whiteSpace: "pre-wrap" }}>{ex.codigo}</pre>
-            <input value={answers[ex.id] || ""} onChange={e => setAnswers(a => ({ ...a, [ex.id]: e.target.value }))} placeholder="Escreva o que substitui ___LACUNA___"
-              style={{ width: "100%", marginTop: 8, background: "#0d1122", border: "2px solid #2a3154", borderRadius: 8, color: "#e8ebfa", padding: 10, fontSize: 14, boxSizing: "border-box", fontFamily: "monospace" }} disabled={phase === "grading"} />
-            <p style={{ color: "#5d679c", fontSize: 11.5, marginTop: 6 }}>💡 {ex.dica}</p>
-          </div>
-        ))}
-        {phase === "solving" && exercises.length > 0 && (
-          <button onClick={submit} disabled={exercises.some(e => !(answers[e.id] || "").trim())}
-            style={{ background: "linear-gradient(135deg,#7c83ff,#5a61e8)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 18px", cursor: "pointer", fontWeight: 800, fontSize: 14, width: "100%", marginTop: 8 }}>
-            Enviar respostas →
-          </button>
-        )}
-        {phase === "grading" && (
-          <div style={{ textAlign: "center", padding: "30px 0" }}>
-            <NyxRobot state="thinking" size={90} showName={false} />
-            <p style={{ color: "#96a0cc", marginTop: 12 }}>Nyx está corrigindo seu código...</p>
-          </div>
-        )}
-        {phase === "done" && results && (
-          <div>
-            <div style={{ textAlign: "center", marginBottom: 18 }}>
-              <div style={{ fontSize: 56 }}>{earned > 0 ? "🚀" : "📚"}</div>
-              <h2 style={{ color: "#fbbf24", fontSize: 22 }}>Você ganhou {earned} pontos extras!</h2>
-            </div>
-            {exercises.map((ex, i) => {
-              const r = results.find(rr => rr.id === ex.id);
-              return (
-                <div key={ex.id} style={{ background: "linear-gradient(180deg,#181d38,#131730)", borderRadius: 16, padding: 16, margin: "10px 0", border: `1px solid ${r?.correto ? "#34d399" : "#f87171"}` }}>
-                  <b style={{ color: r?.correto ? "#34d399" : "#f87171" }}>{r?.correto ? "✅" : "❌"} #{i + 1} {ex.titulo}</b>
-                  <p style={{ color: "#c7cfee", fontSize: 13, marginTop: 6 }}>{r?.feedback}</p>
-                </div>
-              );
-            })}
-            <button onClick={onExit} style={{ background: "linear-gradient(135deg,#7c83ff,#5a61e8)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 18px", cursor: "pointer", fontWeight: 800, fontSize: 14, width: "100%", marginTop: 12 }}>
-              ← Voltar
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════════
 //  IA + util
 // ════════════════════════════════════════════════════════════════════════════
 async function askClaude(prompt, system, opts = {}){
@@ -1458,7 +1273,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [finalFeedback, setFinalFeedback] = useState("");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [showCoder, setShowCoder] = useState(false);
+  const [showAvatarEdit, setShowAvatarEdit] = useState(false);
   const [saveWarn, setSaveWarn] = useState("");
   // tema do fundo: 'dark' | 'light' | cor hex escolhida pelo Nyx
   const [theme, setTheme] = useState("dark");
@@ -2009,16 +1824,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     );
   }
 
-  if (phase==="done" && showCoder) {
-    return (
-      <CoderMode
-        baseCode={(files||[]).filter(f=>(f.code||"").trim()).map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n") || activeCode}
-        onAward={async (pts) => { const np = nyxPoints + pts; setNyxPoints(np); await persist({ nyxPoints: np }); }}
-        onExit={() => setShowCoder(false)}
-      />
-    );
-  }
-
   if (phase==="done") {
     const activity = dynamicActivity||[];
     const g = gradeInfo(score);
@@ -2051,12 +1856,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
                 {answers[i]!==q.correct&&<div style={{ color:"#96a0cc", fontSize:13, marginTop:2 }}>Correto: {q.opts[q.correct]}</div>}
               </div>
             ))}
-          </div>
-
-          <div style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#34d399" }}>
-            <h4 style={{ color:"#34d399", marginBottom:8 }}>💻 Modo Programador</h4>
-            <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, marginBottom:10 }}>Quer ganhar pontos extras? No Modo Programador você mesmo escreve o código para completar exercícios feitos a partir do código que VOCÊ escreveu hoje — cada acerto vale 2x ou 3x mais pontos que o normal!</p>
-            <button style={styles.btn("#34d399")} onClick={()=>setShowCoder(true)}>💻 Entrar no Modo Programador</button>
           </div>
 
           {(dynamicActivity||[]).some((q,i)=>answers[i]!==q.correct) && (
@@ -2128,7 +1927,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       )}
       <div style={styles.header}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <Avatar cfg={avatar} size={34} />
+          <button onClick={()=>setShowAvatarEdit(true)} title="Editar meu boneco"
+            style={{ background:"transparent", border:"none", padding:0, cursor:"pointer", position:"relative", lineHeight:0 }}>
+            <Avatar cfg={avatar} size={34} />
+            <span style={{ position:"absolute", right:-4, bottom:-4, background:"#7c83ff", borderRadius:"50%", width:16, height:16, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, boxShadow:"0 1px 3px rgba(0,0,0,.5)" }}>✏️</span>
+          </button>
           <span style={{ fontWeight:900, fontSize:17, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>💻 Aula C#</span>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -2275,6 +2078,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           isTestShift={shift === TEST_SHIFT.id}
           onClose={()=>setShowNyxShop(false)}
         />
+      )}
+
+      {showAvatarEdit && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:680, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+              <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎨 Editar meu boneco</h2>
+              <button onClick={()=>{ setShowAvatarEdit(false); persist({}); }} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+            </div>
+            <AvatarBuilder value={avatar} onChange={setAvatar} />
+            <button onClick={()=>{ setShowAvatarEdit(false); persist({}); }} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:16 }}>💾 Salvar e fechar</button>
+          </div>
+        </div>
       )}
 
       <NyxChat
