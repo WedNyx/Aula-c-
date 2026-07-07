@@ -69,6 +69,70 @@ export async function getNudge(shift, name) {
   } catch { return null }
 }
 
+// ── travas do Nyx acionadas pelo professor no chat (zek / zeker) ──
+const NYX_LOCKS_KEY = 'nyxlocks:global'
+export async function getNyxLocks() {
+  try {
+    const r = await kvCall({ action: 'get', key: NYX_LOCKS_KEY })
+    return r.value ? JSON.parse(r.value) : { zek: false, zeker: false }
+  } catch { return { zek: false, zeker: false } }
+}
+export async function setNyxLocks(patch) {
+  try {
+    const cur = await getNyxLocks()
+    await kvCall({ action: 'set', key: NYX_LOCKS_KEY, value: JSON.stringify({ ...cur, ...patch, at: Date.now() }) })
+    return true
+  } catch { return false }
+}
+
+// ── gestão de alunos pelo professor ──
+export async function patchStudent(shift, name, patch) {
+  try {
+    const cur = await getStudent(shift, name)
+    if (!cur) return false
+    const r = await kvCall({ action: 'set', key: nameToKey(shift, name), value: JSON.stringify({ ...cur, ...patch }) })
+    return r.ok === true
+  } catch { return false }
+}
+
+export async function deleteStudentProfile(shift, name) {
+  try {
+    await kvCall({ action: 'delete', key: nameToKey(shift, name) })
+    return true
+  } catch { return false }
+}
+
+// desloga um aluno específico (usado após renomear/mover/excluir para a sessão antiga não recriar o perfil)
+function kickKeyFor(shift, name) {
+  return `kick:${shift || 'sem-turno'}:${safeName(name)}`
+}
+export async function setKick(shift, name) {
+  try { await kvCall({ action: 'set', key: kickKeyFor(shift, name), value: String(Date.now()) }) } catch {}
+}
+export async function checkKick(shift, name, joinedAt) {
+  try {
+    const r = await kvCall({ action: 'get', key: kickKeyFor(shift, name) })
+    return !!(r.value && parseInt(r.value) > joinedAt)
+  } catch { return false }
+}
+
+// correção de nota para aluno online (a sessão dele aplica e limpa a flag)
+function scoreFixKeyFor(shift, name) {
+  return `scorefix:${shift || 'sem-turno'}:${safeName(name)}`
+}
+export async function setScoreFix(shift, name, score) {
+  try { await kvCall({ action: 'set', key: scoreFixKeyFor(shift, name), value: JSON.stringify({ score, at: Date.now() }) }) } catch {}
+}
+export async function getScoreFix(shift, name) {
+  try {
+    const r = await kvCall({ action: 'get', key: scoreFixKeyFor(shift, name) })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
+export async function clearScoreFix(shift, name) {
+  try { await kvCall({ action: 'delete', key: scoreFixKeyFor(shift, name) }) } catch {}
+}
+
 export async function getDailyCuriosity(dateStr) {
   try {
     const r = await kvCall({ action: 'get', key: curiosityKey(dateStr) })

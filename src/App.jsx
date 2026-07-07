@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix } from "./storage.js";
 
 // ── tema ──
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
@@ -97,6 +97,28 @@ function classGoalProgress(totalPoints) {
   const next = CLASS_GOALS[idx];
   const pct = Math.round(((totalPoints - prev) / (next - prev)) * 100);
   return { level: idx + 1, prev, next, pct: Math.max(0, Math.min(100, pct)) };
+}
+
+// ── embaralha as alternativas de cada questão (a correta não fica sempre na mesma posição) ──
+function shuffleQuestions(questions) {
+  return (questions || []).map(q => {
+    const n = (q.opts || []).length;
+    if (n < 2) return q;
+    const perm = Array.from({ length: n }, (_, i) => i);
+    for (let i = n - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [perm[i], perm[j]] = [perm[j], perm[i]];
+    }
+    return { ...q, opts: perm.map(p => q.opts[p]), correct: perm.indexOf(q.correct) };
+  });
+}
+
+// ── atividade concluída "vale" até as 9h da manhã do dia seguinte ──
+function isDoneActive(doneAt) {
+  if (!doneAt) return false;
+  const d = new Date(doneAt);
+  const deadline = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 9, 0, 0);
+  return Date.now() < deadline.getTime();
 }
 
 // ── notas por faixa (usadas na atividade e no feedback do Nyx) ──
@@ -224,11 +246,15 @@ function highlight(code) {
 function VSEditor({ value, onChange, filename }) {
   const textareaRef = useRef(null);
   const highlightRef = useRef(null);
+  const gutterRef = useRef(null);
 
   const syncScroll = () => {
     if (highlightRef.current && textareaRef.current) {
       highlightRef.current.scrollTop = textareaRef.current.scrollTop;
       highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
+    if (gutterRef.current && textareaRef.current) {
+      gutterRef.current.scrollTop = textareaRef.current.scrollTop;
     }
   };
 
@@ -291,8 +317,13 @@ function VSEditor({ value, onChange, filename }) {
         <span style={{color:"#cccccc", fontSize:13, marginLeft:10}}>📄 {filename || "Program.cs"}</span>
       </div>
       <div style={{ display:"flex", minHeight:300, maxHeight:420, overflow:"hidden" }}>
-        <div style={{ background:"#1e1e1e", padding:"12px 8px 12px 14px", textAlign:"right", userSelect:"none", minWidth:42, color:"#858585", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:"1.5em", borderRight:"1px solid #3e3e42", flexShrink:0 }}>
-          {lineNums.map(n => <div key={n}>{n}</div>)}
+        {/* gutter acompanha o scroll do textarea: o número fica sempre ao lado da linha de código dele */}
+        <div ref={gutterRef} style={{ background:"#1e1e1e", textAlign:"right", userSelect:"none", minWidth:42, color:"#858585", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:"1.5em", borderRight:"1px solid #3e3e42", flexShrink:0, overflow:"hidden" }}>
+          <div style={{ padding:"12px 8px 12px 14px" }}>
+            {lineNums.map(n => <div key={n} style={{ minHeight:"1.5em" }}>{n}</div>)}
+            {/* espaço extra igual ao overscroll do textarea para o fim do arquivo alinhar */}
+            <div style={{ height:120 }} />
+          </div>
         </div>
         <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
           <div ref={highlightRef} style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, color:"#d4d4d4", pointerEvents:"none", overflow:"hidden", paddingLeft:14 }}>
@@ -1011,7 +1042,7 @@ function Terminal({ files, dataTour }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  CHAT COM O NYX  (botão flutuante — aluno e professor)
 // ════════════════════════════════════════════════════════════════════════════
-function NyxChat({ who = "student", context, onTheme, accent = "#7c83ff", dataTour, gear }) {
+function NyxChat({ who = "student", context, onTheme, onCommand, accent = "#7c83ff", dataTour, gear }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
@@ -1024,6 +1055,17 @@ function NyxChat({ who = "student", context, onTheme, accent = "#7c83ff", dataTo
     if (!t || busy) return;
     const hist = [...msgs, { from:"user", text:t }];
     setMsgs(hist); setText(""); setBusy(true);
+    // comandos diretos (ex: zek, /hiberne) — executados na hora, sem passar pela IA
+    if (onCommand) {
+      try {
+        const cmdReply = await onCommand(t);
+        if (cmdReply) {
+          setMsgs(ms => [...ms, { from:"nyx", text: cmdReply }]);
+          setBusy(false);
+          return;
+        }
+      } catch {}
+    }
     try {
       const histTxt = hist.slice(-8).map(m => (m.from==="user" ? "Pessoa: " : "Nyx: ") + m.text).join("\n");
       const themeRule = who === "student"
@@ -1031,7 +1073,13 @@ function NyxChat({ who = "student", context, onTheme, accent = "#7c83ff", dataTo
         : "";
       const persona = who === "student"
         ? `Você está conversando com um aluno dentro da plataforma, num chat pequeno. Responda CURTO (no máximo 5 frases), simples e animado. Ajude com dúvidas de C#, dicas de estudo e o que ele precisar. Não resolva a atividade por ele — explique o caminho.${themeRule}`
-        : "Você é o assistente do PROFESSOR dentro da plataforma, num chat pequeno. Responda curto e direto (máximo 6 frases), com base nos dados da turma fornecidos. Sugira a quem dar atenção, ideias de exercícios e próximos passos quando fizer sentido.";
+        : `Você é o assistente pessoal do PROFESSOR dentro da plataforma, num chat pequeno. Responda curto e direto (máximo 6 frases), com base nos dados da turma fornecidos. Sugira a quem dar atenção, ideias de exercícios e próximos passos quando fizer sentido.
+COMANDOS DISPONÍVEIS que o professor pode digitar aqui no chat (executados por você na hora):
+- "zek" → você aparece na tela de TODOS os alunos, no centro, pedindo atenção, e bloqueia tudo o que eles estiverem fazendo.
+- "/hiberne" → desativa o zek e libera as telas dos alunos.
+- "zeker" → bloqueia o duelo entre alunos.
+- "/liberte" → libera o duelo novamente.
+Se o professor perguntar como chamar a atenção da turma ou controlar os duelos, LEMBRE-O desses comandos. Outras ações (mudar nota, renomear, mover de turno ou excluir aluno) o professor faz no painel Monitoramento clicando no aluno — indique o caminho quando ele pedir esse tipo de mudança.`;
       const out = await askClaude(
         `${context ? context() : ""}\n\nConversa até agora:\n${histTxt}\n\nResponda como Nyx à última mensagem.`,
         CS_SYSTEM + "\n\n" + persona,
@@ -1416,7 +1464,7 @@ async function generateDuelQuestions() {
     { temperature: 0.7 }
   );
   const parsed = extractJson(res);
-  return parsed.questions || [];
+  return shuffleQuestions(parsed.questions || []);
 }
 
 function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
@@ -1783,6 +1831,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [showDuel, setShowDuel] = useState(false);
   const [duelDoc, setDuelDoc] = useState(null);
   const streakRef = useRef(0);
+  // travas acionadas pelo professor (zek = tela bloqueada; zeker = duelos bloqueados)
+  const [nyxLocks, setNyxLocksState] = useState({ zek: false, zeker: false });
+  // quando a atividade de hoje foi concluída (mantém o status até as 9h do dia seguinte)
+  const [doneAt, setDoneAt] = useState(null);
 
   const sessionStart = useRef(Date.now());
   const stateRef = useRef({});
@@ -1791,8 +1843,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxGear, achievements };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxGear, achievements, doneAt };
   });
+
+  // se o professor bloquear os duelos com o modal aberto, fecha na hora
+  useEffect(() => { if (nyxLocks.zeker && showDuel) setShowDuel(false); }, [nyxLocks.zeker, showDuel]);
 
   const persist = useCallback(async (extra = {}) => {
     const s = stateRef.current;
@@ -1826,6 +1881,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       nyxPoints: s.nyxPoints || 0,
       nyxGear: s.nyxGear || DEFAULT_NYX_GEAR,
       achievements: s.achievements || [],
+      doneAt: s.doneAt || null,
       ...extra,
     });
     setConnected(ok);
@@ -1859,6 +1915,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
           if (prev.nyxGear) setNyxGear({ ...DEFAULT_NYX_GEAR, ...prev.nyxGear });
           if (Array.isArray(prev.achievements)) setAchievements(prev.achievements);
+          if (prev.doneAt) setDoneAt(prev.doneAt);
         }
         const es = await getExamState();
         if (alive) setExamInfo(es);
@@ -1941,6 +1998,24 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           await persist({ examReady: false, examScore: null, examAnswers: {}, examDone: false });
         }
         setExamInfo(es);
+      } catch {}
+      // travas do professor (zek / zeker)
+      try {
+        const locks = await getNyxLocks();
+        setNyxLocksState({ zek: !!locks.zek, zeker: !!locks.zeker });
+      } catch {}
+      // professor renomeou/moveu/excluiu este perfil → sai da sessão antiga
+      try {
+        if (await checkKick(shift, studentName, sessionStart.current)) { active2 = false; onLogout(); return; }
+      } catch {}
+      // professor corrigiu a nota da atividade → aplica e limpa a flag
+      try {
+        const fix = await getScoreFix(shift, studentName);
+        if (fix && typeof fix.score === "number") {
+          setScore(fix.score);
+          await clearScoreFix(shift, studentName);
+          await persist({ score: fix.score });
+        }
       } catch {}
       await persist();
       const streak = computeStreak(attendanceRef.current);
@@ -2090,8 +2165,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         "Crie questões sobre conceitos de código C#, não matemática. APENAS JSON puro."
       );
       const parsed = extractJson(activityResult);
-      setDynamicActivity(parsed.questions);
-      await persist({ phase:"summary", dynamicActivity:parsed.questions, dynamicSummary:summaryData });
+      const questions = shuffleQuestions(parsed.questions);
+      setDynamicActivity(questions);
+      await persist({ phase:"summary", dynamicActivity:questions, dynamicSummary:summaryData });
       setPhase("summary");
     } catch {
       setGeneratingMsg("❌ Erro ao gerar. Tente novamente.");
@@ -2124,13 +2200,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     let pts = 0;
     activity.forEach((q,i)=>{ if(answers[i]===q.correct) pts++; });
     const finalScore = Math.round((pts/activity.length)*100);
+    const completedAt = Date.now();
     setScore(finalScore);
+    setDoneAt(completedAt);
     setPhase("done");
     setShowFeedbackModal(true);
     setFeedbackLoading(true);
     const newNyxPoints = nyxPoints + pts;
     setNyxPoints(newNyxPoints);
-    await persist({ phase:"done", score:finalScore, answers, nyxPoints: newNyxPoints });
+    await persist({ phase:"done", score:finalScore, answers, nyxPoints: newNyxPoints, doneAt: completedAt });
     unlockAchievement("primeira-atividade");
     if (finalScore >= 100) unlockAchievement("nota-cem");
     try {
@@ -2203,6 +2281,21 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   );
 
   if (!loaded) return (<div style={{ ...styles.container, display:"flex", alignItems:"center", justifyContent:"center" }}><p style={{ color:"#96a0cc" }}>Carregando seu perfil...</p></div>);
+
+  // ── ZEK: o professor pediu atenção — o Nyx toma a tela inteira e bloqueia tudo até o /hiberne ──
+  if (nyxLocks.zek) return (
+    <div style={{ ...styles.container, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"2px solid #f87171", borderRadius:22, padding:"34px 28px", maxWidth:460, width:"100%", textAlign:"center", boxShadow:"0 24px 70px rgba(0,0,0,.6), 0 0 60px #f8717133" }}>
+        <div style={{ animation:"nyx-shake .55s ease infinite" }}>
+          <NyxRobot state="error" size={120} showName={false} gear={nyxGear} />
+        </div>
+        <h2 style={{ color:"#f87171", fontSize:24, fontWeight:900, margin:"14px 0 6px" }}>👀 Atenção na aula!</h2>
+        <p style={{ color:"#c7cfee", fontSize:15, lineHeight:1.7, margin:0 }}>
+          O professor pediu a atenção de todo mundo agora. Olhos no quadro! A tela volta ao normal quando ele liberar.
+        </p>
+      </div>
+    </div>
+  );
 
   // ── PROVA: telas de exame têm prioridade ──
   if (examDone) return (
@@ -2616,7 +2709,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               <button onClick={()=>setShowRanking(true)} style={{ ...styles.btn("#22d3ee"), fontSize:12, padding:"7px 0" }}>📊 Ranking da turma</button>
               <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btn("#a855f7"), fontSize:12, padding:"7px 0" }}>🎖️ Conquistas · {achievements.length}/{ACHIEVEMENTS.length}</button>
-              <button onClick={()=>setShowDuel(true)} style={{ ...styles.btn("#f87171"), fontSize:12, padding:"7px 0" }}>⚔️ Duelo entre alunos</button>
+              <button onClick={()=>{ if (!nyxLocks.zeker) setShowDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : ""}
+                style={{ ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:nyxLocks.zeker?0.45:1, cursor:nyxLocks.zeker?"not-allowed":"pointer" }}>
+                {nyxLocks.zeker ? "🔒 Duelos bloqueados" : "⚔️ Duelo entre alunos"}
+              </button>
             </div>
             <ClassGoalBar sum={classPointsSum} />
           </div>
@@ -2856,6 +2952,12 @@ function difficultyOf(s) {
 function TeacherView({ onLogout }) {
   const [students, setStudents] = useState([]);
   const [selected, setSelected] = useState(null);
+  // gestão do aluno selecionado (renomear, mover de turno, corrigir nota, excluir)
+  const [renameVal, setRenameVal] = useState("");
+  const [scoreVal, setScoreVal] = useState("");
+  const [mgmtMsg, setMgmtMsg] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  useEffect(() => { setRenameVal(""); setScoreVal(""); setConfirmDelete(false); setMgmtMsg(""); }, [selected]);
   const [resetting, setResetting] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetScope, setResetScope] = useState("all");
@@ -3022,6 +3124,50 @@ function TeacherView({ onLogout }) {
     if (ok) { setNudged(n => ({ ...n, [s.name]: Date.now() })); setTimeout(()=>setNudged(n=>{ const c={...n}; delete c[s.name]; return c; }), 5000); }
   };
 
+  // ── gestão de alunos: renomear, mover de turno, corrigir nota, excluir ──
+  const flashMgmt = (msg) => { setMgmtMsg(msg); setTimeout(()=>setMgmtMsg(""), 6000); };
+
+  const doRenameStudent = async (s) => {
+    const newName = renameVal.trim();
+    if (!s || !newName || newName === s.name) return;
+    if (students.some(x => x.name === newName && (x.shift||"sem-turno") === (s.shift||"sem-turno"))) { flashMgmt("❌ Já existe um aluno com esse nome nessa turma."); return; }
+    await saveStudent(s.shift, newName, { ...s, name: newName });
+    await deleteStudentProfile(s.shift, s.name);
+    await setKick(s.shift, s.name); // se estiver online, a sessão antiga sai (ele entra de novo com o nome novo)
+    setSelected(newName); setRenameVal("");
+    flashMgmt(`✅ Renomeado para ${newName}. Se estiver online, ele vai precisar entrar de novo.`);
+    load();
+  };
+
+  const doMoveStudent = async (s, newShift) => {
+    if (!s || !newShift || newShift === (s.shift||"sem-turno")) return;
+    await saveStudent(newShift, s.name, { ...s, shift: newShift });
+    await deleteStudentProfile(s.shift, s.name);
+    await setKick(s.shift, s.name);
+    flashMgmt(`✅ Movido para ${shiftLabel(newShift)}. Se estiver online, ele vai precisar entrar de novo.`);
+    load();
+  };
+
+  const doSetScore = async (s) => {
+    const v = parseInt(scoreVal, 10);
+    if (!s || isNaN(v)) return;
+    const nv = Math.max(0, Math.min(100, v));
+    await patchStudent(s.shift, s.name, { score: nv });
+    await setScoreFix(s.shift, s.name, nv); // se estiver online, a sessão dele aplica na hora
+    setScoreVal("");
+    flashMgmt(`✅ Nota da atividade alterada para ${nv}.`);
+    load();
+  };
+
+  const doDeleteStudent = async (s) => {
+    if (!s) return;
+    await deleteStudentProfile(s.shift, s.name);
+    await setKick(s.shift, s.name);
+    setSelected(null); setConfirmDelete(false);
+    flashMgmt("");
+    load();
+  };
+
 
   const startExam = async () => {
     const examShifts = examShift === "all" ? ["matutino","vespertino"] : [examShift];
@@ -3047,7 +3193,7 @@ function TeacherView({ onLogout }) {
         "Crie questões de múltipla escolha sobre C#. APENAS JSON puro sem markdown."
       );
       const parsed = extractJson(questionsResult);
-      const newConfig = { status: 'review', questions: parsed.questions, summary: summaryResult.trim(), shift: examShift, startedAt: Date.now() };
+      const newConfig = { status: 'review', questions: shuffleQuestions(parsed.questions), summary: summaryResult.trim(), shift: examShift, startedAt: Date.now() };
       await setExamState(newConfig);
       setExamConfig(newConfig);
       setExamMsg("✅ Prova criada! Os alunos estão revisando. Quando todos estiverem prontos, clique em Iniciar Agora.");
@@ -3124,6 +3270,8 @@ function TeacherView({ onLogout }) {
   const now = Date.now();
   const tk = todayKey();
   const isOnline = (s) => s.lastSeen && (now - s.lastSeen) < 9000;
+  // a atividade concluída "vale" até as 9h da manhã do dia seguinte, mesmo que o aluno volte à tela inicial
+  const effectivePhase = s => (s.phase !== "done" && isDoneActive(s.doneAt)) ? "done" : s.phase;
   const phaseLabel = p => ({coding:"Codando",generating:"Gerando",summary:"No Resumo",activity:"Na Atividade",done:"Concluído"})[p]||"Aguardando";
   const phaseColor = p => ({coding:"#7c83ff",generating:"#fbbf24",summary:"#fbbf24",activity:"#3b82f6",done:"#34d399"})[p]||"#96a0cc";
   const hhmm = t => t ? new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "—";
@@ -3274,27 +3422,55 @@ function TeacherView({ onLogout }) {
               </p>
             </div>
 
+            {/* Chamada — separada por turno */}
             <div style={styles.card}>
-              <h3 style={{ color:"#fbbf24", marginBottom:12 }}>👥 Monitoramento ({shown.length})</h3>
-              {shown.length===0 && <p style={{ color:"#5d679c", fontSize:13 }}>{students.length===0 ? "Aguardando alunos entrarem..." : "Nenhum aluno nesta turma. Veja outra turma no filtro acima."}</p>}
-              <div style={{ maxHeight:340, overflowY:"auto" }}>
-                {sorted.map(s=>{
-                  const d = difficultyOf(s);
-                  return (
-                    <div key={s.name} onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ background:selected===s.name?"#7c83ff22":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":"#2a3154"}`, borderRadius:10, padding:"10px 12px", marginBottom:8, cursor:"pointer" }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                        <span style={{ display:"flex", alignItems:"center", gap:8, fontWeight:600 }}><Avatar cfg={s.avatar} size={26} />{dot(isOnline(s))}{s.name}</span>
-                        <span style={styles.badge(phaseColor(s.phase))}>{phaseLabel(s.phase)}</span>
-                      </div>
-                      <div style={{ marginTop:6 }}>
-                        <span style={styles.badge(d.level==="dif"?"#f87171":d.level==="bem"?"#34d399":"#96a0cc")}>{d.level==="dif"?"⚠ Com dificuldade":d.level==="bem"?"✅ Indo bem":"• Começando"}</span>
-                        {s.score!=null && <span style={{ ...styles.badge("#34d399"), marginLeft:6 }}>🏆 {s.score}</span>}
-                      </div>
-                      <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>visto {hhmmss(s.lastSeen)}</div>
-                    </div>
-                  );
-                })}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
+                <h3 style={{ color:"#fbbf24" }}>📋 Lista de Chamada</h3>
+                <span style={styles.badge("#34d399")}>{present} online / {shown.length}</span>
               </div>
+              {shown.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno na chamada ainda.</p> : (
+                chamadaGroups.map((g, gi) => (
+                  <div key={g.shift.id} style={{ marginTop: gi>0 ? 18 : 0, paddingTop: gi>0 ? 16 : 0, borderTop: gi>0 ? "1px solid #2a3154" : "none" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                      <b style={{ color:"#e8ebfa", fontSize:14 }}>{g.shift.emoji} {g.shift.label}</b>
+                      <span style={styles.badge("#34d399")}>{g.online} online / {g.list.length}</span>
+                    </div>
+                    {g.list.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno nesta turma ainda.</p> : (
+                      <>
+                        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
+                          <span style={styles.badge("#34d399")}>✅ {g.present.length} presente{g.present.length!==1?"s":""}</span>
+                          <span style={styles.badge("#fbbf24")}>⚠ {g.idle.length} sem atividade</span>
+                          <span style={styles.badge("#f87171")}>❌ {g.absent.length} falta{g.absent.length!==1?"s":""}</span>
+                        </div>
+                        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))", gap:8 }}>
+                          {g.list.map(s=>{
+                            const st = attStatus(s);
+                            const stColor = st==="present"?"#34d399":st==="idle"?"#fbbf24":"#f87171";
+                            const stLabel = st==="present"?"✅ Presente":st==="idle"?"⚠ Sem atividade":"❌ Falta";
+                            return (
+                              <div key={s.name} style={{ background:"#0d1122", border:`1px solid ${st==="absent"?"#3f2530":"#2a3154"}`, borderRadius:8, padding:"8px 10px", opacity:st==="absent"?0.7:1 }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                  <Avatar cfg={s.avatar} size={28} />
+                                  <span style={{ fontSize:14, flex:1 }}>{dot(isOnline(s))}{s.name}</span>
+                                  <span style={{ color:"#5d679c", fontSize:11 }}>{hhmm(s.joinedAt)}</span>
+                                </div>
+                                <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, flexWrap:"wrap" }}>
+                                  <span style={styles.badge(stColor)}>{stLabel}</span>
+                                  {st==="idle" && (
+                                    nudged[s.name]
+                                      ? <span style={{ color:"#34d399", fontSize:11, fontWeight:600 }}>aviso enviado ✓</span>
+                                      : <button onClick={()=>nudgeStudent(s)} style={{ background:"transparent", color:"#fbbf24", border:"1px solid #fbbf24", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>👀 Enviar aviso</button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
 
             <div style={styles.card}>
@@ -3385,55 +3561,27 @@ function TeacherView({ onLogout }) {
 
           {/* direita */}
           <div style={{ flex:"1 1 420px", minWidth:300 }}>
-            {/* Chamada — separada por turno */}
             <div style={styles.card}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
-                <h3 style={{ color:"#fbbf24" }}>📋 Lista de Chamada</h3>
-                <span style={styles.badge("#34d399")}>{present} online / {shown.length}</span>
-              </div>
-              {shown.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno na chamada ainda.</p> : (
-                chamadaGroups.map((g, gi) => (
-                  <div key={g.shift.id} style={{ marginTop: gi>0 ? 18 : 0, paddingTop: gi>0 ? 16 : 0, borderTop: gi>0 ? "1px solid #2a3154" : "none" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                      <b style={{ color:"#e8ebfa", fontSize:14 }}>{g.shift.emoji} {g.shift.label}</b>
-                      <span style={styles.badge("#34d399")}>{g.online} online / {g.list.length}</span>
+              <h3 style={{ color:"#fbbf24", marginBottom:12 }}>👥 Monitoramento ({shown.length})</h3>
+              {shown.length===0 && <p style={{ color:"#5d679c", fontSize:13 }}>{students.length===0 ? "Aguardando alunos entrarem..." : "Nenhum aluno nesta turma. Veja outra turma no filtro acima."}</p>}
+              <div style={{ maxHeight:340, overflowY:"auto" }}>
+                {sorted.map(s=>{
+                  const d = difficultyOf(s);
+                  return (
+                    <div key={s.name} onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ background:selected===s.name?"#7c83ff22":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":"#2a3154"}`, borderRadius:10, padding:"10px 12px", marginBottom:8, cursor:"pointer" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                        <span style={{ display:"flex", alignItems:"center", gap:8, fontWeight:600 }}><Avatar cfg={s.avatar} size={26} />{dot(isOnline(s))}{s.name}</span>
+                        <span style={styles.badge(phaseColor(effectivePhase(s)))}>{phaseLabel(effectivePhase(s))}</span>
+                      </div>
+                      <div style={{ marginTop:6 }}>
+                        <span style={styles.badge(d.level==="dif"?"#f87171":d.level==="bem"?"#34d399":"#96a0cc")}>{d.level==="dif"?"⚠ Com dificuldade":d.level==="bem"?"✅ Indo bem":"• Começando"}</span>
+                        {s.score!=null && <span style={{ ...styles.badge("#34d399"), marginLeft:6 }}>🏆 {s.score}</span>}
+                      </div>
+                      <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>visto {hhmmss(s.lastSeen)}</div>
                     </div>
-                    {g.list.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno nesta turma ainda.</p> : (
-                      <>
-                        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
-                          <span style={styles.badge("#34d399")}>✅ {g.present.length} presente{g.present.length!==1?"s":""}</span>
-                          <span style={styles.badge("#fbbf24")}>⚠ {g.idle.length} sem atividade</span>
-                          <span style={styles.badge("#f87171")}>❌ {g.absent.length} falta{g.absent.length!==1?"s":""}</span>
-                        </div>
-                        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))", gap:8 }}>
-                          {g.list.map(s=>{
-                            const st = attStatus(s);
-                            const stColor = st==="present"?"#34d399":st==="idle"?"#fbbf24":"#f87171";
-                            const stLabel = st==="present"?"✅ Presente":st==="idle"?"⚠ Sem atividade":"❌ Falta";
-                            return (
-                              <div key={s.name} style={{ background:"#0d1122", border:`1px solid ${st==="absent"?"#3f2530":"#2a3154"}`, borderRadius:8, padding:"8px 10px", opacity:st==="absent"?0.7:1 }}>
-                                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                                  <Avatar cfg={s.avatar} size={28} />
-                                  <span style={{ fontSize:14, flex:1 }}>{dot(isOnline(s))}{s.name}</span>
-                                  <span style={{ color:"#5d679c", fontSize:11 }}>{hhmm(s.joinedAt)}</span>
-                                </div>
-                                <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, flexWrap:"wrap" }}>
-                                  <span style={styles.badge(stColor)}>{stLabel}</span>
-                                  {st==="idle" && (
-                                    nudged[s.name]
-                                      ? <span style={{ color:"#34d399", fontSize:11, fontWeight:600 }}>aviso enviado ✓</span>
-                                      : <button onClick={()=>nudgeStudent(s)} style={{ background:"transparent", color:"#fbbf24", border:"1px solid #fbbf24", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>👀 Enviar aviso</button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))
-              )}
+                  );
+                })}
+              </div>
             </div>
 
             {/* Resumo automático (sem clicar em nada — só agregação dos dados) */}
@@ -3481,10 +3629,50 @@ function TeacherView({ onLogout }) {
                 <div style={styles.card}>
                   <h3 style={{ color:"#fbbf24", display:"flex", alignItems:"center", gap:10 }}><Avatar cfg={sel.avatar} size={34} />{dot(isOnline(sel))}{sel.name}</h3>
                   <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginTop:8 }}>
-                    <span style={styles.badge(phaseColor(sel.phase))}>{phaseLabel(sel.phase)}</span>
+                    <span style={styles.badge(phaseColor(effectivePhase(sel)))}>{phaseLabel(effectivePhase(sel))}</span>
                     {sel.score!=null && <span style={styles.badge("#34d399")}>🏆 {sel.score} pts</span>}
                     {(() => { const d=difficultyOf(sel); return <span style={styles.badge(d.level==="dif"?"#f87171":"#34d399")}>{d.level==="dif"?"⚠ "+d.text:"✅ "+d.text}</span>; })()}
                   </div>
+                </div>
+
+                {/* Gerenciar aluno: renomear, mover de turno, corrigir nota, excluir */}
+                <div style={{ ...styles.card, borderColor:"#fbbf24" }}>
+                  <h4 style={{ color:"#fbbf24", marginBottom:12 }}>⚙️ Gerenciar aluno</h4>
+                  <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>✏️ Nome:</span>
+                      <input value={renameVal} onChange={e=>setRenameVal(e.target.value)} placeholder={sel.name}
+                        style={{ flex:1, minWidth:140, background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 10px", color:"#e8ebfa", fontSize:13, outline:"none" }} />
+                      <button onClick={()=>doRenameStudent(sel)} disabled={!renameVal.trim()} style={{ ...styles.btn("#7c83ff"), padding:"6px 14px", fontSize:12.5, opacity:renameVal.trim()?1:0.5 }}>Renomear</button>
+                    </div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🕑 Turma:</span>
+                      {[...SHIFTS, TEST_SHIFT].filter(sh => sh.id !== (sel.shift||"sem-turno")).map(sh => (
+                        <button key={sh.id} onClick={()=>doMoveStudent(sel, sh.id)} style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12.5 }}>
+                          Mover p/ {sh.emoji} {sh.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🏆 Nota:</span>
+                      <input type="number" min={0} max={100} value={scoreVal} onChange={e=>setScoreVal(e.target.value)} placeholder={sel.score!=null?String(sel.score):"—"}
+                        style={{ width:90, background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 10px", color:"#e8ebfa", fontSize:13, outline:"none" }} />
+                      <button onClick={()=>doSetScore(sel)} disabled={scoreVal===""} style={{ ...styles.btn("#34d399"), padding:"6px 14px", fontSize:12.5, opacity:scoreVal!==""?1:0.5 }}>Alterar nota da atividade</button>
+                    </div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
+                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🗑️ Perfil:</span>
+                      {confirmDelete ? (
+                        <>
+                          <span style={{ color:"#f87171", fontSize:13 }}>Excluir <b>{sel.name}</b> e tudo o que ele fez? Não dá para desfazer.</span>
+                          <button onClick={()=>doDeleteStudent(sel)} style={{ ...styles.btn("#f87171"), padding:"6px 14px", fontSize:12.5 }}>Sim, excluir</button>
+                          <button onClick={()=>setConfirmDelete(false)} style={{ ...styles.btn("#2a3154"), padding:"6px 14px", fontSize:12.5 }}>Cancelar</button>
+                        </>
+                      ) : (
+                        <button onClick={()=>setConfirmDelete(true)} style={{ ...styles.btn("#f87171"), padding:"6px 14px", fontSize:12.5 }}>Excluir perfil do aluno</button>
+                      )}
+                    </div>
+                  </div>
+                  {mgmtMsg && <p style={{ color: mgmtMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:13, marginTop:10 }}>{mgmtMsg}</p>}
                 </div>
                 {Array.isArray(sel.files) && sel.files.length>0 ? sel.files.map((f,i)=>(
                   <div key={i} style={styles.card}>
@@ -3504,7 +3692,7 @@ function TeacherView({ onLogout }) {
                     {sel.dynamicActivity.map((q,i)=>(
                       <div key={i} style={{ marginBottom:10, background:"#0d1122", borderRadius:8, padding:"8px 12px" }}>
                         <p style={{ fontSize:13, color:"#96a0cc", marginBottom:4 }}>{i+1}. {q.q}</p>
-                        <span style={styles.badge(sel.answers[i]===q.correct?"#34d399":"#f87171")}>{sel.answers[i]===q.correct?"✅ Correto":`❌ Errado — correto: ${q.opts[q.correct]}`}</span>
+                        <span style={styles.badge(sel.answers[i]===q.correct?"#34d399":"#f87171")}>{sel.answers[i]===q.correct?"✅ Correto":"❌ Errado"}</span>
                       </div>
                     ))}
                   </div>
@@ -3770,6 +3958,26 @@ function TeacherView({ onLogout }) {
       <NyxChat
         who="teacher"
         accent="#fbbf24"
+        onCommand={async (t) => {
+          const cmd = t.toLowerCase();
+          if (cmd === "zek") {
+            await setNyxLocks({ zek: true });
+            return "🔒 Modo ZEK ativado! Estou aparecendo na tela de TODOS os alunos pedindo atenção — tudo bloqueado até você digitar /hiberne.";
+          }
+          if (cmd === "/hiberne") {
+            await setNyxLocks({ zek: false });
+            return "😴 Zek desativado. As telas dos alunos foram liberadas.";
+          }
+          if (cmd === "zeker") {
+            await setNyxLocks({ zeker: true });
+            return "⚔️🚫 Duelos bloqueados! Nenhum aluno consegue duelar até você digitar /liberte.";
+          }
+          if (cmd === "/liberte") {
+            await setNyxLocks({ zeker: false });
+            return "⚔️✅ Duelos liberados! Os alunos já podem se desafiar de novo.";
+          }
+          return null;
+        }}
         context={() => {
           const rows = students.map(s => {
             const att = Object.values(s.attendance||{}).filter(v => v === "present").length;
