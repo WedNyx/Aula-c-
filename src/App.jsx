@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, setCorrection, getCorrection, clearCorrection, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState } from "./storage.js";
 
 // ── tema ──
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
@@ -1293,10 +1293,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [nudge, setNudge2] = useState(null);
   const [nudgeSeenAt, setNudgeSeenAt] = useState(0);
   const [idleHint, setIdleHint] = useState(false);
-  // correção sugerida pelo Nyx (via autocorreção do professor)
-  const [correction, setCorrection2] = useState(null);
-  const [correctionSeenAt, setCorrectionSeenAt] = useState(0);
-  const [showCorrectionDetail, setShowCorrectionDetail] = useState(false);
   // prova (exame)
   const [examInfo, setExamInfo] = useState({ status: 'idle' });
   const [examReady, setExamReady] = useState(false);
@@ -1401,11 +1397,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       try {
         const n = await getNudge(shift, studentName);
         if (n && n.at && n.at > sessionStart.current) setNudge2(n);
-      } catch {}
-      // correção sugerida pelo Nyx
-      try {
-        const c = await getCorrection(shift, studentName);
-        if (c && c.at && c.at > sessionStart.current) setCorrection2(c);
       } catch {}
       // dica automática: entrou mas está parado há mais de 90s sem código
       const s = stateRef.current;
@@ -1528,8 +1519,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     setExplaining(false);
   };
 
+  // todo o código que o aluno escreveu hoje, em TODOS os arquivos (não só a aba aberta)
+  const allCodeToday = () => (files||[]).filter(f=>(f.code||"").trim()).map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n");
+
   const handleSave = async () => {
-    if (activeCode.trim().length < 10) { setSaveWarn("✏️ Escreva algum código antes de salvar!"); setTimeout(()=>setSaveWarn(""), 4000); return; }
+    const fullCode = allCodeToday();
+    if (fullCode.trim().length < 10) { setSaveWarn("✏️ Escreva algum código antes de salvar!"); setTimeout(()=>setSaveWarn(""), 4000); return; }
     setAnswers({});
     setPhase("generating");
     setGeneratingMsg("📖 Lendo seu código...");
@@ -1537,7 +1532,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     try {
       setGeneratingMsg("📚 Criando o resumo da sua aula...");
       const summaryResult = await askClaude(
-        `Um aluno iniciante de C# escreveu este código na aula:\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nCrie um resumo da aula bem organizado e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 ou 2 frases curtas e acolhedoras dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação bem simples, de 1 a 3 frases, do que isso faz e por quê", "exemplo": "um trecho de código C# curto e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta, útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no código dele (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Linguagem bem de iniciante. Exemplos curtos, corretos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
+        `Um aluno iniciante de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos fazem parte do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie um resumo da aula bem organizado e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 ou 2 frases curtas e acolhedoras dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação bem simples, de 1 a 3 frases, do que isso faz e por quê", "exemplo": "um trecho de código C# curto e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta, útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no código dele, olhando TODOS os arquivos (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Linguagem bem de iniciante. Exemplos curtos, corretos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
         "Você é um professor de C# paciente e organizado, para iniciantes. Português correto e simples. Responda APENAS JSON puro válido."
       );
       let summaryData;
@@ -1546,7 +1541,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       setDynamicSummary(summaryData);
       setGeneratingMsg("📝 Criando atividade sobre seu código...");
       const activityResult = await askClaude(
-        `Um aluno de C# escreveu este código:\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nCrie 8 questões de múltipla escolha focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
+        `Um aluno de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie 8 questões de múltipla escolha focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
         "Crie questões sobre conceitos de código C#, não matemática. APENAS JSON puro."
       );
       const parsed = extractJson(activityResult);
@@ -1576,7 +1571,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     try {
       const list = activity.map((q,i)=>`- ${q.q} → ${answers[i]===q.correct?"acertou":"errou"}`).join("\n");
       const fb = await askClaude(
-        `Um aluno iniciante de C# escreveu este código na aula:\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nDepois respondeu uma atividade de ${activity.length} perguntas e acertou ${pts} (nota ${finalScore}).\nResultado pergunta a pergunta:\n${list}\n\nEscreva um feedback curto, gentil e motivador em português para ESTE aluno, baseado no código que ele escreveu E no desempenho. Diga o que ele mandou bem e um ponto para melhorar. No final, dê UMA dica interessante e específica para o nível dele: se foi bem (nota alta e código sem erros), traga uma curiosidade ou um próximo passo um pouco mais avançado para se desafiar; se teve dificuldade, traga uma dica simples e prática para melhorar o ponto que ele errou. Máximo 4 frases, sem markdown, sem títulos.`,
+        `Um aluno iniciante de C# escreveu este código na aula de hoje:\n\`\`\`csharp\n${allCodeToday()}\n\`\`\`\n\nDepois respondeu uma atividade de ${activity.length} perguntas e acertou ${pts} (nota ${finalScore}).\nResultado pergunta a pergunta:\n${list}\n\nEscreva um feedback curto, gentil e motivador em português para ESTE aluno, baseado no código que ele escreveu E no desempenho. Diga o que ele mandou bem e um ponto para melhorar. No final, dê UMA dica interessante e específica para o nível dele: se foi bem (nota alta e código sem erros), traga uma curiosidade ou um próximo passo um pouco mais avançado para se desafiar; se teve dificuldade, traga uma dica simples e prática para melhorar o ponto que ele errou. Máximo 4 frases, sem markdown, sem títulos.`,
         "Você é um professor de C# gentil e motivador, escrevendo direto para um aluno iniciante. Português brasileiro."
       );
       setFinalFeedback(fb);
@@ -1624,16 +1619,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
   const dismissNudge = () => { if (nudge) setNudgeSeenAt(nudge.at); setNudge2(null); };
   const showNudge = nudge && nudge.at > nudgeSeenAt;
-
-  const dismissCorrection = () => { if (correction) setCorrectionSeenAt(correction.at); setCorrection2(null); setShowCorrectionDetail(false); };
-  const showCorrection = correction && correction.at > correctionSeenAt;
-  const applyCorrection = async () => {
-    if (!correction?.files?.length) return;
-    setFiles(correction.files.map(f => ({ name: f.name, code: f.code })));
-    setActive(0);
-    await clearCorrection(shift, studentName);
-    dismissCorrection();
-  };
 
   // ── estilos ──
   const styles = {
@@ -1960,33 +1945,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         </div>
       )}
 
-      {showCorrection && (
-        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
-          <div style={{ background:"#34d39918", border:"2px solid #34d399", borderRadius:12, padding:"12px 16px" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-              <span style={{ fontSize:26 }}>🩹</span>
-              <div style={{ flex:1 }}>
-                <b style={{ color:"#34d399" }}>O Nyx sugeriu uma correção no seu código!</b>
-                <p style={{ color:"#c7f5e3", fontSize:14, margin:"2px 0 0", lineHeight:1.5 }}>{correction.notes || "Encontrei alguns pontos para ajustar."}</p>
-              </div>
-              <button onClick={()=>setShowCorrectionDetail(s=>!s)} style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:13 }}>{showCorrectionDetail ? "Ocultar" : "Ver o que mudou"}</button>
-              <button onClick={applyCorrection} style={{ ...styles.btn("#34d399"), padding:"6px 12px", fontSize:13 }}>✅ Aplicar</button>
-              <button onClick={dismissCorrection} style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:13 }}>Ignorar</button>
-            </div>
-            {showCorrectionDetail && (
-              <div style={{ marginTop:12, display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap:10 }}>
-                {(correction.files||[]).map((f,i)=>(
-                  <div key={i} style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, overflow:"hidden" }}>
-                    <div style={{ background:"#161a2e", padding:"4px 10px", fontSize:12, color:"#96a0cc" }}>📄 {f.name}</div>
-                    <pre style={{ margin:0, padding:10, color:"#a5f3fc", fontFamily:"'Courier New',monospace", fontSize:12, maxHeight:220, overflow:"auto", whiteSpace:"pre-wrap" }}>{f.code}</pre>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {idleHint && !showNudge && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
           <div style={{ background:"#7c83ff18", border:"1px solid #7c83ff", color:"#c7d2fe", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
@@ -2305,10 +2263,6 @@ function TeacherView({ onLogout }) {
     ...prev,
     [codeShift]: typeof updater === "function" ? updater(prev[codeShift]) : updater,
   }));
-  // autocorreção do Nyx
-  const [correcting, setCorrecting] = useState(false);
-  const [correctionProgress, setCorrectionProgress] = useState({ done:0, total:0 });
-  const [correctionResults, setCorrectionResults] = useState(null);
   // prova
   const [examConfig, setExamConfig] = useState({ status: 'idle' });
   const [examGenerating, setExamGenerating] = useState(false);
@@ -2449,56 +2403,28 @@ function TeacherView({ onLogout }) {
     if (ok) { setNudged(n => ({ ...n, [s.name]: Date.now() })); setTimeout(()=>setNudged(n=>{ const c={...n}; delete c[s.name]; return c; }), 5000); }
   };
 
-  // autocorreção: o Nyx lê o código de cada aluno (da turma filtrada) e sugere uma correção pontual
-  const runAutocorrecao = async () => {
-    const targets = shown.filter(s => Array.isArray(s.files)
-      ? s.files.some(f => (f.code||"").trim().length > 5)
-      : (s.code||"").trim().length > 5);
-    setCorrectionResults(null);
-    if (!targets.length) { setCorrectionResults([]); return; }
-    setCorrecting(true);
-    setCorrectionProgress({ done:0, total: targets.length });
-    const results = await Promise.all(targets.map(async (s) => {
-      try {
-        const srcFiles = (Array.isArray(s.files) && s.files.length) ? s.files : [{ name:"Program.cs", code: s.code||"" }];
-        const filesCtx = srcFiles.map(f=>`// ===== ${f.name} =====\n${f.code||""}`).join("\n\n");
-        const parsed = await askClaudeJson(
-          `Corrija este código C# de um aluno iniciante até ele ficar 100% CORRETO — sem nenhum erro de compilação ou de execução restante. Preserve ao máximo a estrutura, os nomes de variáveis e a lógica que o aluno escreveu; conserte, não reescreva do zero.\n\nRegras rígidas:\n- Corrija TODOS os erros reais que encontrar, sem deixar nenhum passar — o resultado final precisa compilar e rodar perfeitamente.\n- NÃO adicione funcionalidades novas, comentários explicativos ou trechos que o aluno não escreveu — só conserte o que já está lá.\n- NÃO reescreva o estilo do código nem "melhore" o que já está correto.\n- Problemas a corrigir sempre que existirem: maiúsculas/minúsculas erradas (Console.WriteLine etc.), ; faltando, chaves/parênteses/aspas não fechadas, palavras-chave erradas, tipos que deveriam ser minúsculos (string/int/double/bool), variáveis usadas sem declarar, comparação = no lugar de ==, leitura de número sem Convert/Parse, e qualquer outro erro real de sintaxe ou lógica óbvia.\n- Se um arquivo já estiver 100% certo, devolva-o EXATAMENTE igual, sem nenhuma alteração.\n- Top-level statements (sem class/Main) e ausência de using System são válidos — não mexa nisso.\n- Método/classe personalizada chamada mas não definida em nenhum arquivo: não é erro do aluno, não mexa nisso.\n\nArquivos do projeto deste aluno (compilam juntos):\n${filesCtx}\n\nResponda APENAS JSON puro com os campos NESTA ordem: {"analise":"o que você conferiu, curto (interno)","changed": true ou false, "notes": "resumo bem curto em português do que foi corrigido — vazio se nada mudou", "files": [{"name":"...","code":"..."}]}\nA lista "files" deve ter TODOS os arquivos, na mesma ordem e mesmos nomes, corrigidos ou idênticos.`,
-          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
-          { temperature: 0 }
-        );
-        const outFiles = (Array.isArray(parsed.files) && parsed.files.length) ? parsed.files : srcFiles;
-        if (parsed.changed) {
-          await setCorrection(s.shift, s.name, { files: outFiles, notes: parsed.notes || "Corrigi alguns pontos no seu código." });
-        }
-        return { name: s.name, shift: s.shift, avatar: s.avatar, changed: !!parsed.changed, notes: parsed.notes || "" };
-      } catch (e) {
-        return { name: s.name, shift: s.shift, avatar: s.avatar, changed:false, error: e.message === "ROBOTKEY_MISSING" ? "Nyx (IA) offline" : "erro ao corrigir" };
-      } finally {
-        setCorrectionProgress(p => ({ ...p, done: p.done + 1 }));
-      }
-    }));
-    setCorrectionResults(results);
-    setCorrecting(false);
-  };
-
 
   const startExam = async () => {
     const examShifts = examShift === "all" ? ["matutino","vespertino"] : [examShift];
     const proCode = examShifts.flatMap(sh => proFilesByShift[sh]||[]).map(f => (f.code||"")).join("\n").trim();
     const examStudents = examShift === "all" ? students : students.filter(s=>(s.shift||"sem-turno")===examShift);
-    const studentCodes = examStudents.filter(s=>(s.code||"").trim().length>5).map(s=>s.code).join("\n").slice(0,2000);
-    const codeCtx = proCode || studentCodes;
+    // pega o código de TODOS os arquivos que cada aluno escreveu ao longo da aula (não só um trecho)
+    const studentCodes = examStudents
+      .map(s => (Array.isArray(s.files) && s.files.length) ? s.files.map(f=>f.code||"").join("\n") : (s.code||""))
+      .filter(c => c.trim().length > 5)
+      .join("\n\n")
+      .slice(0, 8000);
+    const codeCtx = [proCode, studentCodes].filter(Boolean).join("\n\n");
     if (!codeCtx) { setExamMsg(`Escreva o código de exemplo na aba Meu código (turma ${examShift==="all"?"Manhã ou Tarde":shiftMeta(examShift).label}) primeiro!`); return; }
     setExamGenerating(true); setExamMsg("Gerando resumo...");
     try {
       const summaryResult = await askClaude(
-        `Aqui está o código C# da aula de hoje:\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie um RESUMO DE REVISÃO em tópicos claros (máximo 8 tópicos) para os alunos estudarem antes de uma prova. Cada tópico: emoji + nome do conceito + explicação simples de 1 frase + exemplo curto. Português simples. Sem markdown pesado, use • para tópicos.`,
+        `Aqui está o código C# que a turma escreveu ao longo de toda a aula de hoje (exemplo do professor e/ou código dos alunos):\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie um RESUMO DE REVISÃO em tópicos claros (máximo 8 tópicos) cobrindo os principais conceitos vistos durante a aula, para os alunos estudarem antes de uma prova. Cada tópico: emoji + nome do conceito + explicação simples de 1 frase + exemplo curto. Português simples. Sem markdown pesado, use • para tópicos.`,
         "Você cria resumos de revisão de C# para alunos iniciantes. Português simples."
       );
       setExamMsg("Gerando questões...");
       const questionsResult = await askClaude(
-        `Com base neste código C# da aula:\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie 10 questões de múltipla escolha sobre os CONCEITOS do código (não matemática). Varie a dificuldade. Responda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
+        `Aqui está o código C# que a turma escreveu ao longo de TODA a aula de hoje (exemplo do professor e/ou código dos alunos):\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie entre 20 e 25 questões de múltipla escolha cobrindo os CONCEITOS que apareceram durante o processo inteiro da aula (não só o trecho final) — o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, o que acontece ao executar cada parte. Varie a dificuldade e não repita a mesma pergunta com outras palavras. NÃO faça perguntas de matemática. Responda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
         "Crie questões de múltipla escolha sobre C#. APENAS JSON puro sem markdown."
       );
       const parsed = extractJson(questionsResult);
@@ -2901,45 +2827,6 @@ function TeacherView({ onLogout }) {
                   ))}
                 </div>
               </div>
-            </div>
-
-            {/* Autocorreção do Nyx */}
-            <div style={{ ...styles.card, borderColor:"#34d399" }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
-                <div>
-                  <h3 style={{ color:"#34d399", margin:0 }}>🩹 Autocorreção do Nyx</h3>
-                  <p style={{ color:"#96a0cc", fontSize:13, margin:"4px 0 0", maxWidth:520 }}>
-                    O Nyx lê o código de cada aluno ({shiftFilter==="all"?"todas as turmas":shiftMeta(shiftFilter).label}) e corrige tudo até ficar 100% certo, sem inventar nada que o aluno não escreveu. Cada aluno recebe a sugestão e decide se aplica.
-                  </p>
-                </div>
-                <button onClick={runAutocorrecao} disabled={correcting || shown.length===0} style={{ ...styles.btn("#34d399"), opacity:(correcting||shown.length===0)?0.6:1, whiteSpace:"nowrap" }}>
-                  {correcting ? `Corrigindo ${correctionProgress.done}/${correctionProgress.total}...` : "🩹 Corrigir código da turma"}
-                </button>
-              </div>
-              {correctionResults && (
-                <div style={{ marginTop:14, borderTop:"1px solid #2a3154", paddingTop:12 }}>
-                  {correctionResults.length===0 ? (
-                    <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno com código para corrigir ainda.</p>
-                  ) : (
-                    <>
-                      <p style={{ color:"#96a0cc", fontSize:13, marginBottom:8 }}>
-                        {correctionResults.filter(r=>r.changed).length} sugestão(ões) enviada(s) · {correctionResults.filter(r=>!r.changed && !r.error).length} já estavam certos · {correctionResults.filter(r=>r.error).length} com erro
-                      </p>
-                      {correctionResults.map(r => (
-                        <div key={r.shift+":"+r.name} style={{ display:"flex", alignItems:"center", gap:10, padding:"6px 0", borderBottom:"1px solid #2a3154" }}>
-                          <Avatar cfg={r.avatar} size={26} />
-                          <span style={{ flex:1, fontSize:13 }}>{r.name} <span style={{ color:"#5d679c", fontSize:11 }}>{shiftMeta(r.shift).emoji}</span></span>
-                          {r.error
-                            ? <span style={{ color:"#f87171", fontSize:12 }}>⚠ {r.error}</span>
-                            : r.changed
-                              ? <span style={{ color:"#34d399", fontSize:12 }}>🩹 {r.notes || "corrigido"}</span>
-                              : <span style={{ color:"#5d679c", fontSize:12 }}>✅ sem correções</span>}
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Detalhe do aluno */}

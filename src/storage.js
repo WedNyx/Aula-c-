@@ -23,10 +23,6 @@ function nudgeKeyFor(shift, name) {
   return `nudge:${shift || 'sem-turno'}:${safeName(name)}`
 }
 
-function correctionKeyFor(shift, name) {
-  return `correction:${shift || 'sem-turno'}:${safeName(name)}`
-}
-
 function teacherCodeKey(shift) {
   return `teachercode:${shift || 'matutino'}`
 }
@@ -61,24 +57,6 @@ export async function getNudge(shift, name) {
     const r = await kvCall({ action: 'get', key: nudgeKeyFor(shift, name) })
     return r.value ? JSON.parse(r.value) : null
   } catch { return null }
-}
-
-export async function setCorrection(shift, name, data) {
-  try {
-    const r = await kvCall({ action: 'set', key: correctionKeyFor(shift, name), value: JSON.stringify({ ...data, at: Date.now() }) })
-    return r.ok === true
-  } catch { return false }
-}
-
-export async function getCorrection(shift, name) {
-  try {
-    const r = await kvCall({ action: 'get', key: correctionKeyFor(shift, name) })
-    return r.value ? JSON.parse(r.value) : null
-  } catch { return null }
-}
-
-export async function clearCorrection(shift, name) {
-  try { await kvCall({ action: 'delete', key: correctionKeyFor(shift, name) }) } catch {}
 }
 
 export async function listStudents() {
