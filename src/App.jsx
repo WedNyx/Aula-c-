@@ -1240,6 +1240,70 @@ function NyxFeedbackModal({ score, loading, feedback, onClose }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  NYX EXPLICA OS ERROS  (revela uma questão errada por vez, com exemplo de código, terminando numa mensagem encorajadora)
+// ════════════════════════════════════════════════════════════════════════════
+function ErrorExplainModal({ sections, encouragement, onClose }) {
+  const [step, setStep] = useState(0);
+  const total = sections.length;
+  const onFinal = step >= total;
+  const s = sections[step];
+  const ACCENTS = ["#7c83ff","#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6","#f87171"];
+  const c = ACCENTS[step % ACCENTS.length];
+  const accent = onFinal ? "#34d399" : c;
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:`1px solid ${accent}55`, borderRadius:22, padding:"26px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:`0 24px 70px rgba(0,0,0,.55), 0 0 50px ${accent}22` }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+          <span style={{ color:"#5d679c", fontSize:12, fontWeight:700, letterSpacing:0.5 }}>{onFinal ? "Pronto!" : `Questão ${step+1} de ${total}`}</span>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:20, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+
+        <div style={{ textAlign:"center" }}>
+          <div style={{ display:"inline-block", animation:"nyx-float 3s ease-in-out infinite" }}>
+            <NyxRobot state={onFinal ? "ok" : "idle"} size={90} showName={false} />
+          </div>
+        </div>
+
+        {onFinal ? (
+          <div style={{ textAlign:"center", marginTop:6 }}>
+            <div style={{ fontSize:40 }}>🎉</div>
+            <p style={{ color:"#c7cfee", fontSize:16, lineHeight:1.7, margin:"8px 0 0" }}>{encouragement}</p>
+          </div>
+        ) : (
+          <div style={{ marginTop:12, background:"#151a31", borderRadius:14, padding:18, border:"1px solid #2a3154", borderLeft:`5px solid ${c}` }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
+              <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:40, height:40, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{s.emoji || "📌"}</span>
+              <h3 style={{ color:"#e8ebfa", fontSize:16, margin:0 }}>{s.titulo}</h3>
+            </div>
+            {s.explicacao && <p style={{ color:"#c7cfee", fontSize:14.5, lineHeight:1.75, margin:"0 0 4px" }}>{s.explicacao}</p>}
+            {s.exemplo && <CodeBlock code={s.exemplo} />}
+          </div>
+        )}
+
+        <div style={{ display:"flex", gap:8, marginTop:18 }}>
+          {step > 0 && !onFinal && (
+            <button onClick={()=>setStep(v=>v-1)} style={{ background:"#2a3154", color:"#e8ebfa", border:"none", borderRadius:10, padding:"10px 16px", cursor:"pointer", fontWeight:700, fontSize:13.5 }}>← Voltar</button>
+          )}
+          <button onClick={()=> onFinal ? onClose() : setStep(v=>v+1)}
+            style={{ flex:1, background:`linear-gradient(135deg, ${accent}, ${shade(accent,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:"10px 16px", cursor:"pointer", fontWeight:800, fontSize:14 }}>
+            {onFinal ? "Fechar" : (step === total-1 ? "Terminar →" : "Próximo →")}
+          </button>
+        </div>
+
+        {!onFinal && total > 1 && (
+          <div style={{ display:"flex", gap:5, justifyContent:"center", marginTop:14 }}>
+            {sections.map((_,i)=>(
+              <div key={i} style={{ width:7, height:7, borderRadius:"50%", background: i===step ? c : "#2a3154" }} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  CONQUISTAS, RANKING, META DA TURMA, CURIOSIDADE  (gamificação leve)
 // ════════════════════════════════════════════════════════════════════════════
 function AchievementToast({ achievement }) {
@@ -1679,8 +1743,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [theme, setTheme] = useState("dark");
   // tour guiado do Nyx
   const [tourStep, setTourStep] = useState(-1);
-  // explicações do Nyx sobre os erros da atividade
-  const [errorExplains, setErrorExplains] = useState("");
+  // explicações do Nyx sobre os erros da atividade (passo a passo, num modal)
+  const [errorSections, setErrorSections] = useState([]);
+  const [errorEncouragement, setErrorEncouragement] = useState("");
+  const [showErrorExplain, setShowErrorExplain] = useState(false);
+  const [explainFailMsg, setExplainFailMsg] = useState("");
   const [explaining, setExplaining] = useState(false);
   const [fsMsg, setFsMsg] = useState("");
   // avaliação da aula (aluno → professor)
@@ -1974,20 +2041,26 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     setTimeout(() => setNewAchievement(null), 4000);
   };
 
-  // Nyx explica os erros da atividade
+  // Nyx explica os erros da atividade — gera tudo de uma vez (rápido) e depois revela passo a passo num modal
   const explainErrors = async () => {
     const activity = dynamicActivity || [];
     const wrong = activity.map((q,i)=>({ q, i })).filter(({ q, i }) => answers[i] !== q.correct);
     if (!wrong.length || explaining) return;
     setExplaining(true);
+    setExplainFailMsg("");
     try {
       const list = wrong.map(({ q, i }) => `Pergunta: ${q.q}\nO aluno respondeu: ${q.opts[answers[i]] ?? "(não respondeu)"}\nResposta correta: ${q.opts[q.correct]}`).join("\n\n");
-      const out = await askClaude(
-        `Um aluno iniciante errou estas questões sobre o próprio código C# dele:\n\n${list}\n\nExplique cada questão em 1 ou 2 frases bem simples: por que a resposta correta é a certa e onde ele provavelmente se confundiu. Seja gentil e encorajador. Formato: um parágrafo curto por questão, começando com "• ". Sem markdown além disso.`,
-        CS_SYSTEM
+      const parsed = await askClaudeJson(
+        `Um aluno iniciante errou estas questões sobre o próprio código C# dele:\n\n${list}\n\nPara CADA questão errada, crie uma seção explicando o conceito de forma simples e gentil: por que a resposta certa é a certa e onde ele provavelmente se confundiu, seguida de um EXEMPLO CURTO de código C# correto que ilustre bem o conceito (pode ser um exemplo didático, não precisa ser do código dele). No final, escreva UMA mensagem curta e encorajadora olhando o desempenho geral dele.\n\nResponda APENAS em JSON puro, sem markdown:\n{"secoes":[{"emoji":"emoji que combine com o conceito","titulo":"nome curto do conceito","explicacao":"1 a 3 frases simples e gentis","exemplo":"código C# curto e correto (use \\n para quebrar linha)"}],"encorajamento":"mensagem final motivadora, 1 a 2 frases"}`,
+        CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
+        { temperature: 0.5 }
       );
-      setErrorExplains(out.trim());
-    } catch { setErrorExplains("Não consegui gerar as explicações agora. Tente de novo em instantes."); }
+      const secoes = Array.isArray(parsed.secoes) ? parsed.secoes : [];
+      if (!secoes.length) throw new Error("sem seções");
+      setErrorSections(secoes);
+      setErrorEncouragement(parsed.encorajamento || "Continue praticando, você está indo muito bem!");
+      setShowErrorExplain(true);
+    } catch { setExplainFailMsg("Não consegui gerar as explicações agora. Tente de novo em instantes."); }
     setExplaining(false);
   };
 
@@ -2332,6 +2405,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         {showFeedbackModal && (
           <NyxFeedbackModal score={score} loading={feedbackLoading} feedback={finalFeedback} onClose={()=>setShowFeedbackModal(false)} />
         )}
+        {showErrorExplain && (
+          <ErrorExplainModal sections={errorSections} encouragement={errorEncouragement} onClose={()=>setShowErrorExplain(false)} />
+        )}
         <div style={styles.header}>
           <span>🎓 Aula Concluída — {studentName}</span>
           <button onClick={backToHome} style={{ background:"transparent", border:"1px solid #2a3154", color:"#96a0cc", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:12.5, fontWeight:700 }}>← Voltar à tela inicial</button>
@@ -2360,14 +2436,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           {(dynamicActivity||[]).some((q,i)=>answers[i]!==q.correct) && (
             <div style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#7c83ff" }}>
               <h4 style={{ color:"#7c83ff", marginBottom:8 }}>🤖 Não entendeu algum erro?</h4>
-              {errorExplains
-                ? <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.8, whiteSpace:"pre-wrap", margin:0 }}>{errorExplains}</p>
-                : (
-                  <>
-                    <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, marginBottom:10 }}>O Nyx pode explicar cada questão que você errou, com calma e do seu jeito.</p>
-                    <button style={{ ...styles.btn("#7c83ff"), opacity:explaining?0.6:1 }} onClick={explainErrors} disabled={explaining}>{explaining ? "Nyx está escrevendo..." : "✨ Nyx, me explica meus erros!"}</button>
-                  </>
-                )}
+              <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, marginBottom:10 }}>O Nyx pode explicar cada questão que você errou, com calma e do seu jeito.</p>
+              <button style={{ ...styles.btn("#7c83ff"), opacity:explaining?0.6:1 }} onClick={explainErrors} disabled={explaining}>{explaining ? "Nyx está escrevendo..." : "✨ Nyx, me explica meus erros!"}</button>
+              {explainFailMsg && <p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{explainFailMsg}</p>}
             </div>
           )}
 
