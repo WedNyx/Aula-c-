@@ -27,6 +27,16 @@ function teacherCodeKey(shift) {
   return `teachercode:${shift || 'matutino'}`
 }
 
+function curiosityKey(dateStr) {
+  return `curiosity:${dateStr}`
+}
+
+const DUEL_PREFIX = 'duel:'
+function duelKeyFor(shift, nameA, nameB) {
+  const [x, y] = [safeName(nameA), safeName(nameB)].sort()
+  return `${DUEL_PREFIX}${shift || 'sem-turno'}:${x}__${y}`
+}
+
 function resetFlagKey(shift) {
   return shift ? `classroom_reset_flag:${shift}` : 'classroom_reset_flag'
 }
@@ -57,6 +67,47 @@ export async function getNudge(shift, name) {
     const r = await kvCall({ action: 'get', key: nudgeKeyFor(shift, name) })
     return r.value ? JSON.parse(r.value) : null
   } catch { return null }
+}
+
+export async function getDailyCuriosity(dateStr) {
+  try {
+    const r = await kvCall({ action: 'get', key: curiosityKey(dateStr) })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
+
+export async function setDailyCuriosity(dateStr, text) {
+  try {
+    await kvCall({ action: 'set', key: curiosityKey(dateStr), value: JSON.stringify({ text, at: Date.now() }) })
+    return true
+  } catch { return false }
+}
+
+export async function setDuel(shift, nameA, nameB, data) {
+  try {
+    const r = await kvCall({ action: 'set', key: duelKeyFor(shift, nameA, nameB), value: JSON.stringify(data) })
+    return r.ok === true
+  } catch { return false }
+}
+
+export async function getDuel(shift, nameA, nameB) {
+  try {
+    const r = await kvCall({ action: 'get', key: duelKeyFor(shift, nameA, nameB) })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
+
+export async function clearDuel(shift, nameA, nameB) {
+  try { await kvCall({ action: 'delete', key: duelKeyFor(shift, nameA, nameB) }) } catch {}
+}
+
+export async function listDuels(shift) {
+  try {
+    const r = await kvCall({ action: 'list_with_values', prefix: `${DUEL_PREFIX}${shift || 'sem-turno'}:` })
+    return (r.items || [])
+      .map(item => { try { return JSON.parse(item.value) } catch { return null } })
+      .filter(Boolean)
+  } catch { return [] }
 }
 
 export async function listStudents() {

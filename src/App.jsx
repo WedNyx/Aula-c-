@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels } from "./storage.js";
 
 // ── tema ──
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
@@ -17,6 +17,87 @@ function customBg(spec) {
   return `linear-gradient(135deg, ${stops})`;
 }
 const pageBgFor = (theme) => theme === "light" ? LIGHT_BG : (typeof theme === "string" && theme.startsWith("#")) ? customBg(theme) : PAGE_BG;
+
+// ── efeitos sonoros (Web Audio, sem arquivos externos) ──
+let __audioCtx = null;
+function getAudioCtx() {
+  if (typeof window === "undefined") return null;
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) return null;
+  if (!__audioCtx) __audioCtx = new Ctor();
+  return __audioCtx;
+}
+let soundsMuted = false;
+function playTone(ctx, freq, start, dur, type = "sine", gain = 0.09) {
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  g.gain.value = 0;
+  osc.connect(g); g.connect(ctx.destination);
+  osc.start(start);
+  g.gain.linearRampToValueAtTime(gain, start + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  osc.stop(start + dur + 0.02);
+}
+function playSound(kind) {
+  if (soundsMuted) return;
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  try {
+    if (kind === "correct") { playTone(ctx, 880, t, 0.12); playTone(ctx, 1318.5, t + 0.09, 0.14); }
+    else if (kind === "wrong") { playTone(ctx, 220, t, 0.18, "triangle", 0.07); }
+    else if (kind === "combo") { [660, 880, 1108.7, 1318.5].forEach((f, i) => playTone(ctx, f, t + i * 0.08, 0.16, "triangle")); }
+    else if (kind === "achievement") { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => playTone(ctx, f, t + i * 0.1, 0.22, "sine", 0.1)); }
+    else if (kind === "levelup") { [392, 523.25, 659.25].forEach((f, i) => playTone(ctx, f, t + i * 0.1, 0.2, "sine", 0.1)); }
+    else if (kind === "click") { playTone(ctx, 740, t, 0.06, "sine", 0.05); }
+    else if (kind === "enter") { [440, 660].forEach((f, i) => playTone(ctx, f, t + i * 0.09, 0.16, "sine", 0.07)); }
+  } catch {}
+}
+function setSoundsMuted(v) { soundsMuted = v; try { localStorage.setItem("nyx_sounds_muted", v ? "1" : "0"); } catch {} }
+function loadSoundsMuted() { try { soundsMuted = localStorage.getItem("nyx_sounds_muted") === "1"; } catch {} return soundsMuted; }
+
+// ── sequência de dias (streak) a partir do mapa de presença ──
+function computeStreak(attendance) {
+  if (!attendance) return 0;
+  let streak = 0;
+  const d = new Date();
+  // se hoje ainda não tem presença registrada, começa a contar de ontem (não quebra a sequência no meio da aula)
+  const todayStr = todayKey();
+  if (attendance[todayStr] !== "present") d.setDate(d.getDate() - 1);
+  for (;;) {
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    if (attendance[key] === "present") { streak++; d.setDate(d.getDate() - 1); }
+    else break;
+  }
+  return streak;
+}
+
+// ── conquistas/medalhas do aluno ──
+const ACHIEVEMENTS = [
+  { id:"primeira-atividade", emoji:"🥇", label:"Primeiro Passo", desc:"Concluiu a primeira atividade da aula" },
+  { id:"nota-cem",           emoji:"💯", label:"Nota Cem",       desc:"Tirou 100 numa atividade" },
+  { id:"codigo-limpo",       emoji:"✨", label:"Código Limpo",  desc:"Escreveu um código sem nenhum erro" },
+  { id:"prova-mestre",       emoji:"🎓", label:"Mestre da Prova", desc:"Fez 80% ou mais numa prova" },
+  { id:"sequencia-3",        emoji:"🔥", label:"3 Dias Seguidos", desc:"Veio 3 dias seguidos de aula" },
+  { id:"sequencia-7",        emoji:"🔥", label:"Semana Completa", desc:"Veio 7 dias seguidos de aula" },
+  { id:"combo-5",            emoji:"⚡", label:"Combo Elétrico", desc:"Acertou 5 questões seguidas numa atividade" },
+  { id:"combo-8",            emoji:"🚀", label:"Combo Insano",  desc:"Acertou 8 questões seguidas numa atividade" },
+  { id:"duelista",           emoji:"⚔️", label:"Duelista",      desc:"Venceu um duelo contra um colega" },
+];
+const achievementInfo = (id) => ACHIEVEMENTS.find(a => a.id === id);
+
+// ── metas coletivas da turma (soma dos pontos de todos da turma) ──
+const CLASS_GOALS = [80, 200, 400, 800, 1500, 2500, 4000, 6000, 9000, 13000];
+function classGoalProgress(totalPoints) {
+  const idx = CLASS_GOALS.findIndex(g => totalPoints < g);
+  if (idx === -1) return { level: CLASS_GOALS.length, prev: CLASS_GOALS[CLASS_GOALS.length-1], next: null, pct: 100 };
+  const prev = idx === 0 ? 0 : CLASS_GOALS[idx-1];
+  const next = CLASS_GOALS[idx];
+  const pct = Math.round(((totalPoints - prev) / (next - prev)) * 100);
+  return { level: idx + 1, prev, next, pct: Math.max(0, Math.min(100, pct)) };
+}
 
 // ── notas por faixa (usadas na atividade e no feedback do Nyx) ──
 function gradeInfo(score) {
@@ -66,6 +147,10 @@ Ponto e vírgula faltando; chaves/parênteses/aspas abertas sem fechar (ou fecha
 Fale sempre em português brasileiro simples, gentil e encorajador — o aluno é iniciante, mas sua análise por trás é a de um especialista.`;
 
 const RUN_SYSTEM = "Você é o compilador e o runtime do .NET 8 executando um projeto C# com precisão absoluta (ordem das instruções, conversões, formatação padrão). Responda apenas com o texto do console, sem explicações e sem markdown.";
+
+// ── Nyx no modo leve/divertido: usado só para conteúdo casual (curiosidade do dia), NUNCA para revisar código ──
+// Propositalmente separado do CS_SYSTEM: aqui o Nyx não é o revisor rigoroso, é só o mascote animando a turma.
+const NYX_FUN_SYSTEM = "Você é Nyx, o robô mascote animado de uma turma de adolescentes aprendendo C#. Aqui você está no seu modo leve e divertido — nada de revisar código ou dar aula formal. Seja breve, empolgado e use no máximo 1 emoji. Português brasileiro bem informal, do jeito que se fala com adolescente.";
 
 function otherFilesCtx(files, active) {
   const others = (files||[]).filter((f,i)=>i!==active && (f.code||"").trim());
@@ -1155,6 +1240,320 @@ function NyxFeedbackModal({ score, loading, feedback, onClose }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  CONQUISTAS, RANKING, META DA TURMA, CURIOSIDADE  (gamificação leve)
+// ════════════════════════════════════════════════════════════════════════════
+function AchievementToast({ achievement }) {
+  if (!achievement) return null;
+  return (
+    <div style={{ position:"fixed", top:16, right:16, zIndex:1300, background:"linear-gradient(135deg,#fbbf24,#f59e0b)", color:"#1c1206", borderRadius:16, padding:"14px 18px", boxShadow:"0 14px 40px rgba(0,0,0,.45)", display:"flex", alignItems:"center", gap:12, maxWidth:320, animation:"rise .35s ease both" }}>
+      <div style={{ fontSize:34 }}>{achievement.emoji}</div>
+      <div>
+        <div style={{ fontWeight:900, fontSize:13 }}>🎖️ Conquista desbloqueada!</div>
+        <div style={{ fontWeight:800, fontSize:14 }}>{achievement.label}</div>
+        <div style={{ fontSize:11.5, opacity:0.85 }}>{achievement.desc}</div>
+      </div>
+    </div>
+  );
+}
+
+function AchievementsModal({ unlocked, onClose }) {
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#fbbf24,#f59e0b)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎖️ Conquistas</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>{unlocked.length} de {ACHIEVEMENTS.length} desbloqueadas</p>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))", gap:10 }}>
+          {ACHIEVEMENTS.map(a => {
+            const got = unlocked.includes(a.id);
+            return (
+              <div key={a.id} style={{ background:got?"#fbbf2418":"#0d1122", border:`1px solid ${got?"#fbbf24":"#241f38"}`, borderRadius:14, padding:"12px 14px", display:"flex", gap:10, alignItems:"center", opacity:got?1:0.55 }}>
+                <div style={{ fontSize:26, filter:got?"none":"grayscale(1)" }}>{a.emoji}</div>
+                <div>
+                  <div style={{ color:"#e8ebfa", fontWeight:800, fontSize:13 }}>{a.label}</div>
+                  <div style={{ color:"#5d679c", fontSize:11.5 }}>{a.desc}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RankingModal({ shift, myName, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [top, setTop] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const all = await listStudents();
+      const mine = all.filter(s => (s.shift || "sem-turno") === (shift || "sem-turno"));
+      const sorted = mine.sort((a,b)=>(b.nyxPoints||0)-(a.nyxPoints||0)).slice(0, 5);
+      if (alive) { setTop(sorted); setLoading(false); }
+    })();
+    return () => { alive = false; };
+  }, [shift]);
+  const medals = ["🥇","🥈","🥉","🏅","🏅"];
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:440, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📊 Ranking da Turma</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Os 5 com mais pontos do Nyx na sua turma</p>
+        {loading ? <p style={{ color:"#5d679c", fontSize:13 }}>Carregando...</p> : top.length === 0 ? (
+          <p style={{ color:"#5d679c", fontSize:13 }}>Ninguém tem pontos ainda — seja o primeiro!</p>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {top.map((s, i) => (
+              <div key={s.name} style={{ display:"flex", alignItems:"center", gap:10, background: s.name===myName ? "#7c83ff22" : "#0d1122", border:`1px solid ${s.name===myName?"#7c83ff":"#2a3154"}`, borderRadius:12, padding:"8px 12px" }}>
+                <span style={{ fontSize:20, width:28, textAlign:"center" }}>{medals[i]}</span>
+                <Avatar cfg={s.avatar} size={32} />
+                <span style={{ flex:1, fontWeight:700, fontSize:13.5, color: s.name===myName ? "#c7d2fe" : "#e8ebfa" }}>{s.name}{s.name===myName?" (você)":""}</span>
+                <span style={{ color:"#fbbf24", fontWeight:900, fontSize:14 }}>{s.nyxPoints||0} pts</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ClassGoalBar({ sum }) {
+  const g = classGoalProgress(sum);
+  return (
+    <div style={{ marginTop:10 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#96a0cc", marginBottom:4 }}>
+        <span>🎯 Meta da turma · nível {g.level}</span>
+        <span>{sum}{g.next ? `/${g.next}` : ""} pts</span>
+      </div>
+      <div style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:20, height:10, overflow:"hidden" }}>
+        <div style={{ width:`${g.pct}%`, height:"100%", background:"linear-gradient(90deg,#7c83ff,#22d3ee)", transition:"width .5s ease" }} />
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  DUELO ENTRE ALUNOS  (desafio 1x1: convite, aceite, mini-quiz compartilhado, resultado)
+// ════════════════════════════════════════════════════════════════════════════
+const DUEL_SYSTEM = "Você cria questões de múltipla escolha básicas sobre C# para iniciantes. Responda APENAS JSON puro, sem markdown.";
+
+async function generateDuelQuestions() {
+  const res = await askClaude(
+    `Crie 5 questões de múltipla escolha RÁPIDAS e BÁSICAS sobre conceitos fundamentais de C# para iniciantes (variáveis, tipos, Console.WriteLine/ReadLine, if/else, for/while, operadores). Nível fácil/médio, boas para um duelo rápido de conhecimento entre dois alunos. Responda APENAS JSON puro:\n{"questions":[{"q":"...","opts":["A","B","C","D"],"correct":0}]}`,
+    DUEL_SYSTEM,
+    { temperature: 0.7 }
+  );
+  const parsed = extractJson(res);
+  return parsed.questions || [];
+}
+
+function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [opponents, setOpponents] = useState([]);
+  const [duel, setDuelState] = useState(null);
+  const [myAnswers, setMyAnswers] = useState({});
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState("");
+  const lastDuelKey = useRef(null);
+
+  const refresh = async () => {
+    try {
+      const all = await listStudents();
+      const online = all.filter(s => (s.shift||"sem-turno")===(shift||"sem-turno") && s.name!==myName && s.lastSeen && (Date.now()-s.lastSeen)<9000);
+      setOpponents(online);
+    } catch {}
+    try {
+      const duels = await listDuels(shift);
+      const mine = duels.find(d => d.from===myName || d.to===myName) || null;
+      setDuelState(mine);
+    } catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    refresh();
+    const iv = setInterval(refresh, 2500);
+    return () => clearInterval(iv);
+  }, [shift, myName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const key = duel ? `${duel.from}__${duel.to}__${duel.createdAt}` : null;
+    if (key !== lastDuelKey.current) { setMyAnswers({}); lastDuelKey.current = key; }
+  }, [duel]);
+
+  const isChallenger = duel && duel.from === myName;
+  const opponentName = duel ? (isChallenger ? duel.to : duel.from) : null;
+  const opponentAvatar = duel ? (isChallenger ? duel.toAvatar : duel.fromAvatar) : null;
+
+  const challenge = async (opp) => {
+    setCreating(true); setErr("");
+    try {
+      const qs = await generateDuelQuestions();
+      if (!qs.length) throw new Error("sem perguntas");
+      const doc = { from:myName, to:opp.name, fromAvatar:myAvatar, toAvatar:opp.avatar, questions:qs, status:"invited", answersFrom:{}, answersTo:{}, scoreFrom:null, scoreTo:null, createdAt:Date.now() };
+      await setDuel(shift, myName, opp.name, doc);
+      setDuelState(doc);
+    } catch { setErr("Não consegui criar o duelo agora. Tente de novo em instantes."); }
+    setCreating(false);
+  };
+
+  const cancelOrDecline = async () => {
+    if (!duel) return;
+    await clearDuel(shift, duel.from, duel.to);
+    setDuelState(null);
+  };
+
+  const accept = async () => {
+    const updated = { ...duel, status:"active" };
+    await setDuel(shift, duel.from, duel.to, updated);
+    setDuelState(updated);
+  };
+
+  const submitDuelAnswers = async () => {
+    const qs = duel.questions || [];
+    let pts = 0;
+    qs.forEach((q,i) => { if (myAnswers[i]===q.correct) pts++; });
+    const field = isChallenger ? "answersFrom" : "answersTo";
+    const scoreField = isChallenger ? "scoreFrom" : "scoreTo";
+    const latest = (await getDuel(shift, duel.from, duel.to)) || duel;
+    const merged = { ...latest, [field]:myAnswers, [scoreField]:pts };
+    const bothDone = merged.scoreFrom != null && merged.scoreTo != null;
+    if (bothDone) merged.status = "done";
+    await setDuel(shift, duel.from, duel.to, merged);
+    setDuelState(merged);
+    if (bothDone) {
+      const myScore = isChallenger ? merged.scoreFrom : merged.scoreTo;
+      const oppScore = isChallenger ? merged.scoreTo : merged.scoreFrom;
+      const isDraw = myScore === oppScore;
+      const iWon = myScore > oppScore;
+      onAward(isDraw ? 2 : (iWon ? 3 : 1));
+      if (iWon) onWin();
+    }
+  };
+
+  const closeResult = async () => {
+    if (duel) await clearDuel(shift, duel.from, duel.to);
+    setDuelState(null);
+  };
+
+  let view = "list";
+  let myScore = null, oppScore = null;
+  if (duel) {
+    if (duel.status === "invited") view = isChallenger ? "invited" : "incoming";
+    else if (duel.status === "active") {
+      myScore = isChallenger ? duel.scoreFrom : duel.scoreTo;
+      view = myScore != null ? "waiting-result" : "playing";
+    } else if (duel.status === "done") {
+      myScore = isChallenger ? duel.scoreFrom : duel.scoreTo;
+      oppScore = isChallenger ? duel.scoreTo : duel.scoreFrom;
+      view = "result";
+    }
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#f87171,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>⚔️ Duelo</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+
+        {loading && <p style={{ color:"#5d679c", fontSize:13 }}>Carregando...</p>}
+        {err && <div style={{ background:"#f8717111", border:"1px solid #f87171", borderRadius:10, padding:10, color:"#f87171", fontSize:13, marginBottom:10 }}>{err}</div>}
+
+        {!loading && view === "list" && (
+          <>
+            <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Desafie um colega online da sua turma para um mini-quiz de 5 perguntas. Quem acertar mais, ganha!</p>
+            {opponents.length === 0 ? (
+              <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum colega online agora. Tente de novo daqui a pouco.</p>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {opponents.map(o => (
+                  <button key={o.name} disabled={creating} onClick={()=>challenge(o)} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:"8px 12px", cursor:"pointer", color:"#e8ebfa", textAlign:"left" }}>
+                    <Avatar cfg={o.avatar} size={32} />
+                    <span style={{ flex:1, fontWeight:700, fontSize:13.5 }}>{o.name}</span>
+                    <span style={{ color:"#f87171", fontWeight:700, fontSize:12.5 }}>{creating?"Criando...":"⚔️ Desafiar"}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {view === "invited" && (
+          <div style={{ textAlign:"center", padding:"20px 0" }}>
+            <Avatar cfg={opponentAvatar} size={64} />
+            <p style={{ color:"#e8ebfa", fontSize:15, fontWeight:700, marginTop:10 }}>Esperando {opponentName} aceitar...</p>
+            <button onClick={cancelOrDecline} style={{ background:"#2a3154", color:"#e8ebfa", border:"none", borderRadius:10, padding:"8px 16px", cursor:"pointer", fontWeight:700, fontSize:13, marginTop:10 }}>Cancelar desafio</button>
+          </div>
+        )}
+
+        {view === "incoming" && (
+          <div style={{ textAlign:"center", padding:"20px 0" }}>
+            <Avatar cfg={opponentAvatar} size={64} />
+            <p style={{ color:"#e8ebfa", fontSize:15, marginTop:10 }}><b>{opponentName}</b> te desafiou para um duelo de 5 perguntas!</p>
+            <div style={{ display:"flex", gap:10, justifyContent:"center", marginTop:14 }}>
+              <button onClick={accept} style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", color:"#fff", border:"none", borderRadius:10, padding:"10px 20px", cursor:"pointer", fontWeight:800, fontSize:14 }}>✅ Aceitar</button>
+              <button onClick={cancelOrDecline} style={{ background:"#2a3154", color:"#e8ebfa", border:"none", borderRadius:10, padding:"10px 20px", cursor:"pointer", fontWeight:700, fontSize:14 }}>Recusar</button>
+            </div>
+          </div>
+        )}
+
+        {view === "playing" && (
+          <div>
+            <p style={{ color:"#96a0cc", fontSize:13, marginBottom:10 }}>Duelo contra <b style={{ color:"#e8ebfa" }}>{opponentName}</b> — responda as 5 perguntas:</p>
+            {(duel.questions||[]).map((q,i)=>(
+              <div key={i} style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:12, marginBottom:8 }}>
+                <p style={{ color:"#e8ebfa", fontWeight:700, fontSize:13.5, marginBottom:8 }}>{i+1}. {q.q}</p>
+                {q.opts.map((opt,j)=>(
+                  <button key={j} onClick={()=>setMyAnswers(a=>({...a,[i]:j}))}
+                    style={{ display:"block", width:"100%", textAlign:"left", background:myAnswers[i]===j?"#7c83ff33":"#131730", border:`2px solid ${myAnswers[i]===j?"#7c83ff":"#272e52"}`, borderRadius:8, padding:"8px 12px", marginBottom:6, color:"#e8ebfa", cursor:"pointer", fontSize:13 }}>
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            ))}
+            <button onClick={submitDuelAnswers} disabled={Object.keys(myAnswers).length < (duel.questions||[]).length}
+              style={{ background:"linear-gradient(135deg,#f87171,#fbbf24)", color:"#1c1206", border:"none", borderRadius:10, padding:"10px 18px", cursor:"pointer", fontWeight:800, fontSize:14, width:"100%", marginTop:6 }}>
+              Enviar respostas ⚔️
+            </button>
+          </div>
+        )}
+
+        {view === "waiting-result" && (
+          <div style={{ textAlign:"center", padding:"20px 0" }}>
+            <div style={{ fontSize:40 }}>⏳</div>
+            <p style={{ color:"#e8ebfa", fontSize:15, marginTop:10 }}>Você já respondeu! Esperando <b>{opponentName}</b> terminar...</p>
+          </div>
+        )}
+
+        {view === "result" && (
+          <div style={{ textAlign:"center", padding:"10px 0" }}>
+            <div style={{ fontSize:48 }}>{myScore > oppScore ? "🏆" : myScore === oppScore ? "🤝" : "💪"}</div>
+            <h3 style={{ color: myScore > oppScore ? "#34d399" : myScore === oppScore ? "#fbbf24" : "#f87171", fontSize:20, margin:"6px 0" }}>
+              {myScore > oppScore ? "Você venceu!" : myScore === oppScore ? "Empate!" : "Você perdeu dessa vez"}
+            </h3>
+            <p style={{ color:"#96a0cc", fontSize:14 }}>Você: {myScore}/5 · {opponentName}: {oppScore}/5</p>
+            <p style={{ color:"#fbbf24", fontSize:13, marginTop:6 }}>+{myScore===oppScore?2:(myScore>oppScore?3:1)} pontos do Nyx</p>
+            <button onClick={closeResult} style={{ background:"linear-gradient(135deg,#7c83ff,#5a61e8)", color:"#fff", border:"none", borderRadius:10, padding:"10px 18px", cursor:"pointer", fontWeight:800, fontSize:14, width:"100%", marginTop:14 }}>
+              Fechar
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  IA + util
 // ════════════════════════════════════════════════════════════════════════════
 async function askClaude(prompt, system, opts = {}){
@@ -1304,6 +1703,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [nyxPoints, setNyxPoints] = useState(0);
   const [nyxGear, setNyxGear] = useState(DEFAULT_NYX_GEAR);
   const [showNyxShop, setShowNyxShop] = useState(false);
+  // conquistas, ranking, meta da turma, curiosidade do dia, duelo, sons
+  const [achievements, setAchievements] = useState([]);
+  const [newAchievement, setNewAchievement] = useState(null);
+  const [showAchievements, setShowAchievements] = useState(false);
+  const [showRanking, setShowRanking] = useState(false);
+  const [classPointsSum, setClassPointsSum] = useState(0);
+  const [curiosity, setCuriosity] = useState(null);
+  const [curiosityDismissed, setCuriosityDismissed] = useState(false);
+  const [comboMsg, setComboMsg] = useState(null);
+  const [muted, setMuted] = useState(() => loadSoundsMuted());
+  const [showDuel, setShowDuel] = useState(false);
+  const [duelDoc, setDuelDoc] = useState(null);
+  const streakRef = useRef(0);
 
   const sessionStart = useRef(Date.now());
   const stateRef = useRef({});
@@ -1312,7 +1724,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxGear };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxGear, achievements };
   });
 
   const persist = useCallback(async (extra = {}) => {
@@ -1346,6 +1758,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       theme: s.theme || "dark",
       nyxPoints: s.nyxPoints || 0,
       nyxGear: s.nyxGear || DEFAULT_NYX_GEAR,
+      achievements: s.achievements || [],
       ...extra,
     });
     setConnected(ok);
@@ -1378,6 +1791,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.theme) setTheme(prev.theme);
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
           if (prev.nyxGear) setNyxGear({ ...DEFAULT_NYX_GEAR, ...prev.nyxGear });
+          if (Array.isArray(prev.achievements)) setAchievements(prev.achievements);
         }
         const es = await getExamState();
         if (alive) setExamInfo(es);
@@ -1385,6 +1799,43 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     })();
     return () => { alive = false; };
   }, [studentName, shift]);
+
+  // busca a curiosidade do dia (gerada uma única vez por dia, reaproveitada por todos os alunos)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const today = todayKey();
+      let c = await getDailyCuriosity(today);
+      if (!c && alive) {
+        try {
+          const text = await askClaude(
+            `Dê UMA curiosidade curta (1-2 frases), divertida e surpreendente sobre programação, C#, tecnologia ou história da computação, para adolescentes que estão começando a programar agora. Sem introdução, direto na curiosidade.`,
+            NYX_FUN_SYSTEM,
+            { temperature: 0.9 }
+          );
+          c = { text: text.trim() };
+          if (c.text) await setDailyCuriosity(today, c.text);
+        } catch { c = null; }
+      }
+      if (alive && c?.text) setCuriosity(c.text);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // ranking e meta da turma: soma/ordena os pontos de todo mundo da mesma turma
+  useEffect(() => {
+    let alive = true;
+    const loadClass = async () => {
+      try {
+        const all = await listStudents();
+        const mine = all.filter(s => (s.shift || "sem-turno") === (shift || "sem-turno"));
+        if (alive) setClassPointsSum(mine.reduce((sum, s) => sum + (s.nyxPoints || 0), 0));
+      } catch {}
+    };
+    loadClass();
+    const iv = setInterval(loadClass, 15000);
+    return () => { alive = false; clearInterval(iv); };
+  }, [shift]);
 
   // heartbeat: registra na hora + atualiza a cada 3s + observa reset, avisos e inatividade
   useEffect(() => {
@@ -1416,6 +1867,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           const newNyxPoints = (s.nyxPoints || 0) + pts;
           setNyxPoints(newNyxPoints);
           await persist({ examScore: partial, examDone: true, nyxPoints: newNyxPoints });
+          if (qs.length && pts / qs.length >= 0.8) unlockAchievement("prova-mestre");
         } else if (es.status === 'idle' && s.examDone) {
           // professor resetou a prova
           setExamReady(false); setExamScore(null); setExamAnswers({}); setExamDone(false); setExamCurrentQ(0);
@@ -1424,6 +1876,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         setExamInfo(es);
       } catch {}
       await persist();
+      const streak = computeStreak(attendanceRef.current);
+      if (streak >= 7) unlockAchievement("sequencia-7");
+      else if (streak >= 3) unlockAchievement("sequencia-3");
     };
     tick();
     const iv = setInterval(tick, 3000);
@@ -1453,6 +1908,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         );
         setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
         await persist({ feedback:parsed, hasError:!parsed.ok });
+        if (parsed.ok) unlockAchievement("codigo-limpo");
       } catch(e) {
         if (e.message === 'ROBOTKEY_MISSING') {
           setRobotState("error");
@@ -1501,6 +1957,22 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const cancelRename = () => { setRenaming(null); setRenameValue(""); };
 
   const setThemeAndSave = (t) => { setTheme(t); persist({ theme: t }); };
+
+  const toggleMuted = () => { setMuted(m => { setSoundsMuted(!m); return !m; }); };
+
+  // desbloqueia uma conquista (se ainda não tiver) e mostra o aviso animado
+  // lê/escreve via stateRef para funcionar mesmo chamada de dentro de closures "velhas" (ex: o heartbeat)
+  const unlockAchievement = (id) => {
+    const current = stateRef.current.achievements || [];
+    if (current.includes(id)) return;
+    const next = [...current, id];
+    stateRef.current.achievements = next;
+    setAchievements(next);
+    persist({ achievements: next });
+    setNewAchievement(achievementInfo(id));
+    playSound("achievement");
+    setTimeout(() => setNewAchievement(null), 4000);
+  };
 
   // Nyx explica os erros da atividade
   const explainErrors = async () => {
@@ -1554,7 +2026,25 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     }
   };
 
-  const handleStartActivity = async () => { setPhase("activity"); await persist({ phase:"activity" }); };
+  const handleStartActivity = async () => { setPhase("activity"); streakRef.current = 0; await persist({ phase:"activity" }); };
+
+  const COMBO_MESSAGES = { 3:"🔥 3 seguidas! Você tá pegando o jeito!", 5:"⚡ 5 seguidas! Combo elétrico!", 8:"🚀 8 seguidas?! Combo insano!!" };
+  const pickAnswer = (i, j) => {
+    if (answers[i] != null) return; // trava depois de responder, pra não dar pra "testar" as opções
+    const activity = dynamicActivity || [];
+    setAnswers(a => ({ ...a, [i]: j }));
+    const isCorrect = j === activity[i]?.correct;
+    playSound(isCorrect ? "correct" : "wrong");
+    if (isCorrect) {
+      streakRef.current += 1;
+      const msg = COMBO_MESSAGES[streakRef.current];
+      if (msg) { setComboMsg(msg); playSound("combo"); setTimeout(() => setComboMsg(null), 2600); }
+      if (streakRef.current === 8) unlockAchievement("combo-8");
+      else if (streakRef.current === 5) unlockAchievement("combo-5");
+    } else {
+      streakRef.current = 0;
+    }
+  };
 
   const handleSubmitActivity = async () => {
     const activity = dynamicActivity || [];
@@ -1568,6 +2058,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     const newNyxPoints = nyxPoints + pts;
     setNyxPoints(newNyxPoints);
     await persist({ phase:"done", score:finalScore, answers, nyxPoints: newNyxPoints });
+    unlockAchievement("primeira-atividade");
+    if (finalScore >= 100) unlockAchievement("nota-cem");
     try {
       const list = activity.map((q,i)=>`- ${q.q} → ${answers[i]===q.correct?"acertou":"errou"}`).join("\n");
       const fb = await askClaude(
@@ -1600,6 +2092,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       const newNyxPoints = nyxPoints + pts;
       setNyxPoints(newNyxPoints);
       await persist({ examAnswers: newAnswers, examScore: finalScore, examDone: true, nyxPoints: newNyxPoints });
+      if (qs.length && pts / qs.length >= 0.8) unlockAchievement("prova-mestre");
     }
   };
 
@@ -1641,6 +2134,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   // ── PROVA: telas de exame têm prioridade ──
   if (examDone) return (
     <div style={styles.container}>
+      <AchievementToast achievement={newAchievement} />
       <div style={styles.header}><span>🏆 Prova Concluída — {studentName}</span></div>
       <div style={{ maxWidth:500, margin:"50px auto", textAlign:"center", padding:"0 16px" }}>
         <div style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", borderRadius:18, padding:32, boxShadow:"0 12px 30px #34d39944" }}>
@@ -1792,16 +2286,34 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     const activity = dynamicActivity||[];
     return (
       <div style={styles.container}>
+        <AchievementToast achievement={newAchievement} />
         <div style={styles.header}><span>📝 Atividade — {studentName}</span></div>
+        {comboMsg && (
+          <div style={{ position:"fixed", top:70, left:"50%", transform:"translateX(-50%)", zIndex:1200, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", color:"#fff", fontWeight:900, padding:"10px 22px", borderRadius:20, boxShadow:"0 10px 30px rgba(0,0,0,.4)", animation:"rise .3s ease both", fontSize:15 }}>
+            {comboMsg}
+          </div>
+        )}
         <div style={{ maxWidth:640, margin:"0 auto", padding:24 }}>
           <h2 style={{ color:"#7c83ff" }}>Atividade da Aula</h2>
           <p style={{ color:"#96a0cc", fontSize:13, marginBottom:16 }}>Baseada no código que você escreveu hoje!</p>
-          {activity.map((q,i)=>(
-            <div key={i} style={styles.card}>
-              <p style={{ fontWeight:600, marginBottom:12 }}>{i+1}. {q.q}</p>
-              {q.opts.map((opt,j)=>(<button key={j} style={styles.opt(answers[i]===j)} onClick={()=>setAnswers(a=>({...a,[i]:j}))}>{opt}</button>))}
-            </div>
-          ))}
+          {activity.map((q,i)=>{
+            const answered = answers[i] != null;
+            return (
+              <div key={i} style={styles.card}>
+                <p style={{ fontWeight:600, marginBottom:12 }}>{i+1}. {q.q}</p>
+                {q.opts.map((opt,j)=>{
+                  const picked = answers[i]===j;
+                  const showResult = answered && picked;
+                  return (
+                    <button key={j} style={styles.opt(picked)} onClick={()=>pickAnswer(i,j)} disabled={answered}>
+                      {opt}
+                      {showResult && (j===q.correct ? <span style={{ color:"#34d399", fontWeight:800 }}> ✅</span> : <span style={{ color:"#f87171", fontWeight:800 }}> ❌</span>)}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
           <div style={{ textAlign:"right" }}>
             <button style={styles.btn("#7c83ff")} onClick={handleSubmitActivity} disabled={Object.keys(answers).length<activity.length}>Enviar Atividade →</button>
           </div>
@@ -1816,6 +2328,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     const backToHome = async () => { setPhase("coding"); await persist({ phase:"coding" }); };
     return (
       <div style={styles.container}>
+        <AchievementToast achievement={newAchievement} />
         {showFeedbackModal && (
           <NyxFeedbackModal score={score} loading={feedbackLoading} feedback={finalFeedback} onClose={()=>setShowFeedbackModal(false)} />
         )}
@@ -1927,10 +2440,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <span style={{ background:"#7c83ff22", padding:"4px 12px", borderRadius:20, fontSize:13 }}>👤 {studentName}</span>
           <span style={{ background:"#0d1122", border:"1px solid #2a3154", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#96a0cc" }}>{shiftLabel(shift)}</span>
           <button data-tour="tema" style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
+          <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={toggleMuted} title={muted?"Ativar sons":"Silenciar sons"}>{muted?"🔇":"🔊"}</button>
           <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={tryFullscreen}>⛶ Tela cheia</button>
           <button style={{ ...styles.btn("#f87171"), padding:"6px 12px", fontSize:12 }} onClick={onLogout}>Sair</button>
         </div>
       </div>
+
+      <AchievementToast achievement={newAchievement} />
 
       {showNudge && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
@@ -1957,6 +2473,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       {fsMsg && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
           <div style={{ background:"#151a31", border:"1px solid #fbbf24", color:"#fbbf24", borderRadius:10, padding:"8px 14px", fontSize:13 }}>⛶ {fsMsg}</div>
+        </div>
+      )}
+
+      {curiosity && !curiosityDismissed && phase==="coding" && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div style={{ background:"#22d3ee18", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:18 }}>💡</span>
+            <span style={{ flex:1, color:"#c7f5f9" }}><b style={{ color:"#22d3ee" }}>Curiosidade do dia:</b> {curiosity}</span>
+            <button onClick={()=>setCuriosityDismissed(true)} style={{ background:"transparent", border:"none", color:"#5d679c", fontSize:16, cursor:"pointer" }}>✕</button>
+          </div>
         </div>
       )}
 
@@ -2014,6 +2540,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               🎁 Loja do Nyx · {nyxPoints} pts
             </button>
           </div>
+          <div style={styles.card}>
+            <p style={{ color:"#fbbf24", fontWeight:700, marginBottom:8, fontSize:13 }}>🏆 Turma & Você</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+              <button onClick={()=>setShowRanking(true)} style={{ ...styles.btn("#22d3ee"), fontSize:12, padding:"7px 0" }}>📊 Ranking da turma</button>
+              <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btn("#a855f7"), fontSize:12, padding:"7px 0" }}>🎖️ Conquistas · {achievements.length}/{ACHIEVEMENTS.length}</button>
+              <button onClick={()=>setShowDuel(true)} style={{ ...styles.btn("#f87171"), fontSize:12, padding:"7px 0" }}>⚔️ Duelo entre alunos</button>
+            </div>
+            <ClassGoalBar sum={classPointsSum} />
+          </div>
           <div style={{ ...styles.card, fontSize:12, color:"#5d679c", lineHeight:1.8 }}>
             <p style={{ color:"#7c83ff", fontWeight:600, marginBottom:6 }}>⌨️ Atalhos do editor</p>
             <div><code style={{color:"#FFD700"}}>{"{"}</code> → abre e fecha sozinho</div>
@@ -2050,6 +2585,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             <button onClick={()=>{ setShowAvatarEdit(false); persist({}); }} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:16 }}>💾 Salvar e fechar</button>
           </div>
         </div>
+      )}
+
+      {showAchievements && <AchievementsModal unlocked={achievements} onClose={()=>setShowAchievements(false)} />}
+      {showRanking && <RankingModal shift={shift} myName={studentName} onClose={()=>setShowRanking(false)} />}
+      {showDuel && (
+        <DuelModal
+          shift={shift}
+          myName={studentName}
+          myAvatar={avatar}
+          onAward={async (pts) => { const np = nyxPoints + pts; setNyxPoints(np); await persist({ nyxPoints: np }); }}
+          onWin={() => unlockAchievement("duelista")}
+          onClose={()=>setShowDuel(false)}
+        />
       )}
 
       <NyxChat
@@ -2518,6 +3066,10 @@ function TeacherView({ onLogout }) {
   const goingWell = sorted.filter(s => difficultyOf(s).level==="bem");
   const needHelp  = sorted.filter(s => difficultyOf(s).level==="dif");
   const feedbacks = sorted.filter(s => s.classFeedback && (s.classFeedback.rating || (s.classFeedback.text||"").trim()));
+  // resumo automático (só agregação dos dados já carregados, sem IA)
+  const topToday = [...sorted]
+    .filter(s => s.score != null || s.examScore != null)
+    .sort((a,b) => Math.max(b.score||0, b.examScore||0) - Math.max(a.score||0, a.examScore||0))[0];
 
   // presença do dia: present (compareceu e fez algo) · idle (entrou mas parado) · absent (não entrou hoje)
   const attStatus = (s) => {
@@ -2808,6 +3360,26 @@ function TeacherView({ onLogout }) {
                   </div>
                 ))
               )}
+            </div>
+
+            {/* Resumo automático (sem clicar em nada — só agregação dos dados) */}
+            <div style={{ ...styles.card, borderColor:"#7c83ff" }}>
+              <h3 style={{ color:"#7c83ff", marginBottom:10 }}>📋 Resumo automático</h3>
+              <div style={{ display:"flex", flexDirection:"column", gap:8, fontSize:13 }}>
+                <div style={{ color: absentList.length ? "#f87171" : "#5d679c" }}>
+                  {absentList.length > 0
+                    ? <>🚫 <b>{absentList.length}</b> ausente{absentList.length>1?"s":""} hoje: {absentList.slice(0,5).map(s=>String(s.name).split(" ")[0]).join(", ")}{absentList.length>5?` e mais ${absentList.length-5}`:""}</>
+                    : "✅ Ninguém ausente hoje nessa turma"}
+                </div>
+                <div style={{ color: needHelp.length ? "#fbbf24" : "#5d679c" }}>
+                  {needHelp.length > 0
+                    ? <>⚠ <b>{needHelp.length}</b> com dificuldade agora: {needHelp.slice(0,5).map(s=>String(s.name).split(" ")[0]).join(", ")}{needHelp.length>5?` e mais ${needHelp.length-5}`:""}</>
+                    : "✅ Ninguém com dificuldade agora"}
+                </div>
+                {topToday && (
+                  <div style={{ color:"#34d399" }}>🌟 Destaque de hoje: <b>{topToday.name}</b> ({Math.max(topToday.score||0, topToday.examScore||0)} pts)</div>
+                )}
+              </div>
             </div>
 
             {/* Situação da turma */}
