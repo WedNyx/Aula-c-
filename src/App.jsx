@@ -3057,6 +3057,7 @@ function TeacherView({ onLogout }) {
   const phaseColor = p => ({coding:"#7c83ff",generating:"#fbbf24",summary:"#fbbf24",activity:"#3b82f6",done:"#34d399"})[p]||"#96a0cc";
   const hhmm = t => t ? new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "—";
   const hhmmss = t => t ? new Date(t).toLocaleTimeString("pt-BR") : "—";
+  const dataHora = t => t ? new Date(t).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "—";
 
   // filtro por turno
   const shown = shiftFilter==="all" ? students : students.filter(s => (s.shift||"sem-turno")===shiftFilter);
@@ -3065,7 +3066,9 @@ function TeacherView({ onLogout }) {
   const present = shown.filter(isOnline).length;
   const goingWell = sorted.filter(s => difficultyOf(s).level==="bem");
   const needHelp  = sorted.filter(s => difficultyOf(s).level==="dif");
-  const feedbacks = sorted.filter(s => s.classFeedback && (s.classFeedback.rating || (s.classFeedback.text||"").trim()));
+  const feedbacks = sorted
+    .filter(s => s.classFeedback && (s.classFeedback.rating || (s.classFeedback.text||"").trim()))
+    .sort((a,b) => (b.classFeedback.at||0) - (a.classFeedback.at||0));
   // resumo automático (só agregação dos dados já carregados, sem IA)
   const topToday = [...sorted]
     .filter(s => s.score != null || s.examScore != null)
@@ -3511,14 +3514,16 @@ function TeacherView({ onLogout }) {
         <div style={{ padding:14, maxWidth:760, margin:"0 auto" }}>
           <div style={styles.card}>
             <h3 style={{ color:"#fbbf24", marginBottom:12 }}>💬 Feedback dos alunos sobre as aulas</h3>
+            <p style={{ color:"#96a0cc", fontSize:12.5, margin:"-4px 0 12px" }}>Do mais recente para o mais antigo, com a turma de cada aluno.</p>
             {feedbacks.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno enviou feedback ainda. Eles podem avaliar ao terminar a aula.</p> : (
               feedbacks.map(s=>(
                 <div key={s.name} style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:10, padding:14, marginBottom:10 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6, flexWrap:"wrap" }}>
                     <Avatar cfg={s.avatar} size={30} />
                     <b>{s.name}</b>
+                    <span style={{ ...styles.badge(s.shift===TEST_SHIFT.id?"#a855f7":"#7c83ff"), fontWeight:700 }}>{shiftLabel(s.shift)}</span>
                     <span style={{ color:"#fbbf24" }}>{"★".repeat(s.classFeedback.rating||0)}{"☆".repeat(5-(s.classFeedback.rating||0))}</span>
-                    <span style={{ color:"#5d679c", fontSize:11, marginLeft:"auto" }}>{hhmm(s.classFeedback.at)}</span>
+                    <span style={{ color:"#5d679c", fontSize:11, marginLeft:"auto", whiteSpace:"nowrap" }}>🕒 {dataHora(s.classFeedback.at)}</span>
                   </div>
                   {(s.classFeedback.text||"").trim() ? <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.6 }}>{s.classFeedback.text}</p> : <p style={{ color:"#5d679c", fontSize:13 }}>(sem comentário escrito)</p>}
                 </div>
