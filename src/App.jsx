@@ -2786,6 +2786,20 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       setCurrentSpeakingFor(`q-${i}`);
       speak(qText);
     };
+    useEffect(() => {
+      const handleKeyDown = (e) => {
+        if (!activity.length) return;
+        const optionKey = e.key.toUpperCase().charCodeAt(0) - 65;
+        if (optionKey >= 0 && optionKey < 4) {
+          const currentQ = Object.keys(answers).length;
+          if (currentQ < activity.length) {
+            pickAnswer(currentQ, optionKey);
+          }
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [answers, activity]);
     return (
       <div style={styles.container}>
         <AchievementToast achievement={newAchievement} />
