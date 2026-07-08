@@ -3286,7 +3286,10 @@ function TeacherView({ onLogout }) {
     if (analyzingExam) return;
     setAnalyzingExam(true);
     try {
-      const base = shiftFilter === "all" ? students : students.filter(s => (s.shift||"sem-turno") === shiftFilter);
+      // a turma de teste fica fora da análise (é só para testar o sistema); em "Todas", analisa Matutino + Vespertino
+      const base = shiftFilter === "all"
+        ? students.filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id)
+        : students.filter(s => (s.shift||"sem-turno") === shiftFilter);
       const rows = base.map(s => {
         const att = Object.values(s.attendance||{}).filter(v => v === "present").length;
         return `- ${s.name}: presenças com atividade=${att}, nota da atividade do dia=${s.score ?? "não fez"}, nota da prova=${s.examScore ?? "não fez"}, código com erro agora=${s.hasError ? "sim" : "não"}`;
@@ -4036,11 +4039,12 @@ function TeacherView({ onLogout }) {
           return null;
         }}
         context={() => {
-          const rows = students.map(s => {
+          // turma de teste fica fora do contexto do Nyx: é só para testar o sistema, não são alunos reais
+          const rows = students.filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id).map(s => {
             const att = Object.values(s.attendance||{}).filter(v => v === "present").length;
             return `- ${s.name} [${shiftLabel(s.shift)}]: fase=${s.phase||"aguardando"}, presenças=${att}, nota atividade=${s.score ?? "—"}, nota prova=${s.examScore ?? "—"}, erro no código agora=${s.hasError ? "sim: " + (s.feedback?.message || "") : "não"}`;
           }).join("\n");
-          return `Contexto: você é o assistente do professor. Situação da turma AGORA:\n${rows || "(nenhum aluno entrou ainda)"}\nConteúdo de hoje — Manhã: ${todayContentM || "ainda não definido"} · Tarde: ${todayContentV || "ainda não definido"}.`;
+          return `Contexto: você é o assistente do professor. Situação da turma AGORA (turmas Matutino e Vespertino; a turma de teste não entra aqui):\n${rows || "(nenhum aluno entrou ainda)"}\nConteúdo de hoje — Manhã: ${todayContentM || "ainda não definido"} · Tarde: ${todayContentV || "ainda não definido"}.`;
         }}
       />
     </div>
