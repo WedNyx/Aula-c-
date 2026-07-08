@@ -2034,6 +2034,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   // text-to-speech para acessibilidade
   const { speak, pause, resume, stop: stopSpeech, isSpeaking, isSupported: ttsSupported } = useSpeech();
   const [currentSpeakingFor, setCurrentSpeakingFor] = useState(null);
+  // accessibility: large UI mode for motor-impaired students
+  const [largeUiMode, setLargeUiMode] = useState(() => {
+    try { return localStorage.getItem("nyx_large_ui") === "1"; } catch { return false; }
+  });
+  const uiScale = largeUiMode ? 1.3 : 1;
 
   const sessionStart = useRef(Date.now());
   const stateRef = useRef({});
@@ -2576,12 +2581,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const showNudge = nudge && nudge.at > nudgeSeenAt;
 
   // ── estilos ──
+  const scaleSize = (size) => Math.round(size * uiScale);
+  const scalePx = (val) => Math.round(val * uiScale);
   const styles = {
-    container:{ minHeight:"100vh", background:pageBgFor(theme), color:"#e8ebfa", fontFamily:FONT },
-    header:{ background:"rgba(17,21,42,.85)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", padding:"10px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #2a3154", boxShadow:"0 1px 0 #7c83ff33, 0 8px 24px rgba(3,5,16,.35)", position:"sticky", top:0, zIndex:40 },
-    card:{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #272e52", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both" },
-    btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:"10px 18px", cursor:"pointer", fontWeight:800, fontSize:14, boxShadow:`0 4px 14px ${c}44` }),
-    opt:(sel)=>({ background:sel?"#7c83ff22":"#131730", border:`2px solid ${sel?"#7c83ff":"#272e52"}`, borderRadius:10, padding:"10px 14px", marginBottom:8, cursor:"pointer", color:"#e8ebfa", textAlign:"left", width:"100%" }),
+    container:{ minHeight:"100vh", background:pageBgFor(theme), color:"#e8ebfa", fontFamily:FONT, fontSize:`${scaleSize(16)}px` },
+    header:{ background:"rgba(17,21,42,.85)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", padding:`${scalePx(10)}px ${scalePx(18)}px`, display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #2a3154", boxShadow:"0 1px 0 #7c83ff33, 0 8px 24px rgba(3,5,16,.35)", position:"sticky", top:0, zIndex:40 },
+    card:{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:16, padding:scalePx(16), margin:"10px 0", border:"1px solid #272e52", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both" },
+    btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:`${scalePx(10)}px ${scalePx(18)}px`, cursor:"pointer", fontWeight:800, fontSize:scaleSize(14), boxShadow:`0 4px 14px ${c}44` }),
+    opt:(sel)=>({ background:sel?"#7c83ff22":"#131730", border:`2px solid ${sel?"#7c83ff":"#272e52"}`, borderRadius:10, padding:`${scalePx(10)}px ${scalePx(14)}px`, marginBottom:8, cursor:"pointer", color:"#e8ebfa", textAlign:"left", width:"100%", fontSize:scaleSize(14), minHeight:scaleSize(44) }),
   };
   const Stars = ({ value, onChange }) => (
     <div style={{ display:"flex", gap:4 }}>
@@ -2712,15 +2719,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     return (
       <div style={styles.container}>
         <div style={styles.header}><span>📚 Resumo da Aula — {studentName}</span></div>
-        <div style={{ maxWidth:740, margin:"0 auto", padding:"22px 16px 36px" }}>
+        <div style={{ maxWidth:740, margin:"0 auto", padding:`${scalePx(22)}px ${scalePx(16)}px ${scalePx(36)}px` }}>
           {/* topo em destaque */}
-          <div style={{ background:"linear-gradient(135deg,#7c83ff,#8b5cf6)", borderRadius:18, padding:"24px 22px", textAlign:"center", boxShadow:"0 12px 30px #7c83ff55" }}>
-            <div style={{ fontSize:44 }}>📚</div>
-            <h1 style={{ color:"#fff", fontSize:25, margin:"4px 0 8px" }}>Resumo da sua aula</h1>
-            <p style={{ color:"#e0e7ff", fontSize:15, maxWidth:560, margin:"0 auto", lineHeight:1.6, marginBottom:12 }}>
+          <div style={{ background:"linear-gradient(135deg,#7c83ff,#8b5cf6)", borderRadius:18, padding:`${scalePx(24)}px ${scalePx(22)}px`, textAlign:"center", boxShadow:"0 12px 30px #7c83ff55" }}>
+            <div style={{ fontSize:scaleSize(44) }}>📚</div>
+            <h1 style={{ color:"#fff", fontSize:scaleSize(25), margin:`${scalePx(4)}px 0 ${scalePx(8)}px` }}>Resumo da sua aula</h1>
+            <p style={{ color:"#e0e7ff", fontSize:scaleSize(15), maxWidth:560, margin:"0 auto", lineHeight:1.6, marginBottom:12 }}>
               {structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. 📒 Anote no caderno!"}
             </p>
-            {ttsSupported && <button onClick={() => handleSpeakSummary(structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. Anote no caderno!")} style={{ background:isSpeaking && currentSpeakingFor==="intro" ? "#fff" : "rgba(255,255,255,0.2)", color:isSpeaking && currentSpeakingFor==="intro" ? "#7c83ff" : "#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer" }}>{isSpeaking && currentSpeakingFor==="intro" ? "⏸ Pausando" : "🔊 Ouvir intro"}</button>}
+            {ttsSupported && <button onClick={() => handleSpeakSummary(structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. Anote no caderno!")} style={{ background:isSpeaking && currentSpeakingFor==="intro" ? "#fff" : "rgba(255,255,255,0.2)", color:isSpeaking && currentSpeakingFor==="intro" ? "#7c83ff" : "#fff", border:"none", borderRadius:8, padding:`${scalePx(10)}px ${scalePx(18)}px`, fontSize:scaleSize(13), fontWeight:700, cursor:"pointer", minHeight:scaleSize(44) }}>{isSpeaking && currentSpeakingFor==="intro" ? "⏸ Pausando" : "🔊 Ouvir intro"}</button>}
           </div>
 
           {structured ? (
@@ -2785,19 +2792,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         {goalParty && <ConfettiParty level={goalParty} />}
         <div style={styles.header}><span>📝 Atividade — {studentName}</span></div>
         <div style={{ maxWidth:640, margin:"0 auto", padding:24 }}>
-          <h2 style={{ color:"#7c83ff" }}>Atividade da Aula</h2>
-          <p style={{ color:"#96a0cc", fontSize:13, marginBottom:16 }}>Baseada no código que você escreveu hoje! Marque a alternativa que você acha certa — o resultado só aparece depois de enviar.</p>
+          <h2 style={{ color:"#7c83ff", fontSize:scaleSize(20) }}>Atividade da Aula</h2>
+          <p style={{ color:"#96a0cc", fontSize:scaleSize(13), marginBottom:16 }}>Baseada no código que você escreveu hoje! Marque a alternativa que você acha certa — o resultado só aparece depois de enviar.</p>
           {activity.map((q,i)=>{
             return (
-              <div key={i} data-q={i} style={styles.card}>
+              <div key={i} data-q={i} style={{...styles.card, padding:scalePx(18)}}>
                 <div style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:12, justifyContent:"space-between" }}>
-                  <p style={{ fontWeight:600, margin:0, flex:1 }}>{i+1}. {q.q}</p>
-                  {ttsSupported && <button onClick={() => handleSpeakQuestion(q, i)} style={{ background:isSpeaking && currentSpeakingFor===`q-${i}` ? "#7c83ff" : "#7c83ff33", border:"1px solid #7c83ff", color:"#7c83ff", padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`q-${i}` ? "⏸" : "🔊"}</button>}
+                  <p style={{ fontWeight:600, margin:0, flex:1, fontSize:scaleSize(16) }}>{i+1}. {q.q}</p>
+                  {ttsSupported && <button onClick={() => handleSpeakQuestion(q, i)} style={{ background:isSpeaking && currentSpeakingFor===`q-${i}` ? "#7c83ff" : "#7c83ff33", border:"1px solid #7c83ff", color:"#7c83ff", padding:`${scalePx(8)}px ${scalePx(12)}px`, borderRadius:6, fontSize:scaleSize(11), fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`q-${i}` ? "⏸" : "🔊"}</button>}
                 </div>
                 {q.opts.map((opt,j)=>{
                   const picked = answers[i]===j;
                   return (
-                    <button key={j} data-opt={j} style={styles.opt(picked)} onClick={()=>pickAnswer(i,j)}>
+                    <button key={j} data-opt={j} style={{...styles.opt(picked), minHeight:scalePx(56)}} onClick={()=>pickAnswer(i,j)}>
                       {opt}
                     </button>
                   );
@@ -2806,7 +2813,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             );
           })}
           <div style={{ textAlign:"right" }}>
-            <button style={styles.btn("#7c83ff")} onClick={handleSubmitActivity} disabled={Object.keys(answers).length<activity.length}>Enviar Atividade →</button>
+            <button style={{...styles.btn("#7c83ff"), padding:`${scalePx(12)}px ${scalePx(26)}px`, fontSize:scaleSize(15), marginTop:scalePx(16) }} onClick={handleSubmitActivity} disabled={Object.keys(answers).length<activity.length}>Enviar Atividade →</button>
           </div>
         </div>
       </div>
@@ -2938,6 +2945,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <span style={{ background:"#0d1122", border:"1px solid #2a3154", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#96a0cc" }}>{shiftLabel(shift)}</span>
           <button data-tour="tema" style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
           <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={toggleMuted} title={muted?"Ativar sons":"Silenciar sons"}>{muted?"🔇":"🔊"}</button>
+          <button style={{ ...styles.btn(largeUiMode?"#06b6d4":"#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>{ setLargeUiMode(!largeUiMode); try { localStorage.setItem("nyx_large_ui", !largeUiMode?"1":"0"); } catch {} }} title={largeUiMode?"Desativar modo acessível":"Ativar modo acessível (letras maiores)"}>♿</button>
           <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={tryFullscreen}>⛶ Tela cheia</button>
           <button style={{ ...styles.btn("#f87171"), padding:"6px 12px", fontSize:12 }} onClick={onLogout}>Sair</button>
         </div>
