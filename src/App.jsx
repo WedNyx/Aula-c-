@@ -2575,6 +2575,24 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     playSound("click");
   };
 
+  // atalho de teclado (A/B/C/D) para responder a atividade sem precisar clicar — só ativo na fase de atividade
+  useEffect(() => {
+    if (phase !== "activity") return;
+    const activity = dynamicActivity || [];
+    const handleKeyDown = (e) => {
+      if (!activity.length) return;
+      const optionKey = e.key.toUpperCase().charCodeAt(0) - 65;
+      if (optionKey >= 0 && optionKey < 4) {
+        const currentQ = Object.keys(answers).length;
+        if (currentQ < activity.length) {
+          pickAnswer(currentQ, optionKey);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [phase, answers, dynamicActivity]);
+
   // maior sequência de acertos seguidos, calculada só no envio (não dá mais pra saber "ao vivo" se acertou)
   const maxCorrectStreak = (activity, ans) => {
     let max = 0, cur = 0;
@@ -2873,20 +2891,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       setCurrentSpeakingFor(`q-${i}`);
       speak(qText);
     };
-    useEffect(() => {
-      const handleKeyDown = (e) => {
-        if (!activity.length) return;
-        const optionKey = e.key.toUpperCase().charCodeAt(0) - 65;
-        if (optionKey >= 0 && optionKey < 4) {
-          const currentQ = Object.keys(answers).length;
-          if (currentQ < activity.length) {
-            pickAnswer(currentQ, optionKey);
-          }
-        }
-      };
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [answers, activity]);
     return (
       <div style={styles.container}>
         <AchievementToast achievement={newAchievement} />
