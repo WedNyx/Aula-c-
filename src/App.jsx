@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode } from "./storage.js";
 
 // ── tema ──
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
@@ -412,6 +412,18 @@ function CodeBlock({ code }) {
     </div>
   );
 }
+
+// ── modo guiado (acessibilidade): blocos prontos de código C# que o aluno monta clicando, sem precisar digitar ──
+const GUIDED_BLOCKS = [
+  { id:"greet",  emoji:"👋", label:"Dizer um Oi",            needsInput:false, template:()=>`Console.WriteLine("Oi! Eu adoro programar!");`, speak:()=>"Isso mostra uma saudação na tela do computador." },
+  { id:"print",  emoji:"💬", label:"Mostrar uma mensagem",   needsInput:true,  inputLabel:"O que você quer mostrar na tela?", placeholder:"Ex: Eu sou incrível!", template:(v)=>`Console.WriteLine("${String(v||"").replace(/"/g,"")}");`, speak:(v)=>`Isso vai mostrar a mensagem: ${v}` },
+  { id:"ask",    emoji:"❓", label:"Fazer uma pergunta",      needsInput:true,  inputLabel:"O que você quer perguntar?", placeholder:"Ex: Qual é o seu nome?", template:(v)=>`Console.WriteLine("${String(v||"").replace(/"/g,"")}");\nstring resposta = Console.ReadLine();`, speak:(v)=>`Isso vai perguntar: ${v}, e guardar a resposta de quem está usando o programa.` },
+  { id:"number", emoji:"🔢", label:"Guardar um número",      needsInput:true,  inputLabel:"Qual número você quer guardar?", placeholder:"Ex: 10", template:(v)=>`int numero = ${parseInt(v)||0};`, speak:(v)=>`Isso guarda o número ${v} numa caixinha chamada numero.` },
+  { id:"text",   emoji:"📝", label:"Guardar um texto",        needsInput:true,  inputLabel:"Qual texto você quer guardar?", placeholder:"Ex: Maria", template:(v)=>`string texto = "${String(v||"").replace(/"/g,"")}";`, speak:(v)=>`Isso guarda o texto ${v} numa caixinha chamada texto.` },
+  { id:"sum",    emoji:"➕", label:"Somar dois números",      needsInput:false, template:()=>`int soma = 5 + 3;\nConsole.WriteLine(soma);`, speak:()=>"Isso soma o número 5 com o número 3 e mostra o resultado na tela." },
+  { id:"loop",   emoji:"🔁", label:"Repetir uma mensagem",    needsInput:true,  inputLabel:"Quantas vezes repetir?", placeholder:"Ex: 3", template:(v)=>`for (int i = 0; i < ${parseInt(v)||3}; i++)\n{\n    Console.WriteLine("Repetindo!");\n}`, speak:(v)=>`Isso repete a mensagem ${v} vezes seguidas.` },
+  { id:"if",     emoji:"❔", label:"Fazer uma escolha",       needsInput:false, template:()=>`int numero = 10;\nif (numero > 5)\n{\n    Console.WriteLine("O número é grande!");\n}\nelse\n{\n    Console.WriteLine("O número é pequeno!");\n}`, speak:()=>"Isso faz o programa escolher o que mostrar, dependendo do número." },
+];
 
 // ════════════════════════════════════════════════════════════════════════════
 //  TECLAS + ROBÔ
@@ -2039,6 +2051,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     try { return localStorage.getItem("nyx_large_ui") === "1"; } catch { return false; }
   });
   const uiScale = largeUiMode ? 1.3 : 1;
+  // modo guiado (acessibilidade): ligado pelo professor por aluno — troca o editor por blocos clicáveis
+  const [accessMode, setAccessModeState] = useState(false);
+  const [guidedBlocks, setGuidedBlocks] = useState([]);
+  const [pendingBlock, setPendingBlock] = useState(null);
 
   const sessionStart = useRef(Date.now());
   const stateRef = useRef({});
@@ -2048,7 +2064,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, duelWins };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, duelWins, guidedBlocks };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -2093,6 +2109,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       daySnapshot: daySnapshotRef.current || null,
       scoreHistory: s.scoreHistory || {},
       summaryHistory: s.summaryHistory || {},
+      guidedBlocks: s.guidedBlocks || [],
       ...extra,
     });
     setConnected(ok);
@@ -2141,7 +2158,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.doneAt) setDoneAt(prev.doneAt);
           if (prev.scoreHistory) setScoreHistory(prev.scoreHistory);
           if (prev.summaryHistory) setSummaryHistory(prev.summaryHistory);
+          if (Array.isArray(prev.guidedBlocks)) setGuidedBlocks(prev.guidedBlocks);
         }
+        try { setAccessModeState(await getAccessMode(shift, studentName)); } catch {}
         // foto do código do início do dia: se a salva for de outro dia (ou não existir), tira uma nova agora
         {
           const tk = todayKey();
@@ -2251,6 +2270,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         const locks = await getNyxLocks();
         setNyxLocksState({ zek: !!locks.zek, zeker: !!locks.zeker });
       } catch {}
+      // modo guiado (acessibilidade) — o professor pode ligar/desligar por aluno a qualquer momento
+      try {
+        setAccessModeState(await getAccessMode(shift, studentName));
+      } catch {}
       // professor renomeou/moveu/excluiu este perfil → sai da sessão antiga
       try {
         if (await checkKick(shift, studentName, sessionStart.current)) { active2 = false; onLogout(); return; }
@@ -2312,6 +2335,41 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       setRobotMsg("❌ Erro ao carregar código da turma.");
       setRobotState("error");
     }
+  };
+
+  // modo guiado: monta o código real a partir da lista de blocos que o aluno clicou (sem precisar digitar)
+  const regenerateGuidedCode = (blocks) => blocks.map(b=>b.code).join("\n\n");
+
+  const addGuidedBlock = (block, value) => {
+    const code = block.template(value);
+    const newBlock = { uid: `${Date.now()}-${Math.random().toString(36).slice(2)}`, id: block.id, emoji: block.emoji, label: block.label, code };
+    const updated = [...guidedBlocks, newBlock];
+    setGuidedBlocks(updated);
+    const fullCode = regenerateGuidedCode(updated);
+    setFiles(prev => { const u=[...prev]; u[0] = { ...u[0], code: fullCode }; return u; });
+    persist({ guidedBlocks: updated, code: fullCode });
+    playSound("click");
+    speak(block.speak ? block.speak(value) : block.label);
+    setPendingBlock(null);
+  };
+
+  const removeGuidedBlock = (uid) => {
+    const updated = guidedBlocks.filter(b=>b.uid!==uid);
+    setGuidedBlocks(updated);
+    const fullCode = regenerateGuidedCode(updated);
+    setFiles(prev => { const u=[...prev]; u[0] = { ...u[0], code: fullCode }; return u; });
+    persist({ guidedBlocks: updated, code: fullCode });
+  };
+
+  const moveGuidedBlock = (index, dir) => {
+    const newIndex = index + dir;
+    if (newIndex < 0 || newIndex >= guidedBlocks.length) return;
+    const updated = [...guidedBlocks];
+    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+    setGuidedBlocks(updated);
+    const fullCode = regenerateGuidedCode(updated);
+    setFiles(prev => { const u=[...prev]; u[0] = { ...u[0], code: fullCode }; return u; });
+    persist({ guidedBlocks: updated, code: fullCode });
   };
 
   const analyzeCode = async () => {
@@ -3055,34 +3113,105 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
       <div style={{ display:"flex", gap:14, padding:14, maxWidth:1180, margin:"0 auto", flexWrap:"wrap" }}>
         <div style={{ flex:"1 1 560px", minWidth:320 }}>
-          {/* abas de arquivos */}
-          <div data-tour="arquivos" style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8, flexWrap:"wrap" }}>
-            {files.map((f,i)=>(
-              <div key={i} onClick={()=>setActive(i)} style={{ display:"flex", alignItems:"center", gap:6, background:i===active?"#1e1e1e":"#101425", border:`1px solid ${i===active?"#7c83ff":"#2a3154"}`, color:i===active?"#fff":"#96a0cc", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>
-                <span>📄 {f.name}</span>
-                <span onClick={(e)=>{e.stopPropagation();openRename(i);}} title="Renomear" style={{ color:"#7c83ff", fontWeight:700 }}>✎</span>
-                {files.length>1 && <span onClick={(e)=>{e.stopPropagation();deleteFile(i);}} title="Apagar" style={{ color:"#f87171", fontWeight:700 }}>✕</span>}
+          {accessMode ? (
+            <div style={{ ...styles.card, borderColor:"#22d3ee" }}>
+              <h3 style={{ color:"#22d3ee", marginBottom:4, fontSize:scaleSize(19) }}>🧩 Modo Guiado — Monte seu programa!</h3>
+              <p style={{ color:"#96a0cc", fontSize:scaleSize(13), marginBottom:14 }}>Clique nos blocos abaixo para montar seu programa, um passo de cada vez! {ttsSupported && "O Nyx explica cada bloco em voz alta pra você."}</p>
+
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
+                {GUIDED_BLOCKS.map(block => (
+                  <button key={block.id} onClick={()=> block.needsInput ? setPendingBlock({ block, value:"" }) : addGuidedBlock(block)}
+                    style={{ background:"#151a31", border:"2px solid #2a3154", borderRadius:12, padding:"14px 10px", cursor:"pointer", color:"#e8ebfa", textAlign:"center", minHeight:scalePx(92) }}>
+                    <div style={{ fontSize:scaleSize(30) }}>{block.emoji}</div>
+                    <div style={{ fontSize:scaleSize(12.5), fontWeight:700, marginTop:6 }}>{block.label}</div>
+                  </button>
+                ))}
               </div>
-            ))}
-            <button onClick={addFile} style={{ background:"#0d1122", border:"1px dashed #7c83ff", color:"#7c83ff", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>＋ Novo arquivo</button>
-          </div>
 
-          <div data-tour="editor">
-            <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} />
-          </div>
+              {pendingBlock && (
+                <div style={{ marginTop:16, background:"#0d1122", border:"2px solid #22d3ee", borderRadius:12, padding:16 }}>
+                  <p style={{ color:"#22d3ee", fontWeight:700, marginBottom:8, fontSize:scaleSize(14) }}>{pendingBlock.block.emoji} {pendingBlock.block.inputLabel}</p>
+                  <input autoFocus value={pendingBlock.value} onChange={e=>setPendingBlock({ ...pendingBlock, value:e.target.value })}
+                    placeholder={pendingBlock.block.placeholder}
+                    onKeyDown={e=>{ if (e.key==="Enter" && pendingBlock.value.trim()) addGuidedBlock(pendingBlock.block, pendingBlock.value); }}
+                    style={{ width:"100%", background:"#151a31", border:"1px solid #2a3154", borderRadius:8, padding:`${scalePx(10)}px ${scalePx(12)}px`, color:"#e8ebfa", fontSize:scaleSize(15), boxSizing:"border-box" }} />
+                  <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                    <button onClick={()=>setPendingBlock(null)} style={{ ...styles.btn("#2a3154"), flex:1 }}>Cancelar</button>
+                    <button onClick={()=>addGuidedBlock(pendingBlock.block, pendingBlock.value)} disabled={!pendingBlock.value.trim()} style={{ ...styles.btn("#22d3ee"), flex:1, opacity:pendingBlock.value.trim()?1:0.5 }}>Adicionar ✅</button>
+                  </div>
+                </div>
+              )}
 
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
-            <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
-            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-              <button style={{ ...styles.btn("#22d3ee"), fontSize:12 }} onClick={loadClassCode} title="Carrega o código que o professor preparou para a turma">📥 Código da Turma</button>
-              <button style={{ ...styles.btn("#7c83ff"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={analyzeCode} disabled={analyzing||activeCode.trim().length<12}>
-                {analyzing ? "🔍 Analisando..." : "✨ Analisar meu código"}
-              </button>
-              <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
+              <div style={{ marginTop:20 }}>
+                <h4 style={{ color:"#7c83ff", marginBottom:8, fontSize:scaleSize(15) }}>📜 Seu programa (nesta ordem)</h4>
+                {guidedBlocks.length===0 ? (
+                  <p style={{ color:"#5d679c", fontSize:scaleSize(13) }}>Clique num bloco acima para começar!</p>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                    {guidedBlocks.map((b,i)=>(
+                      <div key={b.uid} style={{ display:"flex", alignItems:"center", gap:10, background:"#151a31", border:"1px solid #2a3154", borderRadius:8, padding:"8px 12px" }}>
+                        <span style={{ fontSize:scaleSize(20) }}>{b.emoji}</span>
+                        <span style={{ flex:1, fontSize:scaleSize(13) }}>{i+1}. {b.label}</span>
+                        <button onClick={()=>moveGuidedBlock(i,-1)} disabled={i===0} style={{ background:"transparent", border:"none", color:"#96a0cc", cursor:"pointer", opacity:i===0?0.3:1, fontSize:scaleSize(15), minWidth:scaleSize(32) }}>⬆️</button>
+                        <button onClick={()=>moveGuidedBlock(i,1)} disabled={i===guidedBlocks.length-1} style={{ background:"transparent", border:"none", color:"#96a0cc", cursor:"pointer", opacity:i===guidedBlocks.length-1?0.3:1, fontSize:scaleSize(15), minWidth:scaleSize(32) }}>⬇️</button>
+                        <button onClick={()=>removeGuidedBlock(b.uid)} style={{ background:"transparent", border:"none", color:"#f87171", cursor:"pointer", fontSize:scaleSize(16), minWidth:scaleSize(32) }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {activeCode.trim() && (
+                <div style={{ marginTop:16 }}>
+                  <p style={{ color:"#5d679c", fontSize:scaleSize(12), marginBottom:2 }}>👀 Assim fica o código de verdade (o Nyx e o professor conseguem ver):</p>
+                  <CodeBlock code={activeCode} />
+                </div>
+              )}
+
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:16, flexWrap:"wrap", gap:8 }}>
+                <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:scaleSize(12) }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  <button style={{ ...styles.btn("#7c83ff"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={analyzeCode} disabled={analyzing||activeCode.trim().length<12}>
+                    {analyzing ? "🔍 Analisando..." : "✨ Analisar meu código"}
+                  </button>
+                  <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
+                </div>
+              </div>
+
+              <Terminal files={files} dataTour="terminal" />
             </div>
-          </div>
+          ) : (
+            <>
+              {/* abas de arquivos */}
+              <div data-tour="arquivos" style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8, flexWrap:"wrap" }}>
+                {files.map((f,i)=>(
+                  <div key={i} onClick={()=>setActive(i)} style={{ display:"flex", alignItems:"center", gap:6, background:i===active?"#1e1e1e":"#101425", border:`1px solid ${i===active?"#7c83ff":"#2a3154"}`, color:i===active?"#fff":"#96a0cc", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>
+                    <span>📄 {f.name}</span>
+                    <span onClick={(e)=>{e.stopPropagation();openRename(i);}} title="Renomear" style={{ color:"#7c83ff", fontWeight:700 }}>✎</span>
+                    {files.length>1 && <span onClick={(e)=>{e.stopPropagation();deleteFile(i);}} title="Apagar" style={{ color:"#f87171", fontWeight:700 }}>✕</span>}
+                  </div>
+                ))}
+                <button onClick={addFile} style={{ background:"#0d1122", border:"1px dashed #7c83ff", color:"#7c83ff", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>＋ Novo arquivo</button>
+              </div>
 
-          <Terminal files={files} dataTour="terminal" />
+              <div data-tour="editor">
+                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} />
+              </div>
+
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
+                <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  <button style={{ ...styles.btn("#22d3ee"), fontSize:12 }} onClick={loadClassCode} title="Carrega o código que o professor preparou para a turma">📥 Código da Turma</button>
+                  <button style={{ ...styles.btn("#7c83ff"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={analyzeCode} disabled={analyzing||activeCode.trim().length<12}>
+                    {analyzing ? "🔍 Analisando..." : "✨ Analisar meu código"}
+                  </button>
+                  <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
+                </div>
+              </div>
+
+              <Terminal files={files} dataTour="terminal" />
+            </>
+          )}
         </div>
 
         {/* Robô + atalhos */}
@@ -3359,6 +3488,7 @@ function TeacherView({ onLogout }) {
   const [scoreVal, setScoreVal] = useState("");
   const [mgmtMsg, setMgmtMsg] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [selAccessMode, setSelAccessMode] = useState(false);
   useEffect(() => { setRenameVal(""); setScoreVal(""); setConfirmDelete(false); setMgmtMsg(""); }, [selected]);
   const [resetting, setResetting] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -3708,6 +3838,18 @@ function TeacherView({ onLogout }) {
   const shown = shiftFilter==="all" ? students : students.filter(s => (s.shift||"sem-turno")===shiftFilter);
   const sorted = [...shown].sort((a,b)=>(a.name||"").localeCompare(b.name||"","pt-BR"));
   const sel = selected ? students.find(s=>s.name===selected) : null;
+  useEffect(() => {
+    let alive = true;
+    if (sel) getAccessMode(sel.shift, sel.name).then(v => { if (alive) setSelAccessMode(v); });
+    else setSelAccessMode(false);
+    return () => { alive = false; };
+  }, [sel?.shift, sel?.name]);
+  const doToggleAccessMode = async (s) => {
+    const next = !selAccessMode;
+    await setAccessMode(s.shift, s.name, next);
+    setSelAccessMode(next);
+    flashMgmt(next ? `✅ Modo Guiado ativado para ${s.name}.` : `✅ Modo Guiado desativado para ${s.name}.`);
+  };
   const present = shown.filter(isOnline).length;
   const goingWell = sorted.filter(s => difficultyOf(s).level==="bem");
   const needHelp  = sorted.filter(s => difficultyOf(s).level==="dif");
@@ -4015,20 +4157,24 @@ function TeacherView({ onLogout }) {
             <div style={styles.card}>
               <h3 style={{ color:"#fbbf24", marginBottom:12 }}>👥 Monitoramento ({shown.length})</h3>
               {shown.length===0 && <p style={{ color:"#5d679c", fontSize:13 }}>{students.length===0 ? "Aguardando alunos entrarem..." : "Nenhum aluno nesta turma. Veja outra turma no filtro acima."}</p>}
-              <div style={{ maxHeight:340, overflowY:"auto", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))", gap:8 }}>
+              <div style={{ maxHeight:400, overflowY:"auto", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(128px,1fr))", gap:8 }}>
                 {sorted.map(s=>{
                   const d = difficultyOf(s);
                   return (
-                    <div key={s.name} onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ background:selected===s.name?"#7c83ff22":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":"#2a3154"}`, borderRadius:10, padding:"10px 12px", cursor:"pointer" }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                        <span style={{ display:"flex", alignItems:"center", gap:8, fontWeight:600 }}><Avatar cfg={s.avatar} size={26} />{dot(isOnline(s))}{s.name}</span>
-                        <span style={styles.badge(phaseColor(effectivePhase(s)))}>{phaseLabel(effectivePhase(s))}</span>
+                    <div key={s.name} onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ position:"relative", background:selected===s.name?"#7c83ff22":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":"#2a3154"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center" }}>
+                      {s.score!=null && <span style={{ position:"absolute", top:6, left:6, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:6, padding:"1px 6px", fontSize:10.5, fontWeight:800 }}>🏆 {s.score}</span>}
+                      <span style={{ position:"absolute", top:8, right:8 }}>{dot(isOnline(s))}</span>
+                      <div style={{ marginTop:s.score!=null?16:4 }}>
+                        <Avatar cfg={s.avatar} size={44} />
                       </div>
-                      <div style={{ marginTop:6 }}>
-                        <span style={styles.badge(d.level==="dif"?"#f87171":d.level==="bem"?"#34d399":"#96a0cc")}>{d.level==="dif"?"⚠ Com dificuldade":d.level==="bem"?"✅ Indo bem":"• Começando"}</span>
-                        {s.score!=null && <span style={{ ...styles.badge("#34d399"), marginLeft:6 }}>🏆 {s.score}</span>}
+                      <div style={{ fontWeight:700, fontSize:12.5, marginTop:6, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{s.name}</div>
+                      <div style={{ marginTop:4 }}>
+                        <span style={{ ...styles.badge(phaseColor(effectivePhase(s))), fontSize:10.5 }}>{phaseLabel(effectivePhase(s))}</span>
                       </div>
-                      <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>visto {hhmmss(s.lastSeen)}</div>
+                      <div style={{ marginTop:5 }}>
+                        <span style={{ ...styles.badge(d.level==="dif"?"#f87171":d.level==="bem"?"#34d399":"#96a0cc"), fontSize:10.5 }}>{d.level==="dif"?"⚠ Com dificuldade":d.level==="bem"?"✅ Indo bem":"• Começando"}</span>
+                      </div>
+                      <div style={{ color:"#5d679c", fontSize:10.5, marginTop:5 }}>visto {hhmmss(s.lastSeen)}</div>
                     </div>
                   );
                 })}
@@ -4109,6 +4255,13 @@ function TeacherView({ onLogout }) {
                       <input type="number" min={0} max={100} value={scoreVal} onChange={e=>setScoreVal(e.target.value)} placeholder={sel.score!=null?String(sel.score):"—"}
                         style={{ width:90, background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 10px", color:"#e8ebfa", fontSize:13, outline:"none" }} />
                       <button onClick={()=>doSetScore(sel)} disabled={scoreVal===""} style={{ ...styles.btn("#34d399"), padding:"6px 14px", fontSize:12.5, opacity:scoreVal!==""?1:0.5 }}>Alterar nota da atividade</button>
+                    </div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
+                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🧩 Acessibilidade:</span>
+                      <button onClick={()=>doToggleAccessMode(sel)} style={{ ...styles.btn(selAccessMode?"#22d3ee":"#2a3154"), padding:"6px 14px", fontSize:12.5 }}>
+                        {selAccessMode ? "✅ Modo Guiado ativado" : "Ativar Modo Guiado"}
+                      </button>
+                      <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>{selAccessMode ? "O editor de código deste aluno vira uma montagem de blocos clicáveis, com narração por voz." : "Troca o editor de código por blocos clicáveis + narração por voz, para alunos com dificuldade de ler/escrever/digitar."}</span>
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
                       <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🗑️ Perfil:</span>

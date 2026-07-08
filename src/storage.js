@@ -69,6 +69,25 @@ export async function getNudge(shift, name) {
   } catch { return null }
 }
 
+// ── modo guiado (acessibilidade): flag por aluno, ligada pelo professor — fica numa chave separada
+// para o heartbeat do aluno (que resalva o registro inteiro a cada poucos segundos) nunca sobrescrever
+// uma mudança feita pelo professor enquanto a aba do aluno já está aberta ──
+function accessModeKeyFor(shift, name) {
+  return `accessmode:${shift || 'sem-turno'}:${safeName(name)}`
+}
+export async function getAccessMode(shift, name) {
+  try {
+    const r = await kvCall({ action: 'get', key: accessModeKeyFor(shift, name) })
+    return r.value === '1'
+  } catch { return false }
+}
+export async function setAccessMode(shift, name, value) {
+  try {
+    const r = await kvCall({ action: 'set', key: accessModeKeyFor(shift, name), value: value ? '1' : '0' })
+    return r.ok === true
+  } catch { return false }
+}
+
 // ── travas do Nyx acionadas pelo professor no chat (zek / zeker) ──
 const NYX_LOCKS_KEY = 'nyxlocks:global'
 export async function getNyxLocks() {
