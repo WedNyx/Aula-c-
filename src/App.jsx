@@ -1952,11 +1952,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [classPointsSum, setClassPointsSum] = useState(0);
   const [curiosity, setCuriosity] = useState(null);
   const [curiosityDismissed, setCuriosityDismissed] = useState(false);
-  const [comboMsg, setComboMsg] = useState(null);
   const [muted, setMuted] = useState(() => loadSoundsMuted());
   const [showDuel, setShowDuel] = useState(false);
   const [duelDoc, setDuelDoc] = useState(null);
-  const streakRef = useRef(0);
   // travas acionadas pelo professor (zek = tela bloqueada; zeker = duelos bloqueados)
   const [nyxLocks, setNyxLocksState] = useState({ zek: false, zeker: false });
   // quando a atividade de hoje foi concluída (mantém o status até as 9h do dia seguinte)
@@ -2383,8 +2381,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           (hasTodayDiff
             ? `Projeto C# completo de um aluno iniciante (contexto — inclui código de aulas ANTERIORES):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nTRECHOS QUE ELE ESCREVEU HOJE, na aula de hoje (extraídos por comparação com o início do dia):\n\`\`\`csharp\n${todayCode}\n\`\`\`\n\nCrie um resumo da AULA DE HOJE: cubra APENAS os conceitos que aparecem nos trechos escritos hoje. NÃO faça seções sobre conceitos que só existem no código das aulas anteriores — o projeto completo é só contexto para você entender os trechos novos.`
             : `Um aluno iniciante de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos fazem parte do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie um resumo da aula`) +
-          ` bem organizado e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 ou 2 frases curtas e acolhedoras dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação bem simples, de 1 a 3 frases, do que isso faz e por quê", "exemplo": "um trecho de código C# curto e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta, útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${hasTodayDiff ? "código escrito HOJE" : "código dele, olhando TODOS os arquivos"} (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Linguagem bem de iniciante. Exemplos curtos, corretos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
-          "Você é um professor de C# paciente e organizado, para iniciantes. Português correto e simples. Responda APENAS JSON puro válido."
+          ` bem organizado, SIMPLES e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 frase curta e acolhedora dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação BEM simples, em NO MÁXIMO 2 frases curtas, do que isso faz — sem jargão técnico, como se explicasse para alguém de 13 anos que nunca programou", "exemplo": "um trecho de código C# BEM curto (1 a 3 linhas) e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta (1 frase), útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${hasTodayDiff ? "código escrito HOJE" : "código dele, olhando TODOS os arquivos"} (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Frases curtas e diretas, uma ideia por vez. Nada de explicações longas ou com vários porquês encadeados. Exemplos curtos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
+          "Você é um professor de C# paciente, para iniciantes de 13-14 anos que nunca programaram. Explique tudo do jeito MAIS SIMPLES possível: frases curtas, uma ideia por frase, sem jargão técnico desnecessário e sem explicações longas. Português correto e simples. Responda APENAS JSON puro válido."
         ),
         askClaude(
           `Um aluno de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie 8 questões de múltipla escolha focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
@@ -2409,24 +2407,22 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     }
   };
 
-  const handleStartActivity = async () => { setPhase("activity"); streakRef.current = 0; await persist({ phase:"activity" }); };
+  const handleStartActivity = async () => { setPhase("activity"); await persist({ phase:"activity" }); };
 
-  const COMBO_MESSAGES = { 3:"🔥 3 seguidas! Você tá pegando o jeito!", 5:"⚡ 5 seguidas! Combo elétrico!", 8:"🚀 8 seguidas?! Combo insano!!" };
+  // só marca a alternativa escolhida — certo/errado só aparece depois de Enviar Atividade
   const pickAnswer = (i, j) => {
-    if (answers[i] != null) return; // trava depois de responder, pra não dar pra "testar" as opções
-    const activity = dynamicActivity || [];
     setAnswers(a => ({ ...a, [i]: j }));
-    const isCorrect = j === activity[i]?.correct;
-    playSound(isCorrect ? "correct" : "wrong");
-    if (isCorrect) {
-      streakRef.current += 1;
-      const msg = COMBO_MESSAGES[streakRef.current];
-      if (msg) { setComboMsg(msg); playSound("combo"); setTimeout(() => setComboMsg(null), 2600); }
-      if (streakRef.current === 8) unlockAchievement("combo-8");
-      else if (streakRef.current === 5) unlockAchievement("combo-5");
-    } else {
-      streakRef.current = 0;
-    }
+    playSound("click");
+  };
+
+  // maior sequência de acertos seguidos, calculada só no envio (não dá mais pra saber "ao vivo" se acertou)
+  const maxCorrectStreak = (activity, ans) => {
+    let max = 0, cur = 0;
+    activity.forEach((q, i) => {
+      if (ans[i] === q.correct) { cur++; if (cur > max) max = cur; }
+      else cur = 0;
+    });
+    return max;
   };
 
   const handleSubmitActivity = async () => {
@@ -2453,6 +2449,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     if (doneCount >= 15) unlockAchievement("atividades-15");
     const hundredCount = Object.values(newScoreHistory).filter(v => v === 100).length;
     if (hundredCount >= 3) unlockAchievement("tres-100");
+    const streak = maxCorrectStreak(activity, answers);
+    if (streak >= 5) unlockAchievement("combo-5");
+    if (streak >= 8) unlockAchievement("combo-8");
     try {
       const list = activity.map((q,i)=>`- ${q.q} → ${answers[i]===q.correct?"acertou":"errou"}`).join("\n");
       const fb = await askClaude(
@@ -2700,26 +2699,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         <AchievementToast achievement={newAchievement} />
         {goalParty && <ConfettiParty level={goalParty} />}
         <div style={styles.header}><span>📝 Atividade — {studentName}</span></div>
-        {comboMsg && (
-          <div style={{ position:"fixed", top:70, left:"50%", transform:"translateX(-50%)", zIndex:1200, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", color:"#fff", fontWeight:900, padding:"10px 22px", borderRadius:20, boxShadow:"0 10px 30px rgba(0,0,0,.4)", animation:"rise .3s ease both", fontSize:15 }}>
-            {comboMsg}
-          </div>
-        )}
         <div style={{ maxWidth:640, margin:"0 auto", padding:24 }}>
           <h2 style={{ color:"#7c83ff" }}>Atividade da Aula</h2>
-          <p style={{ color:"#96a0cc", fontSize:13, marginBottom:16 }}>Baseada no código que você escreveu hoje!</p>
+          <p style={{ color:"#96a0cc", fontSize:13, marginBottom:16 }}>Baseada no código que você escreveu hoje! Marque a alternativa que você acha certa — o resultado só aparece depois de enviar.</p>
           {activity.map((q,i)=>{
-            const answered = answers[i] != null;
             return (
-              <div key={i} style={styles.card}>
+              <div key={i} data-q={i} style={styles.card}>
                 <p style={{ fontWeight:600, marginBottom:12 }}>{i+1}. {q.q}</p>
                 {q.opts.map((opt,j)=>{
                   const picked = answers[i]===j;
-                  const showResult = answered && picked;
                   return (
-                    <button key={j} style={styles.opt(picked)} onClick={()=>pickAnswer(i,j)} disabled={answered}>
+                    <button key={j} data-opt={j} style={styles.opt(picked)} onClick={()=>pickAnswer(i,j)}>
                       {opt}
-                      {showResult && (j===q.correct ? <span style={{ color:"#34d399", fontWeight:800 }}> ✅</span> : <span style={{ color:"#f87171", fontWeight:800 }}> ❌</span>)}
                     </button>
                   );
                 })}
@@ -2743,7 +2734,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         <AchievementToast achievement={newAchievement} />
         {goalParty && <ConfettiParty level={goalParty} />}
         {showFeedbackModal && (
-          <NyxFeedbackModal score={score} loading={feedbackLoading} feedback={finalFeedback} onClose={()=>setShowFeedbackModal(false)} />
+          <NyxFeedbackModal score={score} loading={feedbackLoading} feedback={finalFeedback} onClose={()=>{
+            setShowFeedbackModal(false);
+            // quem errou alguma questão já cai direto na explicação do Nyx, sem precisar clicar em nada
+            if ((dynamicActivity||[]).some((q,i)=>answers[i]!==q.correct)) explainErrors();
+          }} />
         )}
         {showErrorExplain && (
           <ErrorExplainModal sections={errorSections} encouragement={errorEncouragement} onClose={()=>setShowErrorExplain(false)} />
@@ -2777,7 +2772,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             <div style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#7c83ff" }}>
               <h4 style={{ color:"#7c83ff", marginBottom:8 }}>🤖 Não entendeu algum erro?</h4>
               <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, marginBottom:10 }}>O Nyx pode explicar cada questão que você errou, com calma e do seu jeito.</p>
-              <button style={{ ...styles.btn("#7c83ff"), opacity:explaining?0.6:1 }} onClick={explainErrors} disabled={explaining}>{explaining ? "Nyx está escrevendo..." : "✨ Nyx, me explica meus erros!"}</button>
+              <button style={{ ...styles.btn("#7c83ff"), opacity:explaining?0.6:1 }} onClick={explainErrors} disabled={explaining}>{explaining ? "Nyx está escrevendo..." : errorSections.length ? "↻ Ver explicação de novo" : "✨ Nyx, me explica meus erros!"}</button>
               {explainFailMsg && <p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{explainFailMsg}</p>}
             </div>
           )}
@@ -4373,7 +4368,8 @@ function Login({ onJoin }) {
 
   const styles = {
     container:{ minHeight:"100vh", background:PAGE_BG, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:FONT, padding:16 },
-    card:{ background:"linear-gradient(180deg,#181d38ee,#131730ee)", backdropFilter:"blur(10px)", borderRadius:22, padding:32, width:460, maxWidth:"100%", border:"1px solid #2c3358", boxShadow:"0 24px 70px rgba(0,0,0,.5), 0 0 0 1px #7c83ff1a" },
+    // a turma de aluno fica mais larga: o boneco (prévia) cabe do lado da personalização, sem precisar rolar a página
+    card:{ background:"linear-gradient(180deg,#181d38ee,#131730ee)", backdropFilter:"blur(10px)", borderRadius:22, padding:32, width: role==="student" ? 720 : 460, maxWidth:"100%", border:"1px solid #2c3358", boxShadow:"0 24px 70px rgba(0,0,0,.5), 0 0 0 1px #7c83ff1a" },
     input:{ width:"100%", background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:"12px 14px", color:"#e8ebfa", fontSize:15, outline:"none", boxSizing:"border-box" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:12, padding:"12px 0", cursor:"pointer", fontWeight:800, fontSize:15, width:"100%", boxShadow:`0 4px 16px ${c}44` }),
     rBtn:()=>({ background:"#0d1122", color:"#96a0cc", border:`2px solid #2a3154`, borderRadius:14, padding:"18px 8px", cursor:"pointer", fontWeight:800, fontSize:14, flex:1 }),
