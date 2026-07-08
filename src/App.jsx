@@ -796,9 +796,10 @@ function Avatar({ cfg, size=72 }) {
   );
 }
 
-function AvatarBuilder({ value, onChange }) {
+// prévia grande do boneco + botão de sortear — fica separada dos controles pra poder ser
+// posicionada em outra coluna (ex: metade esquerda da tela na criação de perfil)
+function AvatarPreview({ value, onChange }) {
   const v = normalizeAvatar(value);
-  const set = (k, val) => onChange({ ...v, [k]: val });
   const randomize = () => {
     const pick = a => a[Math.floor(Math.random()*a.length)];
     onChange({
@@ -812,6 +813,21 @@ function AvatarBuilder({ value, onChange }) {
       roupa: Math.random()<0.35 ? "" : pick(ROUPA_ITEMS.slice(1)).id,
     });
   };
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+      <div style={{ background:"radial-gradient(circle at 50% 28%, #1d2344, #0d1122)", borderRadius:18, padding:12, border:"1px solid #2c3358", animation:"glow-ring 3s ease-in-out infinite" }}>
+        <Avatar cfg={v} size={104} />
+      </div>
+      <button type="button" onClick={randomize} style={{ background:"#2a3154", color:"#e8ebfa", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:12, fontWeight:700 }}>🎲 Surpresa</button>
+    </div>
+  );
+}
+
+// os controles de personalização (sem a prévia) — separados pra poder ficar numa coluna própria
+// part="basic" → só cor de fundo/pele (pra caber do lado da prévia); part="rest" → o resto; part="all" (padrão) → tudo junto
+function AvatarControls({ value, onChange, part = "all" }) {
+  const v = normalizeAvatar(value);
+  const set = (k, val) => onChange({ ...v, [k]: val });
   const Swatches = ({ k }) => (
     <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
       {AVATAR_OPTS[k].map(col => (
@@ -837,7 +853,7 @@ function AvatarBuilder({ value, onChange }) {
     </button>
   );
   const Row = ({ label, children }) => (
-    <div style={{ marginBottom:10 }}>
+    <div style={{ marginBottom:10, breakInside:"avoid" }}>
       <p style={{ color:"#96a0cc", fontSize:12, marginBottom:4 }}>{label}</p>
       {children}
     </div>
@@ -862,27 +878,38 @@ function AvatarBuilder({ value, onChange }) {
       ))}
     </div>
   );
+  const showBasic = part === "all" || part === "basic";
+  const showRest = part === "all" || part === "rest";
+  return (
+    <div style={{ minWidth:240 }}>
+      {showBasic && (
+        <>
+          <Row label="Cor de fundo"><Swatches k="bg" /></Row>
+          <Row label="Tom de pele"><Swatches k="skin" /></Row>
+        </>
+      )}
+      {showRest && (
+        <>
+          <Row label="Cor do cabelo"><Swatches k="hair" /></Row>
+          <Row label="Estilo do cabelo"><Thumbs k="hairV" field="hairV" /></Row>
+          <Row label="Olhos"><Thumbs k="eyesV" field="eyesV" /></Row>
+          <Row label="Boca"><Thumbs k="mouthV" field="mouthV" /></Row>
+          <Row label="Óculos"><Thumbs k="glassesV" field="glassesV" /></Row>
+          <Row label="Brincos"><Thumbs k="earringsV" field="earringsV" /></Row>
+          <Row label="Detalhes"><div style={{ display:"flex", gap:6, flexWrap:"wrap" }}><Toggle field="freckles" label="Sardas" /><Toggle field="flores" label="Flores no cabelo" /></div></Row>
+          <Row label="👕 Roupa"><ItemThumbs items={ROUPA_ITEMS} field="roupa" /></Row>
+          <Row label="🐉 Pet / Animal mitológico"><Pets /></Row>
+        </>
+      )}
+    </div>
+  );
+}
+
+function AvatarBuilder({ value, onChange }) {
   return (
     <div style={{ display:"flex", gap:16, alignItems:"flex-start", flexWrap:"wrap" }}>
-      <div style={{ flexShrink:0, display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
-        <div style={{ background:"radial-gradient(circle at 50% 28%, #1d2344, #0d1122)", borderRadius:18, padding:12, border:"1px solid #2c3358", animation:"glow-ring 3s ease-in-out infinite" }}>
-          <Avatar cfg={v} size={104} />
-        </div>
-        <button type="button" onClick={randomize} style={{ background:"#2a3154", color:"#e8ebfa", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:12, fontWeight:700 }}>🎲 Surpresa</button>
-      </div>
-      <div style={{ flex:1, minWidth:240 }}>
-        <Row label="Cor de fundo"><Swatches k="bg" /></Row>
-        <Row label="Tom de pele"><Swatches k="skin" /></Row>
-        <Row label="Cor do cabelo"><Swatches k="hair" /></Row>
-        <Row label="Estilo do cabelo"><Thumbs k="hairV" field="hairV" /></Row>
-        <Row label="Olhos"><Thumbs k="eyesV" field="eyesV" /></Row>
-        <Row label="Boca"><Thumbs k="mouthV" field="mouthV" /></Row>
-        <Row label="Óculos"><Thumbs k="glassesV" field="glassesV" /></Row>
-        <Row label="Brincos"><Thumbs k="earringsV" field="earringsV" /></Row>
-        <Row label="Detalhes"><div style={{ display:"flex", gap:6, flexWrap:"wrap" }}><Toggle field="freckles" label="Sardas" /><Toggle field="flores" label="Flores no cabelo" /></div></Row>
-        <Row label="👕 Roupa"><ItemThumbs items={ROUPA_ITEMS} field="roupa" /></Row>
-        <Row label="🐉 Pet / Animal mitológico"><Pets /></Row>
-      </div>
+      <div style={{ flexShrink:0 }}><AvatarPreview value={value} onChange={onChange} /></div>
+      <AvatarControls value={value} onChange={onChange} />
     </div>
   );
 }
@@ -4368,8 +4395,8 @@ function Login({ onJoin }) {
 
   const styles = {
     container:{ minHeight:"100vh", background:PAGE_BG, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:FONT, padding:16 },
-    // a turma de aluno fica mais larga: o boneco (prévia) cabe do lado da personalização, sem precisar rolar a página
-    card:{ background:"linear-gradient(180deg,#181d38ee,#131730ee)", backdropFilter:"blur(10px)", borderRadius:22, padding:32, width: role==="student" ? 720 : 460, maxWidth:"100%", border:"1px solid #2c3358", boxShadow:"0 24px 70px rgba(0,0,0,.5), 0 0 0 1px #7c83ff1a" },
+    // a turma de aluno fica bem mais larga: metade esquerda (turma/perfil/nome/prévia) e metade direita (personalização), lado a lado
+    card:{ background:"linear-gradient(180deg,#181d38ee,#131730ee)", backdropFilter:"blur(10px)", borderRadius:22, padding:32, width: role==="student" ? 880 : 460, maxWidth:"100%", border:"1px solid #2c3358", boxShadow:"0 24px 70px rgba(0,0,0,.5), 0 0 0 1px #7c83ff1a" },
     input:{ width:"100%", background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:"12px 14px", color:"#e8ebfa", fontSize:15, outline:"none", boxSizing:"border-box" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:12, padding:"12px 0", cursor:"pointer", fontWeight:800, fontSize:15, width:"100%", boxShadow:`0 4px 16px ${c}44` }),
     rBtn:()=>({ background:"#0d1122", color:"#96a0cc", border:`2px solid #2a3154`, borderRadius:14, padding:"18px 8px", cursor:"pointer", fontWeight:800, fontSize:14, flex:1 }),
@@ -4406,65 +4433,78 @@ function Login({ onJoin }) {
           <>
             <p style={{ color:"#fbbf24", fontWeight:600, marginBottom:10 }}>👤 Entrar como Aluno</p>
 
-            <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 8px" }}>🕑 Qual é a sua turma?</p>
-            <div style={{ display:"flex", gap:10, marginBottom:10 }}>
-              {SHIFTS.map(sh => (
-                <button key={sh.id} onClick={()=>{ setShift(sh.id); setTestUnlocking(false); }}
-                  style={{ ...styles.rBtn(), ...(shift===sh.id ? { borderColor:"#7c83ff", color:"#fff", background:"#7c83ff22" } : {}) }}>
-                  {sh.emoji} {sh.label}
-                </button>
-              ))}
-            </div>
-            <button onClick={()=> shift===TEST_SHIFT.id ? null : openTestShift()}
-              style={{ background:"transparent", border:"none", color: shift===TEST_SHIFT.id ? "#7c83ff" : "#5d679c", fontSize:12, cursor:"pointer", padding:"2px 0", marginBottom: shift===TEST_SHIFT.id||testUnlocking ? 10 : 18 }}>
-              {shift===TEST_SHIFT.id ? `✓ ${TEST_SHIFT.emoji} Turma de teste selecionada` : `${TEST_SHIFT.emoji} Sou da turma de teste`}
-            </button>
-            {testUnlocking && shift!==TEST_SHIFT.id && (
-              <div style={{ background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:12, marginBottom:18 }}>
-                <p style={{ color:"#96a0cc", fontSize:12, margin:"0 0 8px" }}>Digite a senha da turma de teste:</p>
-                <div style={{ display:"flex", gap:8 }}>
-                  <input type="password" autoFocus value={testPass} onChange={e=>setTestPass(e.target.value)}
-                    onKeyDown={e=>e.key==="Enter"&&confirmTestShift()} placeholder="Senha"
-                    style={{ ...styles.input, padding:"8px 12px", fontSize:14 }} />
-                  <button onClick={confirmTestShift} style={{ ...styles.btn("#7c83ff"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
+            {/* metade esquerda: turma, perfis salvos, nome e prévia do boneco — metade direita: personalização */}
+            <div style={{ display:"flex", gap:24, flexWrap:"wrap" }}>
+              <div style={{ flex:"1 1 300px", minWidth:260 }}>
+                <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 8px" }}>🕑 Qual é a sua turma?</p>
+                <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+                  {SHIFTS.map(sh => (
+                    <button key={sh.id} onClick={()=>{ setShift(sh.id); setTestUnlocking(false); }}
+                      style={{ ...styles.rBtn(), ...(shift===sh.id ? { borderColor:"#7c83ff", color:"#fff", background:"#7c83ff22" } : {}) }}>
+                      {sh.emoji} {sh.label}
+                    </button>
+                  ))}
                 </div>
-                {testError && <p style={{ color:"#f87171", fontSize:12, marginTop:6 }}>{testError}</p>}
-              </div>
-            )}
-
-            <div style={{ marginBottom:16 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                <span style={{ color:"#96a0cc", fontSize:13 }}>Já tem um perfil da turma {shiftMeta(shift).label}? Toque no seu nome:</span>
-                <button onClick={loadProfiles} style={{ background:"transparent", border:"none", color:"#7c83ff", cursor:"pointer", fontSize:12 }}>↻ atualizar</button>
-              </div>
-              {loadingProfiles ? <p style={{ color:"#5d679c", fontSize:13 }}>Procurando perfis salvos...</p>
-                : profiles.filter(p => (p.shift||"matutino")===shift).length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum perfil salvo ainda nesta turma. Crie o seu abaixo 👇</p>
-                : (
-                  <div style={{ maxHeight:170, overflowY:"auto", display:"flex", flexDirection:"column", gap:8 }}>
-                    {profiles.filter(p => (p.shift||"matutino")===shift).map(p=>(
-                      <button key={`${p.shift||"x"}:${p.name}`} onClick={()=>enterStudent(p.name, p.avatar, p.shift)} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"2px solid #2a3154", borderRadius:10, padding:"8px 12px", cursor:"pointer", color:"#e8ebfa", textAlign:"left" }}>
-                        <Avatar cfg={p.avatar} size={32} />
-                        <span style={{ fontWeight:600, flex:1 }}>{p.name}</span>
-                        <span style={{ color:"#7c83ff", fontSize:13, fontWeight:700 }}>Entrar →</span>
-                      </button>
-                    ))}
+                <button onClick={()=> shift===TEST_SHIFT.id ? null : openTestShift()}
+                  style={{ background:"transparent", border:"none", color: shift===TEST_SHIFT.id ? "#7c83ff" : "#5d679c", fontSize:12, cursor:"pointer", padding:"2px 0", marginBottom: shift===TEST_SHIFT.id||testUnlocking ? 10 : 18 }}>
+                  {shift===TEST_SHIFT.id ? `✓ ${TEST_SHIFT.emoji} Turma de teste selecionada` : `${TEST_SHIFT.emoji} Sou da turma de teste`}
+                </button>
+                {testUnlocking && shift!==TEST_SHIFT.id && (
+                  <div style={{ background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:12, marginBottom:18 }}>
+                    <p style={{ color:"#96a0cc", fontSize:12, margin:"0 0 8px" }}>Digite a senha da turma de teste:</p>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <input type="password" autoFocus value={testPass} onChange={e=>setTestPass(e.target.value)}
+                        onKeyDown={e=>e.key==="Enter"&&confirmTestShift()} placeholder="Senha"
+                        style={{ ...styles.input, padding:"8px 12px", fontSize:14 }} />
+                      <button onClick={confirmTestShift} style={{ ...styles.btn("#7c83ff"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
+                    </div>
+                    {testError && <p style={{ color:"#f87171", fontSize:12, marginTop:6 }}>{testError}</p>}
                   </div>
                 )}
-            </div>
 
-            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"6px 0 14px" }}>
-              <div style={{ flex:1, height:1, background:"#2a3154" }}/>
-              <span style={{ color:"#5d679c", fontSize:12 }}>ou crie um novo perfil na turma {shiftMeta(shift).label}</span>
-              <div style={{ flex:1, height:1, background:"#2a3154" }}/>
-            </div>
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <span style={{ color:"#96a0cc", fontSize:13 }}>Já tem um perfil da turma {shiftMeta(shift).label}? Toque no seu nome:</span>
+                    <button onClick={loadProfiles} style={{ background:"transparent", border:"none", color:"#7c83ff", cursor:"pointer", fontSize:12 }}>↻ atualizar</button>
+                  </div>
+                  {loadingProfiles ? <p style={{ color:"#5d679c", fontSize:13 }}>Procurando perfis salvos...</p>
+                    : profiles.filter(p => (p.shift||"matutino")===shift).length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum perfil salvo ainda nesta turma. Crie o seu abaixo 👇</p>
+                    : (
+                      <div style={{ maxHeight:170, overflowY:"auto", display:"flex", flexDirection:"column", gap:8 }}>
+                        {profiles.filter(p => (p.shift||"matutino")===shift).map(p=>(
+                          <button key={`${p.shift||"x"}:${p.name}`} onClick={()=>enterStudent(p.name, p.avatar, p.shift)} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"2px solid #2a3154", borderRadius:10, padding:"8px 12px", cursor:"pointer", color:"#e8ebfa", textAlign:"left" }}>
+                            <Avatar cfg={p.avatar} size={32} />
+                            <span style={{ fontWeight:600, flex:1 }}>{p.name}</span>
+                            <span style={{ color:"#7c83ff", fontSize:13, fontWeight:700 }}>Entrar →</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                </div>
 
-            <input style={styles.input} placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} />
-            <p style={{ color:"#96a0cc", fontSize:13, margin:"14px 0 8px" }}>🎨 Monte seu boneco:</p>
-            <AvatarBuilder value={avatar} onChange={setAvatar} />
-            {error&&<p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{error}</p>}
-            <div style={{ display:"flex", gap:8, marginTop:16 }}>
-              <button style={{ ...styles.btn("#7c83ff"), flex:1 }} onClick={handleNewStudent}>Criar perfil e entrar →</button>
-              <button style={{ ...styles.btn("#2a3154"), width:44, flex:"none" }} onClick={()=>{ setRole(null); setError(""); }}>↩</button>
+                <div style={{ display:"flex", alignItems:"center", gap:10, margin:"6px 0 14px" }}>
+                  <div style={{ flex:1, height:1, background:"#2a3154" }}/>
+                  <span style={{ color:"#5d679c", fontSize:12 }}>ou crie um novo perfil na turma {shiftMeta(shift).label}</span>
+                  <div style={{ flex:1, height:1, background:"#2a3154" }}/>
+                </div>
+
+                <input style={styles.input} placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} />
+                <p style={{ color:"#96a0cc", fontSize:13, margin:"14px 0 8px", textAlign:"center" }}>🎨 Seu boneco:</p>
+                <AvatarPreview value={avatar} onChange={setAvatar} />
+                <AvatarControls value={avatar} onChange={setAvatar} part="basic" />
+              </div>
+
+              <div style={{ flex:"1 1 440px", minWidth:400 }}>
+                <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 8px" }}>Personalize:</p>
+                <div style={{ columnCount:2, columnGap:20 }}>
+                  <AvatarControls value={avatar} onChange={setAvatar} part="rest" />
+                </div>
+                {error&&<p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{error}</p>}
+                <div style={{ display:"flex", gap:8, marginTop:16 }}>
+                  <button style={{ ...styles.btn("#7c83ff"), flex:1 }} onClick={handleNewStudent}>Criar perfil e entrar →</button>
+                  <button style={{ ...styles.btn("#2a3154"), width:44, flex:"none" }} onClick={()=>{ setRole(null); setError(""); }}>↩</button>
+                </div>
+              </div>
             </div>
           </>
         )}
