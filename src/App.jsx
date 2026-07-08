@@ -1840,6 +1840,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const stateRef = useRef({});
   const debounceRef = useRef(null);
   const attendanceRef = useRef({});
+  // "foto" do código no primeiro acesso do dia: o resumo da aula cobre só o que foi escrito DEPOIS dela
+  const daySnapshotRef = useRef(null);
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
@@ -1882,6 +1884,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       nyxGear: s.nyxGear || DEFAULT_NYX_GEAR,
       achievements: s.achievements || [],
       doneAt: s.doneAt || null,
+      daySnapshot: daySnapshotRef.current || null,
       ...extra,
     });
     setConnected(ok);
@@ -1916,6 +1919,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.nyxGear) setNyxGear({ ...DEFAULT_NYX_GEAR, ...prev.nyxGear });
           if (Array.isArray(prev.achievements)) setAchievements(prev.achievements);
           if (prev.doneAt) setDoneAt(prev.doneAt);
+        }
+        // foto do código do início do dia: se a salva for de outro dia (ou não existir), tira uma nova agora
+        {
+          const tk = todayKey();
+          if (prev?.daySnapshot && prev.daySnapshot.date === tk) {
+            daySnapshotRef.current = prev.daySnapshot;
+          } else {
+            const baseFiles = (prev && Array.isArray(prev.files) && prev.files.length) ? prev.files : [{ name:"Program.cs", code:"" }];
+            daySnapshotRef.current = { date: tk, files: baseFiles.map(f => ({ name: f.name, code: f.code || "" })) };
+          }
         }
         const es = await getExamState();
         if (alive) setExamInfo(es);
@@ -2139,8 +2152,25 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     setExplaining(false);
   };
 
-  // todo o código que o aluno escreveu hoje, em TODOS os arquivos (não só a aba aberta)
+  // todo o código do projeto do aluno, em TODOS os arquivos (não só a aba aberta)
   const allCodeToday = () => (files||[]).filter(f=>(f.code||"").trim()).map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n");
+
+  // só o que foi escrito HOJE: compara o código atual com a "foto" tirada no primeiro acesso do dia
+  const codeWrittenToday = () => {
+    const snapFiles = daySnapshotRef.current?.files || [];
+    const oldByName = Object.fromEntries(snapFiles.map(f => [f.name, f.code || ""]));
+    return (files || [])
+      .map(f => {
+        const oldCode = oldByName[f.name];
+        if (oldCode == null || !oldCode.trim()) return { name: f.name, code: f.code || "" }; // arquivo novo (ou vazio ontem): tudo é de hoje
+        const oldLines = new Set(oldCode.split("\n").map(l => l.trim()).filter(Boolean));
+        const newLines = (f.code || "").split("\n").filter(l => l.trim() && !oldLines.has(l.trim()));
+        return { name: f.name, code: newLines.join("\n") };
+      })
+      .filter(f => (f.code || "").trim())
+      .map(f => `// ===== ${f.name} =====\n${f.code}`)
+      .join("\n\n");
+  };
 
   const handleSave = async () => {
     const fullCode = allCodeToday();
@@ -2151,8 +2181,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     await persist({ phase:"generating", answers:{} });
     try {
       setGeneratingMsg("📚 Criando o resumo da sua aula...");
+      const todayCode = codeWrittenToday();
+      const hasTodayDiff = todayCode.trim().length >= 10 && todayCode.trim() !== fullCode.trim();
       const summaryResult = await askClaude(
-        `Um aluno iniciante de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos fazem parte do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie um resumo da aula bem organizado e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 ou 2 frases curtas e acolhedoras dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação bem simples, de 1 a 3 frases, do que isso faz e por quê", "exemplo": "um trecho de código C# curto e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta, útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no código dele, olhando TODOS os arquivos (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Linguagem bem de iniciante. Exemplos curtos, corretos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
+        (hasTodayDiff
+          ? `Projeto C# completo de um aluno iniciante (contexto — inclui código de aulas ANTERIORES):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nTRECHOS QUE ELE ESCREVEU HOJE, na aula de hoje (extraídos por comparação com o início do dia):\n\`\`\`csharp\n${todayCode}\n\`\`\`\n\nCrie um resumo da AULA DE HOJE: cubra APENAS os conceitos que aparecem nos trechos escritos hoje. NÃO faça seções sobre conceitos que só existem no código das aulas anteriores — o projeto completo é só contexto para você entender os trechos novos.`
+          : `Um aluno iniciante de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos fazem parte do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie um resumo da aula`) +
+        ` bem organizado e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 ou 2 frases curtas e acolhedoras dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação bem simples, de 1 a 3 frases, do que isso faz e por quê", "exemplo": "um trecho de código C# curto e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta, útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${hasTodayDiff ? "código escrito HOJE" : "código dele, olhando TODOS os arquivos"} (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Linguagem bem de iniciante. Exemplos curtos, corretos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
         "Você é um professor de C# paciente e organizado, para iniciantes. Português correto e simples. Responda APENAS JSON puro válido."
       );
       let summaryData;
