@@ -3323,10 +3323,28 @@ function TeacherView({ onLogout }) {
   const feedbacks = sorted
     .filter(s => s.classFeedback && (s.classFeedback.rating || (s.classFeedback.text||"").trim()))
     .sort((a,b) => (b.classFeedback.at||0) - (a.classFeedback.at||0));
+  // ── visão do DIA: só conta quem apareceu hoje; notas só das conquistas de hoje ──
+  // quem entrou na plataforma hoje (no dia seguinte, antes de alguém entrar, tudo zera)
+  const todayStudents = sorted.filter(s => isSameDayTs(s.lastSeen));
+  // fase "do dia": concluiu conta até as 9h da manhã seguinte; um "done" velho de outro dia volta a contar como codando
+  const dayPhase = (s) => {
+    if (isDoneActive(s.doneAt)) return "done";
+    if (s.phase === "done") return "coding";
+    return s.phase;
+  };
+  // nota da atividade só vale se foi concluída hoje; nota da prova só se a prova atual começou hoje
+  const examIsToday = examConfig?.startedAt && isSameDayTs(examConfig.startedAt);
+  const todayScoreOf = (s) => {
+    const act = isSameDayTs(s.doneAt) && s.score != null ? s.score : -1;
+    const exam = examIsToday && s.examScore != null ? s.examScore : -1;
+    return Math.max(act, exam);
+  };
   // resumo automático (só agregação dos dados já carregados, sem IA)
-  const topToday = [...sorted]
-    .filter(s => s.score != null || s.examScore != null)
-    .sort((a,b) => Math.max(b.score||0, b.examScore||0) - Math.max(a.score||0, a.examScore||0))[0];
+  const topEntry = todayStudents
+    .map(s => ({ s, val: todayScoreOf(s) }))
+    .filter(x => x.val >= 0)
+    .sort((a,b) => b.val - a.val)[0];
+  const topToday = topEntry ? { ...topEntry.s, todayScore: topEntry.val } : null;
 
   // presença do dia: present (compareceu e fez algo) · idle (entrou mas parado) · absent (não entrou hoje)
   const attStatus = (s) => {
@@ -3509,17 +3527,21 @@ function TeacherView({ onLogout }) {
             </div>
 
             <div style={styles.card}>
-              <h4 style={{ color:"#fbbf24", marginBottom:10, fontSize:14 }}>📊 Turma</h4>
+              <h4 style={{ color:"#fbbf24", marginBottom:10, fontSize:14 }}>📊 Turma hoje</h4>
+              {/* conta só quem entrou HOJE — no dia seguinte, antes de alguém entrar, fica tudo no 0 */}
               {["coding","summary","activity","done"].map(p=>(
                 <div key={p} style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
                   <span style={{ color:phaseColor(p), fontSize:13 }}>{phaseLabel(p)}</span>
-                  <span style={styles.badge(phaseColor(p))}>{shown.filter(s=>s.phase===p).length}</span>
+                  <span style={styles.badge(phaseColor(p))}>{todayStudents.filter(s=>dayPhase(s)===p).length}</span>
                 </div>
               ))}
               <hr style={{ borderColor:"#2a3154", margin:"8px 0" }}/>
               <div style={{ display:"flex", justifyContent:"space-between" }}>
-                <span style={{ color:"#96a0cc", fontSize:13 }}>Média</span>
-                <span style={{ color:"#34d399", fontWeight:700 }}>{shown.filter(s=>s.score!=null).length>0 ? Math.round(shown.filter(s=>s.score!=null).reduce((a,s)=>a+s.score,0)/shown.filter(s=>s.score!=null).length)+" pts" : "—"}</span>
+                <span style={{ color:"#96a0cc", fontSize:13 }}>Média de hoje</span>
+                <span style={{ color:"#34d399", fontWeight:700 }}>{(() => {
+                  const done = todayStudents.filter(s => s.score!=null && isSameDayTs(s.doneAt));
+                  return done.length > 0 ? Math.round(done.reduce((a,s)=>a+s.score,0)/done.length)+" pts" : "—";
+                })()}</span>
               </div>
             </div>
 
@@ -3634,7 +3656,7 @@ function TeacherView({ onLogout }) {
                     : "✅ Ninguém com dificuldade agora"}
                 </div>
                 {topToday && (
-                  <div style={{ color:"#34d399" }}>🌟 Destaque de hoje: <b>{topToday.name}</b> ({Math.max(topToday.score||0, topToday.examScore||0)} pts)</div>
+                  <div style={{ color:"#34d399" }}>🌟 Destaque de hoje: <b>{topToday.name}</b> ({topToday.todayScore} pts)</div>
                 )}
               </div>
             </div>
