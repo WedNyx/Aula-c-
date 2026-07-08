@@ -76,15 +76,39 @@ function computeStreak(attendance) {
 
 // ── conquistas/medalhas do aluno ──
 const ACHIEVEMENTS = [
+  // primeiros passos e notas
   { id:"primeira-atividade", emoji:"🥇", label:"Primeiro Passo", desc:"Concluiu a primeira atividade da aula" },
   { id:"nota-cem",           emoji:"💯", label:"Nota Cem",       desc:"Tirou 100 numa atividade" },
+  { id:"tres-100",           emoji:"🌟", label:"Triplo Cem",     desc:"Tirou 100 em 3 atividades diferentes" },
   { id:"codigo-limpo",       emoji:"✨", label:"Código Limpo",  desc:"Escreveu um código sem nenhum erro" },
+  { id:"atividades-5",       emoji:"✍️", label:"Praticante",     desc:"Concluiu 5 atividades" },
+  { id:"atividades-15",      emoji:"📚", label:"Dedicado",       desc:"Concluiu 15 atividades" },
+  // provas
   { id:"prova-mestre",       emoji:"🎓", label:"Mestre da Prova", desc:"Fez 80% ou mais numa prova" },
+  { id:"prova-100",          emoji:"🎯", label:"Prova Perfeita", desc:"Acertou TUDO numa prova" },
+  // presença e sequência
   { id:"sequencia-3",        emoji:"🔥", label:"3 Dias Seguidos", desc:"Veio 3 dias seguidos de aula" },
   { id:"sequencia-7",        emoji:"🔥", label:"Semana Completa", desc:"Veio 7 dias seguidos de aula" },
+  { id:"sequencia-14",       emoji:"🌋", label:"Duas Semanas!",  desc:"Veio 14 dias seguidos de aula" },
+  { id:"presencas-5",        emoji:"📅", label:"Frequente",      desc:"Participou de 5 aulas" },
+  { id:"presencas-15",       emoji:"🗓️", label:"Assíduo",        desc:"Participou de 15 aulas" },
+  { id:"presencas-30",       emoji:"🏫", label:"Veterano",       desc:"Participou de 30 aulas" },
+  // combos
   { id:"combo-5",            emoji:"⚡", label:"Combo Elétrico", desc:"Acertou 5 questões seguidas numa atividade" },
   { id:"combo-8",            emoji:"🚀", label:"Combo Insano",  desc:"Acertou 8 questões seguidas numa atividade" },
-  { id:"duelista",           emoji:"⚔️", label:"Duelista",      desc:"Venceu um duelo contra um colega" },
+  // pontos do Nyx
+  { id:"pontos-10",          emoji:"🪙", label:"Poupança",       desc:"Juntou 10 pontos do Nyx" },
+  { id:"pontos-50",          emoji:"💰", label:"Riqueza",        desc:"Juntou 50 pontos do Nyx" },
+  { id:"pontos-100",         emoji:"💎", label:"Magnata",        desc:"Juntou 100 pontos do Nyx" },
+  { id:"pontos-250",         emoji:"👑", label:"Lendário",       desc:"Juntou 250 pontos do Nyx" },
+  // loja
+  { id:"comprador",          emoji:"🛍️", label:"Primeira Compra", desc:"Comprou o primeiro item na Loja do Nyx" },
+  { id:"colecionador",       emoji:"🎒", label:"Colecionador",   desc:"Comprou 4 itens na Loja do Nyx" },
+  // duelos
+  { id:"duelista",           emoji:"⚔️", label:"Duelista",       desc:"Venceu um duelo contra um colega" },
+  { id:"duelista-3",         emoji:"🏆", label:"Campeão de Duelos", desc:"Venceu 3 duelos" },
+  // extras
+  { id:"artista",            emoji:"🎨", label:"Artista",        desc:"Pediu ao Nyx um fundo de cor personalizada" },
 ];
 const achievementInfo = (id) => ACHIEVEMENTS.find(a => a.id === id);
 
@@ -390,7 +414,6 @@ const NYX_ITEMS = [
   { id:"arco",   label:"Arco e flecha",  emoji:"🏹", slot:"hand", cost:50 },
 ];
 const DEFAULT_NYX_GEAR = { head:null, face:null, neck:null, hand:null };
-const nyxItemUnlocked = (points, item) => points >= item.cost;
 
 // ── NYX: o robô assistente da turma (SVG + animações CSS) ──
 let __nyxSeq = 0;
@@ -1201,11 +1224,15 @@ function TourOverlay({ step, onNext, onSkip }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
 // ════════════════════════════════════════════════════════════════════════════
-function NyxShop({ points, gear, onEquip, isTestShift, onClose }) {
-  const toggle = (item) => {
-    if (!isTestShift && points < item.cost) return;
-    const isEquipped = gear[item.slot] === item.id;
-    onEquip({ ...gear, [item.slot]: isEquipped ? null : item.id });
+function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onClose }) {
+  const click = (item) => {
+    const has = isTestShift || owned.includes(item.id);
+    if (has) {
+      const isEquipped = gear[item.slot] === item.id;
+      onEquip({ ...gear, [item.slot]: isEquipped ? null : item.id });
+    } else if (wallet >= item.cost) {
+      onBuy(item); // compra: gasta os pontos, entra pro inventário e já equipa
+    }
   };
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
@@ -1215,37 +1242,41 @@ function NyxShop({ points, gear, onEquip, isTestShift, onClose }) {
           <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
         <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>
-          {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa nas atividades e provas vira 1 ponto. Use para desbloquear e equipar acessórios no Nyx!"}
+          {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa vira 1 ponto. Comprar um item GASTA os pontos — mas o item é seu para sempre! (Seu lugar no ranking não muda: ele conta os pontos que você já ganhou.)"}
         </p>
 
         <div style={{ display:"flex", alignItems:"center", gap:16, background:"#0d1122", border:"1px solid #2a3154", borderRadius:16, padding:16, marginBottom:16 }}>
           <NyxRobot state="ok" size={72} showName={false} gear={gear} />
           <div>
-            <div style={{ color:"#fbbf24", fontWeight:900, fontSize:22 }}>{points} pts</div>
-            <div style={{ color:"#5d679c", fontSize:12 }}>Toque num item desbloqueado para vestir ou tirar</div>
+            <div style={{ color:"#fbbf24", fontWeight:900, fontSize:22 }}>💰 {wallet} pts</div>
+            <div style={{ color:"#5d679c", fontSize:12 }}>para gastar · itens comprados: toque para vestir ou tirar</div>
           </div>
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
           {NYX_ITEMS.map(item => {
-            const unlocked = isTestShift || nyxItemUnlocked(points, item);
+            const has = isTestShift || owned.includes(item.id);
+            const canBuy = !has && wallet >= item.cost;
+            const clickable = has || canBuy;
             const equipped = gear[item.slot] === item.id;
             return (
-              <button key={item.id} data-item={item.id} onClick={()=>toggle(item)} disabled={!unlocked}
+              <button key={item.id} data-item={item.id} onClick={()=>click(item)} disabled={!clickable}
                 style={{
                   background: equipped ? "#7c83ff26" : "#0d1122",
-                  border: `2px solid ${equipped ? "#7c83ff" : unlocked ? "#2a3154" : "#241f38"}`,
-                  borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: unlocked?"pointer":"default",
-                  opacity: unlocked ? 1 : 0.55, position:"relative",
+                  border: `2px solid ${equipped ? "#7c83ff" : has ? "#34d39966" : canBuy ? "#fbbf2466" : "#241f38"}`,
+                  borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: clickable?"pointer":"default",
+                  opacity: clickable ? 1 : 0.55, position:"relative",
                 }}>
-                <div style={{ fontSize:30, filter: unlocked?"none":"grayscale(1)" }}>{item.emoji}</div>
+                <div style={{ fontSize:30, filter: clickable?"none":"grayscale(1)" }}>{item.emoji}</div>
                 <div style={{ color:"#e8ebfa", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
-                {unlocked ? (
+                {has ? (
                   equipped
                     ? <div style={{ color:"#7c83ff", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
-                    : <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>{item.cost} pts</div>
+                    : <div style={{ color:"#34d399", fontSize:11, fontWeight:700, marginTop:4 }}>✓ Seu · toque para vestir</div>
+                ) : canBuy ? (
+                  <div style={{ color:"#fbbf24", fontSize:11, fontWeight:800, marginTop:4 }}>🛒 Comprar · {item.cost} pts</div>
                 ) : (
-                  <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>🔒 {points}/{item.cost} pts</div>
+                  <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>🔒 {wallet}/{item.cost} pts</div>
                 )}
               </button>
             );
@@ -1905,10 +1936,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [examAnswers, setExamAnswers] = useState({});
   const [examDone, setExamDone] = useState(false);
   const [examCurrentQ, setExamCurrentQ] = useState(0);
-  // loja do Nyx (pontos ganhos por acerto + acessórios equipados)
+  // loja do Nyx: nyxPoints = pontos GANHOS (ranking/meta usam este); nyxSpent = total gasto na loja
+  // carteira disponível = nyxPoints - nyxSpent; nyxOwned = itens comprados
   const [nyxPoints, setNyxPoints] = useState(0);
+  const [nyxSpent, setNyxSpent] = useState(0);
+  const [nyxOwned, setNyxOwned] = useState([]);
   const [nyxGear, setNyxGear] = useState(DEFAULT_NYX_GEAR);
   const [showNyxShop, setShowNyxShop] = useState(false);
+  const [duelWins, setDuelWins] = useState(0);
   // conquistas, ranking, meta da turma, curiosidade do dia, duelo, sons
   const [achievements, setAchievements] = useState([]);
   const [newAchievement, setNewAchievement] = useState(null);
@@ -1936,14 +1971,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
   const sessionStart = useRef(Date.now());
   const stateRef = useRef({});
-  const debounceRef = useRef(null);
   const attendanceRef = useRef({});
   // "foto" do código no primeiro acesso do dia: o resumo da aula cobre só o que foi escrito DEPOIS dela
   const daySnapshotRef = useRef(null);
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxGear, achievements, doneAt, scoreHistory, summaryHistory };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, duelWins };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -1979,8 +2013,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       examDone: s.examDone || false,
       theme: s.theme || "dark",
       nyxPoints: s.nyxPoints || 0,
+      nyxSpent: s.nyxSpent || 0,
+      nyxOwned: s.nyxOwned || [],
       nyxGear: s.nyxGear || DEFAULT_NYX_GEAR,
       achievements: s.achievements || [],
+      duelWins: s.duelWins || 0,
       doneAt: s.doneAt || null,
       daySnapshot: daySnapshotRef.current || null,
       scoreHistory: s.scoreHistory || {},
@@ -2008,7 +2045,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.dynamicSummary) setDynamicSummary(prev.dynamicSummary);
           if (prev.finalFeedback) setFinalFeedback(prev.finalFeedback);
           if (prev.phase && prev.phase !== "generating") setPhase(prev.phase);
-          if (prev.classFeedback) { setClassFb(prev.classFeedback); setClassRating(prev.classFeedback.rating||0); setClassText(prev.classFeedback.text||""); setClassSent(true); }
+          if (prev.classFeedback) {
+            setClassFb(prev.classFeedback);
+            // o feedback só "trava" a tela se já foi enviado NESTA aula (mesmo dia) — em uma aula nova, pode enviar de novo
+            if (isSameDayTs(prev.classFeedback.at)) { setClassRating(prev.classFeedback.rating||0); setClassText(prev.classFeedback.text||""); setClassSent(true); }
+          }
           if (prev.feedback) { setFeedback(prev.feedback); setRobotMsg(prev.feedback.message||""); setRobotState(prev.feedback.ok?"ok":"error"); setKeysToShow(prev.feedback.missingChars||[]); }
           if (prev.examReady) setExamReady(true);
           if (prev.examScore != null) setExamScore(prev.examScore);
@@ -2016,7 +2057,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.examDone) setExamDone(true);
           if (prev.theme) setTheme(prev.theme);
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
+          if (prev.nyxSpent) setNyxSpent(prev.nyxSpent);
+          if (prev.duelWins) setDuelWins(prev.duelWins);
           if (prev.nyxGear) setNyxGear({ ...DEFAULT_NYX_GEAR, ...prev.nyxGear });
+          // inventário: migra quem já usava itens antes da loja cobrar — o que está equipado vira comprado (de graça)
+          {
+            const equipped = Object.values(prev.nyxGear || {}).filter(Boolean);
+            const owned = Array.isArray(prev.nyxOwned) ? prev.nyxOwned : [];
+            setNyxOwned([...new Set([...owned, ...equipped])]);
+          }
           if (Array.isArray(prev.achievements)) setAchievements(prev.achievements);
           if (prev.doneAt) setDoneAt(prev.doneAt);
           if (prev.scoreHistory) setScoreHistory(prev.scoreHistory);
@@ -2116,7 +2165,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           const newNyxPoints = (s.nyxPoints || 0) + pts;
           setNyxPoints(newNyxPoints);
           await persist({ examScore: partial, examDone: true, nyxPoints: newNyxPoints });
+          checkPointsAchievements(newNyxPoints);
           if (qs.length && pts / qs.length >= 0.8) unlockAchievement("prova-mestre");
+          if (qs.length && pts === qs.length) unlockAchievement("prova-100");
         } else if (es.status === 'idle' && s.examDone) {
           // professor resetou a prova
           setExamReady(false); setExamScore(null); setExamAnswers({}); setExamDone(false); setExamCurrentQ(0);
@@ -2144,49 +2195,56 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       } catch {}
       await persist();
       const streak = computeStreak(attendanceRef.current);
+      if (streak >= 3) unlockAchievement("sequencia-3");
       if (streak >= 7) unlockAchievement("sequencia-7");
-      else if (streak >= 3) unlockAchievement("sequencia-3");
+      if (streak >= 14) unlockAchievement("sequencia-14");
+      const presences = Object.values(attendanceRef.current).filter(v => v === "present").length;
+      if (presences >= 5) unlockAchievement("presencas-5");
+      if (presences >= 15) unlockAchievement("presencas-15");
+      if (presences >= 30) unlockAchievement("presencas-30");
     };
     tick();
     const iv = setInterval(tick, 3000);
     return () => { active2 = false; clearInterval(iv); };
   }, [loaded, persist, onLogout, shift, studentName]);
 
-  // robô: 5 segundos depois que o aluno para de digitar
+  // robô: só analisa quando o aluno clica no botão (limpa o aviso se apagar o código)
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = activeCode.trim();
-    if (trimmed.length < 12) { setRobotState("idle"); setRobotMsg(""); setKeysToShow([]); setFeedback(null); return; }
-    debounceRef.current = setTimeout(async () => {
-      setRobotState("thinking"); setAnalyzing(true);
-      const quick = quickCheck(activeCode);
-      if (quick) {
-        const fb = { ok:false, message:quick.message, missingChars:quick.missing||[] };
-        setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setFeedback(fb);
-        await persist({ feedback:fb, hasError:true });
-        setAnalyzing(false);
-        return;
-      }
-      try {
-        const parsed = await askClaudeJson(
-          `Revise o código C# de um aluno iniciante como um COMPILADOR faria, linha por linha.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nO que verificar (nesta ordem):\n1. Maiúsculas/minúsculas: Console.WriteLine, Console.ReadLine, Convert.ToInt32, int.Parse — "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS.\n2. Tipos em minúsculo (regra da turma): string, int, double, bool, char — se usou String/Int32/Double/Boolean, avise para trocar pela forma minúscula.\n3. Ponto e vírgula ; faltando no fim de instruções (declarações, chamadas, atribuições).\n4. Chaves { }, parênteses ( ) e aspas " — conte os pares no arquivo INTEIRO antes de acusar falta.\n5. Palavras-chave erradas (publik, voi, whille, pritn, statics, clas).\n6. Variáveis usadas sem declarar (confira TODAS as linhas anteriores antes de acusar) e comparação com = em vez de ==.\n7. Console.ReadLine lido direto para int/double sem Convert/Parse.\n\nLembretes IMPORTANTES:\n- Top-level statements (código sem class/Main) e ausência de using System são VÁLIDOS — não são erro.\n- Não aponte classe/método "inexistente" se estiver definido em outro arquivo do projeto.\n- NÃO invente erro em código correto. Na dúvida real, prefira ok=true.\n\nResponda APENAS em JSON puro, sem markdown, com os campos NESTA ordem:\n{"analise": "sua verificação rápida linha a linha, citando o que conferiu (máx 3 frases — o aluno não vê isto)", "ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: onde está (linha/trecho) e como corrigir mostrando a forma certa, em 1 a 3 frases gentis", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se nenhum"]}`,
-          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
-          { temperature: 0 }
-        );
-        setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
-        await persist({ feedback:parsed, hasError:!parsed.ok });
-        if (parsed.ok) unlockAchievement("codigo-limpo");
-      } catch(e) {
-        if (e.message === 'ROBOTKEY_MISSING') {
-          setRobotState("error");
-          setRobotMsg("🔑 Nyx está offline: o professor precisa configurar a chave ANTHROPIC_API_KEY no painel do Vercel. A verificação básica do código continua funcionando!");
-        } else {
-          setRobotState("idle"); setRobotMsg("");
-        }
-      }
-      setAnalyzing(false);
-    }, 5000);
+    if (trimmed.length < 12) { setRobotState("idle"); setRobotMsg(""); setKeysToShow([]); setFeedback(null); }
   }, [activeCode]);
+
+  const analyzeCode = async () => {
+    const trimmed = activeCode.trim();
+    if (trimmed.length < 12 || analyzing) return;
+    setRobotState("thinking"); setAnalyzing(true);
+    const quick = quickCheck(activeCode);
+    if (quick) {
+      const fb = { ok:false, message:quick.message, missingChars:quick.missing||[] };
+      setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setFeedback(fb);
+      await persist({ feedback:fb, hasError:true });
+      setAnalyzing(false);
+      return;
+    }
+    try {
+      const parsed = await askClaudeJson(
+        `Revise o código C# de um aluno iniciante como um COMPILADOR faria, linha por linha.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nO que verificar (nesta ordem):\n1. Maiúsculas/minúsculas: Console.WriteLine, Console.ReadLine, Convert.ToInt32, int.Parse — "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS.\n2. Tipos em minúsculo (regra da turma): string, int, double, bool, char — se usou String/Int32/Double/Boolean, avise para trocar pela forma minúscula.\n3. Ponto e vírgula ; faltando no fim de instruções (declarações, chamadas, atribuições).\n4. Chaves { }, parênteses ( ) e aspas " — conte os pares no arquivo INTEIRO antes de acusar falta.\n5. Palavras-chave erradas (publik, voi, whille, pritn, statics, clas).\n6. Variáveis usadas sem declarar (confira TODAS as linhas anteriores antes de acusar) e comparação com = em vez de ==.\n7. Console.ReadLine lido direto para int/double sem Convert/Parse.\n\nLembretes IMPORTANTES:\n- Top-level statements (código sem class/Main) e ausência de using System são VÁLIDOS — não são erro.\n- Não aponte classe/método "inexistente" se estiver definido em outro arquivo do projeto.\n- NÃO invente erro em código correto. Na dúvida real, prefira ok=true.\n\nResponda APENAS em JSON puro, sem markdown, com os campos NESTA ordem:\n{"analise": "sua verificação rápida linha a linha, citando o que conferiu (máx 3 frases — o aluno não vê isto)", "ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: onde está (linha/trecho) e como corrigir mostrando a forma certa, em 1 a 3 frases gentis", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se nenhum"]}`,
+        CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
+        { temperature: 0 }
+      );
+      setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
+      await persist({ feedback:parsed, hasError:!parsed.ok });
+      if (parsed.ok) unlockAchievement("codigo-limpo");
+    } catch(e) {
+      if (e.message === 'ROBOTKEY_MISSING') {
+        setRobotState("error");
+        setRobotMsg("🔑 Nyx está offline: o professor precisa configurar a chave ANTHROPIC_API_KEY no painel do Vercel. A verificação básica do código continua funcionando!");
+      } else {
+        setRobotState("idle"); setRobotMsg("");
+      }
+    }
+    setAnalyzing(false);
+  };
 
   // arquivos
   const updateActiveCode = (newCode) => setFiles(fs => fs.map((f,i)=> i===active ? { ...f, code:newCode } : f));
@@ -2224,6 +2282,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const cancelRename = () => { setRenaming(null); setRenameValue(""); };
 
   const setThemeAndSave = (t) => { setTheme(t); persist({ theme: t }); };
+  const handleNyxTheme = (t) => { setThemeAndSave(t); if (String(t).startsWith("#")) unlockAchievement("artista"); };
+
+  // desbloqueia as conquistas de pontos acumulados (nyxPoints é o total GANHO, nunca diminui)
+  const checkPointsAchievements = (total) => {
+    if (total >= 10) unlockAchievement("pontos-10");
+    if (total >= 50) unlockAchievement("pontos-50");
+    if (total >= 100) unlockAchievement("pontos-100");
+    if (total >= 250) unlockAchievement("pontos-250");
+  };
 
   const toggleMuted = () => { setMuted(m => { setSoundsMuted(!m); return !m; }); };
 
@@ -2239,6 +2306,21 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     setNewAchievement(achievementInfo(id));
     playSound("achievement");
     setTimeout(() => setNewAchievement(null), 4000);
+  };
+
+  // compra um item na Loja do Nyx: gasta os pontos (nyxSpent), entra pro inventário e já equipa
+  const handleBuyItem = async (item) => {
+    if (nyxOwned.includes(item.id) || (nyxPoints - nyxSpent) < item.cost) return;
+    const newSpent = nyxSpent + item.cost;
+    const newOwned = [...nyxOwned, item.id];
+    const newGear = { ...nyxGear, [item.slot]: item.id };
+    setNyxSpent(newSpent);
+    setNyxOwned(newOwned);
+    setNyxGear(newGear);
+    playSound("achievement");
+    await persist({ nyxSpent: newSpent, nyxOwned: newOwned, nyxGear: newGear });
+    unlockAchievement("comprador");
+    if (newOwned.length >= 4) unlockAchievement("colecionador");
   };
 
   // Nyx explica os erros da atividade — gera tudo de uma vez (rápido) e depois revela passo a passo num modal
@@ -2292,25 +2374,27 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     setGeneratingMsg("📖 Lendo seu código...");
     await persist({ phase:"generating", answers:{} });
     try {
-      setGeneratingMsg("📚 Criando o resumo da sua aula...");
+      setGeneratingMsg("📚 Criando o resumo e a atividade da sua aula...");
       const todayCode = codeWrittenToday();
       const hasTodayDiff = todayCode.trim().length >= 10 && todayCode.trim() !== fullCode.trim();
-      const summaryResult = await askClaude(
-        (hasTodayDiff
-          ? `Projeto C# completo de um aluno iniciante (contexto — inclui código de aulas ANTERIORES):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nTRECHOS QUE ELE ESCREVEU HOJE, na aula de hoje (extraídos por comparação com o início do dia):\n\`\`\`csharp\n${todayCode}\n\`\`\`\n\nCrie um resumo da AULA DE HOJE: cubra APENAS os conceitos que aparecem nos trechos escritos hoje. NÃO faça seções sobre conceitos que só existem no código das aulas anteriores — o projeto completo é só contexto para você entender os trechos novos.`
-          : `Um aluno iniciante de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos fazem parte do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie um resumo da aula`) +
-        ` bem organizado e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 ou 2 frases curtas e acolhedoras dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação bem simples, de 1 a 3 frases, do que isso faz e por quê", "exemplo": "um trecho de código C# curto e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta, útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${hasTodayDiff ? "código escrito HOJE" : "código dele, olhando TODOS os arquivos"} (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Linguagem bem de iniciante. Exemplos curtos, corretos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
-        "Você é um professor de C# paciente e organizado, para iniciantes. Português correto e simples. Responda APENAS JSON puro válido."
-      );
+      // resumo e atividade são pedidos ao Nyx AO MESMO TEMPO (não um depois do outro) para não somar o tempo de espera dos dois
+      const [summaryResult, activityResult] = await Promise.all([
+        askClaude(
+          (hasTodayDiff
+            ? `Projeto C# completo de um aluno iniciante (contexto — inclui código de aulas ANTERIORES):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nTRECHOS QUE ELE ESCREVEU HOJE, na aula de hoje (extraídos por comparação com o início do dia):\n\`\`\`csharp\n${todayCode}\n\`\`\`\n\nCrie um resumo da AULA DE HOJE: cubra APENAS os conceitos que aparecem nos trechos escritos hoje. NÃO faça seções sobre conceitos que só existem no código das aulas anteriores — o projeto completo é só contexto para você entender os trechos novos.`
+            : `Um aluno iniciante de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos fazem parte do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie um resumo da aula`) +
+          ` bem organizado e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 ou 2 frases curtas e acolhedoras dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação bem simples, de 1 a 3 frases, do que isso faz e por quê", "exemplo": "um trecho de código C# curto e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta, útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${hasTodayDiff ? "código escrito HOJE" : "código dele, olhando TODOS os arquivos"} (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Linguagem bem de iniciante. Exemplos curtos, corretos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
+          "Você é um professor de C# paciente e organizado, para iniciantes. Português correto e simples. Responda APENAS JSON puro válido."
+        ),
+        askClaude(
+          `Um aluno de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie 8 questões de múltipla escolha focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
+          "Crie questões sobre conceitos de código C#, não matemática. APENAS JSON puro."
+        ),
+      ]);
       let summaryData;
       try { summaryData = extractJson(summaryResult); }
       catch { summaryData = { raw: summaryResult }; }
       setDynamicSummary(summaryData);
-      setGeneratingMsg("📝 Criando atividade sobre seu código...");
-      const activityResult = await askClaude(
-        `Um aluno de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie 8 questões de múltipla escolha focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
-        "Crie questões sobre conceitos de código C#, não matemática. APENAS JSON puro."
-      );
       const parsed = extractJson(activityResult);
       const questions = shuffleQuestions(parsed.questions);
       setDynamicActivity(questions);
@@ -2361,8 +2445,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     const newScoreHistory = { ...scoreHistory, [todayKey()]: finalScore };
     setScoreHistory(newScoreHistory);
     await persist({ phase:"done", score:finalScore, answers, nyxPoints: newNyxPoints, doneAt: completedAt, scoreHistory: newScoreHistory });
+    checkPointsAchievements(newNyxPoints);
     unlockAchievement("primeira-atividade");
     if (finalScore >= 100) unlockAchievement("nota-cem");
+    const doneCount = Object.keys(newScoreHistory).length;
+    if (doneCount >= 5) unlockAchievement("atividades-5");
+    if (doneCount >= 15) unlockAchievement("atividades-15");
+    const hundredCount = Object.values(newScoreHistory).filter(v => v === 100).length;
+    if (hundredCount >= 3) unlockAchievement("tres-100");
     try {
       const list = activity.map((q,i)=>`- ${q.q} → ${answers[i]===q.correct?"acertou":"errou"}`).join("\n");
       const fb = await askClaude(
@@ -2395,7 +2485,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       const newNyxPoints = nyxPoints + pts;
       setNyxPoints(newNyxPoints);
       await persist({ examAnswers: newAnswers, examScore: finalScore, examDone: true, nyxPoints: newNyxPoints });
+      checkPointsAchievements(newNyxPoints);
       if (qs.length && pts / qs.length >= 0.8) unlockAchievement("prova-mestre");
+      if (qs.length && pts === qs.length) unlockAchievement("prova-100");
     }
   };
 
@@ -2843,8 +2935,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           </div>
 
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
-            <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Nyx confere seu código 5s depois que você para de escrever")}</span>
-            <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
+            <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
+            <div style={{ display:"flex", gap:8 }}>
+              <button style={{ ...styles.btn("#7c83ff"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={analyzeCode} disabled={analyzing||activeCode.trim().length<12}>
+                {analyzing ? "🔍 Analisando..." : "✨ Analisar meu código"}
+              </button>
+              <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
+            </div>
           </div>
 
           <Terminal files={files} dataTour="terminal" />
@@ -2857,7 +2954,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6 }}>{robotMsg}</div>)}
             {keysToShow.length>0&&(<div style={{ marginTop:10 }}><p style={{ color:"#fbbf24", fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
             <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
-              🎁 Loja do Nyx · {nyxPoints} pts
+              🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
             </button>
           </div>
           <div style={styles.card}>
@@ -2890,9 +2987,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
       {showNyxShop && (
         <NyxShop
-          points={nyxPoints}
+          wallet={nyxPoints - nyxSpent}
+          owned={nyxOwned}
           gear={nyxGear}
           onEquip={(newGear)=>{ setNyxGear(newGear); persist({ nyxGear: newGear }); }}
+          onBuy={handleBuyItem}
           isTestShift={shift === TEST_SHIFT.id}
           onClose={()=>setShowNyxShop(false)}
         />
@@ -2919,8 +3018,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           shift={shift}
           myName={studentName}
           myAvatar={avatar}
-          onAward={async (pts) => { const np = nyxPoints + pts; setNyxPoints(np); await persist({ nyxPoints: np }); }}
-          onWin={() => unlockAchievement("duelista")}
+          onAward={async (pts) => { const np = nyxPoints + pts; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); }}
+          onWin={async () => {
+            const nw = duelWins + 1;
+            setDuelWins(nw);
+            await persist({ duelWins: nw });
+            unlockAchievement("duelista");
+            if (nw >= 3) unlockAchievement("duelista-3");
+          }}
           onClose={()=>setShowDuel(false)}
         />
       )}
@@ -2929,7 +3034,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         who="student"
         dataTour="chat"
         gear={nyxGear}
-        onTheme={setThemeAndSave}
+        onTheme={handleNyxTheme}
         context={() => `Contexto: você conversa com o aluno ${studentName}. Código atual dele (${files[active]?.name || "Program.cs"}):\n${activeCode || "(vazio ainda)"}\n${robotMsg ? `Seu último aviso sobre o código: ${robotMsg}` : ""}`}
       />
     </div>
@@ -2948,7 +3053,6 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
   const [robotMsg, setRobotMsg] = useState("");
   const [keysToShow, setKeysToShow] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
-  const debounceRef = useRef(null);
   const activeCode = files[active]?.code || "";
 
   const updateActiveCode = (newCode) => setFiles(fs => fs.map((f,i)=> i===active ? { ...f, code:newCode } : f));
@@ -2959,29 +3063,31 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
   const confirmRename = () => { if(renaming==null) return; let base=String(renameValue).trim().replace(/["'\/\\]/g,""); if(!base) base=`Arquivo${renaming+1}`; let name=/\.cs$/i.test(base)?base:base+".cs"; name=uniqueName(name,renaming); const idx=renaming; setFiles(fs=>fs.map((f,i)=>i===idx?{...f,name}:f)); setRenaming(null); setRenameValue(""); };
   const cancelRename = () => { setRenaming(null); setRenameValue(""); };
 
-  // robô confere 2s após parar de digitar
+  // robô: só analisa quando clicar no botão
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = activeCode.trim();
-    if (trimmed.length < 12) { setRobotState("idle"); setRobotMsg(""); setKeysToShow([]); return; }
-    debounceRef.current = setTimeout(async () => {
-      setRobotState("thinking"); setAnalyzing(true);
-      const quick = quickCheck(activeCode);
-      if (quick) { setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setAnalyzing(false); return; }
-      try {
-        const parsed = await askClaudeJson(
-          `Revise este código C# como um compilador faria, linha por linha. Top-level statements e ausência de using System são válidos. Confira pares de chaves/parênteses/aspas no arquivo inteiro antes de acusar falta, e todas as linhas anteriores antes de acusar variável não declarada. Não invente erro em código correto.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nResponda APENAS JSON puro com os campos NESTA ordem: {"analise":"verificação curta linha a linha (interno)","ok":true/false,"message":"elogio curto se ok; se houver erro, onde está e como corrigir em 1-3 frases","missingChars":["símbolos que faltam"]}`,
-          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
-          { temperature: 0 }
-        );
-        setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]);
-      } catch(e) {
-        if (e.message === 'ROBOTKEY_MISSING') { setRobotState("error"); setRobotMsg("🔑 Nyx está offline: configure ANTHROPIC_API_KEY no Vercel."); }
-        else { setRobotState("idle"); setRobotMsg(""); }
-      }
-      setAnalyzing(false);
-    }, 5000);
+    if (trimmed.length < 12) { setRobotState("idle"); setRobotMsg(""); setKeysToShow([]); }
   }, [activeCode]);
+
+  const analyzeCode = async () => {
+    const trimmed = activeCode.trim();
+    if (trimmed.length < 12 || analyzing) return;
+    setRobotState("thinking"); setAnalyzing(true);
+    const quick = quickCheck(activeCode);
+    if (quick) { setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setAnalyzing(false); return; }
+    try {
+      const parsed = await askClaudeJson(
+        `Revise este código C# como um compilador faria, linha por linha. Top-level statements e ausência de using System são válidos. Confira pares de chaves/parênteses/aspas no arquivo inteiro antes de acusar falta, e todas as linhas anteriores antes de acusar variável não declarada. Não invente erro em código correto.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nResponda APENAS JSON puro com os campos NESTA ordem: {"analise":"verificação curta linha a linha (interno)","ok":true/false,"message":"elogio curto se ok; se houver erro, onde está e como corrigir em 1-3 frases","missingChars":["símbolos que faltam"]}`,
+        CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
+        { temperature: 0 }
+      );
+      setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]);
+    } catch(e) {
+      if (e.message === 'ROBOTKEY_MISSING') { setRobotState("error"); setRobotMsg("🔑 Nyx está offline: configure ANTHROPIC_API_KEY no Vercel."); }
+      else { setRobotState("idle"); setRobotMsg(""); }
+    }
+    setAnalyzing(false);
+  };
 
   const card = { background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #272e52", boxShadow:"0 8px 24px rgba(3,5,16,.35)" };
 
@@ -3771,11 +3877,11 @@ function TeacherView({ onLogout }) {
             <div style={styles.card}>
               <h3 style={{ color:"#fbbf24", marginBottom:12 }}>👥 Monitoramento ({shown.length})</h3>
               {shown.length===0 && <p style={{ color:"#5d679c", fontSize:13 }}>{students.length===0 ? "Aguardando alunos entrarem..." : "Nenhum aluno nesta turma. Veja outra turma no filtro acima."}</p>}
-              <div style={{ maxHeight:340, overflowY:"auto" }}>
+              <div style={{ maxHeight:340, overflowY:"auto", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))", gap:8 }}>
                 {sorted.map(s=>{
                   const d = difficultyOf(s);
                   return (
-                    <div key={s.name} onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ background:selected===s.name?"#7c83ff22":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":"#2a3154"}`, borderRadius:10, padding:"10px 12px", marginBottom:8, cursor:"pointer" }}>
+                    <div key={s.name} onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ background:selected===s.name?"#7c83ff22":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":"#2a3154"}`, borderRadius:10, padding:"10px 12px", cursor:"pointer" }}>
                       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                         <span style={{ display:"flex", alignItems:"center", gap:8, fontWeight:600 }}><Avatar cfg={s.avatar} size={26} />{dot(isOnline(s))}{s.name}</span>
                         <span style={styles.badge(phaseColor(effectivePhase(s)))}>{phaseLabel(effectivePhase(s))}</span>
