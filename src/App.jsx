@@ -58,6 +58,43 @@ function playSound(kind) {
 function setSoundsMuted(v) { soundsMuted = v; try { localStorage.setItem("nyx_sounds_muted", v ? "1" : "0"); } catch {} }
 function loadSoundsMuted() { try { soundsMuted = localStorage.getItem("nyx_sounds_muted") === "1"; } catch {} return soundsMuted; }
 
+// ── text-to-speech (Web Speech API) ──
+function useSpeech() {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isSupported] = useState(() => !!window.speechSynthesis);
+  const utteranceRef = useRef(null);
+
+  const speak = useCallback((text) => {
+    if (!isSupported || !text) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "pt-BR";
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    utteranceRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  }, [isSupported]);
+
+  const pause = useCallback(() => {
+    if (isSupported) window.speechSynthesis.pause();
+  }, [isSupported]);
+
+  const resume = useCallback(() => {
+    if (isSupported) window.speechSynthesis.resume();
+  }, [isSupported]);
+
+  const stop = useCallback(() => {
+    if (isSupported) window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  }, [isSupported]);
+
+  return { speak, pause, resume, stop, isSpeaking, isSupported };
+}
+
 // ── sequência de dias (streak) a partir do mapa de presença ──
 function computeStreak(attendance) {
   if (!attendance) return 0;
@@ -1994,6 +2031,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [goalParty, setGoalParty] = useState(null);
   const goalLevelRef = useRef(null);
 
+  // text-to-speech para acessibilidade
+  const { speak, pause, resume, stop: stopSpeech, isSpeaking, isSupported: ttsSupported } = useSpeech();
+  const [currentSpeakingFor, setCurrentSpeakingFor] = useState(null);
+
   const sessionStart = useRef(Date.now());
   const stateRef = useRef({});
   const attendanceRef = useRef({});
@@ -2664,6 +2705,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     const sum = dynamicSummary;
     const structured = sum && typeof sum === "object" && Array.isArray(sum.secoes) && sum.secoes.length > 0;
     const ACCENTS = ["#7c83ff","#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6","#f87171"];
+    const handleSpeakSummary = (text) => {
+      setCurrentSpeakingFor(text === (structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. 📒 Anote no caderno!") ? "intro" : text);
+      speak(text);
+    };
     return (
       <div style={styles.container}>
         <div style={styles.header}><span>📚 Resumo da Aula — {studentName}</span></div>
@@ -2672,23 +2717,28 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <div style={{ background:"linear-gradient(135deg,#7c83ff,#8b5cf6)", borderRadius:18, padding:"24px 22px", textAlign:"center", boxShadow:"0 12px 30px #7c83ff55" }}>
             <div style={{ fontSize:44 }}>📚</div>
             <h1 style={{ color:"#fff", fontSize:25, margin:"4px 0 8px" }}>Resumo da sua aula</h1>
-            <p style={{ color:"#e0e7ff", fontSize:15, maxWidth:560, margin:"0 auto", lineHeight:1.6 }}>
+            <p style={{ color:"#e0e7ff", fontSize:15, maxWidth:560, margin:"0 auto", lineHeight:1.6, marginBottom:12 }}>
               {structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. 📒 Anote no caderno!"}
             </p>
+            {ttsSupported && <button onClick={() => handleSpeakSummary(structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. Anote no caderno!")} style={{ background:isSpeaking && currentSpeakingFor==="intro" ? "#fff" : "rgba(255,255,255,0.2)", color:isSpeaking && currentSpeakingFor==="intro" ? "#7c83ff" : "#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer" }}>{isSpeaking && currentSpeakingFor==="intro" ? "⏸ Pausando" : "🔊 Ouvir intro"}</button>}
           </div>
 
           {structured ? (
             <div style={{ marginTop:18 }}>
               {sum.secoes.map((s,i)=>{
                 const c = ACCENTS[i % ACCENTS.length];
+                const sectionText = `${s.titulo}. ${s.explicacao || ''}${s.exemplo ? '. Exemplo: ' + s.exemplo : ''}`;
                 return (
                   <div key={i} style={{ background:"#151a31", borderRadius:14, padding:18, margin:"0 0 14px", border:"1px solid #2a3154", borderLeft:`5px solid ${c}` }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-                      <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:44, height:44, borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>{s.emoji || "📌"}</span>
-                      <div>
-                        <div style={{ color:c, fontSize:11, fontWeight:800, letterSpacing:1 }}>PARTE {i+1}</div>
-                        <h3 style={{ color:"#e8ebfa", fontSize:17, margin:0 }}>{s.titulo}</h3>
+                    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10, justifyContent:"space-between" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:44, height:44, borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>{s.emoji || "📌"}</span>
+                        <div>
+                          <div style={{ color:c, fontSize:11, fontWeight:800, letterSpacing:1 }}>PARTE {i+1}</div>
+                          <h3 style={{ color:"#e8ebfa", fontSize:17, margin:0 }}>{s.titulo}</h3>
+                        </div>
                       </div>
+                      {ttsSupported && <button onClick={() => { setCurrentSpeakingFor(`section-${i}`); speak(sectionText); }} style={{ background:isSpeaking && currentSpeakingFor===`section-${i}` ? c : c+"33", border:`1px solid ${c}`, color:c, padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`section-${i}` ? "⏸" : "🔊"}</button>}
                     </div>
                     {s.explicacao && <p style={{ color:"#c7cfee", fontSize:15, lineHeight:1.75, margin:"0 0 4px" }}>{s.explicacao}</p>}
                     {s.exemplo && <CodeBlock code={s.exemplo} />}
@@ -2696,12 +2746,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
                 );
               })}
               {sum.dica && (
-                <div style={{ background:"#fbbf2416", border:"1px solid #fbbf24", borderRadius:14, padding:18, margin:"4px 0 0", display:"flex", gap:12 }}>
-                  <div style={{ fontSize:26, lineHeight:1 }}>💡</div>
+                <div style={{ background:"#fbbf2416", border:"1px solid #fbbf24", borderRadius:14, padding:18, margin:"4px 0 0", display:"flex", gap:12, justifyContent:"space-between", alignItems:"flex-start" }}>
                   <div>
+                    <div style={{ fontSize:26, lineHeight:1, marginBottom:4 }}>💡</div>
+                  </div>
+                  <div style={{ flex:1 }}>
                     <h4 style={{ color:"#fbbf24", margin:"0 0 4px" }}>Dica do Nyx</h4>
                     <p style={{ color:"#fcd9a0", fontSize:15, lineHeight:1.7, margin:0 }}>{sum.dica}</p>
                   </div>
+                  {ttsSupported && <button onClick={() => { setCurrentSpeakingFor("dica"); speak(sum.dica); }} style={{ background:isSpeaking && currentSpeakingFor==="dica" ? "#fbbf24" : "rgba(251,191,36,0.2)", border:"1px solid #fbbf24", color:isSpeaking && currentSpeakingFor==="dica" ? "#000" : "#fbbf24", padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor==="dica" ? "⏸" : "🔊"}</button>}
                 </div>
               )}
             </div>
@@ -2721,6 +2774,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   }
   if (phase==="activity") {
     const activity = dynamicActivity||[];
+    const handleSpeakQuestion = (q, i) => {
+      const qText = `Questão ${i+1}: ${q.q}. Opções: ${q.opts.map((o, idx) => `${String.fromCharCode(65+idx)}: ${o}`).join('. ')}`;
+      setCurrentSpeakingFor(`q-${i}`);
+      speak(qText);
+    };
     return (
       <div style={styles.container}>
         <AchievementToast achievement={newAchievement} />
@@ -2732,7 +2790,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           {activity.map((q,i)=>{
             return (
               <div key={i} data-q={i} style={styles.card}>
-                <p style={{ fontWeight:600, marginBottom:12 }}>{i+1}. {q.q}</p>
+                <div style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:12, justifyContent:"space-between" }}>
+                  <p style={{ fontWeight:600, margin:0, flex:1 }}>{i+1}. {q.q}</p>
+                  {ttsSupported && <button onClick={() => handleSpeakQuestion(q, i)} style={{ background:isSpeaking && currentSpeakingFor===`q-${i}` ? "#7c83ff" : "#7c83ff33", border:"1px solid #7c83ff", color:"#7c83ff", padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`q-${i}` ? "⏸" : "🔊"}</button>}
+                </div>
                 {q.opts.map((opt,j)=>{
                   const picked = answers[i]===j;
                   return (
@@ -2779,7 +2840,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <h2 style={{ color:g.color, fontSize:26, fontWeight:900 }}>{g.label} — Você fez {score} pontos!</h2>
 
           <div style={{ ...styles.card, marginTop:18, textAlign:"left", borderColor:"#7c83ff" }}>
-            <h4 style={{ color:"#7c83ff", marginBottom:8 }}>🤖 Feedback do Nyx para você</h4>
+            <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:8, justifyContent:"space-between" }}>
+              <h4 style={{ color:"#7c83ff", margin:0 }}>🤖 Feedback do Nyx para você</h4>
+              {ttsSupported && finalFeedback && <button onClick={() => { setCurrentSpeakingFor("feedback"); speak(finalFeedback); }} style={{ background:isSpeaking && currentSpeakingFor==="feedback" ? "#7c83ff" : "#7c83ff33", border:"1px solid #7c83ff", color:"#7c83ff", padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>{isSpeaking && currentSpeakingFor==="feedback" ? "⏸" : "🔊"}</button>}
+            </div>
             {feedbackLoading ? <p style={{ color:"#96a0cc", fontSize:14 }}>Analisando seu código e sua atividade...</p>
               : finalFeedback ? <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{finalFeedback}</p>
               : <p style={{ color:"#96a0cc", fontSize:14 }}>Parabéns por concluir a aula de hoje!</p>}
