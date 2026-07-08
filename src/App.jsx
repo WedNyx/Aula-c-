@@ -227,6 +227,14 @@ Ponto e vírgula faltando; chaves/parênteses/aspas abertas sem fechar (ou fecha
 5. Ao apontar um erro, seja específico: cite a linha ou o trecho exato, explique o PORQUÊ em uma frase, e mostre a forma corrigida.
 6. NUNCA invente erro em código correto. NUNCA sugira reescrever algo que já funciona só por estilo, a menos que seja explicitamente pedido.
 
+═══ QUEM VOCÊ É COM O ALUNO (além de revisor técnico) ═══
+Por trás da precisão técnica, você é também um educador pedagogo e um apoio emocional para o aluno — não só um corretor de código. Isso significa:
+- Trate cada erro como parte normal do aprendizado, nunca como falha. Reconheça o esforço antes de apontar o que falta.
+- Observe o estado emocional pelo tom da mensagem/código (frustração, pressa, insegurança) e ajuste sua resposta: se parecer frustrado, acolha antes de corrigir; se parecer inseguro, reforce o que já foi feito certo.
+- Adapte a linguagem ao ritmo de quem está lendo — frases curtas, um conceito de cada vez, sem jargão desnecessário.
+- Com alunos que têm dificuldades de leitura, escrita ou motoras (indicado pelo contexto quando informado), redobre a paciência: frases ainda mais curtas e concretas, sempre com um exemplo prático, celebre cada pequeno progresso como uma vitória real.
+- Você nunca substitui um psicólogo ou pedagogo humano, mas se comporta com a mesma escuta atenta e o mesmo cuidado que um bom professor-tutor teria: presente, paciente, sem pressa, sem julgamento.
+
 Fale sempre em português brasileiro simples, gentil e encorajador — o aluno é iniciante, mas sua análise por trás é a de um especialista.`;
 
 const RUN_SYSTEM = "Você é o compilador e o runtime do .NET 8 executando um projeto C# com precisão absoluta (ordem das instruções, conversões, formatação padrão). Responda apenas com o texto do console, sem explicações e sem markdown.";
@@ -235,10 +243,37 @@ const RUN_SYSTEM = "Você é o compilador e o runtime do .NET 8 executando um pr
 // Propositalmente separado do CS_SYSTEM: aqui o Nyx não é o revisor rigoroso, é só o mascote animando a turma.
 const NYX_FUN_SYSTEM = "Você é Nyx, o robô mascote animado de uma turma de adolescentes aprendendo C#. Aqui você está no seu modo leve e divertido — nada de revisar código ou dar aula formal. Seja breve, empolgado e use no máximo 1 emoji. Português brasileiro bem informal, do jeito que se fala com adolescente.";
 
+// ── Nyx no Modo Guiado: persona usada só para os alunos com acessibilidade ativada (não leem/escrevem bem
+// ou têm dificuldade motora). Aqui o Nyx é professor-pedagogo + apoio emocional + instrutor de criação de jogos,
+// tudo junto — o C# é ensinado através de exemplos de jogos, pensado para ser OUVIDO (texto-por-voz), não lido. ──
+const NYX_GUIDED_SYSTEM = `Você é Nyx, e agora está no seu MODO GUIADO: um professor-pedagogo e apoio emocional para um aluno com dificuldade de leitura, escrita ou motora, que está aprendendo os primeiros passos de programação em C# através de blocos prontos, sem precisar digitar.
+
+COMO VOCÊ ENSINA NESTE MODO:
+- Todo conceito de código é explicado através de exemplos de CRIAÇÃO DE JOGOS (um personagem que fala, uma pontuação que sobe, uma vida que diminui, um inimigo que aparece) — nunca exemplos abstratos ou de sistema bancário/matemática pura. Jogos prendem a atenção e fazem sentido pro aluno.
+- Para cada bloco de código, explique SEMPRE três coisas, nesta ordem: (1) o código em si (leia/fale o comando), (2) o que ele FAZ na prática, (3) um exemplo de jogo onde isso apareceria.
+- Frases muito curtas (uma ideia por frase), palavras simples, zero jargão técnico sem explicar. Lembre-se: o texto pode ser OUVIDO em voz alta por um narrador, não só lido — evite abreviações, símbolos soltos ou coisas difíceis de pronunciar.
+- Seja caloroso, animado e paciente como um pedagogo experiente. Celebre qualquer progresso, por menor que seja. Nunca faça o aluno se sentir "atrás" dos colegas — o ritmo dele é o certo para ele.
+- Você atua também como apoio emocional: se o conteúdo permitir perceber frustração ou insegurança, acolha isso com gentileza antes de seguir ensinando.
+- Você pode inventar/criar pequenos desafios ou ideias novas de jogos simples usando os blocos que o aluno já tem disponível (dizer algo, perguntar algo, guardar número/texto, somar, repetir, escolher) — sempre no mesmo espírito lúdico.
+
+Responda em português brasileiro bem simples, como se estivesse conversando com alguém de 12-13 anos que nunca programou.`;
+
 function otherFilesCtx(files, active) {
   const others = (files||[]).filter((f,i)=>i!==active && (f.code||"").trim());
   if (!others.length) return "";
   return `Outros arquivos do MESMO projeto (compilam juntos com o arquivo em edição — classes daqui podem ser usadas nele):\n\`\`\`csharp\n${others.map(f=>`// ${f.name}\n${f.code}`).join("\n\n")}\n\`\`\`\n\n`;
+}
+
+// acha em qual linha (0-indexado) um trecho de código aparece — usado pra sublinhar o erro que o Nyx apontou.
+// tenta igualdade exata da linha primeiro (mais preciso), senão cai pra "contém o trecho" (mais tolerante).
+function findLineIndex(code, trecho) {
+  if (!trecho) return -1;
+  const lines = (code || "").split("\n");
+  const t = trecho.trim();
+  if (!t) return -1;
+  let idx = lines.findIndex(l => l.trim() === t);
+  if (idx >= 0) return idx;
+  return lines.findIndex(l => l.trim() && l.includes(t));
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -246,10 +281,11 @@ function otherFilesCtx(files, active) {
 // ════════════════════════════════════════════════════════════════════════════
 const BRACKET_COLORS = ["#FFD700", "#DA70D6", "#179FFF"]; // ouro, roxo, azul (padrão VSCode)
 
-function highlight(code) {
+function highlight(code, errorLines) {
   const keywords = ["using","namespace","class","static","void","public","private","protected","internal","int","long","short","string","bool","double","float","char","decimal","byte","return","if","else","for","while","foreach","do","in","new","var","true","false","null","this","base","override","virtual","abstract","sealed","readonly","const","try","catch","finally","throw","switch","case","break","continue","default","get","set","using","enum","struct","interface","async","await"];
   let depth = 0; // profundidade de colchetes acumulada entre linhas
   const lines = code.split("\n");
+  const errSet = new Set(errorLines || []);
   return lines.map((line, li) => {
     const tokens = [];
     let i = 0;
@@ -297,14 +333,18 @@ function highlight(code) {
       }
       i++;
     }
-    return <div key={li} style={{minHeight:"1.5em"}}>{tokens.length ? tokens : " "}</div>;
+    return (
+      <div key={li} style={{ minHeight:"1.5em", ...(errSet.has(li) ? { textDecoration:"underline wavy #f87171", textDecorationThickness:"2px", textUnderlineOffset:"3px" } : {}) }}>
+        {tokens.length ? tokens : " "}
+      </div>
+    );
   });
 }
 
 // ════════════════════════════════════════════════════════════════════════════
 //  EDITOR ESTILO VS CODE
 // ════════════════════════════════════════════════════════════════════════════
-function VSEditor({ value, onChange, filename }) {
+function VSEditor({ value, onChange, filename, errorLines }) {
   const textareaRef = useRef(null);
   const highlightRef = useRef(null);
   const gutterRef = useRef(null);
@@ -388,7 +428,7 @@ function VSEditor({ value, onChange, filename }) {
         </div>
         <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
           <div ref={highlightRef} style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, color:"#d4d4d4", pointerEvents:"none", overflow:"hidden", paddingLeft:14 }}>
-            {highlight(value)}
+            {highlight(value, errorLines)}
           </div>
           <textarea ref={textareaRef} value={value} onChange={e => onChange(e.target.value)} onKeyDown={handleKeyDown} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
             style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, background:"transparent", color:"transparent", caretColor:"#aeafad", border:"none", outline:"none", resize:"none", zIndex:1, paddingLeft:14, overflow:"auto" }} />
@@ -1141,7 +1181,7 @@ function Terminal({ files, dataTour }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  CHAT COM O NYX  (botão flutuante — aluno e professor)
 // ════════════════════════════════════════════════════════════════════════════
-function NyxChat({ who = "student", context, onTheme, onCommand, accent = "#7c83ff", dataTour, gear }) {
+function NyxChat({ who = "student", context, onTheme, onCommand, accent = "#7c83ff", dataTour, gear, accessMode = false }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
@@ -1171,17 +1211,19 @@ function NyxChat({ who = "student", context, onTheme, onCommand, accent = "#7c83
         ? "\nSe (e SOMENTE se) o aluno pedir para mudar a cor ou o tema do fundo, termine sua resposta com uma linha exata: [TEMA:claro] ou [TEMA:escuro] ou [TEMA:#rrggbb] para uma cor só, ou [TEMA:#rrggbb,#rrggbb] / [TEMA:#rrggbb,#rrggbb,#rrggbb] para misturar 2 ou 3 cores num degradê (escolha tons bonitos e combinando com o que ele pediu; NUNCA mais de 3 cores). Nunca use isso em outras situações."
         : "";
       const persona = who === "student"
-        ? `Você está conversando com um aluno dentro da plataforma, num chat pequeno. Responda CURTO (no máximo 5 frases), simples e animado. Ajude com dúvidas de C#, dicas de estudo e o que ele precisar. Não resolva a atividade por ele — explique o caminho.${themeRule}`
+        ? (accessMode
+            ? `Você está conversando com um aluno dentro da plataforma, num chat pequeno, e este aluno está no seu MODO GUIADO (dificuldade de leitura/escrita/motora). Responda MUITO curto (no máximo 3 frases), com palavras bem simples, sempre calorosamente. Se puder, relacione a resposta com exemplos de jogos.${themeRule}`
+            : `Você está conversando com um aluno dentro da plataforma, num chat pequeno. Responda CURTO (no máximo 5 frases), simples e animado. Ajude com dúvidas de C#, dicas de estudo e o que ele precisar. Não resolva a atividade por ele — explique o caminho.${themeRule}`)
         : `Você é o assistente pessoal do PROFESSOR dentro da plataforma, num chat pequeno. Responda curto e direto (máximo 6 frases), com base nos dados da turma fornecidos. Sugira a quem dar atenção, ideias de exercícios e próximos passos quando fizer sentido.
 COMANDOS DISPONÍVEIS que o professor pode digitar aqui no chat (executados por você na hora):
 - "zek" → você aparece na tela de TODOS os alunos, no centro, pedindo atenção, e bloqueia tudo o que eles estiverem fazendo.
 - "/hiberne" → desativa o zek e libera as telas dos alunos.
 - "zeker" → bloqueia o duelo entre alunos.
 - "/liberte" → libera o duelo novamente.
-Se o professor perguntar como chamar a atenção da turma ou controlar os duelos, LEMBRE-O desses comandos. Outras ações (mudar nota, renomear, mover de turno ou excluir aluno) o professor faz no painel Monitoramento clicando no aluno — indique o caminho quando ele pedir esse tipo de mudança.`;
+Se o professor perguntar como chamar a atenção da turma ou controlar os duelos, LEMBRE-O desses comandos. Outras ações (mudar nota, renomear, mover de turno ou excluir aluno, ativar Modo Guiado) o professor faz no painel Monitoramento clicando no aluno — indique o caminho quando ele pedir esse tipo de mudança.`;
       const out = await askClaude(
         `${context ? context() : ""}\n\nConversa até agora:\n${histTxt}\n\nResponda como Nyx à última mensagem.`,
-        CS_SYSTEM + "\n\n" + persona,
+        (who === "student" && accessMode ? NYX_GUIDED_SYSTEM : CS_SYSTEM) + "\n\n" + persona,
         { temperature: 0.6 }
       );
       let reply = out.trim();
@@ -1298,6 +1340,61 @@ function TourOverlay({ step, onNext, onSkip }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  TOUR DE ERRO DO NYX  (quando "Analisar meu código" encontra erro, aponta pro editor e explica
+//  passo a passo cada erro encontrado, igual ao tour de onboarding — mas com destaque vermelho)
+// ════════════════════════════════════════════════════════════════════════════
+function ErrorWalkthroughOverlay({ errors, step, onNext, onPrev, onVerify, onClose, verifying }) {
+  const [rect, setRect] = useState(null);
+  const e = errors[step];
+  useEffect(() => {
+    const el = document.querySelector('[data-tour="editor"]');
+    if (!el) { setRect(null); return; }
+    el.scrollIntoView({ block:"center" });
+    const t = setTimeout(() => {
+      const r = el.getBoundingClientRect();
+      setRect({ top:r.top, left:r.left, width:r.width, height:r.height, bottom:r.bottom });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [step]);
+  if (!e) return null;
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1000;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  const below = rect ? rect.bottom + 260 < vh : true;
+  const tipTop = rect ? (below ? Math.min(rect.bottom + 14, vh - 270) : Math.max(rect.top - 266, 10)) : vh/2 - 130;
+  const tipLeft = rect ? Math.max(12, Math.min(rect.left + rect.width/2 - 190, vw - 396)) : 20;
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:990 }}>
+      {rect
+        ? <div style={{ position:"fixed", top:rect.top-6, left:rect.left-6, width:rect.width+12, height:rect.height+12, borderRadius:14, border:"3px solid #f87171", boxShadow:"0 0 0 9999px rgba(5,7,18,.78), 0 0 24px #f8717188", transition:"all .3s ease", pointerEvents:"none" }} />
+        : <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.78)" }} />}
+      <div className="pop" key={step} style={{ position:"fixed", top:tipTop, left:tipLeft, width:380, maxWidth:"calc(100vw - 24px)", background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #f8717166", borderRadius:16, padding:"14px 16px", boxShadow:"0 18px 50px rgba(0,0,0,.6)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+          <span style={{ color:"#f87171", fontSize:12, fontWeight:800, letterSpacing:0.5 }}>⚠ Erro {step+1} de {errors.length}</span>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:18, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+          <div style={{ flexShrink:0, marginTop:-4 }}><NyxRobot state="error" size={46} showName={false} /></div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ background:"#0d1122", border:"1px solid #2c3358", borderRadius:8, padding:"6px 10px", fontFamily:"'Courier New',monospace", fontSize:12.5, color:"#f87171", overflowX:"auto", whiteSpace:"pre", marginBottom:8 }}>{e.trecho}</div>
+            <p style={{ color:"#c7cfee", fontSize:13, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
+          </div>
+        </div>
+        {e.exemplo && <div style={{ marginTop:4 }}><CodeBlock code={e.exemplo} /></div>}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12, gap:8, flexWrap:"wrap" }}>
+          <div style={{ display:"flex", gap:6 }}>
+            {step > 0 && <button onClick={onPrev} style={{ background:"#2a3154", border:"none", borderRadius:10, color:"#e8ebfa", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>← Anterior</button>}
+            {step < errors.length-1 && <button onClick={onNext} style={{ background:"#2a3154", border:"none", borderRadius:10, color:"#e8ebfa", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>Próximo →</button>}
+          </div>
+          <button onClick={onVerify} disabled={verifying} style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"8px 14px", cursor:verifying?"default":"pointer", fontSize:12.5, opacity:verifying?0.6:1 }}>
+            {verifying ? "🔍 Verificando..." : "✅ Já corrigi, verificar!"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
 // ════════════════════════════════════════════════════════════════════════════
 function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onClose }) {
@@ -1370,6 +1467,8 @@ function NyxFeedbackModal({ score, loading, feedback, onClose }) {
   const g = gradeInfo(score);
   const robotState = score>=75 ? "ok" : score>=40 ? "idle" : "error";
   const dica = score < 60 ? "Dica: releia com calma as questões que você errou na revisão abaixo — o Nyx te explica cada uma se você pedir!" : "";
+  const structured = feedback && typeof feedback === "object" && Array.isArray(feedback.secoes);
+  const feedbackText = structured ? feedback.intro : (typeof feedback === "string" ? feedback : "");
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
       <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:`1px solid ${g.color}55`, borderRadius:22, padding:"28px 24px", maxWidth:440, width:"100%", textAlign:"center", boxShadow:`0 24px 70px rgba(0,0,0,.55), 0 0 50px ${g.color}22` }}>
@@ -1382,7 +1481,7 @@ function NyxFeedbackModal({ score, loading, feedback, onClose }) {
         <div style={{ background:"#0d1122", border:"1px solid #2c3358", borderRadius:16, padding:"16px 18px", textAlign:"left" }}>
           {loading
             ? <p style={{ color:"#96a0cc", fontSize:14, margin:0 }}>Nyx está analisando seu desempenho...</p>
-            : <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", margin:0 }}>{feedback || "Parabéns por concluir a aula de hoje!"}</p>}
+            : <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", margin:0 }}>{feedbackText || "Parabéns por concluir a aula de hoje!"}</p>}
           {!loading && dica && <p style={{ color:"#fbbf24", fontSize:12.5, lineHeight:1.6, marginTop:10, marginBottom:0 }}>{dica}</p>}
         </div>
         <button onClick={onClose} disabled={loading}
@@ -1975,6 +2074,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [answers, setAnswers] = useState({});
   const [score, setScore] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
+  // erros da última análise (linha sublinhada de vermelho até corrigir) + tour do Nyx explicando cada um
+  const [codeErrors, setCodeErrors] = useState([]);
+  const [showErrorWalkthrough, setShowErrorWalkthrough] = useState(false);
+  const [errorWalkStep, setErrorWalkStep] = useState(0);
   const [dynamicSummary, setDynamicSummary] = useState("");
   const [dynamicActivity, setDynamicActivity] = useState(null);
   const [generatingMsg, setGeneratingMsg] = useState("");
@@ -2055,6 +2158,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [accessMode, setAccessModeState] = useState(false);
   const [guidedBlocks, setGuidedBlocks] = useState([]);
   const [pendingBlock, setPendingBlock] = useState(null);
+  // "Nyx te ensina" no Modo Guiado: mini-lições geradas sob demanda (C# explicado com exemplos de jogos)
+  const [guidedLessons, setGuidedLessons] = useState([]);
+  const [guidedLessonLoading, setGuidedLessonLoading] = useState(false);
 
   const sessionStart = useRef(Date.now());
   const stateRef = useRef({});
@@ -2064,7 +2170,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, duelWins, guidedBlocks };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, duelWins, guidedBlocks, guidedLessons };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -2110,6 +2216,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       scoreHistory: s.scoreHistory || {},
       summaryHistory: s.summaryHistory || {},
       guidedBlocks: s.guidedBlocks || [],
+      guidedLessons: s.guidedLessons || [],
       ...extra,
     });
     setConnected(ok);
@@ -2159,6 +2266,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.scoreHistory) setScoreHistory(prev.scoreHistory);
           if (prev.summaryHistory) setSummaryHistory(prev.summaryHistory);
           if (Array.isArray(prev.guidedBlocks)) setGuidedBlocks(prev.guidedBlocks);
+          if (Array.isArray(prev.guidedLessons)) setGuidedLessons(prev.guidedLessons);
         }
         try { setAccessModeState(await getAccessMode(shift, studentName)); } catch {}
         // foto do código do início do dia: se a salva for de outro dia (ou não existir), tira uma nova agora
@@ -2372,6 +2480,29 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     persist({ guidedBlocks: updated, code: fullCode });
   };
 
+  // "Nyx te ensina" no Modo Guiado: gera uma mini-lição nova sob demanda, com o C# explicado através de
+  // exemplos de criação de jogos — o professor mantém o Modo Guiado ligado durante a aula toda, e o aluno
+  // pode pedir quantas lições quiser nesse tempo (é o "Nyx cria coisas até o final da aula")
+  const generateGuidedLesson = async () => {
+    if (guidedLessonLoading) return;
+    setGuidedLessonLoading(true);
+    try {
+      const usedBlocks = guidedBlocks.map(b=>b.label).join(", ") || "nenhum bloco ainda";
+      const already = guidedLessons.map(l=>l.titulo).join(", ") || "nenhuma";
+      const lesson = await askClaudeJson(
+        `O aluno já usou estes blocos no programa dele: ${usedBlocks}.\nLições que ele já recebeu antes (NÃO repita o mesmo assunto): ${already}.\n\nCrie UMA mini-lição nova sobre um conceito simples de C#, explicado através de um exemplo de CRIAÇÃO DE JOGOS. Responda APENAS em JSON puro, sem markdown:\n{"emoji":"emoji que combine","titulo":"nome bem curto do conceito","codigo":"1 a 3 linhas de código C# de exemplo (use \\n pra quebrar linha)","oQueFaz":"1 a 2 frases bem simples explicando o que esse código faz","exemploJogo":"1 a 2 frases dando um exemplo de jogo onde isso apareceria"}`,
+        NYX_GUIDED_SYSTEM + "\nResponda APENAS JSON puro válido, sem markdown."
+      );
+      const newLesson = { id:`${Date.now()}-${Math.random().toString(36).slice(2)}`, ...lesson };
+      const updated = [newLesson, ...guidedLessons];
+      setGuidedLessons(updated);
+      await persist({ guidedLessons: updated });
+      const speech = [lesson.titulo, lesson.oQueFaz, lesson.exemploJogo].filter(Boolean).join(". ");
+      speak(speech);
+    } catch {}
+    setGuidedLessonLoading(false);
+  };
+
   const analyzeCode = async () => {
     const trimmed = activeCode.trim();
     if (trimmed.length < 12 || analyzing) return;
@@ -2380,19 +2511,27 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     if (quick) {
       const fb = { ok:false, message:quick.message, missingChars:quick.missing||[] };
       setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setFeedback(fb);
+      setCodeErrors([]); setShowErrorWalkthrough(false);
       await persist({ feedback:fb, hasError:true });
       setAnalyzing(false);
       return;
     }
     try {
       const parsed = await askClaudeJson(
-        `Revise o código C# de um aluno iniciante como um COMPILADOR faria, linha por linha.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nO que verificar (nesta ordem):\n1. Maiúsculas/minúsculas: Console.WriteLine, Console.ReadLine, Convert.ToInt32, int.Parse — "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS.\n2. Tipos em minúsculo (regra da turma): string, int, double, bool, char — se usou String/Int32/Double/Boolean, avise para trocar pela forma minúscula.\n3. Ponto e vírgula ; faltando no fim de instruções (declarações, chamadas, atribuições).\n4. Chaves { }, parênteses ( ) e aspas " — conte os pares no arquivo INTEIRO antes de acusar falta.\n5. Palavras-chave erradas (publik, voi, whille, pritn, statics, clas).\n6. Variáveis usadas sem declarar (confira TODAS as linhas anteriores antes de acusar) e comparação com = em vez de ==.\n7. Console.ReadLine lido direto para int/double sem Convert/Parse.\n\nLembretes IMPORTANTES:\n- Top-level statements (código sem class/Main) e ausência de using System são VÁLIDOS — não são erro.\n- Não aponte classe/método "inexistente" se estiver definido em outro arquivo do projeto.\n- NÃO invente erro em código correto. Na dúvida real, prefira ok=true.\n\nResponda APENAS em JSON puro, sem markdown, com os campos NESTA ordem:\n{"analise": "sua verificação rápida linha a linha, citando o que conferiu (máx 3 frases — o aluno não vê isto)", "ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: onde está (linha/trecho) e como corrigir mostrando a forma certa, em 1 a 3 frases gentis", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se nenhum"]}`,
+        `Revise o código C# de um aluno iniciante como um COMPILADOR faria, linha por linha.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nO que verificar (nesta ordem):\n1. Maiúsculas/minúsculas: Console.WriteLine, Console.ReadLine, Convert.ToInt32, int.Parse — "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS.\n2. Tipos em minúsculo (regra da turma): string, int, double, bool, char — se usou String/Int32/Double/Boolean, avise para trocar pela forma minúscula.\n3. Ponto e vírgula ; faltando no fim de instruções (declarações, chamadas, atribuições).\n4. Chaves { }, parênteses ( ) e aspas " — conte os pares no arquivo INTEIRO antes de acusar falta.\n5. Palavras-chave erradas (publik, voi, whille, pritn, statics, clas).\n6. Variáveis usadas sem declarar (confira TODAS as linhas anteriores antes de acusar) e comparação com = em vez de ==.\n7. Console.ReadLine lido direto para int/double sem Convert/Parse.\n\nLembretes IMPORTANTES:\n- Top-level statements (código sem class/Main) e ausência de using System são VÁLIDOS — não são erro.\n- Não aponte classe/método "inexistente" se estiver definido em outro arquivo do projeto.\n- NÃO invente erro em código correto. Na dúvida real, prefira ok=true.\n\nResponda APENAS em JSON puro, sem markdown, com os campos NESTA ordem:\n{"analise": "sua verificação rápida linha a linha, citando o que conferiu (máx 3 frases — o aluno não vê isto)", "ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: onde está (linha/trecho) e como corrigir mostrando a forma certa, em 1 a 3 frases gentis", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se nenhum"], "errors": ["se ok for false: uma lista com CADA erro encontrado (pode ter mais de um). Cada item é um objeto {\\"trecho\\": a linha EXATA e completa como aparece no código, copiada literalmente, sem espaços extras no início; \\"explicacao\\": por que está errado e como corrigir, 1 a 2 frases bem simples e gentis; \\"exemplo\\": a mesma linha já corrigida}. Lista vazia se ok for true."]}`,
         CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
         { temperature: 0 }
       );
       setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
       await persist({ feedback:parsed, hasError:!parsed.ok });
-      if (parsed.ok) unlockAchievement("codigo-limpo");
+      if (parsed.ok) {
+        unlockAchievement("codigo-limpo");
+        setCodeErrors([]); setShowErrorWalkthrough(false);
+      } else {
+        const errs = (Array.isArray(parsed.errors) ? parsed.errors : []).filter(e => e && e.trecho && findLineIndex(activeCode, e.trecho) >= 0);
+        setCodeErrors(errs);
+        if (errs.length > 0) { setErrorWalkStep(0); setShowErrorWalkthrough(true); }
+      }
     } catch(e) {
       if (e.message === 'ROBOTKEY_MISSING') {
         setRobotState("error");
@@ -2403,6 +2542,34 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     }
     setAnalyzing(false);
   };
+
+  // enquanto houver erros sinalizados, sublinha em vermelho a linha correspondente no editor — some sozinho
+  // quando o aluno edita a linha (e, se todos sumirem por edição, o Nyx reanalisa sozinho pra confirmar)
+  const errorLinesForEditor = codeErrors.map(e => findLineIndex(activeCode, e.trecho)).filter(i => i >= 0);
+  const [pendingAutoVerify, setPendingAutoVerify] = useState(false);
+  useEffect(() => {
+    if (!codeErrors.length) return;
+    const stillPresent = codeErrors.filter(e => findLineIndex(activeCode, e.trecho) >= 0);
+    if (stillPresent.length !== codeErrors.length) {
+      setCodeErrors(stillPresent);
+      if (stillPresent.length === 0) {
+        setShowErrorWalkthrough(false);
+        setPendingAutoVerify(true); // todas as linhas sinalizadas foram editadas -> arma a reverificação
+      } else {
+        setErrorWalkStep(s => Math.min(s, stillPresent.length - 1));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCode]);
+  // debounce da reverificação automática: reagenda a CADA tecla enquanto estiver pendente, pra sempre usar
+  // o código mais atual (sem isso, o timer poderia disparar com um estado intermediário desatualizado,
+  // por exemplo bem no meio de um Ctrl+A+Delete + digitar de novo)
+  useEffect(() => {
+    if (!pendingAutoVerify) return;
+    const t = setTimeout(() => { setPendingAutoVerify(false); analyzeCode(); }, 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCode, pendingAutoVerify]);
 
   // arquivos
   const updateActiveCode = (newCode) => setFiles(fs => fs.map((f,i)=> i===active ? { ...f, code:newCode } : f));
@@ -2632,12 +2799,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     if (streak >= 8) unlockAchievement("combo-8");
     try {
       const list = activity.map((q,i)=>`- ${q.q} → ${answers[i]===q.correct?"acertou":"errou"}`).join("\n");
-      const fb = await askClaude(
-        `Um aluno iniciante de C# escreveu este código na aula de hoje:\n\`\`\`csharp\n${allCodeToday()}\n\`\`\`\n\nDepois respondeu uma atividade de ${activity.length} perguntas e acertou ${pts} (nota ${finalScore}).\nResultado pergunta a pergunta:\n${list}\n\nEscreva um feedback curto, gentil e motivador em português para ESTE aluno, baseado no código que ele escreveu E no desempenho. Diga o que ele mandou bem e um ponto para melhorar. No final, dê UMA dica interessante e específica para o nível dele: se foi bem (nota alta e código sem erros), traga uma curiosidade ou um próximo passo um pouco mais avançado para se desafiar; se teve dificuldade, traga uma dica simples e prática para melhorar o ponto que ele errou. Máximo 4 frases, sem markdown, sem títulos.`,
-        "Você é um professor de C# gentil e motivador, escrevendo direto para um aluno iniciante. Português brasileiro."
+      const fbData = await askClaudeJson(
+        `Um aluno iniciante de C# escreveu este código na aula de hoje:\n\`\`\`csharp\n${allCodeToday()}\n\`\`\`\n\nDepois respondeu uma atividade de ${activity.length} perguntas e acertou ${pts} (nota ${finalScore}).\nResultado pergunta a pergunta:\n${list}\n\nCrie um feedback gentil e motivador para ESTE aluno, baseado no código que ele escreveu E no desempenho.\n\nResponda APENAS em JSON puro, sem markdown:\n{\n  "intro": "1 frase curta e calorosa resumindo como ele foi nesta aula",\n  "secoes": [\n    { "emoji": "emoji que combine", "titulo": "O que você mandou bem (curto)", "explicacao": "1 a 2 frases concretas sobre o que ele acertou, citando o código ou o desempenho dele" },\n    { "emoji": "emoji que combine", "titulo": "Um ponto para melhorar (curto)", "explicacao": "1 a 2 frases gentis sobre um ponto específico a melhorar — se não houver nada relevante a melhorar, foque em um próximo passo desafiador em vez disso" }\n  ],\n  "dica": "se foi bem (nota alta e código sem erros): uma curiosidade ou próximo passo mais avançado para se desafiar. Se teve dificuldade: uma dica simples e prática para o que errou. 1 a 2 frases."\n}\n\nFrases curtas, uma ideia por vez, sem jargão técnico desnecessário, tom acolhedor. Garanta JSON válido.`,
+        CS_SYSTEM + "\nResponda APENAS JSON puro válido, sem markdown."
       );
-      setFinalFeedback(fb);
-      await persist({ phase:"done", score:finalScore, answers, finalFeedback:fb });
+      setFinalFeedback(fbData);
+      await persist({ phase:"done", score:finalScore, answers, finalFeedback:fbData });
     } catch { setFinalFeedback(""); }
     setFeedbackLoading(false);
   };
@@ -2929,6 +3096,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     const activity = dynamicActivity||[];
     const g = gradeInfo(score);
     const backToHome = async () => { setPhase("coding"); await persist({ phase:"coding" }); };
+    const fbStructured = finalFeedback && typeof finalFeedback === "object" && Array.isArray(finalFeedback.secoes) && finalFeedback.secoes.length > 0;
+    const fbSpeechText = fbStructured
+      ? [finalFeedback.intro, ...finalFeedback.secoes.map(s=>`${s.titulo}. ${s.explicacao}`), finalFeedback.dica].filter(Boolean).join(". ")
+      : (typeof finalFeedback === "string" ? finalFeedback : "");
+    const FB_ACCENTS = ["#34d399","#fbbf24"];
     return (
       <div style={styles.container}>
         <AchievementToast achievement={newAchievement} />
@@ -2951,14 +3123,50 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <div style={{ fontSize:72 }}>{g.emoji}</div>
           <h2 style={{ color:g.color, fontSize:26, fontWeight:900 }}>{g.label} — Você fez {score} pontos!</h2>
 
-          <div style={{ ...styles.card, marginTop:18, textAlign:"left", borderColor:"#7c83ff" }}>
-            <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:8, justifyContent:"space-between" }}>
-              <h4 style={{ color:"#7c83ff", margin:0 }}>🤖 Feedback do Nyx para você</h4>
-              {ttsSupported && finalFeedback && <button onClick={() => { setCurrentSpeakingFor("feedback"); speak(finalFeedback); }} style={{ background:isSpeaking && currentSpeakingFor==="feedback" ? "#7c83ff" : "#7c83ff33", border:"1px solid #7c83ff", color:"#7c83ff", padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>{isSpeaking && currentSpeakingFor==="feedback" ? "⏸" : "🔊"}</button>}
+          <div style={{ marginTop:18, textAlign:"left" }}>
+            {/* topo em destaque, mesma estética do Resumo da Aula */}
+            <div style={{ background:"linear-gradient(135deg,#7c83ff,#8b5cf6)", borderRadius:18, padding:"20px 20px", textAlign:"center", boxShadow:"0 12px 30px #7c83ff55" }}>
+              <div style={{ fontSize:38 }}>🤖</div>
+              <h3 style={{ color:"#fff", fontSize:19, margin:"4px 0 8px" }}>Feedback do Nyx para você</h3>
+              {feedbackLoading ? (
+                <p style={{ color:"#e0e7ff", fontSize:14 }}>Analisando seu código e sua atividade...</p>
+              ) : (
+                <p style={{ color:"#e0e7ff", fontSize:14, maxWidth:460, margin:"0 auto", lineHeight:1.6 }}>
+                  {fbStructured ? finalFeedback.intro : (typeof finalFeedback === "string" && finalFeedback) ? finalFeedback : "Parabéns por concluir a aula de hoje!"}
+                </p>
+              )}
+              {!feedbackLoading && ttsSupported && fbSpeechText && (
+                <button onClick={() => { setCurrentSpeakingFor("feedback"); speak(fbSpeechText); }} style={{ marginTop:10, background:isSpeaking && currentSpeakingFor==="feedback" ? "#fff" : "rgba(255,255,255,0.2)", color:isSpeaking && currentSpeakingFor==="feedback" ? "#7c83ff" : "#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                  {isSpeaking && currentSpeakingFor==="feedback" ? "⏸ Pausando" : "🔊 Ouvir feedback"}
+                </button>
+              )}
             </div>
-            {feedbackLoading ? <p style={{ color:"#96a0cc", fontSize:14 }}>Analisando seu código e sua atividade...</p>
-              : finalFeedback ? <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{finalFeedback}</p>
-              : <p style={{ color:"#96a0cc", fontSize:14 }}>Parabéns por concluir a aula de hoje!</p>}
+
+            {fbStructured && (
+              <div style={{ marginTop:14 }}>
+                {finalFeedback.secoes.map((s,i)=>{
+                  const c = FB_ACCENTS[i % FB_ACCENTS.length];
+                  return (
+                    <div key={i} style={{ background:"#151a31", borderRadius:14, padding:16, margin:"0 0 12px", border:"1px solid #2a3154", borderLeft:`5px solid ${c}` }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+                        <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:38, height:38, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:19 }}>{s.emoji || "📌"}</span>
+                        <h4 style={{ color:"#e8ebfa", fontSize:15, margin:0 }}>{s.titulo}</h4>
+                      </div>
+                      {s.explicacao && <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, margin:0 }}>{s.explicacao}</p>}
+                    </div>
+                  );
+                })}
+                {finalFeedback.dica && (
+                  <div style={{ background:"#fbbf2416", border:"1px solid #fbbf24", borderRadius:14, padding:16, display:"flex", gap:10 }}>
+                    <div style={{ fontSize:22, lineHeight:1 }}>💡</div>
+                    <div>
+                      <h4 style={{ color:"#fbbf24", margin:"0 0 4px", fontSize:14 }}>Dica do Nyx</h4>
+                      <p style={{ color:"#fcd9a0", fontSize:13.5, lineHeight:1.7, margin:0 }}>{finalFeedback.dica}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{ ...styles.card, marginTop:14, textAlign:"left" }}>
@@ -3146,6 +3354,46 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
                 </div>
               )}
 
+              {/* Nyx te ensina: mini-lições de C# geradas sob demanda, sempre com exemplo de jogo — o professor mantém
+                  o Modo Guiado ligado durante a aula toda, e o aluno pode pedir quantas lições quiser nesse período */}
+              <div style={{ marginTop:20, background:"linear-gradient(135deg,#7c83ff22,#8b5cf622)", border:"1px solid #7c83ff55", borderRadius:14, padding:16 }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ fontSize:scaleSize(26) }}>🎮</span>
+                    <div>
+                      <h4 style={{ color:"#c7cfee", margin:0, fontSize:scaleSize(15) }}>Nyx te ensina a programar jogos!</h4>
+                      <p style={{ color:"#96a0cc", margin:"2px 0 0", fontSize:scaleSize(12) }}>Peça quantas lições quiser — o Nyx sempre explica com exemplo de jogo.</p>
+                    </div>
+                  </div>
+                  <button onClick={generateGuidedLesson} disabled={guidedLessonLoading} style={{ ...styles.btn("#7c83ff"), opacity:guidedLessonLoading?0.6:1, whiteSpace:"nowrap" }}>
+                    {guidedLessonLoading ? "🤔 Pensando..." : "✨ Me ensina um truque novo!"}
+                  </button>
+                </div>
+                {guidedLessons.length > 0 && (
+                  <div style={{ marginTop:14, display:"flex", flexDirection:"column", gap:10 }}>
+                    {guidedLessons.map((l,i)=>{
+                      const LC = ["#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6"];
+                      const c = LC[i % LC.length];
+                      const lessonSpeech = [l.titulo, l.oQueFaz, l.exemploJogo].filter(Boolean).join(". ");
+                      return (
+                        <div key={l.id} style={{ background:"#151a31", borderRadius:12, padding:14, border:"1px solid #2a3154", borderLeft:`5px solid ${c}` }}>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                              <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:34, height:34, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", fontSize:17 }}>{l.emoji || "🎮"}</span>
+                              <h5 style={{ color:"#e8ebfa", margin:0, fontSize:scaleSize(14) }}>{l.titulo}</h5>
+                            </div>
+                            {ttsSupported && <button onClick={() => { setCurrentSpeakingFor(`lesson-${l.id}`); speak(lessonSpeech); }} style={{ background:isSpeaking && currentSpeakingFor===`lesson-${l.id}` ? c : c+"33", border:`1px solid ${c}`, color:c, padding:"5px 10px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer" }}>{isSpeaking && currentSpeakingFor===`lesson-${l.id}` ? "⏸" : "🔊"}</button>}
+                          </div>
+                          {l.codigo && <CodeBlock code={l.codigo} />}
+                          {l.oQueFaz && <p style={{ color:"#c7cfee", fontSize:scaleSize(13), lineHeight:1.7, margin:"6px 0 0" }}>{l.oQueFaz}</p>}
+                          {l.exemploJogo && <p style={{ color:"#a5b4fc", fontSize:scaleSize(12.5), lineHeight:1.7, margin:"4px 0 0", fontStyle:"italic" }}>🎮 {l.exemploJogo}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <div style={{ marginTop:20 }}>
                 <h4 style={{ color:"#7c83ff", marginBottom:8, fontSize:scaleSize(15) }}>📜 Seu programa (nesta ordem)</h4>
                 {guidedBlocks.length===0 ? (
@@ -3199,7 +3447,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               </div>
 
               <div data-tour="editor">
-                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} />
+                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} errorLines={errorLinesForEditor} />
               </div>
 
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
@@ -3256,6 +3504,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         <TourOverlay step={tourStep} onSkip={()=>setTourStep(-1)} onNext={()=>setTourStep(s => (s+1 >= TOUR_STEPS.length ? -1 : s+1))} />
       )}
 
+      {showErrorWalkthrough && codeErrors.length > 0 && (
+        <ErrorWalkthroughOverlay
+          errors={codeErrors}
+          step={Math.min(errorWalkStep, codeErrors.length-1)}
+          verifying={analyzing}
+          onPrev={()=>setErrorWalkStep(s=>Math.max(0,s-1))}
+          onNext={()=>setErrorWalkStep(s=>Math.min(codeErrors.length-1,s+1))}
+          onVerify={analyzeCode}
+          onClose={()=>setShowErrorWalkthrough(false)}
+        />
+      )}
+
       {showNyxShop && (
         <NyxShop
           wallet={nyxPoints - nyxSpent}
@@ -3305,6 +3565,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         who="student"
         dataTour="chat"
         gear={nyxGear}
+        accessMode={accessMode}
         onTheme={handleNyxTheme}
         context={() => `Contexto: você conversa com o aluno ${studentName}. Código atual dele (${files[active]?.name || "Program.cs"}):\n${activeCode || "(vazio ainda)"}\n${robotMsg ? `Seu último aviso sobre o código: ${robotMsg}` : ""}`}
       />
@@ -4323,7 +4584,12 @@ function TeacherView({ onLogout }) {
                     ))}
                   </div>
                 )}
-                {sel.finalFeedback && <div style={styles.card}><h4 style={{ color:"#7c83ff", marginBottom:8 }}>🤖 Feedback do Nyx ao aluno</h4><p style={{ color:"#c7cfee", fontSize:13, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{sel.finalFeedback}</p></div>}
+                {sel.finalFeedback && (() => {
+                  const fb = sel.finalFeedback;
+                  const st = fb && typeof fb === "object" && Array.isArray(fb.secoes);
+                  const text = st ? [fb.intro, ...fb.secoes.map(s=>`${s.titulo}: ${s.explicacao}`), fb.dica ? `Dica: ${fb.dica}` : ""].filter(Boolean).join("\n") : (typeof fb === "string" ? fb : "");
+                  return text ? <div style={styles.card}><h4 style={{ color:"#7c83ff", marginBottom:8 }}>🤖 Feedback do Nyx ao aluno</h4><p style={{ color:"#c7cfee", fontSize:13, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{text}</p></div> : null;
+                })()}
               </>
             ) : (
               <div style={{ ...styles.card, textAlign:"center", padding:40 }}>
