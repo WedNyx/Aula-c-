@@ -2285,6 +2285,35 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     if (trimmed.length < 12) { setRobotState("idle"); setRobotMsg(""); setKeysToShow([]); setFeedback(null); }
   }, [activeCode]);
 
+  const loadClassCode = async () => {
+    try {
+      const teacherCode = await getTeacherCode(shift);
+      if (teacherCode && teacherCode.files && teacherCode.files.length > 0) {
+        const templateCode = teacherCode.files[0]?.code || "";
+        if (templateCode.trim()) {
+          setFiles(prev => {
+            const updated = [...prev];
+            updated[0] = { ...updated[0], code: templateCode };
+            return updated;
+          });
+          setRobotMsg("✅ Código da turma carregado! Você pode modificar como quiser.");
+          setRobotState("ok");
+          await persist({ code: templateCode });
+          setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 3000);
+        } else {
+          setRobotMsg("❌ O professor ainda não criou um modelo de código para a turma.");
+          setRobotState("error");
+        }
+      } else {
+        setRobotMsg("❌ Nenhum código disponível da turma.");
+        setRobotState("error");
+      }
+    } catch (e) {
+      setRobotMsg("❌ Erro ao carregar código da turma.");
+      setRobotState("error");
+    }
+  };
+
   const analyzeCode = async () => {
     const trimmed = activeCode.trim();
     if (trimmed.length < 12 || analyzing) return;
@@ -3044,7 +3073,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
             <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
-            <div style={{ display:"flex", gap:8 }}>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+              <button style={{ ...styles.btn("#22d3ee"), fontSize:12 }} onClick={loadClassCode} title="Carrega o código que o professor preparou para a turma">📥 Código da Turma</button>
               <button style={{ ...styles.btn("#7c83ff"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={analyzeCode} disabled={analyzing||activeCode.trim().length<12}>
                 {analyzing ? "🔍 Analisando..." : "✨ Analisar meu código"}
               </button>
