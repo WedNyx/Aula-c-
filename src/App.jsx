@@ -1453,6 +1453,97 @@ function ClassGoalBar({ sum }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  CADERNO DE RESUMOS + FESTA DA META DA TURMA
+// ════════════════════════════════════════════════════════════════════════════
+// renderização bonita de um resumo salvo (mesmo estilo da tela de resumo da aula)
+function SummaryPretty({ sum }) {
+  const structured = sum && typeof sum === "object" && Array.isArray(sum.secoes) && sum.secoes.length > 0;
+  const ACCENTS = ["#7c83ff","#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6","#f87171"];
+  if (!structured) return <pre style={{ whiteSpace:"pre-wrap", fontFamily:"inherit", fontSize:14, lineHeight:1.9, color:"#c7cfee", margin:0 }}>{typeof sum==="string" ? sum : (sum && sum.raw) || "(resumo indisponível)"}</pre>;
+  return (
+    <div>
+      {sum.intro && <p style={{ color:"#c7cfee", fontSize:14.5, lineHeight:1.7, margin:"0 0 14px" }}>{sum.intro}</p>}
+      {sum.secoes.map((s,i)=>{
+        const c = ACCENTS[i % ACCENTS.length];
+        return (
+          <div key={i} style={{ background:"#151a31", borderRadius:14, padding:16, margin:"0 0 12px", border:"1px solid #2a3154", borderLeft:`5px solid ${c}` }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+              <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:38, height:38, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>{s.emoji || "📌"}</span>
+              <h3 style={{ color:"#e8ebfa", fontSize:15.5, margin:0 }}>{s.titulo}</h3>
+            </div>
+            {s.explicacao && <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, margin:"0 0 4px" }}>{s.explicacao}</p>}
+            {s.exemplo && <CodeBlock code={s.exemplo} />}
+          </div>
+        );
+      })}
+      {sum.dica && (
+        <div style={{ background:"#fbbf2416", border:"1px solid #fbbf24", borderRadius:14, padding:14, display:"flex", gap:10 }}>
+          <div style={{ fontSize:22, lineHeight:1 }}>💡</div>
+          <p style={{ color:"#fcd9a0", fontSize:14, lineHeight:1.7, margin:0 }}>{sum.dica}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// caderno: lista os resumos por data e mostra o escolhido
+function NotebookModal({ history, onClose }) {
+  const dates = Object.keys(history || {}).sort((a,b)=>b.localeCompare(a));
+  const [sel, setSel] = useState(dates[0] || null);
+  const fmt = (d) => { const [y,m,dd] = d.split("-"); return `${dd}/${m}/${y}`; };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📒 Caderno de resumos</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Todos os resumos das suas aulas, guardados por dia. Ótimo para revisar antes da prova!</p>
+        {dates.length === 0 ? (
+          <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum resumo guardado ainda — eles aparecem aqui quando você salva e finaliza uma aula.</p>
+        ) : (
+          <>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:14 }}>
+              {dates.map(d => (
+                <button key={d} onClick={()=>setSel(d)}
+                  style={{ background: sel===d ? "#34d399" : "#0d1122", color: sel===d ? "#03301f" : "#96a0cc", border:`1px solid ${sel===d?"#34d399":"#2a3154"}`, borderRadius:10, padding:"6px 12px", cursor:"pointer", fontWeight:800, fontSize:12.5 }}>
+                  📅 {fmt(d)}
+                </button>
+              ))}
+            </div>
+            {sel && history[sel] && <SummaryPretty sum={history[sel]} />}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// chuva de confete + banner quando a turma sobe de nível na meta coletiva
+function ConfettiParty({ level }) {
+  const pieces = useMemo(() => Array.from({ length: 70 }, (_, i) => ({
+    left: Math.random() * 100,
+    delay: Math.random() * 1.6,
+    dur: 2.4 + Math.random() * 2,
+    size: 6 + Math.random() * 7,
+    color: ["#7c83ff","#22d3ee","#34d399","#fbbf24","#ec4899","#f87171"][i % 6],
+    rot: Math.random() * 360,
+  })), []);
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:1400, pointerEvents:"none", overflow:"hidden" }}>
+      <style>{`@keyframes confete-cai { 0% { transform: translateY(-4vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(106vh) rotate(720deg); opacity: 0.8; } }`}</style>
+      {pieces.map((p, i) => (
+        <div key={i} style={{ position:"absolute", top:0, left:`${p.left}%`, width:p.size, height:p.size*0.6, background:p.color, borderRadius:2, transform:`rotate(${p.rot}deg)`, animation:`confete-cai ${p.dur}s linear ${p.delay}s both` }} />
+      ))}
+      <div style={{ position:"absolute", top:"18%", left:"50%", transform:"translateX(-50%)", background:"linear-gradient(135deg,#7c83ff,#22d3ee)", color:"#fff", fontWeight:900, padding:"14px 28px", borderRadius:20, boxShadow:"0 14px 44px rgba(0,0,0,.5)", fontSize:17, textAlign:"center", animation:"rise .4s ease both" }}>
+        🎉 A TURMA SUBIU DE NÍVEL! 🎉<br/>
+        <span style={{ fontSize:13.5, fontWeight:700, opacity:0.95 }}>Meta coletiva: nível {level} alcançado — parabéns a todos!</span>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  DUELO ENTRE ALUNOS  (desafio 1x1: convite, aceite, mini-quiz compartilhado, resultado)
 // ════════════════════════════════════════════════════════════════════════════
 const DUEL_SYSTEM = "Você cria questões de múltipla escolha básicas sobre C# para iniciantes. Responda APENAS JSON puro, sem markdown.";
@@ -1835,6 +1926,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [nyxLocks, setNyxLocksState] = useState({ zek: false, zeker: false });
   // quando a atividade de hoje foi concluída (mantém o status até as 9h do dia seguinte)
   const [doneAt, setDoneAt] = useState(null);
+  // histórico por dia: notas das atividades e resumos das aulas (caderno)
+  const [scoreHistory, setScoreHistory] = useState({});
+  const [summaryHistory, setSummaryHistory] = useState({});
+  const [showNotebook, setShowNotebook] = useState(false);
+  // festa quando a turma sobe de nível na meta coletiva
+  const [goalParty, setGoalParty] = useState(null);
+  const goalLevelRef = useRef(null);
 
   const sessionStart = useRef(Date.now());
   const stateRef = useRef({});
@@ -1845,7 +1943,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxGear, achievements, doneAt };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxGear, achievements, doneAt, scoreHistory, summaryHistory };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -1885,6 +1983,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       achievements: s.achievements || [],
       doneAt: s.doneAt || null,
       daySnapshot: daySnapshotRef.current || null,
+      scoreHistory: s.scoreHistory || {},
+      summaryHistory: s.summaryHistory || {},
       ...extra,
     });
     setConnected(ok);
@@ -1919,6 +2019,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.nyxGear) setNyxGear({ ...DEFAULT_NYX_GEAR, ...prev.nyxGear });
           if (Array.isArray(prev.achievements)) setAchievements(prev.achievements);
           if (prev.doneAt) setDoneAt(prev.doneAt);
+          if (prev.scoreHistory) setScoreHistory(prev.scoreHistory);
+          if (prev.summaryHistory) setSummaryHistory(prev.summaryHistory);
         }
         // foto do código do início do dia: se a salva for de outro dia (ou não existir), tira uma nova agora
         {
@@ -1966,7 +2068,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       try {
         const all = await listStudents();
         const mine = all.filter(s => (s.shift || "sem-turno") === (shift || "sem-turno"));
-        if (alive) setClassPointsSum(mine.reduce((sum, s) => sum + (s.nyxPoints || 0), 0));
+        const total = mine.reduce((sum, s) => sum + (s.nyxPoints || 0), 0);
+        if (!alive) return;
+        setClassPointsSum(total);
+        // a turma subiu de nível na meta? festa com confete para todo mundo online 🎉
+        const lvl = classGoalProgress(total).level;
+        if (goalLevelRef.current != null && lvl > goalLevelRef.current) {
+          setGoalParty(lvl);
+          playSound("achievement");
+          setTimeout(() => setGoalParty(null), 6500);
+        }
+        goalLevelRef.current = lvl;
       } catch {}
     };
     loadClass();
@@ -2202,7 +2314,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       const parsed = extractJson(activityResult);
       const questions = shuffleQuestions(parsed.questions);
       setDynamicActivity(questions);
-      await persist({ phase:"summary", dynamicActivity:questions, dynamicSummary:summaryData });
+      // guarda o resumo de hoje no caderno (para o aluno rever depois)
+      const newSummaryHistory = { ...summaryHistory, [todayKey()]: summaryData };
+      setSummaryHistory(newSummaryHistory);
+      await persist({ phase:"summary", dynamicActivity:questions, dynamicSummary:summaryData, summaryHistory: newSummaryHistory });
       setPhase("summary");
     } catch {
       setGeneratingMsg("❌ Erro ao gerar. Tente novamente.");
@@ -2243,7 +2358,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     setFeedbackLoading(true);
     const newNyxPoints = nyxPoints + pts;
     setNyxPoints(newNyxPoints);
-    await persist({ phase:"done", score:finalScore, answers, nyxPoints: newNyxPoints, doneAt: completedAt });
+    const newScoreHistory = { ...scoreHistory, [todayKey()]: finalScore };
+    setScoreHistory(newScoreHistory);
+    await persist({ phase:"done", score:finalScore, answers, nyxPoints: newNyxPoints, doneAt: completedAt, scoreHistory: newScoreHistory });
     unlockAchievement("primeira-atividade");
     if (finalScore >= 100) unlockAchievement("nota-cem");
     try {
@@ -2336,6 +2453,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   if (examDone) return (
     <div style={styles.container}>
       <AchievementToast achievement={newAchievement} />
+        {goalParty && <ConfettiParty level={goalParty} />}
       <div style={styles.header}><span>🏆 Prova Concluída — {studentName}</span></div>
       <div style={{ maxWidth:500, margin:"50px auto", textAlign:"center", padding:"0 16px" }}>
         <div style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", borderRadius:18, padding:32, boxShadow:"0 12px 30px #34d39944" }}>
@@ -2488,6 +2606,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     return (
       <div style={styles.container}>
         <AchievementToast achievement={newAchievement} />
+        {goalParty && <ConfettiParty level={goalParty} />}
         <div style={styles.header}><span>📝 Atividade — {studentName}</span></div>
         {comboMsg && (
           <div style={{ position:"fixed", top:70, left:"50%", transform:"translateX(-50%)", zIndex:1200, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", color:"#fff", fontWeight:900, padding:"10px 22px", borderRadius:20, boxShadow:"0 10px 30px rgba(0,0,0,.4)", animation:"rise .3s ease both", fontSize:15 }}>
@@ -2530,6 +2649,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     return (
       <div style={styles.container}>
         <AchievementToast achievement={newAchievement} />
+        {goalParty && <ConfettiParty level={goalParty} />}
         {showFeedbackModal && (
           <NyxFeedbackModal score={score} loading={feedbackLoading} feedback={finalFeedback} onClose={()=>setShowFeedbackModal(false)} />
         )}
@@ -2646,6 +2766,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       </div>
 
       <AchievementToast achievement={newAchievement} />
+        {goalParty && <ConfettiParty level={goalParty} />}
 
       {showNudge && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
@@ -2744,6 +2865,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               <button onClick={()=>setShowRanking(true)} style={{ ...styles.btn("#22d3ee"), fontSize:12, padding:"7px 0" }}>📊 Ranking da turma</button>
               <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btn("#a855f7"), fontSize:12, padding:"7px 0" }}>🎖️ Conquistas · {achievements.length}/{ACHIEVEMENTS.length}</button>
+              <button onClick={()=>setShowNotebook(true)} style={{ ...styles.btn("#34d399"), fontSize:12, padding:"7px 0" }}>📒 Caderno de resumos</button>
               <button onClick={()=>{ if (!nyxLocks.zeker) setShowDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : ""}
                 style={{ ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:nyxLocks.zeker?0.45:1, cursor:nyxLocks.zeker?"not-allowed":"pointer" }}>
                 {nyxLocks.zeker ? "🔒 Duelos bloqueados" : "⚔️ Duelo entre alunos"}
@@ -2791,6 +2913,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
       {showAchievements && <AchievementsModal unlocked={achievements} onClose={()=>setShowAchievements(false)} />}
       {showRanking && <RankingModal shift={shift} myName={studentName} onClose={()=>setShowRanking(false)} />}
+      {showNotebook && <NotebookModal history={summaryHistory} onClose={()=>setShowNotebook(false)} />}
       {showDuel && (
         <DuelModal
           shift={shift}
@@ -3157,6 +3280,27 @@ function TeacherView({ onLogout }) {
   const nudgeStudent = async (s) => {
     const ok = await setNudge(s.shift, s.name, "👀 Preste atenção na aula! Volte para o seu código e continue a atividade de hoje.");
     if (ok) { setNudged(n => ({ ...n, [s.name]: Date.now() })); setTimeout(()=>setNudged(n=>{ const c={...n}; delete c[s.name]; return c; }), 5000); }
+  };
+
+  // ── exporta notas e presenças para planilha (CSV com ; — abre direto no Excel) ──
+  const exportCSV = () => {
+    const rows = students
+      .filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id)
+      .sort((a,b)=>((a.shift||"")+a.name).localeCompare((b.shift||"")+b.name,"pt-BR"));
+    const header = ["Nome","Turma","Presenças","Última nota da atividade","Nota da prova","Pontos do Nyx","Histórico de notas (dia = nota)"];
+    const lines = rows.map(s => {
+      const att = Object.values(s.attendance||{}).filter(v=>v==="present").length;
+      const hist = Object.entries(s.scoreHistory||{}).sort(([a],[b])=>a.localeCompare(b)).map(([d,n])=>{ const [y,m,dd]=d.split("-"); return `${dd}/${m}/${y} = ${n}`; }).join(" | ");
+      return [s.name, shiftMeta(s.shift).label, att, s.score ?? "", s.examScore ?? "", s.nyxPoints||0, hist];
+    });
+    const esc = v => `"${String(v).replace(/"/g,'""')}"`;
+    const csv = "﻿" + [header, ...lines].map(r=>r.map(esc).join(";")).join("\r\n");
+    const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `notas-presencas-${todayKey()}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
   };
 
   // ── gestão de alunos: renomear, mover de turno, corrigir nota, excluir ──
@@ -3546,6 +3690,9 @@ function TeacherView({ onLogout }) {
                   return done.length > 0 ? Math.round(done.reduce((a,s)=>a+s.score,0)/done.length)+" pts" : "—";
                 })()}</span>
               </div>
+              <button onClick={exportCSV} style={{ ...styles.btn("#2a3154"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Baixa uma planilha com nome, turma, presenças, notas e histórico de todos os alunos (sem a turma de teste)">
+                ⬇️ Exportar planilha (CSV)
+              </button>
             </div>
 
             <div style={{ ...styles.card, fontSize:12 }}>
@@ -3743,6 +3890,24 @@ function TeacherView({ onLogout }) {
                   <div style={styles.card}>
                     <h4 style={{ color:"#7c83ff", marginBottom:8 }}>💻 Código</h4>
                     <pre style={{ background:"#1e1e1e", padding:12, borderRadius:8, fontFamily:"monospace", fontSize:13, color:"#a5f3fc", overflow:"auto", maxHeight:240, whiteSpace:"pre-wrap" }}>{sel.code}</pre>
+                  </div>
+                )}
+                {sel.scoreHistory && Object.keys(sel.scoreHistory).length > 0 && (
+                  <div style={styles.card}>
+                    <h4 style={{ color:"#7c83ff", marginBottom:12 }}>📈 Histórico de notas (atividades)</h4>
+                    <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:110, overflowX:"auto", paddingBottom:4 }}>
+                      {Object.entries(sel.scoreHistory).sort(([a],[b])=>a.localeCompare(b)).slice(-14).map(([d,n])=>{
+                        const [, m, dd] = d.split("-");
+                        const g = gradeInfo(n);
+                        return (
+                          <div key={d} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
+                            <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{n}</span>
+                            <div style={{ width:24, height:Math.max(4, Math.round(n*0.7)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color,-0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${dd}/${m}: ${n} pts`} />
+                            <span style={{ color:"#5d679c", fontSize:10 }}>{dd}/{m}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
                 {sel.feedback && <div style={styles.card}><h4 style={{ color:"#7c83ff", marginBottom:6 }}>🤖 Nyx (último aviso)</h4><p style={{ color:sel.feedback.ok?"#34d399":"#f87171", fontSize:13 }}>{sel.feedback.ok?"✅":"⚠"} {sel.feedback.message}</p></div>}
@@ -4067,8 +4232,7 @@ function Login({ onJoin }) {
   const [testUnlocking, setTestUnlocking] = useState(false);
   const [testPass, setTestPass] = useState("");
   const [testError, setTestError] = useState("");
-
-  const TEACHER_PASS = "M1n3cr@ft2006";
+  const [teacherChecking, setTeacherChecking] = useState(false);
 
   const openTestShift = () => { setTestUnlocking(true); setTestPass(""); setTestError(""); };
   const confirmTestShift = () => {
@@ -4086,7 +4250,20 @@ function Login({ onJoin }) {
 
   const enterStudent = (studentName, avatarCfg, shiftId, isNew) => { goFullscreen(); onJoin("student", studentName, avatarCfg, shiftId || "matutino", isNew); };
   const handleNewStudent = () => { if(!name.trim()){ setError("Digite seu nome!"); return; } enterStudent(name.trim(), avatar, shift, true); };
-  const handleTeacher = () => { if(password===TEACHER_PASS) onJoin("teacher","Professor"); else setError("Senha incorreta!"); };
+  // a senha do professor é validada no SERVIDOR (variável TEACHER_PASSWORD no Vercel) — nunca fica no código do site
+  const handleTeacher = async () => {
+    if (teacherChecking) return;
+    setError(""); setTeacherChecking(true);
+    try {
+      const r = await fetch("/api/auth", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ password }) });
+      const d = await r.json();
+      if (d.ok) onJoin("teacher","Professor");
+      else setError("Senha incorreta!");
+    } catch {
+      setError("Não consegui verificar a senha (servidor indisponível). Tente de novo.");
+    }
+    setTeacherChecking(false);
+  };
 
   const styles = {
     container:{ minHeight:"100vh", background:PAGE_BG, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:FONT, padding:16 },
@@ -4196,7 +4373,7 @@ function Login({ onJoin }) {
             <input style={styles.input} type="password" placeholder="Senha do professor" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleTeacher()} />
             {error&&<p style={{ color:"#f87171", fontSize:13, marginTop:6 }}>{error}</p>}
             <div style={{ display:"flex", gap:8, marginTop:14 }}>
-              <button style={{ ...styles.btn("#fbbf24"), flex:1 }} onClick={handleTeacher}>Entrar →</button>
+              <button style={{ ...styles.btn("#fbbf24"), flex:1, opacity:teacherChecking?0.6:1 }} onClick={handleTeacher} disabled={teacherChecking}>{teacherChecking ? "Verificando..." : "Entrar →"}</button>
               <button style={{ ...styles.btn("#2a3154"), width:44, flex:"none" }} onClick={()=>{ setRole(null); setError(""); }}>↩</button>
             </div>
           </>
