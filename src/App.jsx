@@ -517,6 +517,19 @@ const DEFAULT_NYX_GEAR = { head:null, face:null, neck:null, hand:null };
 
 // ── NYX: o robô assistente da turma (SVG + animações CSS) ──
 let __nyxSeq = 0;
+// 10 animações criativas tocadas aleatoriamente quando o Nyx fica muito tempo parado ("idle") sem nada acontecer
+const NYX_IDLE_QUIRKS = [
+  { name:"nyx-idle-spin",      dur:1.4 },
+  { name:"nyx-idle-peek",      dur:1.6 },
+  { name:"nyx-idle-wiggle",    dur:1.2 },
+  { name:"nyx-idle-stretch",   dur:1.8 },
+  { name:"nyx-idle-sway",      dur:2.2 },
+  { name:"nyx-idle-hop",       dur:1.3 },
+  { name:"nyx-idle-tilt",      dur:2.4 },
+  { name:"nyx-idle-heartbeat", dur:1.6 },
+  { name:"nyx-idle-spiral",    dur:1.8 },
+  { name:"nyx-idle-nod",       dur:1.5 },
+];
 function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
   const G = { ...DEFAULT_NYX_GEAR, ...(gear||{}) };
   const idRef = useRef(null);
@@ -530,9 +543,25 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
   };
   const P = MAP[state] || MAP.idle;
   const antennaSpeed = state === "thinking" ? ".5s" : "1.8s";
+
+  // enquanto parado no estado idle, de vez em quando solta uma animação criativa (bocejo, pulinho, giro...)
+  // pra parecer vivo — depois volta pro float calmo de sempre e agenda a próxima aleatoriamente
+  const [quirk, setQuirk] = useState(null);
+  useEffect(() => {
+    if (state !== "idle") { setQuirk(null); return; }
+    let cancelled = false;
+    const timeoutId = setTimeout(() => {
+      if (cancelled) return;
+      setQuirk(NYX_IDLE_QUIRKS[Math.floor(Math.random() * NYX_IDLE_QUIRKS.length)]);
+    }, 7000 + Math.random() * 9000);
+    return () => { cancelled = true; clearTimeout(timeoutId); };
+  }, [state, quirk]);
+  const handleQuirkEnd = (e) => { if (quirk && e.animationName === quirk.name) setQuirk(null); };
+
+  const wrapperAnim = (state === "idle" && quirk) ? `${quirk.name} ${quirk.dur}s ease-in-out` : P.anim;
   return (
     <div style={{ textAlign:"center", padding:4 }}>
-      <div style={{ display:"inline-block", animation:P.anim, willChange:"transform" }}>
+      <div style={{ display:"inline-block", animation:wrapperAnim, willChange:"transform" }} onAnimationEnd={handleQuirkEnd}>
         <svg width={size} height={size*1.15} viewBox="0 0 120 138" style={{ display:"block", overflow:"visible" }}>
           <defs>
             <linearGradient id={uid+"h"} x1="0" y1="0" x2="0" y2="1">
@@ -1019,7 +1048,7 @@ function AvatarBuilder({ value, onChange }) {
 // ════════════════════════════════════════════════════════════════════════════
 const TERM_PROMPT = "C:\\Aula\\MeuProjeto>";
 
-function Terminal({ files, dataTour }) {
+function Terminal({ files, dataTour, maxHeight = 260 }) {
   const [hist, setHist] = useState([
     "Terminal da Aula C#",
     'Digite "ajuda" para ver os comandos disponíveis.',
@@ -1172,7 +1201,7 @@ function Terminal({ files, dataTour }) {
           <button onClick={doRun} disabled={running} style={{ background:"#34d399", border:"none", color:"#03301f", borderRadius:6, padding:"3px 12px", cursor:"pointer", fontSize:12, fontWeight:800, opacity:running?0.6:1 }}>{running?"executando...":"▶ dotnet run"}</button>
         </div>
       </div>
-      <div ref={boxRef} style={{ minHeight:110, maxHeight:260, overflow:"auto", padding:12, cursor:"text" }} onClick={()=>{ if (inputRef.current) inputRef.current.focus(); }}>
+      <div ref={boxRef} style={{ minHeight:110, maxHeight, overflow:"auto", padding:12, cursor:"text" }} onClick={()=>{ if (inputRef.current) inputRef.current.focus(); }}>
         <pre style={{ ...mono, margin:0, color:"#d4d4d4", whiteSpace:"pre-wrap" }}>{hist.join("\n")}</pre>
         {!running && (
           <div style={{ display:"flex", alignItems:"center", gap:6 }}>
@@ -3587,7 +3616,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  CODE LAB  (editor + terminal + robô, reutilizável — usado pelo professor)
 // ════════════════════════════════════════════════════════════════════════════
-function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }], onChange = ()=>{} }) {
+function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }], onChange = ()=>{}, strugglingStudents = [], terminalMaxHeight }) {
   const setFiles = (updater) => onChange(typeof updater === "function" ? updater(files) : updater);
   const [active, setActive] = useState(0);
   const [renaming, setRenaming] = useState(null);
@@ -3671,7 +3700,7 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
           <span style={{ color:"#5d679c", fontSize:12 }}>{analyzing?"🔍 Verificando...":"✨ Nyx confere seu código 5s depois que você para de escrever"}</span>
         </div>
 
-        <Terminal files={files} />
+        <Terminal files={files} maxHeight={terminalMaxHeight} />
       </div>
 
       <div style={{ width:250, flex:"0 0 250px" }}>
@@ -3680,6 +3709,16 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
           {robotMsg && (<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6 }}>{robotMsg}</div>)}
           {keysToShow.length>0 && (<div style={{ marginTop:10 }}><p style={{ color:accent, fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
         </div>
+        {strugglingStudents.length > 0 && (
+          <div style={{ ...card, borderColor:"#f87171", background:"linear-gradient(180deg,#2a1620,#1a1023)" }}>
+            <p style={{ color:"#f87171", fontWeight:800, marginBottom:6, fontSize:13 }}>⚠️ Nyx avisa: precisam de ajuda</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+              {strugglingStudents.map(s => (
+                <span key={s.name} style={{ color:"#fecaca", fontSize:12.5 }}>• <b>{s.name}</b></span>
+              ))}
+            </div>
+          </div>
+        )}
         <div style={{ ...card, fontSize:12, color:"#5d679c", lineHeight:1.8 }}>
           <p style={{ color:accent, fontWeight:600, marginBottom:6 }}>👩‍🏫 O exemplo da aula</p>
           <p style={{ color:"#96a0cc" }}>Programe aqui o exemplo de hoje e teste com o ▶ dotnet run. Este código <b>fica salvo</b> e é usado para gerar o nome do conteúdo do dia. Os alunos não veem esta área.</p>
@@ -4202,22 +4241,24 @@ function TeacherView({ onLogout }) {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
+      <div style={{ ...styles.header, ...(tab==="code" ? { padding:"6px 14px" } : {}) }}>
         <div>
-          <span style={{ fontWeight:900, fontSize:18, background:"linear-gradient(135deg,#fbbf24,#fb923c)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
-          <span style={{ color:"#96a0cc", marginLeft:12, fontSize:12 }}>
-            ● ao vivo · {lastUpdate}{meta.city?` · 📍 ${meta.city}`:""}
-            {(todayContentM||todayContentV) ? ` · 📖 ${[todayContentM&&`☀️ ${todayContentM}`, todayContentV&&`🌙 ${todayContentV}`].filter(Boolean).join(" · ")}` : ""}
-          </span>
+          <span style={{ fontWeight:900, fontSize: tab==="code" ? 14 : 18, background:"linear-gradient(135deg,#fbbf24,#fb923c)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
+          {tab!=="code" && (
+            <span style={{ color:"#96a0cc", marginLeft:12, fontSize:12 }}>
+              ● ao vivo · {lastUpdate}{meta.city?` · 📍 ${meta.city}`:""}
+              {(todayContentM||todayContentV) ? ` · 📖 ${[todayContentM&&`☀️ ${todayContentM}`, todayContentV&&`🌙 ${todayContentV}`].filter(Boolean).join(" · ")}` : ""}
+            </span>
+          )}
         </div>
-        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-          <button style={styles.tab(tab==="monitor")} onClick={()=>setTab("monitor")}>👥 Monitoramento</button>
-          <button style={styles.tab(tab==="code")} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
-          <button style={styles.tab(tab==="calendar")} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
-          <button style={styles.tab(tab==="feedback")} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
-          <button style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle' && tab!=="exam" ? {borderColor:"#fbbf24",color:"#fbbf24"} : {}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
-          <button style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>
-          <button style={{ ...styles.btn("#5d679c"), fontSize:13 }} onClick={onLogout}>Sair</button>
+        <div style={{ display:"flex", gap: tab==="code" ? 5 : 8, flexWrap:"wrap" }}>
+          <button style={{ ...styles.tab(tab==="monitor"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("monitor")}>👥 Monitoramento</button>
+          <button style={{ ...styles.tab(tab==="code"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
+          <button style={{ ...styles.tab(tab==="calendar"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
+          <button style={{ ...styles.tab(tab==="feedback"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
+          <button style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle' && tab!=="exam" ? {borderColor:"#fbbf24",color:"#fbbf24"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
+          {tab!=="code" && <button style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
+          <button style={{ ...styles.btn("#5d679c"), fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
         </div>
       </div>
 
@@ -4612,28 +4653,33 @@ function TeacherView({ onLogout }) {
         </div>
       )}
 
-      {/* ─────────── MEU CÓDIGO (exemplo da aula, do professor) ─────────── */}
-      {tab==="code" && (
-        <div style={{ padding:14, maxWidth:1180, margin:"0 auto" }}>
-          <div style={styles.card}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, flexWrap:"wrap" }}>
-              <div style={{ flex:"1 1 260px" }}>
-                <h3 style={{ color:"#fbbf24", margin:0 }}>👨‍💻 Meu código</h3>
-                <p style={{ color:"#96a0cc", fontSize:13, margin:"4px 0 0", lineHeight:1.5 }}>Cada turma tem seu próprio exemplo. Programe aqui e gere o nome do conteúdo a partir dele — é isso que aparece no calendário.</p>
+      {/* ─────────── MEU CÓDIGO (exemplo da aula, do professor) — layout expandido tipo "tela cheia" ─────────── */}
+      {tab==="code" && (() => {
+        const strugglingNow = students
+          .filter(s => (s.shift||"sem-turno")===codeShift && (s.shift||"sem-turno")!==TEST_SHIFT.id)
+          .filter(s => difficultyOf(s).level==="dif");
+        return (
+          <div style={{ padding:"8px 14px 14px" }}>
+            <div style={{ ...styles.card, padding:12, margin:"6px 0" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+                <div style={{ flex:"1 1 260px" }}>
+                  <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>👨‍💻 Meu código</h3>
+                  <p style={{ color:"#96a0cc", fontSize:12.5, margin:"3px 0 0", lineHeight:1.5 }}>Cada turma tem seu próprio exemplo. Programe aqui e gere o nome do conteúdo a partir dele — é isso que aparece no calendário.</p>
+                </div>
+                <button style={{ ...styles.btn("#7c83ff"), opacity:genName?0.6:1, padding:"7px 12px", fontSize:12.5 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift).label})`}</button>
               </div>
-              <button style={{ ...styles.btn("#7c83ff"), opacity:genName?0.6:1 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift).label})`}</button>
+              <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                {SHIFTS.map(sh => (
+                  <button key={sh.id} onClick={()=>setCodeShift(sh.id)} style={styles.tab(codeShift===sh.id)}>{sh.emoji} {sh.label}</button>
+                ))}
+              </div>
+              {contentFor(codeShift) && <p style={{ color:"#34d399", fontSize:13, fontWeight:600, margin:"8px 0 0" }}>📖 Conteúdo de hoje ({shiftMeta(codeShift).label}): {contentFor(codeShift)}</p>}
+              {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12.5, margin:"8px 0 0", lineHeight:1.5 }}>{nameMsg}</p>}
             </div>
-            <div style={{ display:"flex", gap:8, marginTop:12 }}>
-              {SHIFTS.map(sh => (
-                <button key={sh.id} onClick={()=>setCodeShift(sh.id)} style={styles.tab(codeShift===sh.id)}>{sh.emoji} {sh.label}</button>
-              ))}
-            </div>
-            {contentFor(codeShift) && <p style={{ color:"#34d399", fontSize:14, fontWeight:600, margin:"10px 0 0" }}>📖 Conteúdo de hoje ({shiftMeta(codeShift).label}): {contentFor(codeShift)}</p>}
-            {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:13, margin:"10px 0 0", lineHeight:1.5 }}>{nameMsg}</p>}
+            <CodeLab key={codeShift} accent="#fbbf24" files={proFiles} onChange={setProFiles} strugglingStudents={strugglingNow} terminalMaxHeight={420} />
           </div>
-          <CodeLab key={codeShift} accent="#fbbf24" files={proFiles} onChange={setProFiles} />
-        </div>
-      )}
+        );
+      })()}
 
       {/* ─────────── CALENDÁRIO ─────────── */}
       {tab==="calendar" && (

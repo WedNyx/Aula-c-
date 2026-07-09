@@ -49,6 +49,18 @@ input:focus, textarea:focus { border-color: #7c83ff !important; box-shadow: 0 0 
 @keyframes nyx-shake   { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
 @keyframes nyx-bounce  { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-7px); } 55% { transform: translateY(0); } 72% { transform: translateY(-3px); } 86% { transform: translateY(0); } }
 
+/* ── 10 animações criativas de "tédio" do Nyx: tocadas aleatoriamente quando ele fica muito tempo parado ── */
+@keyframes nyx-idle-spin      { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.06); } 100% { transform: rotate(360deg) scale(1); } }
+@keyframes nyx-idle-peek      { 0%,100% { transform: translateY(0) scaleY(1); } 30% { transform: translateY(10px) scaleY(.85); } 55% { transform: translateY(10px) scaleY(.85); } 80% { transform: translateY(-4px) scaleY(1.05); } }
+@keyframes nyx-idle-wiggle    { 0%,100% { transform: translateX(0) rotate(0deg); } 15% { transform: translateX(-6px) rotate(-6deg); } 30% { transform: translateX(6px) rotate(6deg); } 45% { transform: translateX(-6px) rotate(-6deg); } 60% { transform: translateX(6px) rotate(6deg); } 75% { transform: translateX(-3px) rotate(-3deg); } }
+@keyframes nyx-idle-stretch   { 0%,100% { transform: scaleY(1) translateY(0); } 40% { transform: scaleY(1.15) translateY(-6px); } 70% { transform: scaleY(1.15) translateY(-6px); } }
+@keyframes nyx-idle-sway      { 0%,100% { transform: translateX(0) rotate(0deg); } 25% { transform: translateX(-10px) rotate(-3deg); } 75% { transform: translateX(10px) rotate(3deg); } }
+@keyframes nyx-idle-hop       { 0%,20%,45%,100% { transform: translateY(0); } 10% { transform: translateY(-12px); } 35% { transform: translateY(-12px); } }
+@keyframes nyx-idle-tilt      { 0%,100% { transform: rotate(0deg); } 20% { transform: rotate(-10deg); } 40% { transform: rotate(0deg); } 60% { transform: rotate(10deg); } 80% { transform: rotate(0deg); } }
+@keyframes nyx-idle-heartbeat { 0%,100% { transform: scale(1); } 20% { transform: scale(1.12); } 35% { transform: scale(1); } 50% { transform: scale(1.12); } 65% { transform: scale(1); } }
+@keyframes nyx-idle-spiral    { 0% { transform: rotate(0deg) scale(1); } 25% { transform: rotate(15deg) scale(1.08); } 50% { transform: rotate(0deg) scale(.94); } 75% { transform: rotate(-15deg) scale(1.08); } 100% { transform: rotate(0deg) scale(1); } }
+@keyframes nyx-idle-nod       { 0%,100% { transform: translateY(0) rotate(0deg); } 25% { transform: translateY(4px) rotate(4deg); } 50% { transform: translateY(0) rotate(0deg); } 75% { transform: translateY(4px) rotate(-4deg); } }
+
 /* ── animações gerais ── */
 @keyframes rise      { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pop       { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
