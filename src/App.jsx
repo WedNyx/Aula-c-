@@ -1403,11 +1403,11 @@ function ErrorWalkthroughOverlay({ errors, step, onNext, onPrev, onVerify, onClo
   const tipTop = rect ? (below ? Math.min(rect.bottom + 14, vh - 270) : Math.max(rect.top - 266, 10)) : vh/2 - 130;
   const tipLeft = rect ? Math.max(12, Math.min(rect.left + rect.width/2 - 190, vw - 396)) : 20;
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:990 }}>
+    <div style={{ position:"fixed", inset:0, zIndex:990, pointerEvents:"none" }}>
       {rect
         ? <div style={{ position:"fixed", top:rect.top-6, left:rect.left-6, width:rect.width+12, height:rect.height+12, borderRadius:14, border:"3px solid #f87171", boxShadow:"0 0 0 9999px rgba(5,7,18,.78), 0 0 24px #f8717188", transition:"all .3s ease", pointerEvents:"none" }} />
-        : <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.78)" }} />}
-      <div className="pop" key={step} style={{ position:"fixed", top:tipTop, left:tipLeft, width:380, maxWidth:"calc(100vw - 24px)", background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #f8717166", borderRadius:16, padding:"14px 16px", boxShadow:"0 18px 50px rgba(0,0,0,.6)" }}>
+        : <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.78)", pointerEvents:"none" }} />}
+      <div className="pop" key={step} style={{ position:"fixed", top:tipTop, left:tipLeft, width:380, maxWidth:"calc(100vw - 24px)", background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #f8717166", borderRadius:16, padding:"14px 16px", boxShadow:"0 18px 50px rgba(0,0,0,.6)", pointerEvents:"auto" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
           <span style={{ color:"#f87171", fontSize:12, fontWeight:800, letterSpacing:0.5 }}>⚠ Erro {step+1} de {errors.length}</span>
           <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:18, cursor:"pointer", lineHeight:1 }}>✕</button>
