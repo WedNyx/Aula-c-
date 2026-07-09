@@ -2624,9 +2624,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     } catch(e) {
       if (e.message === 'ROBOTKEY_MISSING') {
         setRobotState("error");
-        setRobotMsg("🔑 Nyx está offline: o professor precisa configurar a chave ANTHROPIC_API_KEY no painel do Vercel. A verificação básica do código continua funcionando!");
+        setRobotMsg(e.userMsg || "🔑 Nyx está offline: o professor precisa configurar a chave da IA no painel do Vercel. A verificação básica do código continua funcionando!");
       } else {
-        setRobotState("idle"); setRobotMsg("");
+        setRobotState("error");
+        setRobotMsg("😵 Nyx não conseguiu analisar agora (falha ao falar com a IA). Clique em \"Analisar meu código\" de novo em alguns instantes.");
       }
     }
     setAnalyzing(false);
@@ -3704,8 +3705,8 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
       );
       setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]);
     } catch(e) {
-      if (e.message === 'ROBOTKEY_MISSING') { setRobotState("error"); setRobotMsg("🔑 Nyx está offline: configure ANTHROPIC_API_KEY no Vercel."); }
-      else { setRobotState("idle"); setRobotMsg(""); }
+      if (e.message === 'ROBOTKEY_MISSING') { setRobotState("error"); setRobotMsg(e.userMsg || "🔑 Nyx está offline: configure a chave da IA no Vercel."); }
+      else { setRobotState("error"); setRobotMsg("😵 Nyx não conseguiu analisar agora (falha ao falar com a IA). Tente de novo em alguns instantes."); }
     }
     setAnalyzing(false);
   };
