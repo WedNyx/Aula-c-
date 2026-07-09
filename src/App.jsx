@@ -95,6 +95,17 @@ function useSpeech() {
   return { speak, pause, resume, stop, isSpeaking, isSupported };
 }
 
+// ── largura da tela (pra layouts responsivos feitos em JS, já que os estilos são inline e não usam @media) ──
+function useViewportWidth() {
+  const [w, setW] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
+  useEffect(() => {
+    const onResize = () => setW(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return w;
+}
+
 // ── sequência de dias (streak) a partir do mapa de presença ──
 function computeStreak(attendance) {
   if (!attendance) return 0;
@@ -2857,7 +2868,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const scalePx = (val) => Math.round(val * uiScale);
   const styles = {
     container:{ minHeight:"100vh", background:pageBgFor(theme), color:"#e8ebfa", fontFamily:FONT, fontSize:`${scaleSize(16)}px` },
-    header:{ background:"rgba(17,21,42,.85)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", padding:`${scalePx(10)}px ${scalePx(18)}px`, display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #2a3154", boxShadow:"0 1px 0 #7c83ff33, 0 8px 24px rgba(3,5,16,.35)", position:"sticky", top:0, zIndex:40 },
+    header:{ background:"rgba(17,21,42,.85)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", padding:`${scalePx(10)}px ${scalePx(18)}px`, display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #2a3154", boxShadow:"0 1px 0 #7c83ff33, 0 8px 24px rgba(3,5,16,.35)", position:"sticky", top:0, zIndex:40, flexWrap:"wrap", gap:8 },
     card:{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:16, padding:scalePx(16), margin:"10px 0", border:"1px solid #272e52", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:`${scalePx(10)}px ${scalePx(18)}px`, cursor:"pointer", fontWeight:800, fontSize:scaleSize(14), boxShadow:`0 4px 14px ${c}44` }),
     opt:(sel)=>({ background:sel?"#7c83ff22":"#131730", border:`2px solid ${sel?"#7c83ff":"#272e52"}`, borderRadius:10, padding:`${scalePx(10)}px ${scalePx(14)}px`, marginBottom:8, cursor:"pointer", color:"#e8ebfa", textAlign:"left", width:"100%", fontSize:scaleSize(14), minHeight:scaleSize(44) }),
@@ -3250,7 +3261,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           </button>
           <span style={{ fontWeight:900, fontSize:17, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>💻 Aula C#</span>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
           <span style={{ fontSize:12, color: connected===false?"#f87171":connected?"#34d399":"#96a0cc" }}>
             {connected===null ? "● conectando..." : connected ? "● conectado" : "● sem conexão"}
           </span>
@@ -4887,6 +4898,8 @@ function TeacherView({ onLogout }) {
 //  LOGIN
 // ════════════════════════════════════════════════════════════════════════════
 function Login({ onJoin }) {
+  const vw = useViewportWidth();
+  const isNarrow = vw < 720; // abaixo disso, a personalização do avatar empilha em vez de ficar em 2 colunas
   const [name, setName] = useState("");
   const [role, setRole] = useState(null);
   const [password, setPassword] = useState("");
@@ -4972,9 +4985,10 @@ function Login({ onJoin }) {
           <>
             <p style={{ color:"#fbbf24", fontWeight:600, marginBottom:10 }}>👤 Entrar como Aluno</p>
 
-            {/* metade esquerda: turma, perfis salvos, nome e prévia do boneco — metade direita: personalização */}
+            {/* metade esquerda: turma, perfis salvos, nome e prévia do boneco — metade direita: personalização
+                (em telas estreitas as duas colunas empilham, senão ficam lado a lado) */}
             <div style={{ display:"flex", gap:24, flexWrap:"wrap" }}>
-              <div style={{ flex:"1 1 300px", minWidth:260 }}>
+              <div style={{ flex: isNarrow ? "1 1 100%" : "1 1 300px", minWidth: isNarrow ? 0 : 260 }}>
                 <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 8px" }}>🕑 Qual é a sua turma?</p>
                 <div style={{ display:"flex", gap:10, marginBottom:10 }}>
                   {SHIFTS.map(sh => (
@@ -5033,9 +5047,9 @@ function Login({ onJoin }) {
                 <AvatarControls value={avatar} onChange={setAvatar} part="basic" />
               </div>
 
-              <div style={{ flex:"1 1 440px", minWidth:400 }}>
+              <div style={{ flex: isNarrow ? "1 1 100%" : "1 1 440px", minWidth: isNarrow ? 0 : 400 }}>
                 <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 8px" }}>Personalize:</p>
-                <div style={{ columnCount:2, columnGap:20 }}>
+                <div style={{ columnCount: isNarrow ? 1 : 2, columnGap:20 }}>
                   <AvatarControls value={avatar} onChange={setAvatar} part="rest" />
                 </div>
                 {error&&<p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{error}</p>}
