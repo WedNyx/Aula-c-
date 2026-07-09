@@ -2163,6 +2163,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [answers, setAnswers] = useState({});
   const [score, setScore] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analyzingProvider, setAnalyzingProvider] = useState(null);
+  const lastProviderRef = useRef("nvidia"); // lembra o último modelo escolhido, pra reverificação automática usar o mesmo
   // erros da última análise (linha sublinhada de vermelho até corrigir) + tour do Nyx explicando cada um
   const [codeErrors, setCodeErrors] = useState([]);
   const [showErrorWalkthrough, setShowErrorWalkthrough] = useState(false);
@@ -2592,24 +2594,25 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     setGuidedLessonLoading(false);
   };
 
-  const analyzeCode = async () => {
+  const analyzeCode = async (provider = lastProviderRef.current) => {
     const trimmed = activeCode.trim();
     if (trimmed.length < 12 || analyzing) return;
-    setRobotState("thinking"); setAnalyzing(true);
+    lastProviderRef.current = provider;
+    setRobotState("thinking"); setAnalyzing(true); setAnalyzingProvider(provider);
     const quick = quickCheck(activeCode);
     if (quick) {
       const fb = { ok:false, message:quick.message, missingChars:quick.missing||[] };
       setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setFeedback(fb);
       setCodeErrors([]); setShowErrorWalkthrough(false);
       await persist({ feedback:fb, hasError:true });
-      setAnalyzing(false);
+      setAnalyzing(false); setAnalyzingProvider(null);
       return;
     }
     try {
       const parsed = await askClaudeJson(
         `Revise o código C# de um aluno iniciante como um COMPILADOR faria, linha por linha.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nO que verificar (nesta ordem):\n1. Maiúsculas/minúsculas: Console.WriteLine, Console.ReadLine, Convert.ToInt32, int.Parse — "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS.\n2. Tipos em minúsculo (regra da turma): string, int, double, bool, char — se usou String/Int32/Double/Boolean, avise para trocar pela forma minúscula.\n3. Ponto e vírgula ; faltando no fim de instruções (declarações, chamadas, atribuições).\n4. Chaves { }, parênteses ( ) e aspas " — conte os pares no arquivo INTEIRO antes de acusar falta.\n5. Palavras-chave erradas (publik, voi, whille, pritn, statics, clas).\n6. Variáveis usadas sem declarar (confira TODAS as linhas anteriores antes de acusar) e comparação com = em vez de ==.\n7. Console.ReadLine lido direto para int/double sem Convert/Parse.\n\nLembretes IMPORTANTES:\n- Top-level statements (código sem class/Main) e ausência de using System são VÁLIDOS — não são erro.\n- Não aponte classe/método "inexistente" se estiver definido em outro arquivo do projeto.\n- NÃO invente erro em código correto. Na dúvida real, prefira ok=true.\n\nResponda APENAS em JSON puro, sem markdown, com os campos NESTA ordem:\n{"analise": "sua verificação rápida linha a linha, citando o que conferiu (máx 3 frases — o aluno não vê isto)", "ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: onde está (linha/trecho) e como corrigir mostrando a forma certa, em 1 a 3 frases gentis", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se nenhum"], "errors": ["se ok for false: uma lista com CADA erro encontrado (pode ter mais de um). Cada item é um objeto {\\"trecho\\": a linha EXATA e completa como aparece no código, copiada literalmente, sem espaços extras no início; \\"explicacao\\": por que está errado e como corrigir, 1 a 2 frases bem simples e gentis; \\"exemplo\\": a mesma linha já corrigida}. Lista vazia se ok for true."]}`,
         CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
-        { temperature: 0 }
+        { temperature: 0, provider }
       );
       setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
       await persist({ feedback:parsed, hasError:!parsed.ok });
@@ -2627,10 +2630,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         setRobotMsg(e.userMsg || "🔑 Nyx está offline: o professor precisa configurar a chave da IA no painel do Vercel. A verificação básica do código continua funcionando!");
       } else {
         setRobotState("error");
-        setRobotMsg("😵 Nyx não conseguiu analisar agora (falha ao falar com a IA). Clique em \"Analisar meu código\" de novo em alguns instantes.");
+        setRobotMsg(`😵 Nyx não conseguiu analisar agora com ${provider === "laguna" ? "Laguna" : "Nemotron"} (falha ao falar com a IA). Tente de novo, ou experimente o outro botão.`);
       }
     }
-    setAnalyzing(false);
+    setAnalyzing(false); setAnalyzingProvider(null);
   };
 
   // enquanto houver erros sinalizados, sublinha em vermelho a linha correspondente no editor — some sozinho
@@ -3301,6 +3304,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     );
   }
 
+  // dois botões, um por modelo de IA — o aluno escolhe qual pedir pro Nyx usar nesta análise
+  const analyzeButtons = (
+    <>
+      <button style={{ ...styles.btn("#7c83ff"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode("nvidia")} disabled={analyzing||activeCode.trim().length<12}>
+        {analyzingProvider==="nvidia" ? "🔍 Analisando..." : "✨ Nemotron"}
+      </button>
+      <button style={{ ...styles.btn("#22d3ee"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode("laguna")} disabled={analyzing||activeCode.trim().length<12}>
+        {analyzingProvider==="laguna" ? "🔍 Analisando..." : "🌊 Laguna"}
+      </button>
+    </>
+  );
+
   // ── CODING ──
   return (
     <div style={styles.container}>
@@ -3513,9 +3528,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:16, flexWrap:"wrap", gap:8 }}>
                 <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:scaleSize(12) }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  <button style={{ ...styles.btn("#7c83ff"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={analyzeCode} disabled={analyzing||activeCode.trim().length<12}>
-                    {analyzing ? "🔍 Analisando..." : "✨ Analisar meu código"}
-                  </button>
+                  {analyzeButtons}
                   <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
                 </div>
               </div>
@@ -3544,9 +3557,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
                 <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   <button style={{ ...styles.btn("#22d3ee"), fontSize:12 }} onClick={loadClassCode} title="Carrega o código que o professor preparou para a turma">📥 Código da Turma</button>
-                  <button style={{ ...styles.btn("#7c83ff"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={analyzeCode} disabled={analyzing||activeCode.trim().length<12}>
-                    {analyzing ? "🔍 Analisando..." : "✨ Analisar meu código"}
-                  </button>
+                  {analyzeButtons}
                   <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
                 </div>
               </div>

@@ -1,15 +1,20 @@
-// Cérebro do Nyx: NVIDIA NIM (Nemotron, se configurado) com fallback para Anthropic Claude.
+// Cérebro do Nyx: dois modelos que o aluno/professor escolhe na hora (botões no app),
+// mais Anthropic Claude como reserva silenciosa para as outras features do sistema
+// (chat, terminal, provas, resumos) que não pedem um modelo específico.
 // A resposta é sempre normalizada para o formato { content: [{ text: "..." }] },
 // para que o restante do app (App.jsx) não precise saber qual provedor respondeu.
 
 const NVIDIA_KEY = process.env.NVIDIA_API_KEY || ''
 const NVIDIA_MODEL = process.env.NVIDIA_MODEL || ''
-// Modelo NVIDIA reserva: usado se o modelo principal falhar (ex: Nemotron fora do ar
-// ou rejeitando a chamada). Mesma chave/endpoint, só troca o campo "model". Opcional.
-const NVIDIA_MODEL_FALLBACK = process.env.NVIDIA_MODEL_FALLBACK || ''
 const NVIDIA_BASE_URL = (process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1').replace(/\/$/, '')
+
+// Laguna (poolside/laguna-xs-2.1:free) via OpenRouter — mesmo formato OpenAI-compatible.
+const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || ''
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'poolside/laguna-xs-2.1:free'
+
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || ''
 
+// provedor usado quando ninguém pede um modelo específico (chat do Nyx, terminal, provas, resumos...)
 const PROVIDER = NVIDIA_KEY && NVIDIA_MODEL ? 'nvidia' : ANTHROPIC_KEY ? 'anthropic' : null
 
 const DEFAULT_SYSTEM =
@@ -20,10 +25,10 @@ const DEFAULT_SYSTEM =
 // garantindo que sobre espaço suficiente para a resposta final.
 const NVIDIA_REASONING = /nemotron-3|reasoning|-r1/i.test(NVIDIA_MODEL)
 
-async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning, model }) {
+async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning }) {
   const finalMaxTokens = Math.min(Number(max_tokens) || 2000, 6000)
   const body = {
-    model: model || NVIDIA_MODEL,
+    model: NVIDIA_MODEL,
     messages: [
       { role: 'system', content: system || DEFAULT_SYSTEM },
       { role: 'user', content: prompt },
@@ -60,7 +65,7 @@ async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasonin
   return { content: [{ type: 'text', text }] }
 }
 
-async function callNvidiaPrimary(args) {
+async function callNvidia(args) {
   if (!NVIDIA_REASONING) return callNvidiaRaw({ ...args, reasoning: false })
   try {
     return await callNvidiaRaw({ ...args, reasoning: true })
@@ -73,16 +78,33 @@ async function callNvidiaPrimary(args) {
   }
 }
 
-async function callNvidia(args) {
-  try {
-    return await callNvidiaPrimary(args)
-  } catch (e) {
-    // modelo principal (Nemotron) falhou de vez — se houver um modelo reserva
-    // configurado na NVIDIA (mesma chave, mesmo endpoint), tenta ele antes de
-    // desistir e cair pro Anthropic (se configurado).
-    if (!NVIDIA_MODEL_FALLBACK) throw e
-    return callNvidiaRaw({ ...args, reasoning: false, model: NVIDIA_MODEL_FALLBACK })
+async function callOpenRouter({ prompt, system, temperature, max_tokens }) {
+  const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${OPENROUTER_KEY}`,
+      // recomendado pela OpenRouter para identificar a origem das chamadas (não obrigatório p/ funcionar)
+      'HTTP-Referer': 'https://aula-c.vercel.app',
+      'X-Title': 'Aula de C# — Nyx',
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      messages: [
+        { role: 'system', content: system || DEFAULT_SYSTEM },
+        { role: 'user', content: prompt },
+      ],
+      temperature: typeof temperature === 'number' ? temperature : 0.2,
+      max_tokens: Math.min(Number(max_tokens) || 2000, 4000),
+    }),
+  })
+  const data = await resp.json().catch(() => ({}))
+  if (!resp.ok) {
+    const msg = data?.error?.message || data?.message || `OpenRouter API error ${resp.status}`
+    throw Object.assign(new Error(msg), { status: resp.status })
   }
+  const text = data?.choices?.[0]?.message?.content || ''
+  return { content: [{ type: 'text', text }] }
 }
 
 async function callAnthropic({ prompt, system, temperature, max_tokens }) {
@@ -109,21 +131,51 @@ async function callAnthropic({ prompt, system, temperature, max_tokens }) {
   return data // já vem no formato { content: [{ text }] }
 }
 
+// chamada de um modelo ESPECÍFICO, escolhido na hora pelo aluno/professor (botão Nemotron ou Laguna) —
+// aqui não tem troca automática pra outro provedor: se o modelo escolhido não estiver configurado ou
+// falhar, o erro sobe direto pra tela, porque a pessoa escolheu ESSE modelo de propósito.
+async function callExplicitProvider(provider, args) {
+  if (provider === 'laguna') {
+    if (!OPENROUTER_KEY) {
+      throw Object.assign(new Error('Laguna ainda não está configurado: falta OPENROUTER_API_KEY no Vercel.'), { status: 503, missingKey: true })
+    }
+    return callOpenRouter(args)
+  }
+  if (!(NVIDIA_KEY && NVIDIA_MODEL)) {
+    throw Object.assign(new Error('Nemotron ainda não está configurado: falta NVIDIA_API_KEY e NVIDIA_MODEL no Vercel.'), { status: 503, missingKey: true })
+  }
+  return callNvidia(args)
+}
+
 export default async function handler(req, res) {
   // GET: verifica se alguma IA está configurada (sem gastar tokens)
   if (req.method === 'GET') {
     return res.json({
-      configured: !!PROVIDER,
+      configured: !!PROVIDER || !!OPENROUTER_KEY,
       provider: PROVIDER,
       hasNvidiaKey: !!NVIDIA_KEY,
       hasNvidiaModel: !!NVIDIA_MODEL,
-      hasNvidiaFallbackModel: !!NVIDIA_MODEL_FALLBACK,
+      hasOpenRouter: !!OPENROUTER_KEY,
       hasAnthropic: !!ANTHROPIC_KEY,
     })
   }
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
+  const { prompt, system, temperature, max_tokens, provider } = req.body || {}
+
+  // botão Nemotron ou botão Laguna: modelo específico escolhido pela pessoa, sem troca automática
+  if (provider === 'nvidia' || provider === 'laguna') {
+    try {
+      const data = await callExplicitProvider(provider, { prompt, system, temperature, max_tokens })
+      return res.json(data)
+    } catch (e) {
+      if (e.missingKey) return res.status(503).json({ error: 'missing_api_key', message: e.message })
+      return res.status(e.status || 500).json({ error: String(e.message || e) })
+    }
+  }
+
+  // sem escolha explícita (chat do Nyx, terminal, provas, resumos...): comportamento automático de sempre
   if (!PROVIDER) {
     const hint = NVIDIA_KEY && !NVIDIA_MODEL
       ? 'NVIDIA_API_KEY está configurada, mas falta NVIDIA_MODEL (copie o nome exato do modelo em build.nvidia.com).'
@@ -132,8 +184,6 @@ export default async function handler(req, res) {
         '• ANTHROPIC_API_KEY (console.anthropic.com)'
     return res.status(503).json({ error: 'missing_api_key', message: hint })
   }
-
-  const { prompt, system, temperature, max_tokens } = req.body || {}
 
   try {
     const data = PROVIDER === 'nvidia'
