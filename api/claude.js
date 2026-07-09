@@ -4,6 +4,9 @@
 
 const NVIDIA_KEY = process.env.NVIDIA_API_KEY || ''
 const NVIDIA_MODEL = process.env.NVIDIA_MODEL || ''
+// Modelo NVIDIA reserva: usado se o modelo principal falhar (ex: Nemotron fora do ar
+// ou rejeitando a chamada). Mesma chave/endpoint, só troca o campo "model". Opcional.
+const NVIDIA_MODEL_FALLBACK = process.env.NVIDIA_MODEL_FALLBACK || ''
 const NVIDIA_BASE_URL = (process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1').replace(/\/$/, '')
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || ''
 
@@ -17,10 +20,10 @@ const DEFAULT_SYSTEM =
 // garantindo que sobre espaço suficiente para a resposta final.
 const NVIDIA_REASONING = /nemotron-3|reasoning|-r1/i.test(NVIDIA_MODEL)
 
-async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning }) {
+async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning, model }) {
   const finalMaxTokens = Math.min(Number(max_tokens) || 2000, 6000)
   const body = {
-    model: NVIDIA_MODEL,
+    model: model || NVIDIA_MODEL,
     messages: [
       { role: 'system', content: system || DEFAULT_SYSTEM },
       { role: 'user', content: prompt },
@@ -57,7 +60,7 @@ async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasonin
   return { content: [{ type: 'text', text }] }
 }
 
-async function callNvidia(args) {
+async function callNvidiaPrimary(args) {
   if (!NVIDIA_REASONING) return callNvidiaRaw({ ...args, reasoning: false })
   try {
     return await callNvidiaRaw({ ...args, reasoning: true })
@@ -67,6 +70,18 @@ async function callNvidia(args) {
     // em vez de deixar o Nyx inteiro fora do ar por causa do modo de raciocínio.
     if (e.status && e.status !== 400 && e.status !== 422) throw e
     return callNvidiaRaw({ ...args, reasoning: false })
+  }
+}
+
+async function callNvidia(args) {
+  try {
+    return await callNvidiaPrimary(args)
+  } catch (e) {
+    // modelo principal (Nemotron) falhou de vez — se houver um modelo reserva
+    // configurado na NVIDIA (mesma chave, mesmo endpoint), tenta ele antes de
+    // desistir e cair pro Anthropic (se configurado).
+    if (!NVIDIA_MODEL_FALLBACK) throw e
+    return callNvidiaRaw({ ...args, reasoning: false, model: NVIDIA_MODEL_FALLBACK })
   }
 }
 
@@ -102,6 +117,7 @@ export default async function handler(req, res) {
       provider: PROVIDER,
       hasNvidiaKey: !!NVIDIA_KEY,
       hasNvidiaModel: !!NVIDIA_MODEL,
+      hasNvidiaFallbackModel: !!NVIDIA_MODEL_FALLBACK,
       hasAnthropic: !!ANTHROPIC_KEY,
     })
   }
