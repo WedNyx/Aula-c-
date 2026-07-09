@@ -530,6 +530,43 @@ const NYX_IDLE_QUIRKS = [
   { name:"nyx-idle-spiral",    dur:1.8 },
   { name:"nyx-idle-nod",       dur:1.5 },
 ];
+// 10 reações sorteadas quando o Nyx encontra um erro no código
+const NYX_ERROR_REACTIONS = [
+  { name:"nyx-err-shake",    dur:.6 },
+  { name:"nyx-err-wobble",   dur:.7 },
+  { name:"nyx-err-droop",    dur:.9 },
+  { name:"nyx-err-spinout",  dur:.8 },
+  { name:"nyx-err-flinch",   dur:.6 },
+  { name:"nyx-err-coverup",  dur:.9 },
+  { name:"nyx-err-buzz",     dur:.7 },
+  { name:"nyx-err-stumble",  dur:.8 },
+  { name:"nyx-err-gasp",     dur:.7 },
+  { name:"nyx-err-facepalm", dur:.9 },
+];
+// 10 reações sorteadas quando o aluno acerta tudo (código ou análise ok)
+const NYX_OK_REACTIONS = [
+  { name:"nyx-ok-bounce",      dur:1.1 },
+  { name:"nyx-ok-cheer",       dur:1.0 },
+  { name:"nyx-ok-spin",        dur:1.0 },
+  { name:"nyx-ok-wiggledance", dur:1.0 },
+  { name:"nyx-ok-doublebounce",dur:1.1 },
+  { name:"nyx-ok-twirl",       dur:1.1 },
+  { name:"nyx-ok-fistpump",    dur:.9 },
+  { name:"nyx-ok-sparkle",     dur:.9 },
+  { name:"nyx-ok-victorylap",  dur:1.2 },
+  { name:"nyx-ok-salute",      dur:1.0 },
+];
+// 7 animações sorteadas enquanto o Nyx está analisando ou gerando conteúdo (fica em loop até terminar)
+const NYX_THINKING_ANIMS = [
+  { name:"nyx-think-float", dur:1.5 },
+  { name:"nyx-think-tilt",  dur:1.8 },
+  { name:"nyx-think-bob",   dur:1.3 },
+  { name:"nyx-think-scan",  dur:1.6 },
+  { name:"nyx-think-pulse", dur:1.2 },
+  { name:"nyx-think-sway",  dur:1.7 },
+  { name:"nyx-think-orbit", dur:1.6 },
+];
+const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
   const G = { ...DEFAULT_NYX_GEAR, ...(gear||{}) };
   const idRef = useRef(null);
@@ -552,13 +589,25 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
     let cancelled = false;
     const timeoutId = setTimeout(() => {
       if (cancelled) return;
-      setQuirk(NYX_IDLE_QUIRKS[Math.floor(Math.random() * NYX_IDLE_QUIRKS.length)]);
+      setQuirk(pickRandom(NYX_IDLE_QUIRKS));
     }, 7000 + Math.random() * 9000);
     return () => { cancelled = true; clearTimeout(timeoutId); };
   }, [state, quirk]);
   const handleQuirkEnd = (e) => { if (quirk && e.animationName === quirk.name) setQuirk(null); };
 
-  const wrapperAnim = (state === "idle" && quirk) ? `${quirk.name} ${quirk.dur}s ease-in-out` : P.anim;
+  // sempre que o estado muda pra "pensando", "certo" ou "erro", sorteia uma reação nova daquele grupo
+  const [reactAnim, setReactAnim] = useState(null);
+  useEffect(() => {
+    if (state === "error") setReactAnim(pickRandom(NYX_ERROR_REACTIONS));
+    else if (state === "ok") setReactAnim(pickRandom(NYX_OK_REACTIONS));
+    else if (state === "thinking") setReactAnim(pickRandom(NYX_THINKING_ANIMS));
+    else setReactAnim(null);
+  }, [state]);
+
+  const wrapperAnim =
+    (state === "idle" && quirk) ? `${quirk.name} ${quirk.dur}s ease-in-out` :
+    reactAnim ? `${reactAnim.name} ${reactAnim.dur}s ease-in-out${state === "thinking" ? " infinite" : ""}` :
+    P.anim;
   return (
     <div style={{ textAlign:"center", padding:4 }}>
       <div style={{ display:"inline-block", animation:wrapperAnim, willChange:"transform" }} onAnimationEnd={handleQuirkEnd}>
