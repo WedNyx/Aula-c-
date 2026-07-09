@@ -17,7 +17,7 @@ const DEFAULT_SYSTEM =
 // garantindo que sobre espaço suficiente para a resposta final.
 const NVIDIA_REASONING = /nemotron-3|reasoning|-r1/i.test(NVIDIA_MODEL)
 
-async function callNvidia({ prompt, system, temperature, max_tokens }) {
+async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning }) {
   const finalMaxTokens = Math.min(Number(max_tokens) || 2000, 6000)
   const body = {
     model: NVIDIA_MODEL,
@@ -30,7 +30,7 @@ async function callNvidia({ prompt, system, temperature, max_tokens }) {
     max_tokens: finalMaxTokens,
     stream: false,
   }
-  if (NVIDIA_REASONING) {
+  if (reasoning) {
     // Equivalente ao `extra_body` do SDK Python: os campos vão soltos no JSON,
     // não aninhados — é assim que a API da NVIDIA espera recebê-los.
     body.chat_template_kwargs = { enable_thinking: true }
@@ -55,6 +55,19 @@ async function callNvidia({ prompt, system, temperature, max_tokens }) {
   // é só o "pensamento" interno do modelo e não deve aparecer para o aluno.
   const text = data?.choices?.[0]?.message?.content || ''
   return { content: [{ type: 'text', text }] }
+}
+
+async function callNvidia(args) {
+  if (!NVIDIA_REASONING) return callNvidiaRaw({ ...args, reasoning: false })
+  try {
+    return await callNvidiaRaw({ ...args, reasoning: true })
+  } catch (e) {
+    // chat_template_kwargs/reasoning_budget não são padrão OpenAI — se a NVIDIA
+    // rejeitar esses campos (400/422) para este modelo, tenta de novo sem eles
+    // em vez de deixar o Nyx inteiro fora do ar por causa do modo de raciocínio.
+    if (e.status && e.status !== 400 && e.status !== 422) throw e
+    return callNvidiaRaw({ ...args, reasoning: false })
+  }
 }
 
 async function callAnthropic({ prompt, system, temperature, max_tokens }) {
@@ -112,6 +125,17 @@ export default async function handler(req, res) {
       : await callAnthropic({ prompt, system, temperature, max_tokens })
     return res.json(data)
   } catch (e) {
+    // se a NVIDIA falhar (chave/modelo com problema, fora do ar, etc.) mas a
+    // Anthropic também estiver configurada, usa ela como reserva na hora em
+    // vez de deixar o Nyx inteiro fora do ar por causa de um único provedor.
+    if (PROVIDER === 'nvidia' && ANTHROPIC_KEY) {
+      try {
+        const data = await callAnthropic({ prompt, system, temperature, max_tokens })
+        return res.json(data)
+      } catch (e2) {
+        return res.status(e2.status || 500).json({ error: String(e2.message || e2) })
+      }
+    }
     return res.status(e.status || 500).json({ error: String(e.message || e) })
   }
 }
