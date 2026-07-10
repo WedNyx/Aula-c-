@@ -4052,8 +4052,8 @@ function TeacherView({ onLogout }) {
     const lines = rows.map(s => {
       const att = Object.values(s.attendance||{}).filter(v=>v==="present").length;
       const maiorNota = maiorNotaOf(s);
-      // situação = desempenho geral (boa nota ou não), não o que ele está fazendo agora
-      const situacao = maiorNota == null ? "Sem nota registrada ainda" : `${gradeInfo(maiorNota).emoji} ${gradeInfo(maiorNota).label}`;
+      // situação = satisfatório ou insatisfatório, com base na maior nota (linha de corte: 60, a média escolar)
+      const situacao = maiorNota == null ? "Sem nota registrada ainda" : (maiorNota >= 60 ? "✅ Satisfatório" : "⚠ Insatisfatório");
       const key = s.shift || "sem-turno";
       const destaque = (maiorNota != null && maiorNota === melhorNotaPorTurno[key]) ? "🌟 Aluno destaque da turma" : "";
       return [`${s.name} (${shiftMeta(s.shift).label})`, att, maiorNota ?? "", situacao, destaque];
