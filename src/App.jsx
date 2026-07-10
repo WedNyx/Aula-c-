@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode } from "./storage.js";
 
 // ── tema ──
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
@@ -93,6 +93,12 @@ function useSpeech() {
   }, [isSupported]);
 
   return { speak, pause, resume, stop, isSpeaking, isSupported };
+}
+
+// deixa um trecho de código C# falável: quebra por linha (o \n vira uma pausa) e tira espaços nas pontas
+function codeForSpeech(codigo) {
+  if (!codigo) return "";
+  return String(codigo).split("\n").map(l => l.trim()).filter(Boolean).join(". ");
 }
 
 // ── largura da tela (pra layouts responsivos feitos em JS, já que os estilos são inline e não usam @media) ──
@@ -2486,6 +2492,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           await persist({ score: fix.score });
         }
       } catch {}
+      // professor selecionou este aluno e enviou o código da turma → troca TODOS os arquivos e avisa
+      try {
+        const sent = await getCodeSend(shift, studentName);
+        if (sent && Array.isArray(sent.files) && sent.files.length) {
+          setFiles(sent.files);
+          setActive(0);
+          await clearCodeSend(shift, studentName);
+          setRobotMsg("✅ O professor enviou um código novo pra você! Você pode modificar como quiser.");
+          setRobotState("ok");
+          await persist({ files: sent.files });
+          setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 4000);
+        }
+      } catch {}
       await persist();
       const streak = computeStreak(attendanceRef.current);
       if (streak >= 3) unlockAchievement("sequencia-3");
@@ -2506,35 +2525,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     const trimmed = activeCode.trim();
     if (trimmed.length < 12) { setRobotState("idle"); setRobotMsg(""); setKeysToShow([]); setFeedback(null); }
   }, [activeCode]);
-
-  const loadClassCode = async () => {
-    try {
-      const teacherCode = await getTeacherCode(shift);
-      if (teacherCode && teacherCode.files && teacherCode.files.length > 0) {
-        const templateCode = teacherCode.files[0]?.code || "";
-        if (templateCode.trim()) {
-          setFiles(prev => {
-            const updated = [...prev];
-            updated[0] = { ...updated[0], code: templateCode };
-            return updated;
-          });
-          setRobotMsg("✅ Código da turma carregado! Você pode modificar como quiser.");
-          setRobotState("ok");
-          await persist({ code: templateCode });
-          setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 3000);
-        } else {
-          setRobotMsg("❌ O professor ainda não criou um modelo de código para a turma.");
-          setRobotState("error");
-        }
-      } else {
-        setRobotMsg("❌ Nenhum código disponível da turma.");
-        setRobotState("error");
-      }
-    } catch (e) {
-      setRobotMsg("❌ Erro ao carregar código da turma.");
-      setRobotState("error");
-    }
-  };
 
   // modo guiado: monta o código real a partir da lista de blocos que o aluno clicou (sem precisar digitar)
   const regenerateGuidedCode = (blocks) => blocks.map(b=>b.code).join("\n\n");
@@ -2588,7 +2578,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       const updated = [newLesson, ...guidedLessons];
       setGuidedLessons(updated);
       await persist({ guidedLessons: updated });
-      const speech = [lesson.titulo, lesson.oQueFaz, lesson.exemploJogo].filter(Boolean).join(". ");
+      const speech = [lesson.titulo, lesson.codigo ? `O código é: ${codeForSpeech(lesson.codigo)}` : null, lesson.oQueFaz, lesson.exemploJogo].filter(Boolean).join(". ");
       speak(speech);
     } catch {}
     setGuidedLessonLoading(false);
@@ -3479,7 +3469,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
                     {guidedLessons.map((l,i)=>{
                       const LC = ["#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6"];
                       const c = LC[i % LC.length];
-                      const lessonSpeech = [l.titulo, l.oQueFaz, l.exemploJogo].filter(Boolean).join(". ");
+                      const lessonSpeech = [l.titulo, l.codigo ? `O código é: ${codeForSpeech(l.codigo)}` : null, l.oQueFaz, l.exemploJogo].filter(Boolean).join(". ");
                       return (
                         <div key={l.id} style={{ background:"#151a31", borderRadius:12, padding:14, border:"1px solid #2a3154", borderLeft:`5px solid ${c}` }}>
                           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
@@ -3556,7 +3546,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
                 <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  <button style={{ ...styles.btn("#22d3ee"), fontSize:12 }} onClick={loadClassCode} title="Carrega o código que o professor preparou para a turma">📥 Código da Turma</button>
                   {analyzeButtons}
                   <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
                 </div>
@@ -4095,6 +4084,15 @@ function TeacherView({ onLogout }) {
     setSelected(null); setConfirmDelete(false);
     flashMgmt("");
     load();
+  };
+
+  // envia TODOS os arquivos do código da turma (aba "Meu código") pro aluno selecionado — ele recebe na hora
+  const doSendClassCode = async (s) => {
+    if (!s) return;
+    const files = proFilesByShift[s.shift] || proFilesByShift[codeShift] || [];
+    if (!files.some(f => (f.code||"").trim())) { flashMgmt("❌ Escreva o código na aba Meu código antes de enviar."); return; }
+    const ok = await setCodeSend(s.shift, s.name, files);
+    flashMgmt(ok ? `✅ Código da turma enviado para ${s.name}!` : "❌ Não consegui enviar agora. Tente de novo.");
   };
 
 
@@ -4640,6 +4638,11 @@ function TeacherView({ onLogout }) {
                         {selAccessMode ? "✅ Modo Guiado ativado" : "Ativar Modo Guiado"}
                       </button>
                       <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>{selAccessMode ? "O editor de código deste aluno vira uma montagem de blocos clicáveis, com narração por voz." : "Troca o editor de código por blocos clicáveis + narração por voz, para alunos com dificuldade de ler/escrever/digitar."}</span>
+                    </div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
+                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>📤 Código:</span>
+                      <button onClick={()=>doSendClassCode(sel)} style={{ ...styles.btn("#22d3ee"), padding:"6px 14px", fontSize:12.5 }}>Enviar código da turma</button>
+                      <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>Manda todos os arquivos da aba "Meu código" (turno {shiftLabel(sel.shift)}) direto pro editor deste aluno.</span>
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
                       <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🗑️ Perfil:</span>

@@ -256,6 +256,26 @@ export async function getTeacherCode(shift) {
   } catch { return null }
 }
 
+// ── envio do código da turma para UM aluno específico, escolhido pelo professor ──
+function codeSendKeyFor(shift, name) {
+  return `codesend:${shift || 'sem-turno'}:${safeName(name)}`
+}
+export async function setCodeSend(shift, name, files) {
+  try {
+    const r = await kvCall({ action: 'set', key: codeSendKeyFor(shift, name), value: JSON.stringify({ files, at: Date.now() }) })
+    return r.ok === true
+  } catch { return false }
+}
+export async function getCodeSend(shift, name) {
+  try {
+    const r = await kvCall({ action: 'get', key: codeSendKeyFor(shift, name) })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
+export async function clearCodeSend(shift, name) {
+  try { await kvCall({ action: 'delete', key: codeSendKeyFor(shift, name) }) } catch {}
+}
+
 export async function getExamState() {
   try {
     const r = await kvCall({ action: 'get', key: 'exam:config' })
