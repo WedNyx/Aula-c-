@@ -536,6 +536,11 @@ const NYX_IDLE_QUIRKS = [
   { name:"nyx-idle-spiral",    dur:1.8 },
   { name:"nyx-idle-nod",       dur:1.5 },
 ];
+// idle exclusivo do Nyx na aba do professor: ele também merece uma pausa entre uma correção e outra
+const NYX_TEACHER_IDLE_QUIRKS = [
+  { name:"nyx-idle-coffee", dur:2.6, emoji:"☕" },
+  { name:"nyx-idle-manga",  dur:2.8, emoji:"📖" },
+];
 // 10 reações sorteadas quando o Nyx encontra um erro no código
 const NYX_ERROR_REACTIONS = [
   { name:"nyx-err-shake",    dur:.6 },
@@ -573,7 +578,7 @@ const NYX_THINKING_ANIMS = [
   { name:"nyx-think-orbit", dur:1.6 },
 ];
 const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
-function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
+function NyxRobot({ state = "idle", size = 100, showName = true, gear, context = "student" }) {
   const G = { ...DEFAULT_NYX_GEAR, ...(gear||{}) };
   const idRef = useRef(null);
   if (idRef.current === null) idRef.current = ++__nyxSeq;
@@ -595,7 +600,7 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
     let cancelled = false;
     const timeoutId = setTimeout(() => {
       if (cancelled) return;
-      setQuirk(pickRandom(NYX_IDLE_QUIRKS));
+      setQuirk(pickRandom(context === "teacher" ? NYX_TEACHER_IDLE_QUIRKS : NYX_IDLE_QUIRKS));
     }, 7000 + Math.random() * 9000);
     return () => { cancelled = true; clearTimeout(timeoutId); };
   }, [state, quirk]);
@@ -615,8 +620,8 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
     reactAnim ? `${reactAnim.name} ${reactAnim.dur}s ease-in-out${state === "thinking" ? " infinite" : ""}` :
     P.anim;
   return (
-    <div style={{ textAlign:"center", padding:4 }}>
-      <div style={{ display:"inline-block", animation:wrapperAnim, willChange:"transform" }} onAnimationEnd={handleQuirkEnd}>
+    <div style={{ textAlign:"center", padding:4, position:"relative" }}>
+      <div style={{ display:"inline-block", animation:wrapperAnim, willChange:"transform", position:"relative" }} onAnimationEnd={handleQuirkEnd}>
         <svg width={size} height={size*1.15} viewBox="0 0 120 138" style={{ display:"block", overflow:"visible" }}>
           <defs>
             <linearGradient id={uid+"h"} x1="0" y1="0" x2="0" y2="1">
@@ -792,6 +797,9 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
           <rect x="43" y="106" width="14" height="10" rx="5" fill={P.dark} />
           <rect x="63" y="106" width="14" height="10" rx="5" fill={P.dark} />
         </svg>
+        {quirk?.emoji && (
+          <span style={{ position:"absolute", right:size*0.02, bottom:size*0.22, fontSize:size*0.34, filter:"drop-shadow(0 2px 3px rgba(0,0,0,.35))", pointerEvents:"none" }}>{quirk.emoji}</span>
+        )}
       </div>
       {showName && (
         <>
@@ -3764,7 +3772,7 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
 
       <div style={{ width:250, flex:"0 0 250px" }}>
         <div style={card}>
-          <NyxRobot state={robotState} size={88} />
+          <NyxRobot state={robotState} size={88} context="teacher" />
           {robotMsg && (<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6 }}>{robotMsg}</div>)}
           {keysToShow.length>0 && (<div style={{ marginTop:10 }}><p style={{ color:accent, fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
         </div>
