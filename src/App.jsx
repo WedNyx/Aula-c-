@@ -1450,19 +1450,26 @@ function TourOverlay({ step, onNext, onSkip }) {
 // o código (a explicação de verdade fica num card na coluna lateral, ao lado do editor, sempre)
 function ErrorHighlightRing({ active }) {
   const [rect, setRect] = useState(null);
+  // recalcula a posição a cada quadro enquanto ativo, pra borda acompanhar o editor
+  // ao rolar a página (position:fixed some do lugar se a gente só calcular uma vez)
   useEffect(() => {
     if (!active) { setRect(null); return; }
-    const el = document.querySelector('[data-tour="editor"]');
-    if (!el) { setRect(null); return; }
-    const t = setTimeout(() => {
-      const r = el.getBoundingClientRect();
-      setRect({ top:r.top, left:r.left, width:r.width, height:r.height });
-    }, 150);
-    return () => clearTimeout(t);
+    let raf;
+    const update = () => {
+      const el = document.querySelector('[data-tour="editor"]');
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setRect(prev => (prev && prev.top===r.top && prev.left===r.left && prev.width===r.width && prev.height===r.height)
+          ? prev : { top:r.top, left:r.left, width:r.width, height:r.height });
+      }
+      raf = requestAnimationFrame(update);
+    };
+    raf = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(raf);
   }, [active]);
   if (!active || !rect) return null;
   return (
-    <div style={{ position:"fixed", top:rect.top-6, left:rect.left-6, width:rect.width+12, height:rect.height+12, borderRadius:14, border:"3px solid #f87171", boxShadow:"0 0 20px #f8717166", transition:"all .3s ease", pointerEvents:"none", zIndex:990 }} />
+    <div style={{ position:"fixed", top:rect.top-6, left:rect.left-6, width:rect.width+12, height:rect.height+12, borderRadius:14, border:"3px solid #f87171", boxShadow:"0 0 20px #f8717166", pointerEvents:"none", zIndex:990 }} />
   );
 }
 
