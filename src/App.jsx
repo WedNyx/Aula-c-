@@ -3127,8 +3127,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           )}
 
           <div style={{ textAlign:"center", marginTop:22 }}>
-            <p style={{ color:"#96a0cc", marginBottom:12 }}>Quando terminar de anotar, vá para a atividade! ✍️</p>
-            <button style={{ ...styles.btn("#7c83ff"), padding:"12px 26px", fontSize:16 }} onClick={handleStartActivity}>Fazer Atividade →</button>
+            {accessMode ? (
+              <>
+                <p style={{ color:"#96a0cc", marginBottom:12 }}>Quando terminar de ouvir o resumo, volte para o código! 🎮</p>
+                <button style={{ ...styles.btn("#7c83ff"), padding:"12px 26px", fontSize:16 }} onClick={async()=>{ setPhase("coding"); await persist({ phase:"coding" }); }}>← Voltar para o código</button>
+              </>
+            ) : (
+              <>
+                <p style={{ color:"#96a0cc", marginBottom:12 }}>Quando terminar de anotar, vá para a atividade! ✍️</p>
+                <button style={{ ...styles.btn("#7c83ff"), padding:"12px 26px", fontSize:16 }} onClick={handleStartActivity}>Fazer Atividade →</button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -4027,14 +4036,27 @@ function TeacherView({ onLogout }) {
     const rows = students
       .filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id)
       .sort((a,b)=>((a.shift||"")+a.name).localeCompare((b.shift||"")+b.name,"pt-BR"));
+    const maiorNotaOf = (s) => {
+      const notas = [...Object.values(s.scoreHistory||{}), s.score, s.examScore].filter(n => typeof n === "number");
+      return notas.length ? Math.max(...notas) : null;
+    };
+    // quem tirou a maior nota em cada turma é quem "se destacou mais" nessa planilha
+    const melhorNotaPorTurno = {};
+    rows.forEach(s => {
+      const nota = maiorNotaOf(s);
+      if (nota == null) return;
+      const key = s.shift || "sem-turno";
+      if (melhorNotaPorTurno[key] == null || nota > melhorNotaPorTurno[key]) melhorNotaPorTurno[key] = nota;
+    });
     const header = ["ALUNO","DIAS PRESENTES","MAIOR NOTA","SITUAÇÃO","DESTAQUE"];
     const lines = rows.map(s => {
       const att = Object.values(s.attendance||{}).filter(v=>v==="present").length;
-      const notas = [...Object.values(s.scoreHistory||{}), s.score, s.examScore].filter(n => typeof n === "number");
-      const maiorNota = notas.length ? Math.max(...notas) : "";
-      const situacao = difficultyOf(s).text;
-      const destaque = (s.achievements||[]).map(id => achievementInfo(id)).filter(Boolean).map(a => `${a.emoji} ${a.label}`).join(", ");
-      return [`${s.name} (${shiftMeta(s.shift).label})`, att, maiorNota, situacao, destaque];
+      const maiorNota = maiorNotaOf(s);
+      // situação = desempenho geral (boa nota ou não), não o que ele está fazendo agora
+      const situacao = maiorNota == null ? "Sem nota registrada ainda" : `${gradeInfo(maiorNota).emoji} ${gradeInfo(maiorNota).label}`;
+      const key = s.shift || "sem-turno";
+      const destaque = (maiorNota != null && maiorNota === melhorNotaPorTurno[key]) ? "🌟 Aluno destaque da turma" : "";
+      return [`${s.name} (${shiftMeta(s.shift).label})`, att, maiorNota ?? "", situacao, destaque];
     });
     const esc = v => `"${String(v).replace(/"/g,'""')}"`;
     const csv = "﻿" + [header, ...lines].map(r=>r.map(esc).join(";")).join("\r\n");
