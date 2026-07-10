@@ -2399,10 +2399,21 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       let c = await getDailyCuriosity(today);
       if (!c && alive) {
         try {
+          // pega as curiosidades dos últimos 14 dias pra IA não repetir sempre a mesma "clássica"
+          const past = [];
+          const d = new Date();
+          for (let i = 1; i <= 14; i++) {
+            d.setDate(d.getDate() - 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+            past.push(key);
+          }
+          const prevCuriosities = (await Promise.all(past.map(k => getDailyCuriosity(k))))
+            .map(x => x?.text).filter(Boolean);
           const text = await askClaude(
-            `Dê UMA curiosidade curta (1-2 frases), divertida e surpreendente sobre programação, C#, tecnologia ou história da computação, para adolescentes que estão começando a programar agora. Sem introdução, direto na curiosidade.`,
+            `Dê UMA curiosidade curta (1-2 frases), divertida e surpreendente sobre programação, C#, tecnologia ou história da computação, para adolescentes que estão começando a programar agora. Sem introdução, direto na curiosidade.` +
+            (prevCuriosities.length ? `\n\nCuriosidades já usadas nos últimos dias (NÃO repita nenhuma delas, nem outra bem parecida — traga algo diferente):\n${prevCuriosities.map(t=>`- ${t}`).join("\n")}` : ""),
             NYX_FUN_SYSTEM,
-            { temperature: 0.9 }
+            { temperature: 1 }
           );
           c = { text: text.trim() };
           if (c.text) await setDailyCuriosity(today, c.text);
