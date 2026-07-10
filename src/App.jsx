@@ -4022,22 +4022,26 @@ function TeacherView({ onLogout }) {
   };
 
   // ── exporta notas e presenças para planilha (CSV com ; — abre direto no Excel) ──
+  // segue o modelo de planilha do professor: ALUNO | DIAS PRESENTES | MAIOR NOTA | SITUAÇÃO | DESTAQUE
   const exportCSV = () => {
     const rows = students
       .filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id)
       .sort((a,b)=>((a.shift||"")+a.name).localeCompare((b.shift||"")+b.name,"pt-BR"));
-    const header = ["Nome","Turma","Presenças","Última nota da atividade","Nota da prova","Pontos do Nyx","Histórico de notas (dia = nota)"];
+    const header = ["ALUNO","DIAS PRESENTES","MAIOR NOTA","SITUAÇÃO","DESTAQUE"];
     const lines = rows.map(s => {
       const att = Object.values(s.attendance||{}).filter(v=>v==="present").length;
-      const hist = Object.entries(s.scoreHistory||{}).sort(([a],[b])=>a.localeCompare(b)).map(([d,n])=>{ const [y,m,dd]=d.split("-"); return `${dd}/${m}/${y} = ${n}`; }).join(" | ");
-      return [s.name, shiftMeta(s.shift).label, att, s.score ?? "", s.examScore ?? "", s.nyxPoints||0, hist];
+      const notas = [...Object.values(s.scoreHistory||{}), s.score, s.examScore].filter(n => typeof n === "number");
+      const maiorNota = notas.length ? Math.max(...notas) : "";
+      const situacao = difficultyOf(s).text;
+      const destaque = (s.achievements||[]).map(id => achievementInfo(id)).filter(Boolean).map(a => `${a.emoji} ${a.label}`).join(", ");
+      return [`${s.name} (${shiftMeta(s.shift).label})`, att, maiorNota, situacao, destaque];
     });
     const esc = v => `"${String(v).replace(/"/g,'""')}"`;
     const csv = "﻿" + [header, ...lines].map(r=>r.map(esc).join(";")).join("\r\n");
     const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `notas-presencas-${todayKey()}.csv`;
+    a.href = url; a.download = `planilha-sistema-${todayKey()}.csv`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   };
