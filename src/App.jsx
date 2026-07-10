@@ -2639,7 +2639,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         setRobotMsg(e.userMsg || "🔑 Nyx está offline: o professor precisa configurar a chave da IA no painel do Vercel. A verificação básica do código continua funcionando!");
       } else {
         setRobotState("error");
-        setRobotMsg(`😵 Nyx não conseguiu analisar agora com ${provider === "laguna" ? "Laguna" : "Nemotron"} (falha ao falar com a IA). Tente de novo, ou experimente o outro botão.`);
+        setRobotMsg(`😵 Nyx não conseguiu analisar agora com ${provider === "laguna" ? "Laguna" : "Nemotron"}. Tente de novo, ou experimente o outro botão.\n\n🔧 Detalhe técnico (pra mostrar ao Vegapunk): ${e.message || e}`);
       }
     }
     setAnalyzing(false); setAnalyzingProvider(null);
@@ -3588,7 +3588,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         <div style={{ width:250, flex:"0 0 250px" }}>
           <div data-tour="nyx" style={styles.card}>
             <NyxRobot state={robotState} size={88} gear={nyxGear} />
-            {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6 }}>{robotMsg}</div>)}
+            {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>{robotMsg}</div>)}
             {keysToShow.length>0&&(<div style={{ marginTop:10 }}><p style={{ color:"#fbbf24", fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
             <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
               🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
@@ -3784,7 +3784,7 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
       <div style={{ width:250, flex:"0 0 250px" }}>
         <div style={card}>
           <NyxRobot state={robotState} size={88} context="teacher" />
-          {robotMsg && (<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6 }}>{robotMsg}</div>)}
+          {robotMsg && (<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>{robotMsg}</div>)}
           {keysToShow.length>0 && (<div style={{ marginTop:10 }}><p style={{ color:accent, fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
         </div>
         {strugglingStudents.length > 0 && (
