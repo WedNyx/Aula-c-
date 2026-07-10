@@ -58,6 +58,12 @@ function playSound(kind) {
 function setSoundsMuted(v) { soundsMuted = v; try { localStorage.setItem("nyx_sounds_muted", v ? "1" : "0"); } catch {} }
 function loadSoundsMuted() { try { soundsMuted = localStorage.getItem("nyx_sounds_muted") === "1"; } catch {} return soundsMuted; }
 
+// ── rede de segurança local: guarda o código do aluno no navegador (sem depender de internet),
+// pra não perder o que ele estava escrevendo se a conexão cair bem na hora de salvar no servidor ──
+function codeBackupKey(shift, name) { return `nyx_codebackup:${shift||"sem-turno"}:${String(name||"").trim().replace(/\s+/g,"_")}`; }
+function saveCodeBackupLocal(shift, name, files) { try { localStorage.setItem(codeBackupKey(shift, name), JSON.stringify({ files, at: Date.now() })); } catch {} }
+function loadCodeBackupLocal(shift, name) { try { const raw = localStorage.getItem(codeBackupKey(shift, name)); return raw ? JSON.parse(raw) : null; } catch { return null; } }
+
 // ── text-to-speech (Web Speech API) ──
 function useSpeech() {
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -2382,6 +2388,21 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (Array.isArray(prev.guidedBlocks)) setGuidedBlocks(prev.guidedBlocks);
           if (Array.isArray(prev.guidedLessons)) setGuidedLessons(prev.guidedLessons);
         }
+        // rede de segurança: se um backup local recente tem MAIS código do que o servidor, uma queda de
+        // conexão bem na hora de salvar deve ter perdido esse trecho — restaura e resalva pra reconciliar
+        try {
+          const backup = loadCodeBackupLocal(shift, studentName);
+          const backupIsRecent = backup && (Date.now() - backup.at) < 60 * 60 * 1000;
+          if (alive && backupIsRecent && Array.isArray(backup.files) && backup.files.length) {
+            const serverFiles = (prev && Array.isArray(prev.files) && prev.files.length) ? prev.files : [];
+            const backupLen = backup.files.reduce((n,f) => n + (f.code||"").length, 0);
+            const serverLen = serverFiles.reduce((n,f) => n + (f.code||"").length, 0);
+            if (backupLen > serverLen) {
+              setFiles(backup.files);
+              persist({ files: backup.files });
+            }
+          }
+        } catch {}
         try { setAccessModeState(await getAccessMode(shift, studentName)); } catch {}
         // foto do código do início do dia: se a salva for de outro dia (ou não existir), tira uma nova agora
         {
@@ -2399,6 +2420,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     })();
     return () => { alive = false; };
   }, [studentName, shift]);
+
+  // grava o código no navegador (localStorage) a cada mudança — não depende de internet, então
+  // continua funcionando mesmo se a conexão cair bem na hora de salvar no servidor
+  useEffect(() => {
+    if (!loaded) return; // só depois de carregar o que já existia, pra não sobrescrever um backup bom com o estado inicial vazio
+    saveCodeBackupLocal(shift, studentName, files);
+  }, [files, loaded, shift, studentName]);
 
   // busca a curiosidade do dia (gerada uma única vez por dia, reaproveitada por todos os alunos)
   useEffect(() => {
@@ -3748,6 +3776,14 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
     }
     setAnalyzing(false);
   };
+
+  // robô: analisa sozinho 5s depois que o professor para de escrever (reagenda a cada tecla)
+  useEffect(() => {
+    if (activeCode.trim().length < 12 || analyzing) return;
+    const t = setTimeout(() => { analyzeCode(); }, 5000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCode]);
 
   const card = { background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #272e52", boxShadow:"0 8px 24px rgba(3,5,16,.35)" };
 
