@@ -272,6 +272,19 @@ export async function getCodeSend(shift, name) {
     return r.value ? JSON.parse(r.value) : null
   } catch { return null }
 }
+
+// ── saúde do Nyx (IA): toda chamada de qualquer aluno/professor reporta aqui — o painel do
+// professor usa isso pra mostrar "Reconectando Nyx" quando a última chamada de alguém falhou ──
+const AI_HEALTH_KEY = 'ai:health'
+export async function reportAiHealth(ok) {
+  try { await kvCall({ action: 'set', key: AI_HEALTH_KEY, value: JSON.stringify({ ok, at: Date.now() }) }) } catch {}
+}
+export async function getAiHealth() {
+  try {
+    const r = await kvCall({ action: 'get', key: AI_HEALTH_KEY })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
 export async function clearCodeSend(shift, name) {
   try { await kvCall({ action: 'delete', key: codeSendKeyFor(shift, name) }) } catch {}
 }

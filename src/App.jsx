@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode } from "./storage.js";
 
 // ── tema ──
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
@@ -1446,52 +1446,47 @@ function TourOverlay({ step, onNext, onSkip }) {
 //  TOUR DE ERRO DO NYX  (quando "Analisar meu código" encontra erro, aponta pro editor e explica
 //  passo a passo cada erro encontrado, igual ao tour de onboarding — mas com destaque vermelho)
 // ════════════════════════════════════════════════════════════════════════════
-function ErrorWalkthroughOverlay({ errors, step, onNext, onPrev, onVerify, onClose, verifying }) {
+// realça o editor com uma borda vermelha enquanto há erro sinalizado — sem escurecer a tela nem tampar
+// o código (a explicação de verdade fica num card na coluna lateral, ao lado do editor, sempre)
+function ErrorHighlightRing({ active }) {
   const [rect, setRect] = useState(null);
-  const e = errors[step];
   useEffect(() => {
+    if (!active) { setRect(null); return; }
     const el = document.querySelector('[data-tour="editor"]');
     if (!el) { setRect(null); return; }
-    el.scrollIntoView({ block:"center" });
     const t = setTimeout(() => {
       const r = el.getBoundingClientRect();
-      setRect({ top:r.top, left:r.left, width:r.width, height:r.height, bottom:r.bottom });
+      setRect({ top:r.top, left:r.left, width:r.width, height:r.height });
     }, 150);
     return () => clearTimeout(t);
-  }, [step]);
-  if (!e) return null;
-  const vw = typeof window !== "undefined" ? window.innerWidth : 1000;
-  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
-  const below = rect ? rect.bottom + 260 < vh : true;
-  const tipTop = rect ? (below ? Math.min(rect.bottom + 14, vh - 270) : Math.max(rect.top - 266, 10)) : vh/2 - 130;
-  const tipLeft = rect ? Math.max(12, Math.min(rect.left + rect.width/2 - 190, vw - 396)) : 20;
+  }, [active]);
+  if (!active || !rect) return null;
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:990, pointerEvents:"none" }}>
-      {rect
-        ? <div style={{ position:"fixed", top:rect.top-6, left:rect.left-6, width:rect.width+12, height:rect.height+12, borderRadius:14, border:"3px solid #f87171", boxShadow:"0 0 0 9999px rgba(5,7,18,.78), 0 0 24px #f8717188", transition:"all .3s ease", pointerEvents:"none" }} />
-        : <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.78)", pointerEvents:"none" }} />}
-      <div className="pop" key={step} style={{ position:"fixed", top:tipTop, left:tipLeft, width:380, maxWidth:"calc(100vw - 24px)", background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #f8717166", borderRadius:16, padding:"14px 16px", boxShadow:"0 18px 50px rgba(0,0,0,.6)", pointerEvents:"auto" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-          <span style={{ color:"#f87171", fontSize:12, fontWeight:800, letterSpacing:0.5 }}>⚠ Erro {step+1} de {errors.length}</span>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:18, cursor:"pointer", lineHeight:1 }}>✕</button>
+    <div style={{ position:"fixed", top:rect.top-6, left:rect.left-6, width:rect.width+12, height:rect.height+12, borderRadius:14, border:"3px solid #f87171", boxShadow:"0 0 20px #f8717166", transition:"all .3s ease", pointerEvents:"none", zIndex:990 }} />
+  );
+}
+
+// card com a explicação do erro — sempre renderizado na coluna lateral (ao lado do editor), nunca por cima do código
+function ErrorWalkthroughCard({ errors, step, onNext, onPrev, onVerify, onClose, verifying }) {
+  const e = errors[step];
+  if (!e) return null;
+  return (
+    <div className="pop" key={step} style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #f8717166", borderRadius:16, padding:"14px 16px", boxShadow:"0 10px 28px rgba(0,0,0,.4)", marginBottom:14 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+        <span style={{ color:"#f87171", fontSize:12, fontWeight:800, letterSpacing:0.5 }}>⚠ Erro {step+1} de {errors.length}</span>
+        <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:18, cursor:"pointer", lineHeight:1 }}>✕</button>
+      </div>
+      <div style={{ background:"#0d1122", border:"1px solid #2c3358", borderRadius:8, padding:"6px 10px", fontFamily:"'Courier New',monospace", fontSize:12.5, color:"#f87171", overflowX:"auto", whiteSpace:"pre", marginBottom:8 }}>{e.trecho}</div>
+      <p style={{ color:"#c7cfee", fontSize:13, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
+      {e.exemplo && <div style={{ marginTop:8 }}><CodeBlock code={e.exemplo} /></div>}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12, gap:8, flexWrap:"wrap" }}>
+        <div style={{ display:"flex", gap:6 }}>
+          {step > 0 && <button onClick={onPrev} style={{ background:"#2a3154", border:"none", borderRadius:10, color:"#e8ebfa", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>← Anterior</button>}
+          {step < errors.length-1 && <button onClick={onNext} style={{ background:"#2a3154", border:"none", borderRadius:10, color:"#e8ebfa", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>Próximo →</button>}
         </div>
-        <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
-          <div style={{ flexShrink:0, marginTop:-4 }}><NyxRobot state="error" size={46} showName={false} /></div>
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ background:"#0d1122", border:"1px solid #2c3358", borderRadius:8, padding:"6px 10px", fontFamily:"'Courier New',monospace", fontSize:12.5, color:"#f87171", overflowX:"auto", whiteSpace:"pre", marginBottom:8 }}>{e.trecho}</div>
-            <p style={{ color:"#c7cfee", fontSize:13, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
-          </div>
-        </div>
-        {e.exemplo && <div style={{ marginTop:4 }}><CodeBlock code={e.exemplo} /></div>}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12, gap:8, flexWrap:"wrap" }}>
-          <div style={{ display:"flex", gap:6 }}>
-            {step > 0 && <button onClick={onPrev} style={{ background:"#2a3154", border:"none", borderRadius:10, color:"#e8ebfa", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>← Anterior</button>}
-            {step < errors.length-1 && <button onClick={onNext} style={{ background:"#2a3154", border:"none", borderRadius:10, color:"#e8ebfa", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>Próximo →</button>}
-          </div>
-          <button onClick={onVerify} disabled={verifying} style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"8px 14px", cursor:verifying?"default":"pointer", fontSize:12.5, opacity:verifying?0.6:1 }}>
-            {verifying ? "🔍 Verificando..." : "✅ Já corrigi, verificar!"}
-          </button>
-        </div>
+        <button onClick={onVerify} disabled={verifying} style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"8px 14px", cursor:verifying?"default":"pointer", fontSize:12.5, opacity:verifying?0.6:1 }}>
+          {verifying ? "🔍 Verificando..." : "✅ Já corrigi, verificar!"}
+        </button>
       </div>
     </div>
   );
@@ -2069,18 +2064,25 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
 //  IA + util
 // ════════════════════════════════════════════════════════════════════════════
 async function askClaude(prompt, system, opts = {}){
-  const resp = await fetch("/api/claude", {
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ prompt, system, ...opts })
-  });
-  const data = await resp.json();
-  if (data.error === 'missing_api_key') {
-    const e = new Error('ROBOTKEY_MISSING');
-    e.userMsg = data.message || 'ANTHROPIC_API_KEY não configurada no Vercel.';
+  try {
+    const resp = await fetch("/api/claude", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ prompt, system, ...opts })
+    });
+    const data = await resp.json();
+    if (data.error === 'missing_api_key') {
+      const e = new Error('ROBOTKEY_MISSING');
+      e.userMsg = data.message || 'ANTHROPIC_API_KEY não configurada no Vercel.';
+      throw e;
+    }
+    if (!resp.ok) throw new Error(data.error || `API ${resp.status}`);
+    reportAiHealth(true); // avisa o painel do professor (em qualquer navegador) que o Nyx está respondendo
+    return data.content?.map(b=>b.text||"").join("")||"";
+  } catch (e) {
+    // chave não configurada não é "fora do ar temporariamente" — é config pendente, não reporta como falha
+    if (e.message !== 'ROBOTKEY_MISSING') reportAiHealth(false);
     throw e;
   }
-  if (!resp.ok) throw new Error(data.error || `API ${resp.status}`);
-  return data.content?.map(b=>b.text||"").join("")||"";
 }
 
 // extrai JSON mesmo se vier com texto/markdown em volta
@@ -3586,6 +3588,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
         {/* Robô + atalhos */}
         <div style={{ width:250, flex:"0 0 250px" }}>
+          {showErrorWalkthrough && codeErrors.length > 0 && (
+            <ErrorWalkthroughCard
+              errors={codeErrors}
+              step={Math.min(errorWalkStep, codeErrors.length-1)}
+              verifying={analyzing}
+              onPrev={()=>setErrorWalkStep(s=>Math.max(0,s-1))}
+              onNext={()=>setErrorWalkStep(s=>Math.min(codeErrors.length-1,s+1))}
+              onVerify={analyzeCode}
+              onClose={()=>setShowErrorWalkthrough(false)}
+            />
+          )}
           <div data-tour="nyx" style={styles.card}>
             <NyxRobot state={robotState} size={88} gear={nyxGear} />
             {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>{robotMsg}</div>)}
@@ -3622,17 +3635,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         <TourOverlay step={tourStep} onSkip={()=>setTourStep(-1)} onNext={()=>setTourStep(s => (s+1 >= TOUR_STEPS.length ? -1 : s+1))} />
       )}
 
-      {showErrorWalkthrough && codeErrors.length > 0 && (
-        <ErrorWalkthroughOverlay
-          errors={codeErrors}
-          step={Math.min(errorWalkStep, codeErrors.length-1)}
-          verifying={analyzing}
-          onPrev={()=>setErrorWalkStep(s=>Math.max(0,s-1))}
-          onNext={()=>setErrorWalkStep(s=>Math.min(codeErrors.length-1,s+1))}
-          onVerify={analyzeCode}
-          onClose={()=>setShowErrorWalkthrough(false)}
-        />
-      )}
+      <ErrorHighlightRing active={showErrorWalkthrough && codeErrors.length > 0} />
 
       {showNyxShop && (
         <NyxShop
@@ -3921,6 +3924,8 @@ function TeacherView({ onLogout }) {
   // análise do Nyx (período + prova)
   const [examAnalysis, setExamAnalysis] = useState("");
   const [analyzingExam, setAnalyzingExam] = useState(false);
+  // saúde do Nyx: reflete a última chamada de IA de QUALQUER aluno/professor — se foi erro, mostra "Reconectando"
+  const [aiDown, setAiDown] = useState(false);
 
   const load = useCallback(async () => {
     const arr = await listStudents();
@@ -3946,6 +3951,19 @@ function TeacherView({ onLogout }) {
   }, [load]);
 
   useEffect(() => { diagnose().then(setDiag); }, []);
+  // fica de olho na saúde do Nyx: se a última chamada de IA registrada (de qualquer aluno/professor)
+  // foi erro e é recente, mostra "Reconectando Nyx"; some assim que uma chamada der certo de novo
+  useEffect(() => {
+    let active = true;
+    const check = async () => {
+      const h = await getAiHealth();
+      if (!active) return;
+      setAiDown(!!h && h.ok === false && Date.now() - h.at < 5 * 60 * 1000);
+    };
+    check();
+    const iv = setInterval(check, 4000);
+    return () => { active = false; clearInterval(iv); };
+  }, []);
   useEffect(() => { getTeacherMeta().then(m => { metaRef.current = m; setMeta(m); setCityInput(m.city||""); }); }, []);
   // carrega o código salvo do professor uma vez, para cada turno
   useEffect(() => {
@@ -4345,6 +4363,12 @@ function TeacherView({ onLogout }) {
 
   return (
     <div style={styles.container}>
+      {aiDown && (
+        <div style={{ position:"fixed", top:12, left:12, zIndex:1200, background:"#181d38", border:"1px solid #fbbf24", borderRadius:10, padding:"7px 12px", display:"flex", alignItems:"center", gap:8, boxShadow:"0 8px 24px rgba(0,0,0,.4)" }}>
+          <span style={{ display:"inline-block", width:9, height:9, borderRadius:"50%", background:"#fbbf24", animation:"nyx-antenna 1s ease-in-out infinite" }} />
+          <span style={{ color:"#fbbf24", fontSize:12.5, fontWeight:700 }}>🔄 Reconectando Nyx...</span>
+        </div>
+      )}
       <div style={{ ...styles.header, ...(tab==="code" ? { padding:"6px 14px" } : {}) }}>
         <div>
           <span style={{ fontWeight:900, fontSize: tab==="code" ? 14 : 18, background:"linear-gradient(135deg,#fbbf24,#fb923c)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
