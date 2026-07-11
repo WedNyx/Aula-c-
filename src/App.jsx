@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
 import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode } from "./storage.js";
+import { xlsxBlob } from "./xlsx.js";
 
 // ── tema ──
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
@@ -1419,18 +1420,30 @@ const TOUR_STEPS = [
   { sel:'[data-tour="chat"]',     emoji:"💬", title:"Fale comigo!",          text:"Qualquer dúvida de C#, abre este botão e conversa comigo. Estou sempre por aqui. Bora programar? 🚀" },
 ];
 
-function TourOverlay({ step, onNext, onSkip }) {
+function TourOverlay({ step, onNext }) {
   const [rect, setRect] = useState(null);
+  // "smooth" só na troca de passo (anel desliza bonito de um elemento pro outro);
+  // depois disso vira instantâneo, pro anel ficar GRUDADO no elemento quando a página rola
+  const [smooth, setSmooth] = useState(true);
   const s = TOUR_STEPS[step];
   useEffect(() => {
     const el = document.querySelector(s.sel);
     if (!el) { setRect(null); return; }
+    setSmooth(true);
     el.scrollIntoView({ block:"center" });
-    const t = setTimeout(() => {
+    let raf, t2;
+    // mede o elemento a cada frame: se a página rolar ou o layout mudar, o anel acompanha na hora
+    const track = () => {
       const r = el.getBoundingClientRect();
-      setRect({ top:r.top, left:r.left, width:r.width, height:r.height, bottom:r.bottom });
+      setRect(prev => (prev && Math.abs(prev.top-r.top)<0.5 && Math.abs(prev.left-r.left)<0.5 && Math.abs(prev.width-r.width)<0.5 && Math.abs(prev.height-r.height)<0.5)
+        ? prev : { top:r.top, left:r.left, width:r.width, height:r.height, bottom:r.bottom });
+      raf = requestAnimationFrame(track);
+    };
+    const t = setTimeout(() => {
+      track();
+      t2 = setTimeout(() => setSmooth(false), 350); // terminou o deslize do passo → passa a colar no scroll
     }, 150);
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t); clearTimeout(t2); cancelAnimationFrame(raf); };
   }, [step, s.sel]);
   const vw = typeof window !== "undefined" ? window.innerWidth : 1000;
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
@@ -1440,7 +1453,7 @@ function TourOverlay({ step, onNext, onSkip }) {
   return (
     <div style={{ position:"fixed", inset:0, zIndex:990 }}>
       {rect
-        ? <div style={{ position:"fixed", top:rect.top-6, left:rect.left-6, width:rect.width+12, height:rect.height+12, borderRadius:14, border:"3px solid #7c83ff", boxShadow:"0 0 0 9999px rgba(5,7,18,.78), 0 0 24px #7c83ff88", transition:"all .3s ease", pointerEvents:"none" }} />
+        ? <div style={{ position:"fixed", top:rect.top-6, left:rect.left-6, width:rect.width+12, height:rect.height+12, borderRadius:14, border:"3px solid #7c83ff", boxShadow:"0 0 0 9999px rgba(5,7,18,.78), 0 0 24px #7c83ff88", transition: smooth ? "all .3s ease" : "none", pointerEvents:"none" }} />
         : <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.78)" }} />}
       <div className="pop" key={step} style={{ position:"fixed", top:tipTop, left:tipLeft, width:340, maxWidth:"calc(100vw - 24px)", background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #7c83ff66", borderRadius:16, padding:"14px 16px", boxShadow:"0 18px 50px rgba(0,0,0,.6)" }}>
         <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
@@ -1450,12 +1463,10 @@ function TourOverlay({ step, onNext, onSkip }) {
             <p style={{ color:"#c7cfee", fontSize:13, lineHeight:1.6, margin:"6px 0 0" }}>{s.text}</p>
           </div>
         </div>
+        {/* sem botão de pular: aluno novo conhece a sala inteira, passo a passo */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12 }}>
-          <button onClick={onSkip} style={{ background:"transparent", border:"none", color:"#5d679c", cursor:"pointer", fontSize:12, fontWeight:700 }}>Pular tour</button>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <span style={{ color:"#5d679c", fontSize:12 }}>{step+1}/{TOUR_STEPS.length}</span>
-            <button onClick={onNext} style={{ background:"linear-gradient(135deg,#7c83ff,#5a61e8)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"7px 16px", cursor:"pointer", fontSize:13 }}>{step === TOUR_STEPS.length-1 ? "Entendi! 🚀" : "Próximo →"}</button>
-          </div>
+          <span style={{ color:"#5d679c", fontSize:12 }}>{step+1}/{TOUR_STEPS.length}</span>
+          <button onClick={onNext} style={{ background:"linear-gradient(135deg,#7c83ff,#5a61e8)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"7px 16px", cursor:"pointer", fontSize:13 }}>{step === TOUR_STEPS.length-1 ? "Entendi! 🚀" : "Próximo →"}</button>
         </div>
       </div>
     </div>
@@ -1802,9 +1813,9 @@ function TelaoModal({ students, shift, onClose }) {
   const combo5 = mine.filter(s => (s.achievements||[]).includes("combo-5") && !combo8.includes(s));
   const medals = ["🥇","🥈","🥉","🏅","🏅","🏅","🏅","🏅"];
   return (
-    <div data-testid="telao-modal" style={{ position:"fixed", inset:0, background:"#05070f", zIndex:2000, display:"flex", flexDirection:"column", padding:"36px 48px", overflowY:"auto" }}>
+    <div data-testid="telao-modal" className="telao-wrap" style={{ position:"fixed", inset:0, background:"#05070f", zIndex:2000, display:"flex", flexDirection:"column", padding:"36px 48px", overflowY:"auto" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:28, flexWrap:"wrap", gap:14 }}>
-        <span className="shine" style={{ fontSize:32, fontWeight:900, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🖥️ Telão da Turma</span>
+        <span className="shine" style={{ fontSize:"clamp(22px, 5vw, 32px)", fontWeight:900, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🖥️ Telão da Turma</span>
         <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
           {SHIFTS.map(sh => (
             <button key={sh.id} onClick={()=>setTelaoShift(sh.id)} style={{ background: telaoShift===sh.id ? "#fbbf24" : "#181d38", color: telaoShift===sh.id ? "#1c1400" : "#96a0cc", border:`2px solid ${telaoShift===sh.id?"#fbbf24":"#2a3154"}`, borderRadius:12, padding:"10px 20px", fontSize:16, fontWeight:800, cursor:"pointer" }}>{sh.emoji} {sh.label}</button>
@@ -1812,25 +1823,25 @@ function TelaoModal({ students, shift, onClose }) {
           <button onClick={onClose} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:12, padding:"10px 18px", fontSize:16, cursor:"pointer", fontWeight:800 }}>✕ Sair (Esc)</button>
         </div>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns: "1.3fr 1fr", gap:28, flex:1 }}>
-        <div style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32 }}>
-          <h2 style={{ margin:"0 0 20px", fontSize:26, color:"#22d3ee" }}>📊 Ranking ao vivo</h2>
+      <div className="telao-grid" style={{ display:"grid", gridTemplateColumns: "1.3fr 1fr", gap:28, flex:1 }}>
+        <div className="telao-card" style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32 }}>
+          <h2 style={{ margin:"0 0 20px", fontSize:"clamp(20px, 4.5vw, 26px)", color:"#22d3ee" }}>📊 Ranking ao vivo</h2>
           {ranking.length===0 ? <p style={{ color:"#5d679c", fontSize:18 }}>Ninguém pontuou ainda nessa turma.</p> : (
             <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
               {ranking.map((s,i)=>(
                 <div key={s.name} style={{ display:"flex", alignItems:"center", gap:16, background:"#0d1122", border:"1px solid #2a3154", borderRadius:16, padding:"14px 20px" }}>
                   <span style={{ fontSize:30, width:44, textAlign:"center" }}>{medals[i]}</span>
                   <Avatar cfg={s.avatar} size={48} />
-                  <span style={{ flex:1, fontWeight:800, fontSize:22, color:"#e8ebfa" }}>{s.name}</span>
-                  <span style={{ color:"#fbbf24", fontWeight:900, fontSize:24 }}>{s.nyxPoints||0} pts</span>
+                  <span style={{ flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontWeight:800, fontSize:"clamp(15px, 3.5vw, 22px)", color:"#e8ebfa" }}>{s.name}</span>
+                  <span style={{ color:"#fbbf24", fontWeight:900, fontSize:"clamp(16px, 4vw, 24px)", whiteSpace:"nowrap" }}>{s.nyxPoints||0} pts</span>
                 </div>
               ))}
             </div>
           )}
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:28 }}>
-          <div style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32 }}>
-            <h2 style={{ margin:"0 0 16px", fontSize:24, color:"#7c83ff" }}>🎯 Meta da turma</h2>
+          <div className="telao-card" style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32 }}>
+            <h2 style={{ margin:"0 0 16px", fontSize:"clamp(19px, 4.5vw, 24px)", color:"#7c83ff" }}>🎯 Meta da turma</h2>
             <div style={{ display:"flex", justifyContent:"space-between", fontSize:16, color:"#c7cfee", marginBottom:8 }}>
               <span>Nível {g.level}</span>
               <span>{sum}{g.next?`/${g.next}`:""} pts</span>
@@ -1839,17 +1850,17 @@ function TelaoModal({ students, shift, onClose }) {
               <div style={{ width:`${g.pct}%`, height:"100%", background:"linear-gradient(90deg,#7c83ff,#22d3ee)", transition:"width .6s ease" }} />
             </div>
           </div>
-          <div style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32, flex:1 }}>
-            <h2 style={{ margin:"0 0 16px", fontSize:24, color:"#fbbf24" }}>⚡ Combos da turma</h2>
+          <div className="telao-card" style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32, flex:1 }}>
+            <h2 style={{ margin:"0 0 16px", fontSize:"clamp(19px, 4.5vw, 24px)", color:"#fbbf24" }}>⚡ Combos da turma</h2>
             {combo5.length===0 && combo8.length===0 ? <p style={{ color:"#5d679c", fontSize:16 }}>Ninguém acertou uma sequência de questões ainda.</p> : (
               <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 {combo8.map(s => (
-                  <div key={"c8-"+s.name} style={{ display:"flex", alignItems:"center", gap:10, fontSize:18 }}>
+                  <div key={"c8-"+s.name} style={{ display:"flex", alignItems:"center", gap:10, fontSize:"clamp(14px, 3.5vw, 18px)", flexWrap:"wrap" }}>
                     <span style={{ fontSize:22 }}>🚀</span><b style={{ color:"#e8ebfa" }}>{s.name}</b><span style={{ color:"#96a0cc" }}>— Combo Insano (8 seguidas)</span>
                   </div>
                 ))}
                 {combo5.map(s => (
-                  <div key={"c5-"+s.name} style={{ display:"flex", alignItems:"center", gap:10, fontSize:18 }}>
+                  <div key={"c5-"+s.name} style={{ display:"flex", alignItems:"center", gap:10, fontSize:"clamp(14px, 3.5vw, 18px)", flexWrap:"wrap" }}>
                     <span style={{ fontSize:22 }}>⚡</span><b style={{ color:"#e8ebfa" }}>{s.name}</b><span style={{ color:"#96a0cc" }}>— Combo Elétrico (5 seguidas)</span>
                   </div>
                 ))}
@@ -3785,7 +3796,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         </div>
 
         {/* Robô + atalhos */}
-        <div style={{ width:250, flex:"0 0 250px" }}>
+        <div className="side-col" style={{ width:250, flex:"0 0 250px" }}>
           {showErrorWalkthrough && codeErrors.length > 0 && (
             <ErrorWalkthroughCard
               errors={codeErrors}
@@ -3830,7 +3841,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       </div>
 
       {tourStep >= 0 && tourStep < TOUR_STEPS.length && (
-        <TourOverlay step={tourStep} onSkip={()=>setTourStep(-1)} onNext={()=>setTourStep(s => (s+1 >= TOUR_STEPS.length ? -1 : s+1))} />
+        <TourOverlay step={tourStep} onNext={()=>setTourStep(s => (s+1 >= TOUR_STEPS.length ? -1 : s+1))} />
       )}
 
       <ErrorHighlightRing active={showErrorWalkthrough && codeErrors.length > 0} />
@@ -3990,7 +4001,7 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
         <Terminal files={files} maxHeight={terminalMaxHeight} />
       </div>
 
-      <div style={{ width:250, flex:"0 0 250px" }}>
+      <div className="side-col" style={{ width:250, flex:"0 0 250px" }}>
         <div style={card}>
           <NyxRobot state={robotState} size={88} context="teacher" />
           {robotMsg && (<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>{robotMsg}</div>)}
@@ -4278,9 +4289,10 @@ function TeacherView({ onLogout, teacherAuth }) {
     if (ok) { setNudged(n => ({ ...n, [s.name]: Date.now() })); setTimeout(()=>setNudged(n=>{ const c={...n}; delete c[s.name]; return c; }), 5000); }
   };
 
-  // ── exporta notas e presenças em planilha ESTILIZADA (HTML que o Excel abre com cores) ──
+  // ── exporta notas e presenças em .xlsx DE VERDADE (zip+XML, ver src/xlsx.js) ──
   // segue o modelo do professor: ALUNO | DIAS PRESENTES | MAIOR NOTA | SITUAÇÃO | DESTAQUE,
-  // agrupado por turno, com cabeçalho colorido e zebra — bem mais apresentável que o CSV cru
+  // agrupado por turno, com cabeçalho colorido e zebra — e sem o aviso de
+  // "arquivo pode estar corrompido" que o formato antigo disparava no celular
   const exportCSV = () => {
     const rows = students
       .filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id)
@@ -4297,51 +4309,65 @@ function TeacherView({ onLogout, teacherAuth }) {
       const key = s.shift || "sem-turno";
       if (melhorNotaPorTurno[key] == null || nota > melhorNotaPorTurno[key]) melhorNotaPorTurno[key] = nota;
     });
-
-    const escHtml = (v) => String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-    const td = (v, style="") => `<td style="border:.5pt solid #d9dcea;padding:6px 10px;font-size:11pt;${style}">${escHtml(v)}</td>`;
     const groups = SHIFTS.map(sh => ({ ...sh, list: rows.filter(s => (s.shift||"sem-turno")===sh.id) })).filter(g => g.list.length > 0);
 
-    let body = `
-      <tr><td colspan="5" style="background:#1f2547;color:#ffffff;font-size:16pt;font-weight:bold;padding:14px 12px;border:.5pt solid #1f2547;">AULA DE C# — ACOMPANHAMENTO DA TURMA</td></tr>
-      <tr><td colspan="5" style="background:#2e3560;color:#c9cfef;font-size:10pt;font-style:italic;padding:6px 12px;border:.5pt solid #2e3560;">${escHtml(meta.city ? meta.city + "  •  " : "")}gerado em ${new Date().toLocaleDateString("pt-BR")}</td></tr>
-      <tr><td colspan="5" style="border:none;padding:4px;"></td></tr>`;
+    const xlsRows = [];
+    const merges = [];
+    const wide = (st) => Array.from({ length: 5 }, () => ({ v: "", st })); // linha inteira com o mesmo estilo (pra faixa colorida cobrir as 5 colunas)
+    const mergeRow = () => merges.push(`A${xlsRows.length}:E${xlsRows.length}`);
+
+    // título + subtítulo
+    let cells = wide({ b:1, sz:15, color:"FFFFFF", fill:"1F2547" });
+    cells[0].v = "AULA DE C# — ACOMPANHAMENTO DA TURMA";
+    xlsRows.push({ cells, ht: 30 }); mergeRow();
+    cells = wide({ i:1, sz:10, color:"C9CFEF", fill:"2E3560" });
+    cells[0].v = `${meta.city ? meta.city + "  •  " : ""}gerado em ${new Date().toLocaleDateString("pt-BR")}`;
+    xlsRows.push({ cells }); mergeRow();
+    xlsRows.push({ cells: [] });
 
     groups.forEach(g => {
-      const band = g.id === "matutino"
-        ? `background:#ffe9a8;color:#5c4400;` : `background:#c9cdff;color:#232a6b;`;
-      body += `<tr><td colspan="5" style="${band}font-size:12pt;font-weight:bold;padding:8px 12px;border:.5pt solid #d9dcea;">${g.emoji} TURMA ${g.label.toUpperCase()} — ${g.list.length} aluno${g.list.length!==1?"s":""}</td></tr>`;
-      body += `<tr>${["ALUNO","DIAS PRESENTES","MAIOR NOTA","SITUAÇÃO","DESTAQUE"].map((h,i)=>
-        `<td style="background:#303869;color:#ffffff;font-weight:bold;font-size:10.5pt;padding:7px 10px;border:.5pt solid #303869;${i>0?"text-align:center;":""}">${h}</td>`).join("")}</tr>`;
+      const bandSt = g.id === "matutino"
+        ? { b:1, sz:12, color:"5C4400", fill:"FFE9A8", border:1 }
+        : { b:1, sz:12, color:"232A6B", fill:"C9CDFF", border:1 };
+      cells = wide(bandSt);
+      cells[0].v = `${g.emoji} TURMA ${g.label.toUpperCase()} — ${g.list.length} aluno${g.list.length!==1?"s":""}`;
+      xlsRows.push({ cells, ht: 22 }); mergeRow();
+
+      xlsRows.push({ cells: ["ALUNO","DIAS PRESENTES","MAIOR NOTA","SITUAÇÃO","DESTAQUE"].map((h,i)=>({
+        v: h, st: { b:1, color:"FFFFFF", fill:"303869", border:1, align: i>0 ? "center" : "left" },
+      })) });
+
       g.list.forEach((s, i) => {
         const att = Object.values(s.attendance||{}).filter(v=>v==="present").length;
         const maiorNota = maiorNotaOf(s);
         const isDestaque = maiorNota != null && maiorNota === melhorNotaPorTurno[g.id];
-        const zebra = isDestaque ? "background:#fff6d6;" : (i % 2 ? "background:#f5f6fb;" : "background:#ffffff;");
+        const fill = isDestaque ? "FFF6D6" : (i % 2 ? "F5F6FB" : undefined);
         const situacao = maiorNota == null
-          ? td("Sem nota ainda", zebra+"color:#8a8fa8;text-align:center;")
+          ? { v:"Sem nota ainda", st:{ color:"8A8FA8", fill, border:1, align:"center" } }
           : maiorNota >= 60
-            ? td("✔ Satisfatório", zebra+"color:#1e8e5a;font-weight:bold;text-align:center;")
-            : td("⚠ Insatisfatório", zebra+"color:#c2410c;font-weight:bold;text-align:center;");
-        body += `<tr>${
-          td(s.name, zebra+"font-weight:bold;color:#1f2547;")}${
-          td(att, zebra+"text-align:center;")}${
-          td(maiorNota ?? "—", zebra+"text-align:center;font-weight:bold;font-size:12pt;color:#303869;")}${
-          situacao}${
-          td(isDestaque ? "🌟 Aluno destaque da turma" : "", zebra+"color:#8a6d1a;text-align:center;")
-        }</tr>`;
+            ? { v:"✔ Satisfatório", st:{ b:1, color:"1E8E5A", fill, border:1, align:"center" } }
+            : { v:"⚠ Insatisfatório", st:{ b:1, color:"C2410C", fill, border:1, align:"center" } };
+        xlsRows.push({ cells: [
+          { v: s.name, st:{ b:1, color:"1F2547", fill, border:1 } },
+          { v: att, st:{ fill, border:1, align:"center" } },
+          { v: maiorNota ?? "—", st:{ b:1, sz:12, color:"303869", fill, border:1, align:"center" } },
+          situacao,
+          { v: isDestaque ? "🌟 Aluno destaque da turma" : "", st:{ color:"8A6D1A", fill, border:1, align:"center" } },
+        ] });
       });
+
       const notas = g.list.map(maiorNotaOf).filter(n => n != null);
       const media = notas.length ? Math.round(notas.reduce((a,b)=>a+b,0)/notas.length) : null;
-      body += `<tr><td colspan="5" style="background:#eef0fa;color:#5a6183;font-size:9.5pt;font-style:italic;padding:5px 12px;border:.5pt solid #d9dcea;">Média da turma: ${media ?? "—"}  •  Situação calculada pela maior nota (linha de corte: 60)</td></tr>`;
-      body += `<tr><td colspan="5" style="border:none;padding:4px;"></td></tr>`;
+      cells = wide({ i:1, sz:9.5, color:"5A6183", fill:"EEF0FA", border:1 });
+      cells[0].v = `Média da turma: ${media ?? "—"}  •  Situação calculada pela maior nota (linha de corte: 60)`;
+      xlsRows.push({ cells }); mergeRow();
+      xlsRows.push({ cells: [] });
     });
 
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Turma</x:Name><x:WorksheetOptions/></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table style="border-collapse:collapse;font-family:Calibri,Arial,sans-serif;">${body}</table></body></html>`;
-    const blob = new Blob(["﻿" + html], { type:"application/vnd.ms-excel;charset=utf-8" });
+    const blob = xlsxBlob({ sheetName:"Turma", colWidths:[34,16,12,18,28], rows:xlsRows, merges });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `planilha-aula-csharp-${todayKey()}.xls`;
+    a.href = url; a.download = `planilha-aula-csharp-${todayKey()}.xlsx`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   };
@@ -4853,7 +4879,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       {tab==="monitor" && (
         <div style={{ display:"flex", gap:14, padding:14, maxWidth:1180, margin:"0 auto", alignItems:"flex-start", flexWrap:"wrap" }}>
           {/* esquerda */}
-          <div style={{ width:300, flex:"0 0 300px" }}>
+          <div className="side-col" style={{ width:300, flex:"0 0 300px" }}>
             {/* Nyx de olho na turma */}
             <div className="cardfx" style={{ ...styles.card, textAlign:"center", borderColor: needHelp.length>0 ? "#f87171" : "#272e52" }}>
               <NyxRobot state={needHelp.length>0 ? "error" : shown.length>0 ? "ok" : "idle"} size={64} showName={false} />

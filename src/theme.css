@@ -66,6 +66,18 @@ input:focus, textarea:focus { border-color: #7c83ff !important; box-shadow: 0 0 
 }
 @keyframes bar-sweep { 0% { background-position: 180% 0; } 100% { background-position: -80% 0; } }
 
+/* ── celular ── */
+/* colunas laterais de largura fixa (Nyx, atalhos, lista de chamada) viram largura total */
+@media (max-width: 700px) {
+  .side-col { width: 100% !important; flex: 1 1 100% !important; }
+}
+/* telão: as duas colunas viram uma só, com respiro menor nas bordas e nos cards */
+@media (max-width: 900px) {
+  .telao-grid { grid-template-columns: 1fr !important; }
+  .telao-wrap { padding: 20px 14px !important; }
+  .telao-card { padding: 18px 16px !important; }
+}
+
 /* acessibilidade: quem prefere menos movimento, recebe menos movimento */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
