@@ -70,18 +70,30 @@ function saveCodeBackupLocal(shift, name, files) { try { localStorage.setItem(co
 function loadCodeBackupLocal(shift, name) { try { const raw = localStorage.getItem(codeBackupKey(shift, name)); return raw ? JSON.parse(raw) : null; } catch { return null; } }
 
 // ── text-to-speech (Web Speech API) ──
-// escolhe a voz pt-BR menos robótica disponível no aparelho: as vozes "Natural/Online"
-// (Edge) e as do Google são redes neurais, bem mais suaves que a voz padrão do sistema
-let cachedVoice = null;
-function bestPtVoice() {
-  if (cachedVoice) return cachedVoice;
+// vozes pt disponíveis no aparelho (pro seletor de voz)
+function listPtVoices() {
   const voices = window.speechSynthesis?.getVoices?.() || [];
   const pt = voices.filter(v => /pt[-_]BR/i.test(v.lang));
-  const anyPt = pt.length ? pt : voices.filter(v => /^pt/i.test(v.lang));
+  return pt.length ? pt : voices.filter(v => /^pt/i.test(v.lang));
+}
+// escolhe a voz pt-BR menos robótica disponível no aparelho: as vozes "Natural/Online"
+// (Edge) são redes neurais quase humanas — bem melhores que a padrão e que a do Google.
+// Se o aluno escolheu uma voz no seletor (🗣️), essa escolha vence.
+let cachedVoice = null;
+function bestPtVoice() {
+  try {
+    const savedName = localStorage.getItem("nyx_voice_name");
+    if (savedName) {
+      const saved = listPtVoices().find(v => v.name === savedName);
+      if (saved) return saved;
+    }
+  } catch {}
+  if (cachedVoice) return cachedVoice;
+  const anyPt = listPtVoices();
   const byPref = [
     v => /natural|neural|online/i.test(v.name),                  // vozes neurais (Edge/Windows 11)
-    v => /google/i.test(v.name),                                 // voz do Google (Android/Chrome)
     v => /luciana|francisca|thalita|camila|maria/i.test(v.name), // vozes femininas suaves comuns
+    v => /google/i.test(v.name),                                 // voz do Google (última opção — robótica)
   ];
   for (const pref of byPref) {
     const found = anyPt.find(pref);
@@ -138,6 +150,61 @@ function useSpeech() {
   }, [isSupported]);
 
   return { speak, pause, resume, stop, isSpeaking, isSupported };
+}
+
+// ── seletor de voz: o aluno testa e escolhe a voz que prefere entre as do aparelho ──
+function VoicePickerModal({ onClose }) {
+  const [voices, setVoices] = useState(() => listPtVoices());
+  const [saved, setSaved] = useState(() => { try { return localStorage.getItem("nyx_voice_name") || ""; } catch { return ""; } });
+  useEffect(() => {
+    if (voices.length) return;
+    const t = setInterval(() => { const v = listPtVoices(); if (v.length) { setVoices(v); clearInterval(t); } }, 300);
+    const stop = setTimeout(() => clearInterval(t), 4000);
+    return () => { clearInterval(t); clearTimeout(stop); };
+  }, [voices.length]);
+  const testVoice = (v) => {
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance("Oi! Eu sou o Nyx, e essa é a minha voz. Vamos programar juntos?");
+      u.lang = "pt-BR"; u.voice = v; u.rate = 0.95; u.pitch = 1.05;
+      window.speechSynthesis.speak(u);
+    } catch {}
+  };
+  const chooseVoice = (v) => {
+    try { localStorage.setItem("nyx_voice_name", v.name); } catch {}
+    setSaved(v.name);
+  };
+  const isNatural = (v) => /natural|neural|online/i.test(v.name);
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🗣️ Voz do Nyx</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Teste as vozes em português que existem neste aparelho e escolha a que você prefere pra leitura em voz alta.</p>
+        {voices.length === 0 ? (
+          <p style={{ color:"#5d679c", fontSize:13 }}>Não encontrei vozes em português neste aparelho. A leitura vai usar a voz padrão do sistema.</p>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {voices.map(v => (
+              <div key={v.name} style={{ display:"flex", alignItems:"center", gap:8, background: saved===v.name ? "#7c83ff22" : "#0d1122", border:`1px solid ${saved===v.name ? "#7c83ff" : "#2a3154"}`, borderRadius:12, padding:"8px 12px", flexWrap:"wrap" }}>
+                <span style={{ flex:1, minWidth:140, fontSize:13, fontWeight:700, color:"#e8ebfa" }}>
+                  {v.name}
+                  {isNatural(v) && <span style={{ marginLeft:6, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:8, padding:"1px 7px", fontSize:10.5, fontWeight:800 }}>✨ Natural</span>}
+                </span>
+                <button onClick={()=>testVoice(v)} style={{ background:"transparent", border:"1px solid #22d3ee", color:"#22d3ee", borderRadius:8, padding:"4px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>🔊 Testar</button>
+                <button onClick={()=>chooseVoice(v)} style={{ background: saved===v.name ? "#7c83ff" : "transparent", border:"1px solid #7c83ff", color: saved===v.name ? "#fff" : "#7c83ff", borderRadius:8, padding:"4px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>{saved===v.name ? "✓ Escolhida" : "Usar esta"}</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ background:"#22d3ee14", border:"1px solid #22d3ee55", borderRadius:12, padding:"10px 12px", marginTop:14, fontSize:12.5, color:"#a9e8f3", lineHeight:1.6 }}>
+          💡 <b>Dica pro professor:</b> no navegador <b>Edge</b> aparecem vozes com o selo <b>✨ Natural</b> (Francisca, Thalita...) — são quase humanas e de graça. No Chrome, só existem as vozes básicas do sistema.
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // deixa um trecho de código C# falável: quebra por linha (o \n vira uma pausa) e tira espaços nas pontas
@@ -2449,6 +2516,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailFailMsg, setDetailFailMsg] = useState("");
   const [showNotebook, setShowNotebook] = useState(false);
+  // seletor de voz da leitura em voz alta (🗣️ no cabeçalho)
+  const [showVoicePicker, setShowVoicePicker] = useState(false);
   // festa quando a turma sobe de nível na meta coletiva
   const [goalParty, setGoalParty] = useState(null);
   const goalLevelRef = useRef(null);
@@ -3671,6 +3740,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <button data-tour="tema" style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
           <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={toggleMuted} title={muted?"Ativar sons":"Silenciar sons"}>{muted?"🔇":"🔊"}</button>
           <button style={{ ...styles.btn(largeUiMode?"#06b6d4":"#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>{ setLargeUiMode(!largeUiMode); try { localStorage.setItem("nyx_large_ui", !largeUiMode?"1":"0"); } catch {} }} title={largeUiMode?"Desativar modo acessível":"Ativar modo acessível (letras maiores)"}>♿</button>
+          {ttsSupported && <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>setShowVoicePicker(true)} title="Escolher a voz do Nyx (leitura em voz alta)">🗣️</button>}
           <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={tryFullscreen}>⛶ Tela cheia</button>
           <button style={{ ...styles.btn("#f87171"), padding:"6px 12px", fontSize:12 }} onClick={onLogout}>Sair</button>
         </div>
@@ -3955,6 +4025,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       {showAchievements && <AchievementsModal unlocked={achievements} onClose={()=>setShowAchievements(false)} />}
       {showRanking && <RankingModal shift={shift} myName={studentName} onClose={()=>setShowRanking(false)} />}
       {showNotebook && <NotebookModal history={summaryHistory} detailedHistory={detailedSummaryHistory} onClose={()=>setShowNotebook(false)} />}
+      {showVoicePicker && <VoicePickerModal onClose={()=>setShowVoicePicker(false)} />}
       {showDuel && (
         <DuelModal
           shift={shift}
