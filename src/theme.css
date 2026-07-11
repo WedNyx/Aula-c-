@@ -81,6 +81,16 @@ input:focus, textarea:focus { border-color: #7c83ff !important; box-shadow: 0 0 
   .telao-card { padding: 18px 16px !important; }
 }
 
+/* ── perfis de apoio (educação inclusiva) ── */
+/* modo calmo (apoio sensorial): remove animações e brilhos — menos estímulo na tela */
+.calm *, .calm *::before, .calm *::after {
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+}
+/* leitura facilitada (dislexia): letras e palavras mais espaçadas, linhas mais soltas */
+.easy-read { letter-spacing: .05em; word-spacing: .14em; }
+.easy-read p { line-height: 1.95 !important; }
+
 /* acessibilidade: quem prefere menos movimento, recebe menos movimento */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -88,6 +88,37 @@ export async function setAccessMode(shift, name, value, auth) {
   } catch { return false }
 }
 
+// ── perfis de apoio (educação inclusiva): flags por aluno, ligadas pelo professor ──
+// sensorial = modo calmo (sem sons/festa) · foco = esconde ranking/loja/duelos ·
+// leitura = texto mais espaçado · ritmo = atividade reduzida (4 questões diretas)
+function supportKeyFor(shift, name) {
+  return `support:${shift || 'sem-turno'}:${safeName(name)}`
+}
+export async function getSupport(shift, name) {
+  try {
+    const r = await kvCall({ action: 'get', key: supportKeyFor(shift, name) })
+    return r.value ? JSON.parse(r.value) : {}
+  } catch { return {} }
+}
+export async function setSupport(shift, name, flags, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: supportKeyFor(shift, name), value: JSON.stringify(flags || {}), auth })
+    return r.ok === true
+  } catch { return false }
+}
+// todos os perfis de apoio de uma vez (pro indicador 💙 nos tiles do monitoramento)
+export async function listAllSupport() {
+  try {
+    const r = await kvCall({ action: 'list_with_values', prefix: 'support:' })
+    const map = {}
+    for (const item of r.items || []) {
+      const flags = JSON.parse(item.value || '{}')
+      map[item.key.replace(/^support:/, '')] = flags // chave: "turno:nome"
+    }
+    return map
+  } catch { return {} }
+}
+
 // ── travas do Nyx acionadas pelo professor no chat (zek / zeker) ──
 const NYX_LOCKS_KEY = 'nyxlocks:global'
 export async function getNyxLocks() {

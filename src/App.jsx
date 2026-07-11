@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport } from "./storage.js";
 import { xlsxBlob } from "./xlsx.js";
 
 // ── tema ──
@@ -42,8 +42,11 @@ function playTone(ctx, freq, start, dur, type = "sine", gain = 0.09) {
   g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
   osc.stop(start + dur + 0.02);
 }
+// modo calmo (apoio sensorial): silencia tudo sem mexer na preferência de som salva do aluno
+let soundsCalm = false;
+function setSoundsCalm(v) { soundsCalm = v; }
 function playSound(kind) {
-  if (soundsMuted) return;
+  if (soundsMuted || soundsCalm) return;
   const ctx = getAudioCtx();
   if (!ctx) return;
   const t = ctx.currentTime;
@@ -67,6 +70,31 @@ function saveCodeBackupLocal(shift, name, files) { try { localStorage.setItem(co
 function loadCodeBackupLocal(shift, name) { try { const raw = localStorage.getItem(codeBackupKey(shift, name)); return raw ? JSON.parse(raw) : null; } catch { return null; } }
 
 // ── text-to-speech (Web Speech API) ──
+// escolhe a voz pt-BR menos robótica disponível no aparelho: as vozes "Natural/Online"
+// (Edge) e as do Google são redes neurais, bem mais suaves que a voz padrão do sistema
+let cachedVoice = null;
+function bestPtVoice() {
+  if (cachedVoice) return cachedVoice;
+  const voices = window.speechSynthesis?.getVoices?.() || [];
+  const pt = voices.filter(v => /pt[-_]BR/i.test(v.lang));
+  const anyPt = pt.length ? pt : voices.filter(v => /^pt/i.test(v.lang));
+  const byPref = [
+    v => /natural|neural|online/i.test(v.name),                  // vozes neurais (Edge/Windows 11)
+    v => /google/i.test(v.name),                                 // voz do Google (Android/Chrome)
+    v => /luciana|francisca|thalita|camila|maria/i.test(v.name), // vozes femininas suaves comuns
+  ];
+  for (const pref of byPref) {
+    const found = anyPt.find(pref);
+    if (found) { cachedVoice = found; return found; }
+  }
+  cachedVoice = anyPt[0] || null;
+  return cachedVoice;
+}
+// a lista de vozes carrega de forma assíncrona — quando chegar, refaz a escolha
+if (typeof window !== "undefined" && window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = () => { cachedVoice = null; bestPtVoice(); };
+}
+
 function useSpeech() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSupported] = useState(() => !!window.speechSynthesis);
@@ -75,16 +103,25 @@ function useSpeech() {
   const speak = useCallback((text) => {
     if (!isSupported || !text) return;
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "pt-BR";
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    utteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
+    // fala frase por frase: textos longos não são cortados pelo navegador
+    // e as pausas naturais entre frases deixam a leitura menos corrida
+    const chunks = String(text).match(/[^.!?…\n]+[.!?…]*/g)?.map(s => s.trim()).filter(Boolean) || [String(text)];
+    const voice = bestPtVoice();
+    chunks.forEach((chunk, i) => {
+      const utterance = new SpeechSynthesisUtterance(chunk);
+      utterance.lang = "pt-BR";
+      if (voice) utterance.voice = voice;
+      utterance.rate = 0.95;   // um tiquinho mais devagar: soa calmo, não arrastado
+      utterance.pitch = 1.05;  // levemente mais agudo: tira o tom "grave de robô"
+      utterance.volume = 1.0;
+      if (i === 0) utterance.onstart = () => setIsSpeaking(true);
+      if (i === chunks.length - 1) {
+        utterance.onend = () => setIsSpeaking(false);
+      }
+      utterance.onerror = () => setIsSpeaking(false);
+      utteranceRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+    });
   }, [isSupported]);
 
   const pause = useCallback(() => {
@@ -1305,7 +1342,7 @@ function Terminal({ files, dataTour, maxHeight = 260 }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  CHAT COM O NYX  (botão flutuante — aluno e professor)
 // ════════════════════════════════════════════════════════════════════════════
-function NyxChat({ who = "student", context, onTheme, onCommand, accent = "#7c83ff", dataTour, gear, accessMode = false }) {
+function NyxChat({ who = "student", context, onTheme, onCommand, accent = "#7c83ff", dataTour, gear, accessMode = false, speak = null }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
@@ -1389,8 +1426,11 @@ Se o professor perguntar como chamar a atenção da turma ou controlar os duelos
               </div>
             )}
             {msgs.map((m,i)=>(
-              <div key={i} style={{ display:"flex", justifyContent:m.from==="user"?"flex-end":"flex-start", marginTop:8 }}>
+              <div key={i} style={{ display:"flex", justifyContent:m.from==="user"?"flex-end":"flex-start", marginTop:8, alignItems:"flex-end", gap:5 }}>
                 <div style={{ background:m.from==="user"?accent+"2e":"#0d1122", border:`1px solid ${m.from==="user"?accent+"66":"#272e52"}`, borderRadius:m.from==="user"?"12px 12px 4px 12px":"12px 12px 12px 4px", padding:"9px 12px", fontSize:13, color:"#e8ebfa", lineHeight:1.6, maxWidth:"88%", whiteSpace:"pre-wrap" }}>{m.text}</div>
+                {m.from!=="user" && speak && (
+                  <button onClick={()=>speak(m.text)} title="Ouvir esta resposta" style={{ background:"transparent", border:`1px solid ${accent}55`, color:accent, borderRadius:8, padding:"3px 7px", fontSize:11, cursor:"pointer", flexShrink:0 }}>🔊</button>
+                )}
               </div>
             ))}
             {busy && <div style={{ color:"#96a0cc", fontSize:12, marginTop:8 }}>Nyx está digitando…</div>}
@@ -2423,6 +2463,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const uiScale = largeUiMode ? 1.3 : 1;
   // modo guiado (acessibilidade): ligado pelo professor por aluno — troca o editor por blocos clicáveis
   const [accessMode, setAccessModeState] = useState(false);
+  // perfis de apoio (educação inclusiva), marcados pelo professor por aluno:
+  // sensorial = modo calmo · foco = esconde competição · leitura = texto espaçado · ritmo = atividade reduzida
+  const [supportFlags, setSupportFlags] = useState({});
+  const calmMode = !!supportFlags.sensorial;
+  const focusMode = !!supportFlags.foco;
+  const easyRead = !!supportFlags.leitura;
+  const ownPace = !!supportFlags.ritmo;
+  useEffect(() => { setSoundsCalm(calmMode); return () => setSoundsCalm(false); }, [calmMode]);
   const [guidedBlocks, setGuidedBlocks] = useState([]);
   const [pendingBlock, setPendingBlock] = useState(null);
   // "Nyx te ensina" no Modo Guiado: mini-lições geradas sob demanda (C# explicado com exemplos de jogos)
@@ -2555,6 +2603,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           }
         } catch {}
         try { setAccessModeState(await getAccessMode(shift, studentName)); } catch {}
+        try { setSupportFlags(await getSupport(shift, studentName)); } catch {}
         // foto do código do início do dia: se a salva for de outro dia (ou não existir), tira uma nova agora
         {
           const tk = todayKey();
@@ -2685,6 +2734,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       // modo guiado (acessibilidade) — o professor pode ligar/desligar por aluno a qualquer momento
       try {
         setAccessModeState(await getAccessMode(shift, studentName));
+      } catch {}
+      // perfis de apoio (calmo/foco/leitura/ritmo) — idem, valem na hora
+      try {
+        setSupportFlags(await getSupport(shift, studentName));
       } catch {}
       // professor renomeou/moveu/excluiu este perfil → sai da sessão antiga
       try {
@@ -2999,7 +3052,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       const [summaryResult, activityResult] = await Promise.all([
         askClaude(simpleReq.prompt, simpleReq.system),
         askClaude(
-          `Um aluno de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie 8 questões de múltipla escolha focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.${difficultyHint || ""}\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
+          `Um aluno de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie ${ownPace ? "4" : "8"} questões de múltipla escolha${ownPace ? " BEM diretas e fáceis (uma ideia por questão, frases curtas)" : ""} focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.${difficultyHint || ""}\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
           "Crie questões sobre conceitos de código C#, não matemática. APENAS JSON puro."
         ),
       ]);
@@ -3195,11 +3248,31 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     </div>
   );
 
+  // classes de apoio (aplicadas em todas as telas do aluno) + rotina visual da aula
+  const supportClass = [calmMode && "calm", easyRead && "easy-read"].filter(Boolean).join(" ") || undefined;
+  const showRoutine = accessMode || calmMode || focusMode || easyRead || ownPace;
+  // barrinha fixa com os passos do dia: previsibilidade ajuda muito quem é autista/TDAH —
+  // o aluno sempre sabe em que passo está e o que vem depois
+  const routineBar = showRoutine ? (() => {
+    const steps = [["📝","Programar"],["💾","Salvar"],["📚","Resumo"],["🎯","Atividade"]];
+    const idx = phase==="coding" ? 0 : phase==="generating" ? 1 : phase==="summary" ? 2 : phase==="activity" ? 3 : 4;
+    return (
+      <div style={{ position:"fixed", bottom:10, left:"50%", transform:"translateX(-50%)", zIndex:900, background:"rgba(13,17,34,.96)", border:"1px solid #2a3154", borderRadius:20, padding:"7px 14px", display:"flex", gap:8, alignItems:"center", boxShadow:"0 8px 24px rgba(0,0,0,.45)", flexWrap:"wrap", justifyContent:"center", maxWidth:"calc(100vw - 16px)" }}>
+        <span style={{ color:"#5d679c", fontSize:11.5, fontWeight:800 }}>Minha aula:</span>
+        {steps.map(([emoji, label], i) => (
+          <span key={label} style={{ display:"flex", alignItems:"center", gap:5, fontSize:12.5, fontWeight:800, color: i < idx ? "#34d399" : i === idx ? "#e8ebfa" : "#5d679c", background: i === idx ? "#7c83ff33" : "transparent", border: i === idx ? "1px solid #7c83ff" : "1px solid transparent", borderRadius:14, padding:"3px 9px" }}>
+            {i < idx ? "✓" : emoji} {label}
+          </span>
+        ))}
+      </div>
+    );
+  })() : null;
+
   // ── PROVA: telas de exame têm prioridade ──
   if (examDone) return (
-    <div style={styles.container}>
+    <div className={supportClass} style={styles.container}>
       <AchievementToast achievement={newAchievement} />
-        {goalParty && <ConfettiParty level={goalParty} />}
+        {goalParty && !calmMode && <ConfettiParty level={goalParty} />}
       <div style={styles.header}><span>🏆 Prova Concluída — {studentName}</span></div>
       <div style={{ maxWidth:500, margin:"50px auto", textAlign:"center", padding:"0 16px" }}>
         <div style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", borderRadius:18, padding:32, boxShadow:"0 12px 30px #34d39944" }}>
@@ -3214,7 +3287,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   );
 
   if (examInfo.status === 'review') return (
-    <div style={styles.container}>
+    <div className={supportClass} style={styles.container}>
       <div style={styles.header}><span>📝 Revisão — {studentName}</span></div>
       <div style={{ maxWidth:700, margin:"0 auto", padding:"22px 16px 36px" }}>
         <div style={{ background:"linear-gradient(135deg,#7c83ff,#8b5cf6)", borderRadius:18, padding:"24px 22px", textAlign:"center", boxShadow:"0 12px 30px #7c83ff55" }}>
@@ -3245,7 +3318,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     const qs = examInfo.questions || [];
     const q = qs[examCurrentQ];
     return (
-      <div style={styles.container}>
+      <div className={supportClass} style={styles.container}>
         <div style={styles.header}>
           <span>🏆 Prova — {studentName}</span>
           <span style={{ color:"#96a0cc", fontSize:13 }}>Questão {examCurrentQ+1} de {qs.length}</span>
@@ -3275,7 +3348,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   }
 
   if (phase==="generating") return (
-    <div style={styles.container}>
+    <div className={supportClass} style={styles.container}>
+      {routineBar}
       <div style={styles.header}><span>⏳ Preparando — {studentName}</span></div>
       <div className="pop" style={{ maxWidth:440, margin:"70px auto", textAlign:"center", padding:24 }}>
         <NyxRobot state="thinking" size={116} showName={false} />
@@ -3297,7 +3371,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       speak(text);
     };
     return (
-      <div style={styles.container}>
+      <div className={supportClass} style={styles.container}>
+      {routineBar}
         <div style={styles.header}><span>📚 Resumo da Aula — {studentName}</span></div>
         <div style={{ maxWidth:740, margin:"0 auto", padding:`${scalePx(22)}px ${scalePx(16)}px ${scalePx(36)}px` }}>
           {/* topo em destaque */}
@@ -3381,9 +3456,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       speak(qText);
     };
     return (
-      <div style={styles.container}>
+      <div className={supportClass} style={styles.container}>
+      {routineBar}
         <AchievementToast achievement={newAchievement} />
-        {goalParty && <ConfettiParty level={goalParty} />}
+        {goalParty && !calmMode && <ConfettiParty level={goalParty} />}
         <div style={styles.header}><span>📝 Atividade — {studentName}</span></div>
         <div style={{ maxWidth:640, margin:"0 auto", padding:24 }}>
           <h2 style={{ color:"#7c83ff", fontSize:scaleSize(20) }}>Atividade da Aula</h2>
@@ -3424,9 +3500,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       : (typeof finalFeedback === "string" ? finalFeedback : "");
     const FB_ACCENTS = ["#34d399","#fbbf24"];
     return (
-      <div style={styles.container}>
+      <div className={supportClass} style={styles.container}>
+      {routineBar}
         <AchievementToast achievement={newAchievement} />
-        {goalParty && <ConfettiParty level={goalParty} />}
+        {goalParty && !calmMode && <ConfettiParty level={goalParty} />}
         {showFeedbackModal && (
           <NyxFeedbackModal score={score} loading={feedbackLoading} feedback={finalFeedback} onClose={()=>{
             setShowFeedbackModal(false);
@@ -3547,7 +3624,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
   // ── CODING ──
   return (
-    <div style={styles.container}>
+    <div className={supportClass} style={styles.container}>
+      {routineBar}
       {/* apresentação do Nyx no primeiro acesso */}
       {showIntro && (
         <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
@@ -3599,7 +3677,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       </div>
 
       <AchievementToast achievement={newAchievement} />
-        {goalParty && <ConfettiParty level={goalParty} />}
+        {goalParty && !calmMode && <ConfettiParty level={goalParty} />}
 
       {showNudge && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
@@ -3629,7 +3707,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         </div>
       )}
 
-      {curiosity && !curiosityDismissed && phase==="coding" && (
+      {curiosity && !curiosityDismissed && !focusMode && phase==="coding" && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
           <div style={{ background:"#22d3ee18", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:18 }}>💡</span>
@@ -3810,24 +3888,27 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           )}
           <div data-tour="nyx" className="cardfx" style={styles.card}>
             <NyxRobot state={robotState} size={88} gear={nyxGear} />
-            {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>{robotMsg}</div>)}
+            {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>
+              {robotMsg}
+              {ttsSupported && <div style={{ marginTop:8 }}><button onClick={()=>speak(robotMsg)} style={{ background:"transparent", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, color:robotState==="error"?"#f87171":"#34d399", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>🔊 Ouvir</button></div>}
+            </div>)}
             {keysToShow.length>0&&(<div style={{ marginTop:10 }}><p style={{ color:"#fbbf24", fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
-            <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
+            {!focusMode && <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
               🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
-            </button>
+            </button>}
           </div>
           <div className="cardfx" style={styles.card}>
             <p style={{ color:"#fbbf24", fontWeight:700, marginBottom:8, fontSize:13 }}>🏆 Turma & Você</p>
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-              <button onClick={()=>setShowRanking(true)} style={{ ...styles.btn("#22d3ee"), fontSize:12, padding:"7px 0" }}>📊 Ranking da turma</button>
+              {!focusMode && <button onClick={()=>setShowRanking(true)} style={{ ...styles.btn("#22d3ee"), fontSize:12, padding:"7px 0" }}>📊 Ranking da turma</button>}
               <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btn("#a855f7"), fontSize:12, padding:"7px 0" }}>🎖️ Conquistas · {achievements.length}/{ACHIEVEMENTS.length}</button>
               <button onClick={()=>setShowNotebook(true)} style={{ ...styles.btn("#34d399"), fontSize:12, padding:"7px 0" }}>📒 Caderno de resumos</button>
-              <button onClick={()=>{ if (!nyxLocks.zeker) setShowDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : ""}
+              {!focusMode && <button onClick={()=>{ if (!nyxLocks.zeker) setShowDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : ""}
                 style={{ ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:nyxLocks.zeker?0.45:1, cursor:nyxLocks.zeker?"not-allowed":"pointer" }}>
                 {nyxLocks.zeker ? "🔒 Duelos bloqueados" : "⚔️ Duelo entre alunos"}
-              </button>
+              </button>}
             </div>
-            <ClassGoalBar sum={classPointsSum} />
+            {!focusMode && <ClassGoalBar sum={classPointsSum} />}
           </div>
           <div className="cardfx" style={{ ...styles.card, fontSize:12, color:"#5d679c", lineHeight:1.8 }}>
             <p style={{ color:"#7c83ff", fontWeight:600, marginBottom:6 }}>⌨️ Atalhos do editor</p>
@@ -3896,6 +3977,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         dataTour="chat"
         gear={nyxGear}
         accessMode={accessMode}
+        speak={ttsSupported ? speak : null}
         onTheme={handleNyxTheme}
         context={() => `Contexto: você conversa com o aluno ${studentName}. Código atual dele (${files[active]?.name || "Program.cs"}):\n${activeCode || "(vazio ainda)"}\n${robotMsg ? `Seu último aviso sobre o código: ${robotMsg}` : ""}`}
       />
@@ -4102,6 +4184,9 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [mgmtMsg, setMgmtMsg] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [selAccessMode, setSelAccessMode] = useState(false);
+  // perfis de apoio (educação inclusiva) do aluno selecionado + mapa geral pros tiles
+  const [selSupport, setSelSupport] = useState({});
+  const [supportMap, setSupportMap] = useState({});
   useEffect(() => { setRenameVal(""); setScoreVal(""); setConfirmDelete(false); setMgmtMsg(""); }, [selected]);
   const [resetting, setResetting] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -4173,6 +4258,14 @@ function TeacherView({ onLogout, teacherAuth }) {
   }, [load]);
 
   useEffect(() => { diagnose().then(setDiag); }, []);
+  // mapa de perfis de apoio (indicador 💙 nos tiles) — atualiza de vez em quando, não precisa ser ao vivo
+  useEffect(() => {
+    let active = true;
+    const loadSupport = async () => { const m = await listAllSupport(); if (active) setSupportMap(m); };
+    loadSupport();
+    const iv = setInterval(loadSupport, 20000);
+    return () => { active = false; clearInterval(iv); };
+  }, []);
   // fica de olho na saúde do Nyx: se a última chamada de IA registrada (de qualquer aluno/professor)
   // foi erro e é recente, mostra "Reconectando Nyx"; some assim que uma chamada der certo de novo
   useEffect(() => {
@@ -4714,6 +4807,8 @@ function TeacherView({ onLogout, teacherAuth }) {
     let alive = true;
     if (sel) getAccessMode(sel.shift, sel.name).then(v => { if (alive) setSelAccessMode(v); });
     else setSelAccessMode(false);
+    if (sel) getSupport(sel.shift, sel.name).then(v => { if (alive) setSelSupport(v || {}); });
+    else setSelSupport({});
     return () => { alive = false; };
   }, [sel?.shift, sel?.name]);
   const doToggleAccessMode = async (s) => {
@@ -4721,6 +4816,14 @@ function TeacherView({ onLogout, teacherAuth }) {
     await setAccessMode(s.shift, s.name, next, teacherAuth);
     setSelAccessMode(next);
     flashMgmt(next ? `✅ Modo Guiado ativado para ${s.name}.` : `✅ Modo Guiado desativado para ${s.name}.`);
+  };
+  // perfis de apoio: liga/desliga uma marcação e atualiza o mapa geral (indicador nos tiles)
+  const doToggleSupport = async (s, flag, label) => {
+    const next = { ...selSupport, [flag]: !selSupport[flag] };
+    await setSupport(s.shift, s.name, next, teacherAuth);
+    setSelSupport(next);
+    setSupportMap(m => ({ ...m, [`${s.shift||"sem-turno"}:${s.name}`]: next }));
+    flashMgmt(next[flag] ? `💙 ${label} ativado para ${s.name}.` : `✅ ${label} desativado para ${s.name}.`);
   };
   const present = shown.filter(isOnline).length;
   const goingWell = sorted.filter(s => difficultyOf(s).level==="bem");
@@ -5050,6 +5153,9 @@ function TeacherView({ onLogout, teacherAuth }) {
                   return (
                     <div key={s.name} className="tilefx" onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ position:"relative", background:selected===s.name?"#7c83ff22":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":"#2a3154"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center", animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
                       {s.score!=null && <span style={{ position:"absolute", top:6, left:6, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:6, padding:"1px 6px", fontSize:10.5, fontWeight:800 }}>🏆 {s.score}</span>}
+                      {Object.values(supportMap[`${s.shift||"sem-turno"}:${s.name}`] || {}).some(Boolean) && (
+                        <span title="Aluno com perfil de apoio ativo (clique pra ver no detalhe)" style={{ position:"absolute", bottom:6, left:6, fontSize:11 }}>💙</span>
+                      )}
                       <span style={{ position:"absolute", top:8, right:8 }}>{dot(isOnline(s))}</span>
                       <div style={{ marginTop:s.score!=null?16:4 }}>
                         <Avatar cfg={s.avatar} size={44} />
@@ -5190,6 +5296,25 @@ function TeacherView({ onLogout, teacherAuth }) {
                         {selAccessMode ? "✅ Modo Guiado ativado" : "Ativar Modo Guiado"}
                       </button>
                       <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>{selAccessMode ? "O editor de código deste aluno vira uma montagem de blocos clicáveis, com narração por voz." : "Troca o editor de código por blocos clicáveis + narração por voz, para alunos com dificuldade de ler/escrever/digitar."}</span>
+                    </div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"flex-start", borderTop:"1px solid #2a3154", paddingTop:10 }}>
+                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88, paddingTop:6 }}>💙 Apoio:</span>
+                      <div style={{ flex:1, minWidth:220 }}>
+                        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                          {[
+                            ["sensorial", "🧘 Sensorial", "Modo calmo: sem sons, confete e animações de festa — pra quem se sobrecarrega com estímulos."],
+                            ["foco", "🎯 Foco", "Esconde ranking, loja, duelos e curiosidade — sobra só o essencial: editor, Nyx e salvar."],
+                            ["leitura", "📖 Leitura", "Letras e linhas mais espaçadas em toda a tela do aluno — ajuda na dislexia."],
+                            ["ritmo", "🐢 Ritmo próprio", "Atividade do dia com 4 questões bem diretas em vez de 8 — termina junto com a turma."],
+                          ].map(([flag, label, hint]) => (
+                            <button key={flag} onClick={()=>doToggleSupport(sel, flag, label)} title={hint}
+                              style={{ background: selSupport[flag] ? "#3b82f6" : "#0d1122", color: selSupport[flag] ? "#fff" : "#96a0cc", border:`1px solid ${selSupport[flag] ? "#3b82f6" : "#2a3154"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:12 }}>
+                              {selSupport[flag] ? "✓ " : ""}{label}
+                            </button>
+                          ))}
+                        </div>
+                        <p style={{ color:"#5d679c", fontSize:11.5, margin:"6px 0 0" }}>Perfis de apoio pra educação inclusiva — a tela do aluno se adapta sozinha. Só você vê essas marcações; os colegas não.</p>
+                      </div>
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
                       <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>📤 Código:</span>

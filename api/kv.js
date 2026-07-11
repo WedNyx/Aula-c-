@@ -8,8 +8,8 @@ const TABLE = 'kv_store'
 // si aceitava qualquer pedido. Agora, as ações que só o professor deveria poder fazer
 // (apagar tudo, mexer nas configurações da turma) exigem a senha de verdade aqui no
 // servidor, verificada no campo "auth" do pedido.
-const SET_PROTECTED_PREFIXES = ['teachercode:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:']
-const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'nyxlocks:', 'exam:config', 'accessmode:', 'kick:', 'teachermeta:', 'classroom_reset_flag']
+const SET_PROTECTED_PREFIXES = ['teachercode:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'support:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:']
+const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'nyxlocks:', 'exam:config', 'accessmode:', 'support:', 'kick:', 'teachermeta:', 'classroom_reset_flag']
 
 function needsTeacherAuth(action, key) {
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
