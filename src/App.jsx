@@ -1771,6 +1771,85 @@ function ClassGoalBar({ sum }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  TELÃO DA TURMA — tela cheia só de visualização, pra projetar durante a aula
+// ════════════════════════════════════════════════════════════════════════════
+function TelaoModal({ students, shift, onClose }) {
+  const [telaoShift, setTelaoShift] = useState(shift && shift !== "all" ? shift : "matutino");
+  useEffect(() => { goFullscreen(); }, []);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const mine = (students || []).filter(s => (s.shift || "sem-turno") === telaoShift && (s.shift || "") !== TEST_SHIFT.id);
+  const ranking = [...mine].sort((a,b)=>(b.nyxPoints||0)-(a.nyxPoints||0)).slice(0, 8);
+  const sum = mine.reduce((n,s)=>n+(s.nyxPoints||0), 0);
+  const g = classGoalProgress(sum);
+  const combo8 = mine.filter(s => (s.achievements||[]).includes("combo-8"));
+  const combo5 = mine.filter(s => (s.achievements||[]).includes("combo-5") && !combo8.includes(s));
+  const medals = ["🥇","🥈","🥉","🏅","🏅","🏅","🏅","🏅"];
+  return (
+    <div data-testid="telao-modal" style={{ position:"fixed", inset:0, background:"#05070f", zIndex:2000, display:"flex", flexDirection:"column", padding:"36px 48px", overflowY:"auto" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:28, flexWrap:"wrap", gap:14 }}>
+        <span style={{ fontSize:32, fontWeight:900, background:"linear-gradient(135deg,#fbbf24,#fb923c)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🖥️ Telão da Turma</span>
+        <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+          {SHIFTS.map(sh => (
+            <button key={sh.id} onClick={()=>setTelaoShift(sh.id)} style={{ background: telaoShift===sh.id ? "#fbbf24" : "#181d38", color: telaoShift===sh.id ? "#1c1400" : "#96a0cc", border:`2px solid ${telaoShift===sh.id?"#fbbf24":"#2a3154"}`, borderRadius:12, padding:"10px 20px", fontSize:16, fontWeight:800, cursor:"pointer" }}>{sh.emoji} {sh.label}</button>
+          ))}
+          <button onClick={onClose} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:12, padding:"10px 18px", fontSize:16, cursor:"pointer", fontWeight:800 }}>✕ Sair (Esc)</button>
+        </div>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns: "1.3fr 1fr", gap:28, flex:1 }}>
+        <div style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32 }}>
+          <h2 style={{ margin:"0 0 20px", fontSize:26, color:"#22d3ee" }}>📊 Ranking ao vivo</h2>
+          {ranking.length===0 ? <p style={{ color:"#5d679c", fontSize:18 }}>Ninguém pontuou ainda nessa turma.</p> : (
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              {ranking.map((s,i)=>(
+                <div key={s.name} style={{ display:"flex", alignItems:"center", gap:16, background:"#0d1122", border:"1px solid #2a3154", borderRadius:16, padding:"14px 20px" }}>
+                  <span style={{ fontSize:30, width:44, textAlign:"center" }}>{medals[i]}</span>
+                  <Avatar cfg={s.avatar} size={48} />
+                  <span style={{ flex:1, fontWeight:800, fontSize:22, color:"#e8ebfa" }}>{s.name}</span>
+                  <span style={{ color:"#fbbf24", fontWeight:900, fontSize:24 }}>{s.nyxPoints||0} pts</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:28 }}>
+          <div style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32 }}>
+            <h2 style={{ margin:"0 0 16px", fontSize:24, color:"#7c83ff" }}>🎯 Meta da turma</h2>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:16, color:"#c7cfee", marginBottom:8 }}>
+              <span>Nível {g.level}</span>
+              <span>{sum}{g.next?`/${g.next}`:""} pts</span>
+            </div>
+            <div style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:20, height:22, overflow:"hidden" }}>
+              <div style={{ width:`${g.pct}%`, height:"100%", background:"linear-gradient(90deg,#7c83ff,#22d3ee)", transition:"width .6s ease" }} />
+            </div>
+          </div>
+          <div style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32, flex:1 }}>
+            <h2 style={{ margin:"0 0 16px", fontSize:24, color:"#fbbf24" }}>⚡ Combos da turma</h2>
+            {combo5.length===0 && combo8.length===0 ? <p style={{ color:"#5d679c", fontSize:16 }}>Ninguém acertou uma sequência de questões ainda.</p> : (
+              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {combo8.map(s => (
+                  <div key={"c8-"+s.name} style={{ display:"flex", alignItems:"center", gap:10, fontSize:18 }}>
+                    <span style={{ fontSize:22 }}>🚀</span><b style={{ color:"#e8ebfa" }}>{s.name}</b><span style={{ color:"#96a0cc" }}>— Combo Insano (8 seguidas)</span>
+                  </div>
+                ))}
+                {combo5.map(s => (
+                  <div key={"c5-"+s.name} style={{ display:"flex", alignItems:"center", gap:10, fontSize:18 }}>
+                    <span style={{ fontSize:22 }}>⚡</span><b style={{ color:"#e8ebfa" }}>{s.name}</b><span style={{ color:"#96a0cc" }}>— Combo Elétrico (5 seguidas)</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  CADERNO DE RESUMOS + FESTA DA META DA TURMA
 // ════════════════════════════════════════════════════════════════════════════
 // renderização bonita de um resumo salvo (mesmo estilo da tela de resumo da aula)
@@ -1805,10 +1884,12 @@ function SummaryPretty({ sum }) {
 }
 
 // caderno: lista os resumos por data e mostra o escolhido
-function NotebookModal({ history, onClose }) {
+function NotebookModal({ history, detailedHistory, onClose }) {
   const dates = Object.keys(history || {}).sort((a,b)=>b.localeCompare(a));
   const [sel, setSel] = useState(dates[0] || null);
+  const [view, setView] = useState("simples");
   const fmt = (d) => { const [y,m,dd] = d.split("-"); return `${dd}/${m}/${y}`; };
+  const hasDetailed = sel && detailedHistory && detailedHistory[sel];
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
       <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
@@ -1823,13 +1904,19 @@ function NotebookModal({ history, onClose }) {
           <>
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:14 }}>
               {dates.map(d => (
-                <button key={d} onClick={()=>setSel(d)}
+                <button key={d} onClick={()=>{ setSel(d); setView("simples"); }}
                   style={{ background: sel===d ? "#34d399" : "#0d1122", color: sel===d ? "#03301f" : "#96a0cc", border:`1px solid ${sel===d?"#34d399":"#2a3154"}`, borderRadius:10, padding:"6px 12px", cursor:"pointer", fontWeight:800, fontSize:12.5 }}>
                   📅 {fmt(d)}
                 </button>
               ))}
             </div>
-            {sel && history[sel] && <SummaryPretty sum={history[sel]} />}
+            {hasDetailed && (
+              <div style={{ display:"flex", gap:6, marginBottom:14 }}>
+                <button onClick={()=>setView("simples")} style={{ background: view==="simples" ? "#7c83ff" : "#0d1122", color: view==="simples" ? "#fff" : "#96a0cc", border:`1px solid ${view==="simples"?"#7c83ff":"#2a3154"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:11.5 }}>🌱 Simples</button>
+                <button onClick={()=>setView("detalhado")} style={{ background: view==="detalhado" ? "#7c83ff" : "#0d1122", color: view==="detalhado" ? "#fff" : "#96a0cc", border:`1px solid ${view==="detalhado"?"#7c83ff":"#2a3154"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:11.5 }}>📖 Detalhado</button>
+              </div>
+            )}
+            {sel && <SummaryPretty sum={(view==="detalhado" && hasDetailed) ? detailedHistory[sel] : history[sel]} />}
           </>
         )}
       </div>
@@ -2121,6 +2208,35 @@ async function askClaudeJson(prompt, system, opts = {}) {
     ));
   }
 }
+// monta o pedido de resumo da aula pro Nyx — "simples" (padrão, frases curtas) ou "detalhado"
+// (mais completo, pra quem quer entender o porquê de cada coisa, não só o quê)
+function buildSummaryRequest(detail, hasTodayDiff, todayCode, fullCode) {
+  const contextPart = hasTodayDiff
+    ? `Projeto C# completo de um aluno iniciante (contexto — inclui código de aulas ANTERIORES):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nTRECHOS QUE ELE ESCREVEU HOJE, na aula de hoje (extraídos por comparação com o início do dia):\n\`\`\`csharp\n${todayCode}\n\`\`\`\n\nCrie um resumo da AULA DE HOJE: cubra APENAS os conceitos que aparecem nos trechos escritos hoje. NÃO faça seções sobre conceitos que só existem no código das aulas anteriores — o projeto completo é só contexto para você entender os trechos novos.`
+    : `Um aluno iniciante de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos fazem parte do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie um resumo da aula`;
+  const codeScope = hasTodayDiff ? "código escrito HOJE" : "código dele, olhando TODOS os arquivos";
+  if (detail === "detalhado") {
+    return {
+      prompt: contextPart + ` bem organizado e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 ou 2 frases curtas e acolhedoras dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação bem simples, de 1 a 3 frases, do que isso faz e por quê", "exemplo": "um trecho de código C# curto e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta, útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${codeScope} (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Linguagem bem de iniciante. Exemplos curtos, corretos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
+      system: "Você é um professor de C# paciente e organizado, para iniciantes. Português correto e simples. Responda APENAS JSON puro válido.",
+    };
+  }
+  return {
+    prompt: contextPart + ` bem organizado, SIMPLES e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 frase curta e acolhedora dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação BEM simples, em NO MÁXIMO 2 frases curtas, do que isso faz — sem jargão técnico, como se explicasse para alguém de 13 anos que nunca programou", "exemplo": "um trecho de código C# BEM curto (1 a 3 linhas) e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta (1 frase), útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${codeScope} (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Frases curtas e diretas, uma ideia por vez. Nada de explicações longas ou com vários porquês encadeados. Exemplos curtos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
+    system: "Você é um professor de C# paciente, para iniciantes de 13-14 anos que nunca programaram. Explique tudo do jeito MAIS SIMPLES possível: frases curtas, uma ideia por frase, sem jargão técnico desnecessário e sem explicações longas. Português correto e simples. Responda APENAS JSON puro válido.",
+  };
+}
+// dificuldade adaptativa: olha a média das últimas notas do aluno e devolve uma instrução extra pro
+// Nyx pesar a atividade pra mais fácil ou mais desafiadora — null quando não há dado suficiente ainda
+// ou quando o desempenho está equilibrado (mantém o mix padrão de sempre)
+function recentDifficultyHint(scoreHistory) {
+  const dates = Object.keys(scoreHistory || {}).sort((a,b)=>b.localeCompare(a)).slice(0,3);
+  if (dates.length < 2) return null;
+  const avg = dates.reduce((sum,d)=>sum+scoreHistory[d],0) / dates.length;
+  if (avg < 55) return `\n\nATENÇÃO — dificuldade: esse aluno tem tirado notas baixas nas últimas atividades (média recente ${Math.round(avg)}/100). Faça a MAIORIA das questões (uns 6 de 8) BEM diretas e fáceis, um conceito de cada vez, e só 2 um pouco mais desafiadoras — o objetivo é ele ganhar confiança sem travar.`;
+  if (avg > 85) return `\n\nATENÇÃO — dificuldade: esse aluno tem tirado notas altas nas últimas atividades (média recente ${Math.round(avg)}/100). Inclua mais questões desafiadoras: peça pra comparar conceitos parecidos, prever a saída exata do código, ou notar pegadinhas sutis — não deixe tão fácil.`;
+  return null;
+}
 function requestFS(){
   if (typeof document === "undefined") return Promise.reject(new Error("no-document"));
   const el = document.documentElement;
@@ -2262,6 +2378,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   // histórico por dia: notas das atividades e resumos das aulas (caderno)
   const [scoreHistory, setScoreHistory] = useState({});
   const [summaryHistory, setSummaryHistory] = useState({});
+  // versão detalhada do resumo (pedida sob demanda — alguns alunos preferem o resumo mais completo)
+  const [detailedSummary, setDetailedSummary] = useState("");
+  const [detailedSummaryHistory, setDetailedSummaryHistory] = useState({});
+  const [summaryView, setSummaryView] = useState("simples"); // "simples" | "detalhado"
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailFailMsg, setDetailFailMsg] = useState("");
   const [showNotebook, setShowNotebook] = useState(false);
   // festa quando a turma sobe de nível na meta coletiva
   const [goalParty, setGoalParty] = useState(null);
@@ -2291,7 +2413,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, duelWins, guidedBlocks, guidedLessons };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -2336,6 +2458,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       daySnapshot: daySnapshotRef.current || null,
       scoreHistory: s.scoreHistory || {},
       summaryHistory: s.summaryHistory || {},
+      detailedSummary: s.detailedSummary || null,
+      detailedSummaryHistory: s.detailedSummaryHistory || {},
       guidedBlocks: s.guidedBlocks || [],
       guidedLessons: s.guidedLessons || [],
       ...extra,
@@ -2386,6 +2510,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.doneAt) setDoneAt(prev.doneAt);
           if (prev.scoreHistory) setScoreHistory(prev.scoreHistory);
           if (prev.summaryHistory) setSummaryHistory(prev.summaryHistory);
+          if (prev.detailedSummary) setDetailedSummary(prev.detailedSummary);
+          if (prev.detailedSummaryHistory) setDetailedSummaryHistory(prev.detailedSummaryHistory);
           if (Array.isArray(prev.guidedBlocks)) setGuidedBlocks(prev.guidedBlocks);
           if (Array.isArray(prev.guidedLessons)) setGuidedLessons(prev.guidedLessons);
         }
@@ -2835,6 +2961,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     const fullCode = allCodeToday();
     if (fullCode.trim().length < 10) { setSaveWarn("✏️ Escreva algum código antes de salvar!"); setTimeout(()=>setSaveWarn(""), 4000); return; }
     setAnswers({});
+    setDetailedSummary(""); setSummaryView("simples"); setDetailFailMsg(""); // aula nova: zera a versão detalhada da aula anterior
     setPhase("generating");
     setGeneratingMsg("📖 Lendo seu código...");
     await persist({ phase:"generating", answers:{} });
@@ -2842,17 +2969,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       setGeneratingMsg("📚 Criando o resumo e a atividade da sua aula...");
       const todayCode = codeWrittenToday();
       const hasTodayDiff = todayCode.trim().length >= 10 && todayCode.trim() !== fullCode.trim();
+      const simpleReq = buildSummaryRequest("simples", hasTodayDiff, todayCode, fullCode);
+      const difficultyHint = recentDifficultyHint(scoreHistory);
       // resumo e atividade são pedidos ao Nyx AO MESMO TEMPO (não um depois do outro) para não somar o tempo de espera dos dois
       const [summaryResult, activityResult] = await Promise.all([
+        askClaude(simpleReq.prompt, simpleReq.system),
         askClaude(
-          (hasTodayDiff
-            ? `Projeto C# completo de um aluno iniciante (contexto — inclui código de aulas ANTERIORES):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nTRECHOS QUE ELE ESCREVEU HOJE, na aula de hoje (extraídos por comparação com o início do dia):\n\`\`\`csharp\n${todayCode}\n\`\`\`\n\nCrie um resumo da AULA DE HOJE: cubra APENAS os conceitos que aparecem nos trechos escritos hoje. NÃO faça seções sobre conceitos que só existem no código das aulas anteriores — o projeto completo é só contexto para você entender os trechos novos.`
-            : `Um aluno iniciante de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos fazem parte do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie um resumo da aula`) +
-          ` bem organizado, SIMPLES e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 frase curta e acolhedora dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação BEM simples, em NO MÁXIMO 2 frases curtas, do que isso faz — sem jargão técnico, como se explicasse para alguém de 13 anos que nunca programou", "exemplo": "um trecho de código C# BEM curto (1 a 3 linhas) e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta (1 frase), útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${hasTodayDiff ? "código escrito HOJE" : "código dele, olhando TODOS os arquivos"} (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Frases curtas e diretas, uma ideia por vez. Nada de explicações longas ou com vários porquês encadeados. Exemplos curtos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
-          "Você é um professor de C# paciente, para iniciantes de 13-14 anos que nunca programaram. Explique tudo do jeito MAIS SIMPLES possível: frases curtas, uma ideia por frase, sem jargão técnico desnecessário e sem explicações longas. Português correto e simples. Responda APENAS JSON puro válido."
-        ),
-        askClaude(
-          `Um aluno de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie 8 questões de múltipla escolha focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
+          `Um aluno de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie 8 questões de múltipla escolha focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.${difficultyHint || ""}\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
           "Crie questões sobre conceitos de código C#, não matemática. APENAS JSON puro."
         ),
       ]);
@@ -2872,6 +2995,27 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       setGeneratingMsg("❌ Erro ao gerar. Tente novamente.");
       setTimeout(() => { setPhase("coding"); persist({ phase:"coding" }); }, 2500);
     }
+  };
+
+  // versão detalhada do resumo, pedida sob demanda (só quando o aluno clica) — gerada uma vez e guardada
+  const fetchDetailedSummary = async () => {
+    if (detailedSummary) { setSummaryView("detalhado"); return; }
+    setDetailLoading(true); setDetailFailMsg("");
+    try {
+      const fullCode = allCodeToday();
+      const todayCode = codeWrittenToday();
+      const hasTodayDiff = todayCode.trim().length >= 10 && todayCode.trim() !== fullCode.trim();
+      const { prompt, system } = buildSummaryRequest("detalhado", hasTodayDiff, todayCode, fullCode);
+      const data = await askClaudeJson(prompt, system);
+      setDetailedSummary(data);
+      const newDetailedHistory = { ...detailedSummaryHistory, [todayKey()]: data };
+      setDetailedSummaryHistory(newDetailedHistory);
+      await persist({ detailedSummary: data, detailedSummaryHistory: newDetailedHistory });
+      setSummaryView("detalhado");
+    } catch (e) {
+      setDetailFailMsg(e.message === "ROBOTKEY_MISSING" ? `O Nyx está offline: ${e.userMsg || "peça pro professor configurar a IA."}` : "Não consegui gerar a versão detalhada agora. Tente de novo em instantes.");
+    }
+    setDetailLoading(false);
   };
 
   const handleStartActivity = async () => { setPhase("activity"); await persist({ phase:"activity" }); };
@@ -3121,7 +3265,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   );
 
   if (phase==="summary") {
-    const sum = dynamicSummary;
+    const sum = summaryView === "detalhado" && detailedSummary ? detailedSummary : dynamicSummary;
     const structured = sum && typeof sum === "object" && Array.isArray(sum.secoes) && sum.secoes.length > 0;
     const ACCENTS = ["#7c83ff","#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6","#f87171"];
     const handleSpeakSummary = (text) => {
@@ -3140,6 +3284,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               {structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. 📒 Anote no caderno!"}
             </p>
             {ttsSupported && <button onClick={() => handleSpeakSummary(structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. Anote no caderno!")} style={{ background:isSpeaking && currentSpeakingFor==="intro" ? "#fff" : "rgba(255,255,255,0.2)", color:isSpeaking && currentSpeakingFor==="intro" ? "#7c83ff" : "#fff", border:"none", borderRadius:8, padding:`${scalePx(10)}px ${scalePx(18)}px`, fontSize:scaleSize(13), fontWeight:700, cursor:"pointer", minHeight:scaleSize(44) }}>{isSpeaking && currentSpeakingFor==="intro" ? "⏸ Pausando" : "🔊 Ouvir intro"}</button>}
+            <div style={{ display:"flex", justifyContent:"center", gap:8, marginTop:14 }}>
+              <button onClick={()=>setSummaryView("simples")} style={{ background: summaryView==="simples" ? "#fff" : "rgba(255,255,255,0.16)", color: summaryView==="simples" ? "#7c83ff" : "#fff", border:"none", borderRadius:20, padding:`${scalePx(8)}px ${scalePx(16)}px`, fontSize:scaleSize(12.5), fontWeight:800, cursor:"pointer" }}>🌱 Resumo simples</button>
+              <button onClick={fetchDetailedSummary} disabled={detailLoading} style={{ background: summaryView==="detalhado" ? "#fff" : "rgba(255,255,255,0.16)", color: summaryView==="detalhado" ? "#7c83ff" : "#fff", border:"none", borderRadius:20, padding:`${scalePx(8)}px ${scalePx(16)}px`, fontSize:scaleSize(12.5), fontWeight:800, cursor: detailLoading ? "wait" : "pointer", opacity: detailLoading ? 0.7 : 1 }}>{detailLoading ? "⏳ Gerando..." : "📖 Resumo detalhado"}</button>
+            </div>
+            {detailFailMsg && <p style={{ color:"#ffd7d7", fontSize:12.5, marginTop:8 }}>{detailFailMsg}</p>}
           </div>
 
           {structured ? (
@@ -3700,7 +3849,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
       {showAchievements && <AchievementsModal unlocked={achievements} onClose={()=>setShowAchievements(false)} />}
       {showRanking && <RankingModal shift={shift} myName={studentName} onClose={()=>setShowRanking(false)} />}
-      {showNotebook && <NotebookModal history={summaryHistory} onClose={()=>setShowNotebook(false)} />}
+      {showNotebook && <NotebookModal history={summaryHistory} detailedHistory={detailedSummaryHistory} onClose={()=>setShowNotebook(false)} />}
       {showDuel && (
         <DuelModal
           shift={shift}
@@ -3970,6 +4119,11 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [analyzingExam, setAnalyzingExam] = useState(false);
   // saúde do Nyx: reflete a última chamada de IA de QUALQUER aluno/professor — se foi erro, mostra "Reconectando"
   const [aiDown, setAiDown] = useState(false);
+  // telão da turma: tela cheia só de visualização, pra projetar (ranking, meta, combos)
+  const [showTelao, setShowTelao] = useState(false);
+  // PDF com o código e o resumo de cada aluno (pra guardar/enviar ao fim do curso)
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [pdfMsg, setPdfMsg] = useState("");
 
   const load = useCallback(async () => {
     const arr = await listStudents();
@@ -4147,6 +4301,88 @@ function TeacherView({ onLogout, teacherAuth }) {
     a.href = url; a.download = `planilha-sistema-${todayKey()}.csv`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
+  };
+
+  // ── PDF com o código e o resumo de cada aluno, pra guardar/enviar ao fim do curso ──
+  // jsPDF é importado sob demanda (só quando o professor clica) pra não pesar o app dos alunos
+  const exportPDF = async () => {
+    setPdfGenerating(true); setPdfMsg("");
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 42;
+      const maxW = pageW - margin * 2;
+      let y = margin;
+
+      const hexRgb = (hex) => {
+        const h = hex.replace("#", "");
+        const n = parseInt(h.length === 3 ? h.split("").map(c=>c+c).join("") : h, 16);
+        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+      };
+      const ensureSpace = (needed) => { if (y + needed > pageH - margin) { doc.addPage(); y = margin; } };
+      const writeParagraph = (text, opts = {}) => {
+        const { size = 10, font = "helvetica", style = "normal", color = "#1a1a1a", lineGap = 4 } = opts;
+        doc.setFont(font, style);
+        doc.setFontSize(size);
+        doc.setTextColor(...hexRgb(color));
+        doc.splitTextToSize(String(text || " "), maxW).forEach(line => {
+          ensureSpace(size + lineGap);
+          doc.text(line, margin, y);
+          y += size + lineGap;
+        });
+      };
+
+      const rows = students
+        .filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id)
+        .sort((a,b)=>((a.shift||"")+a.name).localeCompare((b.shift||"")+b.name,"pt-BR"));
+
+      if (rows.length === 0) { setPdfMsg("⚠ Nenhum aluno pra exportar ainda."); setPdfGenerating(false); return; }
+
+      rows.forEach((s, idx) => {
+        if (idx > 0) { doc.addPage(); y = margin; }
+        writeParagraph(s.name, { size:18, style:"bold", color:"#1c1400" });
+        writeParagraph(`Turma ${shiftMeta(s.shift).label}`, { size:11, color:"#5d679c" });
+        y += 10;
+
+        writeParagraph("Resumo da última aula", { size:13, style:"bold", color:"#5b3fd1" });
+        const dates = Object.keys(s.summaryHistory || {}).sort((a,b)=>b.localeCompare(a));
+        const lastSummary = dates.length ? s.summaryHistory[dates[0]] : null;
+        if (lastSummary && Array.isArray(lastSummary.secoes) && lastSummary.secoes.length) {
+          if (lastSummary.intro) writeParagraph(lastSummary.intro, { size:10.5 });
+          lastSummary.secoes.forEach(sec => {
+            y += 4;
+            writeParagraph(`${sec.emoji || "•"} ${sec.titulo || ""}`, { size:11, style:"bold" });
+            if (sec.explicacao) writeParagraph(sec.explicacao, { size:10 });
+            if (sec.exemplo) writeParagraph(sec.exemplo, { size:9.5, font:"courier", color:"#333333" });
+          });
+          if (lastSummary.dica) { y += 4; writeParagraph(`Dica: ${lastSummary.dica}`, { size:10, style:"italic" }); }
+        } else {
+          writeParagraph("Sem resumo registrado ainda.", { size:10, color:"#888888" });
+        }
+        y += 14;
+
+        writeParagraph("Código escrito", { size:13, style:"bold", color:"#5b3fd1" });
+        const files = Array.isArray(s.files) && s.files.length ? s.files : (s.code ? [{ name:"Program.cs", code:s.code }] : []);
+        if (files.length === 0 || files.every(f => !(f.code||"").trim())) {
+          writeParagraph("Nenhum código salvo ainda.", { size:10, color:"#888888" });
+        } else {
+          files.forEach(f => {
+            if (!(f.code||"").trim()) return;
+            y += 4;
+            writeParagraph(`// ${f.name}`, { size:10, style:"bold", color:"#555555" });
+            f.code.split("\n").forEach(line => writeParagraph(line, { size:9, font:"courier", color:"#222222", lineGap:2 }));
+          });
+        }
+      });
+
+      doc.save(`codigos-e-resumos-${todayKey()}.pdf`);
+      setPdfMsg("✅ PDF gerado!");
+    } catch {
+      setPdfMsg("❌ Não consegui gerar o PDF agora. Tente de novo.");
+    }
+    setPdfGenerating(false);
   };
 
   // ── gestão de alunos: renomear, mover de turno, corrigir nota, excluir ──
@@ -4429,6 +4665,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           <button style={{ ...styles.tab(tab==="calendar"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
           <button style={{ ...styles.tab(tab==="feedback"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
           <button style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle' && tab!=="exam" ? {borderColor:"#fbbf24",color:"#fbbf24"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
+          {tab!=="code" && <button style={styles.btn("#22d3ee")} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
           {tab!=="code" && <button style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
           <button style={{ ...styles.btn("#5d679c"), fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
         </div>
@@ -4458,6 +4695,8 @@ function TeacherView({ onLogout, teacherAuth }) {
           <div style={{ background:"#151a31", border:`1px solid ${resetMsg.startsWith("✅")?"#34d399":"#f87171"}`, color:resetMsg.startsWith("✅")?"#34d399":"#f87171", borderRadius:10, padding:"10px 14px", fontSize:14 }}>{resetMsg}</div>
         </div>
       )}
+
+      {showTelao && <TelaoModal students={students} shift={shiftFilter} onClose={()=>setShowTelao(false)} />}
 
       {/* confirmação de reset (dentro do app, sem depender do navegador) */}
       {confirmReset && (
@@ -4568,6 +4807,10 @@ function TeacherView({ onLogout, teacherAuth }) {
               <button onClick={exportCSV} style={{ ...styles.btn("#2a3154"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Baixa uma planilha com nome, turma, presenças, notas e histórico de todos os alunos (sem a turma de teste)">
                 ⬇️ Exportar planilha (CSV)
               </button>
+              <button onClick={exportPDF} disabled={pdfGenerating} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:8, padding:"7px 0", fontSize:12.5, opacity: pdfGenerating ? 0.7 : 1 }} title="Gera um PDF com o código escrito e o resumo da última aula de cada aluno — bom pra guardar ou enviar no fim do curso">
+                {pdfGenerating ? "⏳ Gerando PDF..." : "📄 Exportar PDF (códigos + resumos)"}
+              </button>
+              {pdfMsg && <p style={{ color: pdfMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:11.5, marginTop:6 }}>{pdfMsg}</p>}
             </div>
 
             <div style={{ ...styles.card, fontSize:12 }}>
