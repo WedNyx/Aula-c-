@@ -1159,7 +1159,7 @@ function Terminal({ files, dataTour, maxHeight = 260 }) {
       setMode(waiting ? "program" : "shell");
     } catch (e) {
       setHist(prev => [...prev.slice(0, runStartRef.current),
-        e.message === "ROBOTKEY_MISSING" ? "⚠ Terminal offline: o professor precisa configurar a ANTHROPIC_API_KEY no Vercel." : "Não consegui executar agora. Tente de novo.", ""]);
+        e.message === "ROBOTKEY_MISSING" ? `⚠ Terminal offline: ${e.userMsg || "o professor precisa configurar a chave da IA no Vercel."}` : "Não consegui executar agora. Tente de novo.", ""]);
       setMode("shell");
     }
     setRunning(false);
@@ -1184,8 +1184,9 @@ function Terminal({ files, dataTour, maxHeight = 260 }) {
         { temperature: 0 }
       );
       setHist(prev => [...prev.slice(0, runStartRef.current), ...res.replace(/```/g,"").trim().split("\n"), ""]);
-    } catch {
-      setHist(prev => [...prev.slice(0, runStartRef.current), "Não consegui compilar agora. Tente de novo.", ""]);
+    } catch (e) {
+      setHist(prev => [...prev.slice(0, runStartRef.current),
+        e.message === "ROBOTKEY_MISSING" ? `⚠ Terminal offline: ${e.userMsg || "o professor precisa configurar a chave da IA no Vercel."}` : "Não consegui compilar agora. Tente de novo.", ""]);
     }
     setRunning(false);
   };
@@ -1344,7 +1345,7 @@ Se o professor perguntar como chamar a atenção da turma ou controlar os duelos
       }
       setMsgs(ms => [...ms, { from:"nyx", text:reply }]);
     } catch (e) {
-      setMsgs(ms => [...ms, { from:"nyx", text: e.message === "ROBOTKEY_MISSING" ? "Estou offline 😴 — o professor precisa configurar a ANTHROPIC_API_KEY no Vercel." : "Tive um probleminha agora. Tenta de novo?" }]);
+      setMsgs(ms => [...ms, { from:"nyx", text: e.message === "ROBOTKEY_MISSING" ? `Estou offline 😴 — ${e.userMsg || "o professor precisa configurar a chave da IA no Vercel."}` : "Tive um probleminha agora. Tenta de novo?" }]);
     }
     setBusy(false);
   };
@@ -3919,7 +3920,7 @@ function difficultyOf(s) {
   return { level:"neutro", text:"Está escrevendo o código." };
 }
 
-function TeacherView({ onLogout }) {
+function TeacherView({ onLogout, teacherAuth }) {
   const [students, setStudents] = useState([]);
   const [selected, setSelected] = useState(null);
   // gestão do aluno selecionado (renomear, mover de turno, corrigir nota, excluir)
@@ -3980,7 +3981,7 @@ function TeacherView({ onLogout }) {
       const tk = todayKey();
       if (!metaRef.current.classDays.includes(tk)) {
         const nm = { ...metaRef.current, classDays:[...metaRef.current.classDays, tk] };
-        metaRef.current = nm; setMeta(nm); saveTeacherMeta(nm);
+        metaRef.current = nm; setMeta(nm); saveTeacherMeta(nm, teacherAuth);
       }
     }
   }, []);
@@ -4023,17 +4024,17 @@ function TeacherView({ onLogout }) {
   useEffect(() => {
     if (!proLoaded) return;
     const id = setTimeout(() => {
-      saveTeacherCode(proFilesByShift.matutino, "matutino");
-      saveTeacherCode(proFilesByShift.vespertino, "vespertino");
+      saveTeacherCode(proFilesByShift.matutino, "matutino", teacherAuth);
+      saveTeacherCode(proFilesByShift.vespertino, "vespertino", teacherAuth);
     }, 1000);
     return () => clearTimeout(id);
   }, [proFilesByShift, proLoaded]);
 
-  const saveCity = async () => { const nm = { ...metaRef.current, city:cityInput.trim() }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm); };
+  const saveCity = async () => { const nm = { ...metaRef.current, city:cityInput.trim() }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
   const toggleClassDay = async (k) => {
     const has = metaRef.current.classDays.includes(k);
     const days = has ? metaRef.current.classDays.filter(d=>d!==k) : [...metaRef.current.classDays, k];
-    const nm = { ...metaRef.current, classDays:days }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm);
+    const nm = { ...metaRef.current, classDays:days }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth);
   };
 
   const doReset = async () => {
@@ -4041,7 +4042,7 @@ function TeacherView({ onLogout }) {
     setConfirmReset(false);
     setResetting(true);
     setResetMsg("");
-    const ok = await resetAll(scope === "all" ? null : scope);
+    const ok = await resetAll(scope === "all" ? null : scope, teacherAuth);
     setSelected(null);
     await load();
     setResetting(false);
@@ -4075,7 +4076,7 @@ function TeacherView({ onLogout }) {
     );
     const title = out.replace(/["\n`]/g,"").trim().slice(0,80);
     const nm = { ...metaRef.current, contentNames: withContentName(metaRef.current.contentNames, tk, shift, title) };
-    metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm);
+    metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth);
     return { title, origem };
   };
 
@@ -4106,7 +4107,7 @@ function TeacherView({ onLogout }) {
 
   // envia um aviso para um aluno específico aparecer na tela dele
   const nudgeStudent = async (s) => {
-    const ok = await setNudge(s.shift, s.name, "👀 Preste atenção na aula! Volte para o seu código e continue a atividade de hoje.");
+    const ok = await setNudge(s.shift, s.name, "👀 Preste atenção na aula! Volte para o seu código e continue a atividade de hoje.", teacherAuth);
     if (ok) { setNudged(n => ({ ...n, [s.name]: Date.now() })); setTimeout(()=>setNudged(n=>{ const c={...n}; delete c[s.name]; return c; }), 5000); }
   };
 
@@ -4156,8 +4157,8 @@ function TeacherView({ onLogout }) {
     if (!s || !newName || newName === s.name) return;
     if (students.some(x => x.name === newName && (x.shift||"sem-turno") === (s.shift||"sem-turno"))) { flashMgmt("❌ Já existe um aluno com esse nome nessa turma."); return; }
     await saveStudent(s.shift, newName, { ...s, name: newName });
-    await deleteStudentProfile(s.shift, s.name);
-    await setKick(s.shift, s.name); // se estiver online, a sessão antiga sai (ele entra de novo com o nome novo)
+    await deleteStudentProfile(s.shift, s.name, teacherAuth);
+    await setKick(s.shift, s.name, teacherAuth); // se estiver online, a sessão antiga sai (ele entra de novo com o nome novo)
     setSelected(newName); setRenameVal("");
     flashMgmt(`✅ Renomeado para ${newName}. Se estiver online, ele vai precisar entrar de novo.`);
     load();
@@ -4166,8 +4167,8 @@ function TeacherView({ onLogout }) {
   const doMoveStudent = async (s, newShift) => {
     if (!s || !newShift || newShift === (s.shift||"sem-turno")) return;
     await saveStudent(newShift, s.name, { ...s, shift: newShift });
-    await deleteStudentProfile(s.shift, s.name);
-    await setKick(s.shift, s.name);
+    await deleteStudentProfile(s.shift, s.name, teacherAuth);
+    await setKick(s.shift, s.name, teacherAuth);
     flashMgmt(`✅ Movido para ${shiftLabel(newShift)}. Se estiver online, ele vai precisar entrar de novo.`);
     load();
   };
@@ -4177,7 +4178,7 @@ function TeacherView({ onLogout }) {
     if (!s || isNaN(v)) return;
     const nv = Math.max(0, Math.min(100, v));
     await patchStudent(s.shift, s.name, { score: nv });
-    await setScoreFix(s.shift, s.name, nv); // se estiver online, a sessão dele aplica na hora
+    await setScoreFix(s.shift, s.name, nv, teacherAuth); // se estiver online, a sessão dele aplica na hora
     setScoreVal("");
     flashMgmt(`✅ Nota da atividade alterada para ${nv}.`);
     load();
@@ -4185,8 +4186,8 @@ function TeacherView({ onLogout }) {
 
   const doDeleteStudent = async (s) => {
     if (!s) return;
-    await deleteStudentProfile(s.shift, s.name);
-    await setKick(s.shift, s.name);
+    await deleteStudentProfile(s.shift, s.name, teacherAuth);
+    await setKick(s.shift, s.name, teacherAuth);
     setSelected(null); setConfirmDelete(false);
     flashMgmt("");
     load();
@@ -4197,7 +4198,7 @@ function TeacherView({ onLogout }) {
     if (!s) return;
     const files = proFilesByShift[s.shift] || proFilesByShift[codeShift] || [];
     if (!files.some(f => (f.code||"").trim())) { flashMgmt("❌ Escreva o código na aba Meu código antes de enviar."); return; }
-    const ok = await setCodeSend(s.shift, s.name, files);
+    const ok = await setCodeSend(s.shift, s.name, files, teacherAuth);
     flashMgmt(ok ? `✅ Código da turma enviado para ${s.name}!` : "❌ Não consegui enviar agora. Tente de novo.");
   };
 
@@ -4227,7 +4228,7 @@ function TeacherView({ onLogout }) {
       );
       const parsed = extractJson(questionsResult);
       const newConfig = { status: 'review', questions: shuffleQuestions(parsed.questions), summary: summaryResult.trim(), shift: examShift, startedAt: Date.now() };
-      await setExamState(newConfig);
+      await setExamState(newConfig, teacherAuth);
       setExamConfig(newConfig);
       setExamMsg("✅ Prova criada! Os alunos estão revisando. Quando todos estiverem prontos, clique em Iniciar Agora.");
     } catch(e) { setExamMsg("Erro ao gerar a prova. Tente de novo."); }
@@ -4236,21 +4237,21 @@ function TeacherView({ onLogout }) {
 
   const activateExam = async () => {
     const newConfig = { ...examConfig, status: 'active', activatedAt: Date.now() };
-    await setExamState(newConfig);
+    await setExamState(newConfig, teacherAuth);
     setExamConfig(newConfig);
     setExamMsg("✅ Prova iniciada! Os alunos estão respondendo.");
   };
 
   const endExam = async () => {
     const newConfig = { ...examConfig, status: 'done', endedAt: Date.now() };
-    await setExamState(newConfig);
+    await setExamState(newConfig, teacherAuth);
     setExamConfig(newConfig);
     setExamMsg("✅ Prova encerrada! Veja o ranking abaixo.");
     setConfirmEndExam(false);
   };
 
   const resetExam = async () => {
-    await setExamState({ status: 'idle' });
+    await setExamState({ status: 'idle' }, teacherAuth);
     setExamConfig({ status: 'idle' });
     setExamMsg("");
   };
@@ -4298,7 +4299,7 @@ function TeacherView({ onLogout }) {
       );
       setExamAnalysis(out.trim());
     } catch (e) {
-      setExamAnalysis(e.message === "ROBOTKEY_MISSING" ? "Nyx está offline: configure a ANTHROPIC_API_KEY no Vercel." : "Não consegui analisar agora. Tente de novo em instantes.");
+      setExamAnalysis(e.message === "ROBOTKEY_MISSING" ? `Nyx está offline: ${e.userMsg || "configure a chave da IA no Vercel."}` : "Não consegui analisar agora. Tente de novo em instantes.");
     }
     setAnalyzingExam(false);
   };
@@ -4326,7 +4327,7 @@ function TeacherView({ onLogout }) {
   }, [sel?.shift, sel?.name]);
   const doToggleAccessMode = async (s) => {
     const next = !selAccessMode;
-    await setAccessMode(s.shift, s.name, next);
+    await setAccessMode(s.shift, s.name, next, teacherAuth);
     setSelAccessMode(next);
     flashMgmt(next ? `✅ Modo Guiado ativado para ${s.name}.` : `✅ Modo Guiado desativado para ${s.name}.`);
   };
@@ -4708,6 +4709,47 @@ function TeacherView({ onLogout }) {
               </div>
             </div>
 
+            {/* Evolução da turma ao longo das aulas — média das notas de atividade por dia, juntando todo mundo */}
+            {(() => {
+              const relevant = shown.filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id);
+              const byDate = {};
+              relevant.forEach(s => {
+                Object.entries(s.scoreHistory||{}).forEach(([d,n]) => {
+                  if (typeof n !== "number") return;
+                  (byDate[d] = byDate[d] || []).push(n);
+                });
+              });
+              const trend = Object.entries(byDate)
+                .map(([date, scores]) => ({ date, avg: Math.round(scores.reduce((a,b)=>a+b,0)/scores.length), count: scores.length }))
+                .sort((a,b) => a.date.localeCompare(b.date))
+                .slice(-14);
+              if (trend.length < 2) return null;
+              const delta = trend[trend.length-1].avg - trend[0].avg;
+              const trendLabel = delta >= 8 ? { text:"📈 Melhorando", color:"#34d399" } : delta <= -8 ? { text:"📉 Caindo", color:"#f87171" } : { text:"➡ Estável", color:"#96a0cc" };
+              return (
+                <div style={styles.card}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10, flexWrap:"wrap", gap:8 }}>
+                    <h3 style={{ color:"#7c83ff", margin:0 }}>📊 Evolução da turma nas últimas aulas</h3>
+                    <span style={{ ...styles.badge(trendLabel.color) }}>{trendLabel.text}</span>
+                  </div>
+                  <p style={{ color:"#5d679c", fontSize:12, margin:"0 0 12px" }}>Média da nota de atividade de todos os alunos, dia a dia — ajuda a ver se a turma está indo melhor ou pior de uma aula pra outra.</p>
+                  <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:110, overflowX:"auto", paddingBottom:4 }}>
+                    {trend.map(({date, avg, count}) => {
+                      const [, m, dd] = date.split("-");
+                      const g = gradeInfo(avg);
+                      return (
+                        <div key={date} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
+                          <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{avg}</span>
+                          <div style={{ width:24, height:Math.max(4, Math.round(avg*0.7)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color,-0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${dd}/${m}: média ${avg} pts (${count} aluno${count>1?"s":""})`} />
+                          <span style={{ color:"#5d679c", fontSize:10 }}>{dd}/{m}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Detalhe do aluno */}
             {sel ? (
               <>
@@ -5086,19 +5128,19 @@ function TeacherView({ onLogout }) {
         onCommand={async (t) => {
           const cmd = t.toLowerCase();
           if (cmd === "zek") {
-            await setNyxLocks({ zek: true });
+            await setNyxLocks({ zek: true }, teacherAuth);
             return "🔒 Modo ZEK ativado! Estou aparecendo na tela de TODOS os alunos pedindo atenção — tudo bloqueado até você digitar /hiberne.";
           }
           if (cmd === "/hiberne") {
-            await setNyxLocks({ zek: false });
+            await setNyxLocks({ zek: false }, teacherAuth);
             return "😴 Zek desativado. As telas dos alunos foram liberadas.";
           }
           if (cmd === "zeker") {
-            await setNyxLocks({ zeker: true });
+            await setNyxLocks({ zeker: true }, teacherAuth);
             return "⚔️🚫 Duelos bloqueados! Nenhum aluno consegue duelar até você digitar /liberte.";
           }
           if (cmd === "/liberte") {
-            await setNyxLocks({ zeker: false });
+            await setNyxLocks({ zeker: false }, teacherAuth);
             return "⚔️✅ Duelos liberados! Os alunos já podem se desafiar de novo.";
           }
           return null;
@@ -5159,7 +5201,7 @@ function Login({ onJoin }) {
     try {
       const r = await fetch("/api/auth", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ password }) });
       const d = await r.json();
-      if (d.ok) onJoin("teacher","Professor");
+      if (d.ok) onJoin("teacher","Professor",null,null,false,password);
       else setError("Senha incorreta!");
     } catch {
       setError("Não consegui verificar a senha (servidor indisponível). Tente de novo.");
@@ -5305,7 +5347,7 @@ function Login({ onJoin }) {
 // ════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [session, setSession] = useState(null);
-  if (!session) return <Login onJoin={(role,name,avatar,shift,isNew)=>setSession({role,name,avatar,shift,isNew})} />;
-  if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} />;
+  if (!session) return <Login onJoin={(role,name,avatar,shift,isNew,teacherAuth)=>setSession({role,name,avatar,shift,isNew,teacherAuth})} />;
+  if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} />;
   return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} onLogout={()=>setSession(null)} />;
 }
