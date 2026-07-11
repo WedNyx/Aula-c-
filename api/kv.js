@@ -1,6 +1,23 @@
 import { createClient } from '@supabase/supabase-js'
+import { isValidTeacherPassword } from './_teacherAuth.js'
 
 const TABLE = 'kv_store'
+
+// ─── proteção das ações só-do-professor ────────────────────────────────────────
+// a senha do professor controlava só se a TELA do painel abria — o banco de dados em
+// si aceitava qualquer pedido. Agora, as ações que só o professor deveria poder fazer
+// (apagar tudo, mexer nas configurações da turma) exigem a senha de verdade aqui no
+// servidor, verificada no campo "auth" do pedido.
+const SET_PROTECTED_PREFIXES = ['teachercode:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:']
+const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'nyxlocks:', 'exam:config', 'accessmode:', 'kick:', 'teachermeta:', 'classroom_reset_flag']
+
+function needsTeacherAuth(action, key) {
+  if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
+  const k = String(key || '')
+  if (action === 'set') return SET_PROTECTED_PREFIXES.some(p => k.startsWith(p))
+  if (action === 'delete') return DELETE_PROTECTED_PREFIXES.some(p => k.startsWith(p))
+  return false
+}
 
 // ─── Supabase JS Client ───────────────────────────────────────────────────────
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '')
@@ -181,11 +198,33 @@ const store = {
   },
 }
 
+// ─── limite de uso (rate limit) — usado pelo api/claude.js pra não deixar um bug em loop ou um
+// uso indevido esgotar a cota de tokens da IA. O contador fica no MESMO banco de dados, pra
+// funcionar mesmo com várias instâncias do servidor rodando ao mesmo tempo (padrão do Vercel) ──
+export async function rateLimitCheck(bucketKey, max, windowSeconds) {
+  if (!BACKEND) return true // sem banco configurado, não tem onde guardar o contador — deixa passar
+  try {
+    const now = Date.now()
+    const raw = await store.get(bucketKey)
+    let data = raw ? JSON.parse(raw) : null
+    if (!data || now > data.resetAt) data = { count: 0, resetAt: now + windowSeconds * 1000 }
+    data.count++
+    await store.set(bucketKey, JSON.stringify(data))
+    return data.count <= max
+  } catch {
+    return true // se o próprio rate limit falhar por algum motivo, não trava o uso normal por causa disso
+  }
+}
+
 // ─── Handler ─────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { action, key, value, prefix } = req.body || {}
+  const { action, key, value, prefix, auth } = req.body || {}
+
+  if (needsTeacherAuth(action, action === 'delete_by_prefix' ? prefix : key) && !isValidTeacherPassword(auth)) {
+    return res.status(403).json({ error: 'forbidden', message: 'Essa ação é só do professor — senha inválida ou ausente.' })
+  }
 
   if (action === 'check') {
     return res.json({

@@ -55,9 +55,9 @@ export async function getStudent(shift, name) {
   } catch { return null }
 }
 
-export async function setNudge(shift, name, text) {
+export async function setNudge(shift, name, text, auth) {
   try {
-    const r = await kvCall({ action: 'set', key: nudgeKeyFor(shift, name), value: JSON.stringify({ text, at: Date.now() }) })
+    const r = await kvCall({ action: 'set', key: nudgeKeyFor(shift, name), value: JSON.stringify({ text, at: Date.now() }), auth })
     return r.ok === true
   } catch { return false }
 }
@@ -81,9 +81,9 @@ export async function getAccessMode(shift, name) {
     return r.value === '1'
   } catch { return false }
 }
-export async function setAccessMode(shift, name, value) {
+export async function setAccessMode(shift, name, value, auth) {
   try {
-    const r = await kvCall({ action: 'set', key: accessModeKeyFor(shift, name), value: value ? '1' : '0' })
+    const r = await kvCall({ action: 'set', key: accessModeKeyFor(shift, name), value: value ? '1' : '0', auth })
     return r.ok === true
   } catch { return false }
 }
@@ -96,15 +96,18 @@ export async function getNyxLocks() {
     return r.value ? JSON.parse(r.value) : { zek: false, zeker: false }
   } catch { return { zek: false, zeker: false } }
 }
-export async function setNyxLocks(patch) {
+export async function setNyxLocks(patch, auth) {
   try {
     const cur = await getNyxLocks()
-    await kvCall({ action: 'set', key: NYX_LOCKS_KEY, value: JSON.stringify({ ...cur, ...patch, at: Date.now() }) })
+    await kvCall({ action: 'set', key: NYX_LOCKS_KEY, value: JSON.stringify({ ...cur, ...patch, at: Date.now() }), auth })
     return true
   } catch { return false }
 }
 
 // ── gestão de alunos pelo professor ──
+// nota: patchStudent escreve na MESMA chave que o próprio aluno usa pra salvar o progresso dele
+// (student:turno:nome), então essa escrita continua sem exigir senha — do contrário o autosave
+// do aluno quebraria. A senha do professor protege as ações que só ELE faz (ver kv.js).
 export async function patchStudent(shift, name, patch) {
   try {
     const cur = await getStudent(shift, name)
@@ -114,9 +117,9 @@ export async function patchStudent(shift, name, patch) {
   } catch { return false }
 }
 
-export async function deleteStudentProfile(shift, name) {
+export async function deleteStudentProfile(shift, name, auth) {
   try {
-    await kvCall({ action: 'delete', key: nameToKey(shift, name) })
+    await kvCall({ action: 'delete', key: nameToKey(shift, name), auth })
     return true
   } catch { return false }
 }
@@ -125,8 +128,8 @@ export async function deleteStudentProfile(shift, name) {
 function kickKeyFor(shift, name) {
   return `kick:${shift || 'sem-turno'}:${safeName(name)}`
 }
-export async function setKick(shift, name) {
-  try { await kvCall({ action: 'set', key: kickKeyFor(shift, name), value: String(Date.now()) }) } catch {}
+export async function setKick(shift, name, auth) {
+  try { await kvCall({ action: 'set', key: kickKeyFor(shift, name), value: String(Date.now()), auth }) } catch {}
 }
 export async function checkKick(shift, name, joinedAt) {
   try {
@@ -139,8 +142,8 @@ export async function checkKick(shift, name, joinedAt) {
 function scoreFixKeyFor(shift, name) {
   return `scorefix:${shift || 'sem-turno'}:${safeName(name)}`
 }
-export async function setScoreFix(shift, name, score) {
-  try { await kvCall({ action: 'set', key: scoreFixKeyFor(shift, name), value: JSON.stringify({ score, at: Date.now() }) }) } catch {}
+export async function setScoreFix(shift, name, score, auth) {
+  try { await kvCall({ action: 'set', key: scoreFixKeyFor(shift, name), value: JSON.stringify({ score, at: Date.now() }), auth }) } catch {}
 }
 export async function getScoreFix(shift, name) {
   try {
@@ -212,19 +215,19 @@ export async function checkReset(shift, joinedAt) {
   } catch { return false }
 }
 
-export async function resetAll(shift) {
+export async function resetAll(shift, auth) {
   try {
-    await kvCall({ action: 'set', key: resetFlagKey(shift || null), value: String(Date.now()) })
+    await kvCall({ action: 'set', key: resetFlagKey(shift || null), value: String(Date.now()), auth })
     const studentPrefix = shift ? `${PREFIX}${shift}:` : PREFIX
     const nudgePrefix = shift ? `nudge:${shift}:` : 'nudge:'
     await Promise.all([
-      kvCall({ action: 'delete_by_prefix', prefix: studentPrefix }),
-      kvCall({ action: 'delete_by_prefix', prefix: nudgePrefix }),
+      kvCall({ action: 'delete_by_prefix', prefix: studentPrefix, auth }),
+      kvCall({ action: 'delete_by_prefix', prefix: nudgePrefix, auth }),
     ])
     await new Promise(r => setTimeout(r, 400))
     await Promise.all([
-      kvCall({ action: 'delete_by_prefix', prefix: studentPrefix }),
-      kvCall({ action: 'delete_by_prefix', prefix: nudgePrefix }),
+      kvCall({ action: 'delete_by_prefix', prefix: studentPrefix, auth }),
+      kvCall({ action: 'delete_by_prefix', prefix: nudgePrefix, auth }),
     ])
     return true
   } catch { return false }
@@ -238,13 +241,13 @@ export async function getTeacherMeta() {
   } catch { return empty }
 }
 
-export async function saveTeacherMeta(meta) {
-  try { await kvCall({ action: 'set', key: TEACHER_META_KEY, value: JSON.stringify(meta) }) } catch {}
+export async function saveTeacherMeta(meta, auth) {
+  try { await kvCall({ action: 'set', key: TEACHER_META_KEY, value: JSON.stringify(meta), auth }) } catch {}
 }
 
-export async function saveTeacherCode(files, shift) {
+export async function saveTeacherCode(files, shift, auth) {
   try {
-    const r = await kvCall({ action: 'set', key: teacherCodeKey(shift), value: JSON.stringify({ files, at: Date.now() }) })
+    const r = await kvCall({ action: 'set', key: teacherCodeKey(shift), value: JSON.stringify({ files, at: Date.now() }), auth })
     return r.ok === true
   } catch { return false }
 }
@@ -260,9 +263,9 @@ export async function getTeacherCode(shift) {
 function codeSendKeyFor(shift, name) {
   return `codesend:${shift || 'sem-turno'}:${safeName(name)}`
 }
-export async function setCodeSend(shift, name, files) {
+export async function setCodeSend(shift, name, files, auth) {
   try {
-    const r = await kvCall({ action: 'set', key: codeSendKeyFor(shift, name), value: JSON.stringify({ files, at: Date.now() }) })
+    const r = await kvCall({ action: 'set', key: codeSendKeyFor(shift, name), value: JSON.stringify({ files, at: Date.now() }), auth })
     return r.ok === true
   } catch { return false }
 }
@@ -296,9 +299,9 @@ export async function getExamState() {
   } catch { return { status: 'idle' } }
 }
 
-export async function setExamState(state) {
+export async function setExamState(state, auth) {
   try {
-    await kvCall({ action: 'set', key: 'exam:config', value: JSON.stringify(state) })
+    await kvCall({ action: 'set', key: 'exam:config', value: JSON.stringify(state), auth })
     return true
   } catch { return false }
 }
