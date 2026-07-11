@@ -41,6 +41,40 @@ input:focus, textarea:focus { border-color: #7c83ff !important; box-shadow: 0 0 
 .rise { animation: rise .4s ease both; }
 .pop  { animation: pop .35s cubic-bezier(.2,.9,.3,1.4) both; }
 
+/* cards ganham vida ao passar o mouse (lift + borda acesa) */
+.cardfx { transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
+.cardfx:hover { transform: translateY(-2px); border-color: #3b4378 !important; box-shadow: 0 14px 36px rgba(3,5,16,.55), 0 0 0 1px #7c83ff22 !important; }
+
+/* tiles de aluno no monitoramento: entrada em cascata + hover */
+.tilefx { animation: rise .35s ease both; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.tilefx:hover { transform: translateY(-2px) scale(1.015); border-color: #7c83ff !important; box-shadow: 0 8px 22px rgba(3,5,16,.45); }
+
+/* título com gradiente que "respira" (brilho passeando devagar) */
+.shine {
+  background-size: 200% auto !important;
+  animation: shine 6s linear infinite;
+}
+@keyframes shine { 0% { background-position: 0% center; } 100% { background-position: 200% center; } }
+
+/* barrinha de progresso com brilho deslizante */
+.bar-glow { position: relative; overflow: hidden; }
+.bar-glow::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.25) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: bar-sweep 2.6s ease-in-out infinite;
+}
+@keyframes bar-sweep { 0% { background-position: 180% 0; } 100% { background-position: -80% 0; } }
+
+/* acessibilidade: quem prefere menos movimento, recebe menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
 /* ── animações do Nyx (robô) ── */
 @keyframes nyx-float   { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 @keyframes nyx-blink   { 0%, 90%, 100% { transform: scaleY(1); } 94% { transform: scaleY(.08); } }

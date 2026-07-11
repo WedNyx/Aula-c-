@@ -5,7 +5,8 @@ import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, 
 
 // ── tema ──
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
-const PAGE_BG = "radial-gradient(1000px 620px at 85% -10%, rgba(124,131,255,.16), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.09), transparent 55%), linear-gradient(180deg,#0a0c18 0%,#0c0f20 100%)";
+// além dos brilhos, um "grid de pontos" bem sutil (26px) dá cara de bancada de programador
+const PAGE_BG = "radial-gradient(1100px 700px at 85% -10%, rgba(124,131,255,.18), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.11), transparent 55%), radial-gradient(760px 520px at 50% 115%, rgba(236,72,153,.05), transparent 60%), radial-gradient(rgba(124,131,255,.05) 1px, transparent 1.6px) 0 0 / 26px 26px, linear-gradient(180deg,#0a0c18 0%,#0c0f20 100%)";
 const LIGHT_BG = "radial-gradient(1000px 620px at 85% -10%, rgba(124,131,255,.20), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.14), transparent 55%), linear-gradient(180deg,#eef1fb 0%,#dde4f5 100%)";
 function customBg(spec) {
   const colors = String(spec).split(",").map(c=>c.trim()).filter(c=>/^#/.test(c)).slice(0,3);
@@ -433,8 +434,8 @@ function VSEditor({ value, onChange, filename, errorLines }) {
   const shared = { fontFamily:"'Courier New','Consolas',monospace", fontSize:14, lineHeight:"1.5em", tabSize:4, whiteSpace:"pre", overflowWrap:"normal", padding:"12px 12px 12px 0", margin:0 };
 
   return (
-    <div style={{ background:"#1e1e1e", borderRadius:8, border:"1px solid #3e3e42", overflow:"hidden", display:"flex", flexDirection:"column" }}>
-      <div style={{ background:"#2d2d30", padding:"6px 14px", display:"flex", alignItems:"center", gap:8, borderBottom:"1px solid #3e3e42" }}>
+    <div style={{ background:"#1e1e1e", borderRadius:8, border:"1px solid #3e3e42", overflow:"hidden", display:"flex", flexDirection:"column", boxShadow:"0 12px 32px rgba(0,0,0,.45)" }}>
+      <div style={{ background:"linear-gradient(180deg,#333336,#2d2d30)", padding:"6px 14px", display:"flex", alignItems:"center", gap:8, borderBottom:"1px solid #3e3e42" }}>
         <span style={{width:11,height:11,borderRadius:"50%",background:"#ff5f56",display:"inline-block"}}/>
         <span style={{width:11,height:11,borderRadius:"50%",background:"#ffbd2e",display:"inline-block"}}/>
         <span style={{width:11,height:11,borderRadius:"50%",background:"#27c93f",display:"inline-block"}}/>
@@ -456,6 +457,11 @@ function VSEditor({ value, onChange, filename, errorLines }) {
           <textarea ref={textareaRef} value={value} onChange={e => onChange(e.target.value)} onKeyDown={handleKeyDown} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
             style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, background:"transparent", color:"transparent", caretColor:"#aeafad", border:"none", outline:"none", resize:"none", zIndex:1, paddingLeft:14, overflow:"auto" }} />
         </div>
+      </div>
+      {/* barra de status azul, igual à do VS Code de verdade */}
+      <div style={{ background:"#007acc", padding:"3px 12px", display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:11, color:"#ffffff", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
+        <span>⚡ C#</span>
+        <span style={{ opacity:.9 }}>{value.split("\n").length} linhas · UTF-8 · Aula de C#</span>
       </div>
     </div>
   );
@@ -1260,9 +1266,16 @@ function Terminal({ files, dataTour, maxHeight = 260 }) {
   const mono = { fontFamily:"'Courier New',monospace", fontSize:13 };
 
   return (
-    <div data-tour={dataTour} style={{ background:"#0a0a0a", border:"1px solid #333", borderRadius:10, marginTop:12, overflow:"hidden" }}>
-      <div style={{ background:"#161616", padding:"6px 12px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #333" }}>
-        <span style={{ color:"#bbb", fontSize:13 }}>⌨️ Terminal <span style={{ color:"#555", fontSize:11 }}>· digite os comandos como no VS Code</span></span>
+    <div data-tour={dataTour} style={{ background:"#0a0a0a", border:"1px solid #333", borderRadius:10, marginTop:12, overflow:"hidden", boxShadow:"0 10px 28px rgba(0,0,0,.4)" }}>
+      <div style={{ background:"linear-gradient(180deg,#1b1b1b,#141414)", padding:"6px 12px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #333" }}>
+        <span style={{ color:"#bbb", fontSize:13, display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ display:"inline-flex", gap:5 }}>
+            <span style={{ width:10, height:10, borderRadius:"50%", background:"#ff5f57" }} />
+            <span style={{ width:10, height:10, borderRadius:"50%", background:"#febc2e" }} />
+            <span style={{ width:10, height:10, borderRadius:"50%", background:"#28c840" }} />
+          </span>
+          ⌨️ Terminal <span style={{ color:"#555", fontSize:11 }}>· digite os comandos como no VS Code</span>
+        </span>
         <div style={{ display:"flex", gap:6 }}>
           {mode === "program" && !running && (
             <button onClick={cancelProgram} style={{ background:"#3a1d1d", border:"1px solid #7f1d1d", color:"#fca5a5", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:12 }}>■ parar (Ctrl+C)</button>
@@ -1763,7 +1776,7 @@ function ClassGoalBar({ sum }) {
         <span>🎯 Meta da turma · nível {g.level}</span>
         <span>{sum}{g.next ? `/${g.next}` : ""} pts</span>
       </div>
-      <div style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:20, height:10, overflow:"hidden" }}>
+      <div className="bar-glow" style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:20, height:10, overflow:"hidden" }}>
         <div style={{ width:`${g.pct}%`, height:"100%", background:"linear-gradient(90deg,#7c83ff,#22d3ee)", transition:"width .5s ease" }} />
       </div>
     </div>
@@ -1791,7 +1804,7 @@ function TelaoModal({ students, shift, onClose }) {
   return (
     <div data-testid="telao-modal" style={{ position:"fixed", inset:0, background:"#05070f", zIndex:2000, display:"flex", flexDirection:"column", padding:"36px 48px", overflowY:"auto" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:28, flexWrap:"wrap", gap:14 }}>
-        <span style={{ fontSize:32, fontWeight:900, background:"linear-gradient(135deg,#fbbf24,#fb923c)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🖥️ Telão da Turma</span>
+        <span className="shine" style={{ fontSize:32, fontWeight:900, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🖥️ Telão da Turma</span>
         <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
           {SHIFTS.map(sh => (
             <button key={sh.id} onClick={()=>setTelaoShift(sh.id)} style={{ background: telaoShift===sh.id ? "#fbbf24" : "#181d38", color: telaoShift===sh.id ? "#1c1400" : "#96a0cc", border:`2px solid ${telaoShift===sh.id?"#fbbf24":"#2a3154"}`, borderRadius:12, padding:"10px 20px", fontSize:16, fontWeight:800, cursor:"pointer" }}>{sh.emoji} {sh.label}</button>
@@ -1822,7 +1835,7 @@ function TelaoModal({ students, shift, onClose }) {
               <span>Nível {g.level}</span>
               <span>{sum}{g.next?`/${g.next}`:""} pts</span>
             </div>
-            <div style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:20, height:22, overflow:"hidden" }}>
+            <div className="bar-glow" style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:20, height:22, overflow:"hidden" }}>
               <div style={{ width:`${g.pct}%`, height:"100%", background:"linear-gradient(90deg,#7c83ff,#22d3ee)", transition:"width .6s ease" }} />
             </div>
           </div>
@@ -3198,12 +3211,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <h1 style={{ color:"#fff", fontSize:24, margin:"8px 0" }}>Hora da Prova!</h1>
           <p style={{ color:"#e0e7ff", fontSize:14, lineHeight:1.6 }}>Revise o conteúdo abaixo e entre na sala quando estiver pronto.</p>
         </div>
-        <div style={{ ...styles.card, marginTop:14 }}>
+        <div className="cardfx" style={{ ...styles.card, marginTop:14 }}>
           <h3 style={{ color:"#7c83ff", marginBottom:10 }}>📚 Resumo de Revisão</h3>
           <div style={{ color:"#c7cfee", fontSize:14, lineHeight:1.9, whiteSpace:"pre-wrap" }}>{examInfo.summary || "Preparando o resumo..."}</div>
         </div>
         {examReady ? (
-          <div style={{ ...styles.card, textAlign:"center", padding:24 }}>
+          <div className="cardfx" style={{ ...styles.card, textAlign:"center", padding:24 }}>
             <div style={{ fontSize:36 }}>✅</div>
             <p style={{ color:"#34d399", fontWeight:700, fontSize:16 }}>Você está na sala!</p>
             <p style={{ color:"#96a0cc", fontSize:13 }}>Aguardando o professor iniciar a prova...</p>
@@ -3327,7 +3340,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               )}
             </div>
           ) : (
-            <div style={{ ...styles.card, marginTop:18 }}>
+            <div className="cardfx" style={{ ...styles.card, marginTop:18 }}>
               <pre style={{ whiteSpace:"pre-wrap", fontFamily:"inherit", fontSize:14, lineHeight:1.9, color:"#c7cfee", margin:0 }}>{typeof sum==="string" ? sum : (sum && sum.raw) || "O resumo não carregou. Volte e clique em Salvar novamente."}</pre>
             </div>
           )}
@@ -3366,7 +3379,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <p style={{ color:"#96a0cc", fontSize:scaleSize(13), marginBottom:16 }}>Baseada no código que você escreveu hoje! Marque a alternativa que você acha certa — o resultado só aparece depois de enviar.</p>
           {activity.map((q,i)=>{
             return (
-              <div key={i} data-q={i} style={{...styles.card, padding:scalePx(18)}}>
+              <div key={i} data-q={i} className="cardfx" style={{...styles.card, padding:scalePx(18)}}>
                 <div style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:12, justifyContent:"space-between" }}>
                   <p style={{ fontWeight:600, margin:0, flex:1, fontSize:scaleSize(16) }}>{i+1}. {q.q}</p>
                   {ttsSupported && <button onClick={() => handleSpeakQuestion(q, i)} style={{ background:isSpeaking && currentSpeakingFor===`q-${i}` ? "#7c83ff" : "#7c83ff33", border:"1px solid #7c83ff", color:"#7c83ff", padding:`${scalePx(8)}px ${scalePx(12)}px`, borderRadius:6, fontSize:scaleSize(11), fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`q-${i}` ? "⏸" : "🔊"}</button>}
@@ -3467,7 +3480,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             )}
           </div>
 
-          <div style={{ ...styles.card, marginTop:14, textAlign:"left" }}>
+          <div className="cardfx" style={{ ...styles.card, marginTop:14, textAlign:"left" }}>
             <h4 style={{ color:"#7c83ff", marginBottom:10 }}>📝 Revisão da atividade</h4>
             {activity.map((q,i)=>(
               <div key={i} style={{ marginBottom:12 }}>
@@ -3478,7 +3491,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           </div>
 
           {(dynamicActivity||[]).some((q,i)=>answers[i]!==q.correct) && (
-            <div style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#7c83ff" }}>
+            <div className="cardfx" style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#7c83ff" }}>
               <h4 style={{ color:"#7c83ff", marginBottom:8 }}>🤖 Não entendeu algum erro?</h4>
               <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, marginBottom:10 }}>O Nyx pode explicar cada questão que você errou, com calma e do seu jeito.</p>
               <button style={{ ...styles.btn("#7c83ff"), opacity:explaining?0.6:1 }} onClick={explainErrors} disabled={explaining}>{explaining ? "Nyx está escrevendo..." : errorSections.length ? "↻ Ver explicação de novo" : "✨ Nyx, me explica meus erros!"}</button>
@@ -3487,7 +3500,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           )}
 
           {/* Avaliação da aula → professor */}
-          <div style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#fbbf24" }}>
+          <div className="cardfx" style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#fbbf24" }}>
             <h4 style={{ color:"#fbbf24", marginBottom:8 }}>💬 O que você achou da aula?</h4>
             {classSent ? (
               <p style={{ color:"#34d399", fontSize:14 }}>✅ Obrigado! Seu recado foi enviado para o professor.</p>
@@ -3558,7 +3571,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             <Avatar cfg={avatar} size={34} />
             <span style={{ position:"absolute", right:-4, bottom:-4, background:"#7c83ff", borderRadius:"50%", width:16, height:16, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, boxShadow:"0 1px 3px rgba(0,0,0,.5)" }}>✏️</span>
           </button>
-          <span style={{ fontWeight:900, fontSize:17, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>💻 Aula C#</span>
+          <span className="shine" style={{ fontWeight:900, fontSize:17, background:"linear-gradient(120deg,#7c83ff,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>💻 Aula C#</span>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
           <span style={{ fontSize:12, color: connected===false?"#f87171":connected?"#34d399":"#96a0cc" }}>
@@ -3636,7 +3649,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       <div style={{ display:"flex", gap:14, padding:14, maxWidth:1180, margin:"0 auto", flexWrap:"wrap" }}>
         <div style={{ flex:"1 1 560px", minWidth:320 }}>
           {accessMode ? (
-            <div style={{ ...styles.card, borderColor:"#22d3ee" }}>
+            <div className="cardfx" style={{ ...styles.card, borderColor:"#22d3ee" }}>
               <h3 style={{ color:"#22d3ee", marginBottom:4, fontSize:scaleSize(19) }}>🧩 Modo Guiado — Monte seu programa!</h3>
               <p style={{ color:"#96a0cc", fontSize:scaleSize(13), marginBottom:14 }}>Clique nos blocos abaixo para montar seu programa, um passo de cada vez! {ttsSupported && "O Nyx explica cada bloco em voz alta pra você."}</p>
 
@@ -3784,7 +3797,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               onClose={()=>setShowErrorWalkthrough(false)}
             />
           )}
-          <div data-tour="nyx" style={styles.card}>
+          <div data-tour="nyx" className="cardfx" style={styles.card}>
             <NyxRobot state={robotState} size={88} gear={nyxGear} />
             {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>{robotMsg}</div>)}
             {keysToShow.length>0&&(<div style={{ marginTop:10 }}><p style={{ color:"#fbbf24", fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
@@ -3792,7 +3805,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
             </button>
           </div>
-          <div style={styles.card}>
+          <div className="cardfx" style={styles.card}>
             <p style={{ color:"#fbbf24", fontWeight:700, marginBottom:8, fontSize:13 }}>🏆 Turma & Você</p>
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               <button onClick={()=>setShowRanking(true)} style={{ ...styles.btn("#22d3ee"), fontSize:12, padding:"7px 0" }}>📊 Ranking da turma</button>
@@ -3805,7 +3818,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             </div>
             <ClassGoalBar sum={classPointsSum} />
           </div>
-          <div style={{ ...styles.card, fontSize:12, color:"#5d679c", lineHeight:1.8 }}>
+          <div className="cardfx" style={{ ...styles.card, fontSize:12, color:"#5d679c", lineHeight:1.8 }}>
             <p style={{ color:"#7c83ff", fontWeight:600, marginBottom:6 }}>⌨️ Atalhos do editor</p>
             <div><code style={{color:"#FFD700"}}>{"{"}</code> → abre e fecha sozinho</div>
             <div><code style={{color:"#DA70D6"}}>(</code> → abre e fecha sozinho</div>
@@ -4265,8 +4278,9 @@ function TeacherView({ onLogout, teacherAuth }) {
     if (ok) { setNudged(n => ({ ...n, [s.name]: Date.now() })); setTimeout(()=>setNudged(n=>{ const c={...n}; delete c[s.name]; return c; }), 5000); }
   };
 
-  // ── exporta notas e presenças para planilha (CSV com ; — abre direto no Excel) ──
-  // segue o modelo de planilha do professor: ALUNO | DIAS PRESENTES | MAIOR NOTA | SITUAÇÃO | DESTAQUE
+  // ── exporta notas e presenças em planilha ESTILIZADA (HTML que o Excel abre com cores) ──
+  // segue o modelo do professor: ALUNO | DIAS PRESENTES | MAIOR NOTA | SITUAÇÃO | DESTAQUE,
+  // agrupado por turno, com cabeçalho colorido e zebra — bem mais apresentável que o CSV cru
   const exportCSV = () => {
     const rows = students
       .filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id)
@@ -4283,36 +4297,91 @@ function TeacherView({ onLogout, teacherAuth }) {
       const key = s.shift || "sem-turno";
       if (melhorNotaPorTurno[key] == null || nota > melhorNotaPorTurno[key]) melhorNotaPorTurno[key] = nota;
     });
-    const header = ["ALUNO","DIAS PRESENTES","MAIOR NOTA","SITUAÇÃO","DESTAQUE"];
-    const lines = rows.map(s => {
-      const att = Object.values(s.attendance||{}).filter(v=>v==="present").length;
-      const maiorNota = maiorNotaOf(s);
-      // situação = satisfatório ou insatisfatório, com base na maior nota (linha de corte: 60, a média escolar)
-      const situacao = maiorNota == null ? "Sem nota registrada ainda" : (maiorNota >= 60 ? "✅ Satisfatório" : "⚠ Insatisfatório");
-      const key = s.shift || "sem-turno";
-      const destaque = (maiorNota != null && maiorNota === melhorNotaPorTurno[key]) ? "🌟 Aluno destaque da turma" : "";
-      return [`${s.name} (${shiftMeta(s.shift).label})`, att, maiorNota ?? "", situacao, destaque];
+
+    const escHtml = (v) => String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const td = (v, style="") => `<td style="border:.5pt solid #d9dcea;padding:6px 10px;font-size:11pt;${style}">${escHtml(v)}</td>`;
+    const groups = SHIFTS.map(sh => ({ ...sh, list: rows.filter(s => (s.shift||"sem-turno")===sh.id) })).filter(g => g.list.length > 0);
+
+    let body = `
+      <tr><td colspan="5" style="background:#1f2547;color:#ffffff;font-size:16pt;font-weight:bold;padding:14px 12px;border:.5pt solid #1f2547;">AULA DE C# — ACOMPANHAMENTO DA TURMA</td></tr>
+      <tr><td colspan="5" style="background:#2e3560;color:#c9cfef;font-size:10pt;font-style:italic;padding:6px 12px;border:.5pt solid #2e3560;">${escHtml(meta.city ? meta.city + "  •  " : "")}gerado em ${new Date().toLocaleDateString("pt-BR")}</td></tr>
+      <tr><td colspan="5" style="border:none;padding:4px;"></td></tr>`;
+
+    groups.forEach(g => {
+      const band = g.id === "matutino"
+        ? `background:#ffe9a8;color:#5c4400;` : `background:#c9cdff;color:#232a6b;`;
+      body += `<tr><td colspan="5" style="${band}font-size:12pt;font-weight:bold;padding:8px 12px;border:.5pt solid #d9dcea;">${g.emoji} TURMA ${g.label.toUpperCase()} — ${g.list.length} aluno${g.list.length!==1?"s":""}</td></tr>`;
+      body += `<tr>${["ALUNO","DIAS PRESENTES","MAIOR NOTA","SITUAÇÃO","DESTAQUE"].map((h,i)=>
+        `<td style="background:#303869;color:#ffffff;font-weight:bold;font-size:10.5pt;padding:7px 10px;border:.5pt solid #303869;${i>0?"text-align:center;":""}">${h}</td>`).join("")}</tr>`;
+      g.list.forEach((s, i) => {
+        const att = Object.values(s.attendance||{}).filter(v=>v==="present").length;
+        const maiorNota = maiorNotaOf(s);
+        const isDestaque = maiorNota != null && maiorNota === melhorNotaPorTurno[g.id];
+        const zebra = isDestaque ? "background:#fff6d6;" : (i % 2 ? "background:#f5f6fb;" : "background:#ffffff;");
+        const situacao = maiorNota == null
+          ? td("Sem nota ainda", zebra+"color:#8a8fa8;text-align:center;")
+          : maiorNota >= 60
+            ? td("✔ Satisfatório", zebra+"color:#1e8e5a;font-weight:bold;text-align:center;")
+            : td("⚠ Insatisfatório", zebra+"color:#c2410c;font-weight:bold;text-align:center;");
+        body += `<tr>${
+          td(s.name, zebra+"font-weight:bold;color:#1f2547;")}${
+          td(att, zebra+"text-align:center;")}${
+          td(maiorNota ?? "—", zebra+"text-align:center;font-weight:bold;font-size:12pt;color:#303869;")}${
+          situacao}${
+          td(isDestaque ? "🌟 Aluno destaque da turma" : "", zebra+"color:#8a6d1a;text-align:center;")
+        }</tr>`;
+      });
+      const notas = g.list.map(maiorNotaOf).filter(n => n != null);
+      const media = notas.length ? Math.round(notas.reduce((a,b)=>a+b,0)/notas.length) : null;
+      body += `<tr><td colspan="5" style="background:#eef0fa;color:#5a6183;font-size:9.5pt;font-style:italic;padding:5px 12px;border:.5pt solid #d9dcea;">Média da turma: ${media ?? "—"}  •  Situação calculada pela maior nota (linha de corte: 60)</td></tr>`;
+      body += `<tr><td colspan="5" style="border:none;padding:4px;"></td></tr>`;
     });
-    const esc = v => `"${String(v).replace(/"/g,'""')}"`;
-    const csv = "﻿" + [header, ...lines].map(r=>r.map(esc).join(";")).join("\r\n");
-    const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Turma</x:Name><x:WorksheetOptions/></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table style="border-collapse:collapse;font-family:Calibri,Arial,sans-serif;">${body}</table></body></html>`;
+    const blob = new Blob(["﻿" + html], { type:"application/vnd.ms-excel;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `planilha-sistema-${todayKey()}.csv`;
+    a.href = url; a.download = `planilha-aula-csharp-${todayKey()}.xls`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   };
 
-  // ── PDF com o código e o resumo de cada aluno, pra guardar/enviar ao fim do curso ──
+  // ── PDF do curso: o código do PROFESSOR (o exemplo da turma) + explicações do Nyx ──
+  // sem nome de aluno nenhum — é um material de estudo pra enviar pra todo mundo.
   // jsPDF é importado sob demanda (só quando o professor clica) pra não pesar o app dos alunos
   const exportPDF = async () => {
-    setPdfGenerating(true); setPdfMsg("");
+    setPdfGenerating(true);
+
+    // junta o código do professor por turno (só turnos que têm código)
+    const shiftsWithCode = SHIFTS
+      .map(sh => ({ ...sh, files: (proFilesByShift[sh.id]||[]).filter(f => (f.code||"").trim()) }))
+      .filter(sh => sh.files.length > 0);
+    if (shiftsWithCode.length === 0) {
+      setPdfMsg('⚠ Programe o exemplo na aba "Meu código" primeiro — o PDF usa o código do professor, não o dos alunos.');
+      setPdfGenerating(false);
+      return;
+    }
+
+    setPdfMsg("🧠 O Nyx está escrevendo as explicações dos códigos...");
+    // explicação de todos os códigos, pedida ao Nyx (um pedido por turno, em paralelo)
+    let aiOffline = false;
+    const explains = await Promise.all(shiftsWithCode.map(async (sh) => {
+      const code = sh.files.map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n");
+      try {
+        return await askClaudeJson(
+          `Este é o código C# de exemplo que o professor escreveu para a turma ${sh.label} (pode ter vários arquivos):\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie uma explicação COMPLETA e didática desse código, para iniciantes que vão receber este material por escrito e estudar sozinhos. Percorra o código NA ORDEM em que ele aparece.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 a 2 frases dizendo o que esse código faz como um todo",\n  "secoes": [ { "titulo": "nome curto do conceito/parte", "explicacao": "explicação clara de 2 a 4 frases, em português simples", "exemplo": "trecho C# bem curto ilustrando (opcional — use \\n pra quebrar linha)" } ],\n  "dica": "1 frase final incentivando o estudo"\n}\n\nFaça uma seção para cada parte ou conceito importante (entre 4 e 10 seções). Garanta JSON válido.`,
+          "Você é um professor de C# paciente escrevendo um material de estudo por escrito para iniciantes. Português correto e simples. Responda APENAS JSON puro válido."
+        );
+      } catch { aiOffline = true; return null; }
+    }));
+
+    setPdfMsg("📄 Montando o PDF...");
     try {
       const { jsPDF } = await import("jspdf");
       const doc = new jsPDF({ unit: "pt", format: "a4" });
       const pageW = doc.internal.pageSize.getWidth();
       const pageH = doc.internal.pageSize.getHeight();
-      const margin = 42;
+      const margin = 48;
       const maxW = pageW - margin * 2;
       let y = margin;
 
@@ -4321,64 +4390,124 @@ function TeacherView({ onLogout, teacherAuth }) {
         const n = parseInt(h.length === 3 ? h.split("").map(c=>c+c).join("") : h, 16);
         return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
       };
-      const ensureSpace = (needed) => { if (y + needed > pageH - margin) { doc.addPage(); y = margin; } };
+      // as fontes padrão do PDF não têm emoji — remove pra não virar caractere quebrado
+      const clean = (t) => String(t || "").replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}️]/gu, "").replace(/\s+/g, " ").trim();
+      const ensureSpace = (needed) => { if (y + needed > pageH - margin - 16) { doc.addPage(); y = margin; } };
       const writeParagraph = (text, opts = {}) => {
-        const { size = 10, font = "helvetica", style = "normal", color = "#1a1a1a", lineGap = 4 } = opts;
-        doc.setFont(font, style);
-        doc.setFontSize(size);
-        doc.setTextColor(...hexRgb(color));
-        doc.splitTextToSize(String(text || " "), maxW).forEach(line => {
+        const { size = 10.5, font = "helvetica", style = "normal", color = "#2a2f45", lineGap = 4.5, x = margin, width = maxW } = opts;
+        doc.setFont(font, style); doc.setFontSize(size); doc.setTextColor(...hexRgb(color));
+        doc.splitTextToSize(String(text || " "), width).forEach(line => {
           ensureSpace(size + lineGap);
-          doc.text(line, margin, y);
+          doc.text(line, x, y);
           y += size + lineGap;
         });
       };
-
-      const rows = students
-        .filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id)
-        .sort((a,b)=>((a.shift||"")+a.name).localeCompare((b.shift||"")+b.name,"pt-BR"));
-
-      if (rows.length === 0) { setPdfMsg("⚠ Nenhum aluno pra exportar ainda."); setPdfGenerating(false); return; }
-
-      rows.forEach((s, idx) => {
-        if (idx > 0) { doc.addPage(); y = margin; }
-        writeParagraph(s.name, { size:18, style:"bold", color:"#1c1400" });
-        writeParagraph(`Turma ${shiftMeta(s.shift).label}`, { size:11, color:"#5d679c" });
-        y += 10;
-
-        writeParagraph("Resumo da última aula", { size:13, style:"bold", color:"#5b3fd1" });
-        const dates = Object.keys(s.summaryHistory || {}).sort((a,b)=>b.localeCompare(a));
-        const lastSummary = dates.length ? s.summaryHistory[dates[0]] : null;
-        if (lastSummary && Array.isArray(lastSummary.secoes) && lastSummary.secoes.length) {
-          if (lastSummary.intro) writeParagraph(lastSummary.intro, { size:10.5 });
-          lastSummary.secoes.forEach(sec => {
-            y += 4;
-            writeParagraph(`${sec.emoji || "•"} ${sec.titulo || ""}`, { size:11, style:"bold" });
-            if (sec.explicacao) writeParagraph(sec.explicacao, { size:10 });
-            if (sec.exemplo) writeParagraph(sec.exemplo, { size:9.5, font:"courier", color:"#333333" });
-          });
-          if (lastSummary.dica) { y += 4; writeParagraph(`Dica: ${lastSummary.dica}`, { size:10, style:"italic" }); }
-        } else {
-          writeParagraph("Sem resumo registrado ainda.", { size:10, color:"#888888" });
+      // bloco de código com fundo cinza-azulado, quebrado em pedaços quando não cabe na página
+      const writeCodeBlock = (codeText) => {
+        doc.setFont("courier", "normal"); doc.setFontSize(8.5);
+        const lines = codeText.split("\n").flatMap(l => doc.splitTextToSize(l.length ? l : " ", maxW - 24));
+        const lh = 11.5;
+        let i = 0;
+        while (i < lines.length) {
+          ensureSpace(lh * 2 + 16);
+          const fit = Math.max(1, Math.floor((pageH - margin - 16 - y - 16) / lh));
+          const chunk = lines.slice(i, i + fit);
+          const h = chunk.length * lh + 14;
+          doc.setFillColor(...hexRgb("#f2f4fc")); doc.setDrawColor(...hexRgb("#d8dcf0"));
+          doc.roundedRect(margin, y - 4, maxW, h, 5, 5, "FD");
+          doc.setFont("courier", "normal"); doc.setFontSize(8.5); doc.setTextColor(...hexRgb("#33395c"));
+          chunk.forEach((ln, j) => doc.text(ln, margin + 12, y + 10 + j * lh));
+          y += h + 8;
+          i += fit;
         }
-        y += 14;
+      };
 
-        writeParagraph("Código escrito", { size:13, style:"bold", color:"#5b3fd1" });
-        const files = Array.isArray(s.files) && s.files.length ? s.files : (s.code ? [{ name:"Program.cs", code:s.code }] : []);
-        if (files.length === 0 || files.every(f => !(f.code||"").trim())) {
-          writeParagraph("Nenhum código salvo ainda.", { size:10, color:"#888888" });
-        } else {
-          files.forEach(f => {
-            if (!(f.code||"").trim()) return;
-            y += 4;
-            writeParagraph(`// ${f.name}`, { size:10, style:"bold", color:"#555555" });
-            f.code.split("\n").forEach(line => writeParagraph(line, { size:9, font:"courier", color:"#222222", lineGap:2 }));
+      // ── CAPA ──
+      doc.setFillColor(...hexRgb("#12162e")); doc.rect(0, 0, pageW, pageH, "F");
+      doc.setFillColor(...hexRgb("#1b2144"));
+      doc.circle(pageW - 60, 90, 130, "F");
+      doc.circle(40, pageH - 80, 100, "F");
+      doc.setFillColor(...hexRgb("#fbbf24")); doc.roundedRect(margin, 240, 64, 7, 3, 3, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(38); doc.setTextColor(255, 255, 255);
+      doc.text("Aula de C#", margin, 292);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(16); doc.setTextColor(...hexRgb("#aeb6e8"));
+      doc.text("Códigos do curso e explicações do Nyx", margin, 318);
+      doc.setFontSize(11.5); doc.setTextColor(...hexRgb("#7c86c4"));
+      const dataBr = new Date().toLocaleDateString("pt-BR");
+      doc.text(clean(`${meta.city ? meta.city + "  •  " : ""}Gerado em ${dataBr}`), margin, 344);
+      doc.setFont("courier", "normal"); doc.setFontSize(10); doc.setTextColor(...hexRgb("#4a5388"));
+      doc.text('Console.WriteLine("Bons estudos!");', margin, pageH - 70);
+
+      // ── CONTEÚDO (um capítulo por turno) ──
+      shiftsWithCode.forEach((sh, idx) => {
+        const accent = sh.id === "matutino" ? "#f59e0b" : "#7c83ff";
+        doc.addPage(); y = margin;
+
+        // faixa do turno
+        doc.setFillColor(...hexRgb(accent));
+        doc.roundedRect(margin, y - 6, maxW, 40, 8, 8, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
+        doc.text(clean(`Turma ${sh.label}`).toUpperCase(), margin + 16, y + 19);
+        y += 58;
+
+        const exp = explains[idx];
+        writeParagraph("O que este código ensina", { size: 14, style: "bold", color: "#1f2547" });
+        y += 2;
+        if (exp && Array.isArray(exp.secoes) && exp.secoes.length) {
+          if (exp.intro) { writeParagraph(clean(exp.intro), { size: 11, color: "#4a5170" }); y += 6; }
+          exp.secoes.forEach((sec, i) => {
+            ensureSpace(40);
+            // marcador numerado no lugar de emoji (fonte do PDF não tem emoji)
+            doc.setFillColor(...hexRgb(accent));
+            doc.roundedRect(margin, y - 10, 18, 18, 5, 5, "F");
+            doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(255, 255, 255);
+            doc.text(String(i + 1), margin + 9, y + 3, { align: "center" });
+            writeParagraph(clean(sec.titulo), { size: 12, style: "bold", color: "#1f2547", x: margin + 26, width: maxW - 26 });
+            if (sec.explicacao) writeParagraph(clean(sec.explicacao), { size: 10.5, x: margin + 26, width: maxW - 26 });
+            if (sec.exemplo && String(sec.exemplo).trim()) writeParagraph(String(sec.exemplo).replace(/\r/g, ""), { size: 9, font: "courier", color: "#5b3fd1", x: margin + 26, width: maxW - 26 });
+            y += 8;
           });
+          if (exp.dica) {
+            ensureSpace(30);
+            doc.setFillColor(...hexRgb("#fff7e0")); doc.setDrawColor(...hexRgb("#f0d896"));
+            const dicaLines = doc.splitTextToSize("Dica:  " + clean(exp.dica), maxW - 24);
+            const dh = dicaLines.length * 14 + 14;
+            doc.roundedRect(margin, y - 4, maxW, dh, 6, 6, "FD");
+            doc.setFont("helvetica", "italic"); doc.setFontSize(10.5); doc.setTextColor(...hexRgb("#8a6d1a"));
+            dicaLines.forEach((ln, j) => doc.text(ln, margin + 12, y + 12 + j * 14));
+            y += dh + 10;
+          }
+        } else {
+          writeParagraph("As explicações automáticas não puderam ser geradas agora (Nyx offline). O código completo está logo abaixo.", { size: 10.5, style: "italic", color: "#8a8fa8" });
+          y += 6;
         }
+
+        y += 8;
+        writeParagraph("Código completo", { size: 14, style: "bold", color: "#1f2547" });
+        y += 4;
+        sh.files.forEach(f => {
+          ensureSpace(34);
+          doc.setFillColor(...hexRgb("#1f2547"));
+          doc.roundedRect(margin, y - 4, maxW, 22, 5, 5, "F");
+          doc.setFont("courier", "bold"); doc.setFontSize(9.5); doc.setTextColor(255, 255, 255);
+          doc.text(clean(f.name), margin + 12, y + 10);
+          y += 26;
+          writeCodeBlock(f.code.replace(/\r/g, ""));
+          y += 4;
+        });
       });
 
-      doc.save(`codigos-e-resumos-${todayKey()}.pdf`);
-      setPdfMsg("✅ PDF gerado!");
+      // ── rodapé com numeração (pula a capa) ──
+      const total = doc.getNumberOfPages();
+      for (let p = 2; p <= total; p++) {
+        doc.setPage(p);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...hexRgb("#9aa1c2"));
+        doc.text("Aula de C#  •  material do curso", margin, pageH - 24);
+        doc.text(`${p - 1} / ${total - 1}`, pageW - margin, pageH - 24, { align: "right" });
+      }
+
+      doc.save(`codigos-do-curso-${todayKey()}.pdf`);
+      setPdfMsg(aiOffline ? "✅ PDF gerado (sem as explicações — o Nyx estava offline)." : "✅ PDF gerado!");
     } catch {
       setPdfMsg("❌ Não consegui gerar o PDF agora. Tente de novo.");
     }
@@ -4651,7 +4780,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
       <div style={{ ...styles.header, ...(tab==="code" ? { padding:"6px 14px" } : {}) }}>
         <div>
-          <span style={{ fontWeight:900, fontSize: tab==="code" ? 14 : 18, background:"linear-gradient(135deg,#fbbf24,#fb923c)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
+          <span className="shine" style={{ fontWeight:900, fontSize: tab==="code" ? 14 : 18, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
           {tab!=="code" && (
             <span style={{ color:"#96a0cc", marginLeft:12, fontSize:12 }}>
               ● ao vivo · {lastUpdate}{meta.city?` · 📍 ${meta.city}`:""}
@@ -4726,7 +4855,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           {/* esquerda */}
           <div style={{ width:300, flex:"0 0 300px" }}>
             {/* Nyx de olho na turma */}
-            <div style={{ ...styles.card, textAlign:"center", borderColor: needHelp.length>0 ? "#f87171" : "#272e52" }}>
+            <div className="cardfx" style={{ ...styles.card, textAlign:"center", borderColor: needHelp.length>0 ? "#f87171" : "#272e52" }}>
               <NyxRobot state={needHelp.length>0 ? "error" : shown.length>0 ? "ok" : "idle"} size={64} showName={false} />
               <div style={{ fontWeight:900, letterSpacing:2, fontSize:12, color:"#fbbf24", marginTop:2 }}>NYX DE OLHO</div>
               <p style={{ color: needHelp.length>0 ? "#fca5a5" : "#96a0cc", fontSize:13, lineHeight:1.6, margin:"6px 0 0" }}>
@@ -4737,7 +4866,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             </div>
 
             {/* Chamada — separada por turno */}
-            <div style={styles.card}>
+            <div className="cardfx" style={styles.card}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
                 <h3 style={{ color:"#fbbf24" }}>📋 Lista de Chamada</h3>
                 <span style={styles.badge("#34d399")}>{present} online / {shown.length}</span>
@@ -4757,12 +4886,12 @@ function TeacherView({ onLogout, teacherAuth }) {
                           <span style={styles.badge("#f87171")}>❌ {g.absent.length} falta{g.absent.length!==1?"s":""}</span>
                         </div>
                         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))", gap:8 }}>
-                          {g.list.map(s=>{
+                          {g.list.map((s, tileIdx)=>{
                             const st = attStatus(s);
                             const stColor = st==="present"?"#34d399":st==="idle"?"#fbbf24":"#f87171";
                             const stLabel = st==="present"?"✅ Presente":st==="idle"?"⚠ Sem atividade":"❌ Falta";
                             return (
-                              <div key={s.name} style={{ background:"#0d1122", border:`1px solid ${st==="absent"?"#3f2530":"#2a3154"}`, borderRadius:8, padding:"8px 10px", opacity:st==="absent"?0.7:1 }}>
+                              <div key={s.name} className="tilefx" style={{ background:"#0d1122", border:`1px solid ${st==="absent"?"#3f2530":"#2a3154"}`, borderRadius:8, padding:"8px 10px", opacity:st==="absent"?0.7:1, animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
                                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                                   <Avatar cfg={s.avatar} size={28} />
                                   <span style={{ fontSize:14, flex:1 }}>{dot(isOnline(s))}{s.name}</span>
@@ -4787,7 +4916,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               )}
             </div>
 
-            <div style={styles.card}>
+            <div className="cardfx" style={styles.card}>
               <h4 style={{ color:"#fbbf24", marginBottom:10, fontSize:14 }}>📊 Turma hoje</h4>
               {/* conta só quem entrou HOJE — no dia seguinte, antes de alguém entrar, fica tudo no 0 */}
               {["coding","summary","activity","done"].map(p=>(
@@ -4804,16 +4933,16 @@ function TeacherView({ onLogout, teacherAuth }) {
                   return done.length > 0 ? Math.round(done.reduce((a,s)=>a+s.score,0)/done.length)+" pts" : "—";
                 })()}</span>
               </div>
-              <button onClick={exportCSV} style={{ ...styles.btn("#2a3154"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Baixa uma planilha com nome, turma, presenças, notas e histórico de todos os alunos (sem a turma de teste)">
-                ⬇️ Exportar planilha (CSV)
+              <button onClick={exportCSV} style={{ ...styles.btn("#2a3154"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Baixa uma planilha colorida e organizada por turno (abre no Excel), com presenças, notas e situação de cada aluno (sem a turma de teste)">
+                ⬇️ Exportar planilha (Excel)
               </button>
-              <button onClick={exportPDF} disabled={pdfGenerating} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:8, padding:"7px 0", fontSize:12.5, opacity: pdfGenerating ? 0.7 : 1 }} title="Gera um PDF com o código escrito e o resumo da última aula de cada aluno — bom pra guardar ou enviar no fim do curso">
-                {pdfGenerating ? "⏳ Gerando PDF..." : "📄 Exportar PDF (códigos + resumos)"}
+              <button onClick={exportPDF} disabled={pdfGenerating} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:8, padding:"7px 0", fontSize:12.5, opacity: pdfGenerating ? 0.7 : 1 }} title="Gera um material de estudo em PDF: o código do professor (aba Meu código) com as explicações do Nyx — sem nome de aluno, pronto pra enviar pra turma toda">
+                {pdfGenerating ? "⏳ Gerando PDF..." : "📄 Exportar PDF (códigos + explicações)"}
               </button>
               {pdfMsg && <p style={{ color: pdfMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:11.5, marginTop:6 }}>{pdfMsg}</p>}
             </div>
 
-            <div style={{ ...styles.card, fontSize:12 }}>
+            <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
               <h4 style={{ color:"#fbbf24", fontSize:13, marginBottom:6 }}>🔧 Conexão</h4>
               {diag ? (
                 <div style={{ color:"#c7cfee", lineHeight:1.7 }}>
@@ -4870,7 +4999,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               )}
             </div>
 
-            <div style={{ ...styles.card, fontSize:12 }}>
+            <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
               <h4 style={{ color:"#fbbf24", fontSize:13, marginBottom:6 }}>📖 Conteúdo de hoje</h4>
               {todayContentM
                 ? <p style={{ color:"#34d399", fontSize:13, fontWeight:600, lineHeight:1.5, margin:0 }}>☀️ Manhã: {todayContentM}</p>
@@ -4886,14 +5015,14 @@ function TeacherView({ onLogout, teacherAuth }) {
 
           {/* direita */}
           <div style={{ flex:"1 1 420px", minWidth:300 }}>
-            <div style={styles.card}>
+            <div className="cardfx" style={styles.card}>
               <h3 style={{ color:"#fbbf24", marginBottom:12 }}>👥 Monitoramento ({shown.length})</h3>
               {shown.length===0 && <p style={{ color:"#5d679c", fontSize:13 }}>{students.length===0 ? "Aguardando alunos entrarem..." : "Nenhum aluno nesta turma. Veja outra turma no filtro acima."}</p>}
               <div style={{ maxHeight:400, overflowY:"auto", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(128px,1fr))", gap:8 }}>
-                {sorted.map(s=>{
+                {sorted.map((s, tileIdx)=>{
                   const d = difficultyOf(s);
                   return (
-                    <div key={s.name} onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ position:"relative", background:selected===s.name?"#7c83ff22":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":"#2a3154"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center" }}>
+                    <div key={s.name} className="tilefx" onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ position:"relative", background:selected===s.name?"#7c83ff22":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":"#2a3154"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center", animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
                       {s.score!=null && <span style={{ position:"absolute", top:6, left:6, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:6, padding:"1px 6px", fontSize:10.5, fontWeight:800 }}>🏆 {s.score}</span>}
                       <span style={{ position:"absolute", top:8, right:8 }}>{dot(isOnline(s))}</span>
                       <div style={{ marginTop:s.score!=null?16:4 }}>
@@ -4914,7 +5043,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             </div>
 
             {/* Resumo automático (sem clicar em nada — só agregação dos dados) */}
-            <div style={{ ...styles.card, borderColor:"#7c83ff" }}>
+            <div className="cardfx" style={{ ...styles.card, borderColor:"#7c83ff" }}>
               <h3 style={{ color:"#7c83ff", marginBottom:10 }}>📋 Resumo automático</h3>
               <div style={{ display:"flex", flexDirection:"column", gap:8, fontSize:13 }}>
                 <div style={{ color: absentList.length ? "#f87171" : "#5d679c" }}>
@@ -4934,7 +5063,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             </div>
 
             {/* Situação da turma */}
-            <div style={styles.card}>
+            <div className="cardfx" style={styles.card}>
               <h3 style={{ color:"#fbbf24", marginBottom:10 }}>📈 Situação da turma</h3>
               <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
                 <div style={{ flex:"1 1 200px" }}>
@@ -4970,7 +5099,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               const delta = trend[trend.length-1].avg - trend[0].avg;
               const trendLabel = delta >= 8 ? { text:"📈 Melhorando", color:"#34d399" } : delta <= -8 ? { text:"📉 Caindo", color:"#f87171" } : { text:"➡ Estável", color:"#96a0cc" };
               return (
-                <div style={styles.card}>
+                <div className="cardfx" style={styles.card}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10, flexWrap:"wrap", gap:8 }}>
                     <h3 style={{ color:"#7c83ff", margin:0 }}>📊 Evolução da turma nas últimas aulas</h3>
                     <span style={{ ...styles.badge(trendLabel.color) }}>{trendLabel.text}</span>
@@ -4996,7 +5125,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             {/* Detalhe do aluno */}
             {sel ? (
               <>
-                <div style={styles.card}>
+                <div className="cardfx" style={styles.card}>
                   <h3 style={{ color:"#fbbf24", display:"flex", alignItems:"center", gap:10 }}><Avatar cfg={sel.avatar} size={34} />{dot(isOnline(sel))}{sel.name}</h3>
                   <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginTop:8 }}>
                     <span style={styles.badge(phaseColor(effectivePhase(sel)))}>{phaseLabel(effectivePhase(sel))}</span>
@@ -5006,7 +5135,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
 
                 {/* Gerenciar aluno: renomear, mover de turno, corrigir nota, excluir */}
-                <div style={{ ...styles.card, borderColor:"#fbbf24" }}>
+                <div className="cardfx" style={{ ...styles.card, borderColor:"#fbbf24" }}>
                   <h4 style={{ color:"#fbbf24", marginBottom:12 }}>⚙️ Gerenciar aluno</h4>
                   <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
@@ -5057,18 +5186,18 @@ function TeacherView({ onLogout, teacherAuth }) {
                   {mgmtMsg && <p style={{ color: mgmtMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:13, marginTop:10 }}>{mgmtMsg}</p>}
                 </div>
                 {Array.isArray(sel.files) && sel.files.length>0 ? sel.files.map((f,i)=>(
-                  <div key={i} style={styles.card}>
+                  <div key={i} className="cardfx" style={styles.card}>
                     <h4 style={{ color:"#7c83ff", marginBottom:8 }}>📄 {f.name}</h4>
                     <pre style={{ background:"#1e1e1e", padding:12, borderRadius:8, fontFamily:"monospace", fontSize:13, color:"#a5f3fc", overflow:"auto", maxHeight:240, whiteSpace:"pre-wrap" }}>{f.code || "(vazio)"}</pre>
                   </div>
                 )) : sel.code && (
-                  <div style={styles.card}>
+                  <div className="cardfx" style={styles.card}>
                     <h4 style={{ color:"#7c83ff", marginBottom:8 }}>💻 Código</h4>
                     <pre style={{ background:"#1e1e1e", padding:12, borderRadius:8, fontFamily:"monospace", fontSize:13, color:"#a5f3fc", overflow:"auto", maxHeight:240, whiteSpace:"pre-wrap" }}>{sel.code}</pre>
                   </div>
                 )}
                 {sel.scoreHistory && Object.keys(sel.scoreHistory).length > 0 && (
-                  <div style={styles.card}>
+                  <div className="cardfx" style={styles.card}>
                     <h4 style={{ color:"#7c83ff", marginBottom:12 }}>📈 Histórico de notas (atividades)</h4>
                     <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:110, overflowX:"auto", paddingBottom:4 }}>
                       {Object.entries(sel.scoreHistory).sort(([a],[b])=>a.localeCompare(b)).slice(-14).map(([d,n])=>{
@@ -5085,9 +5214,9 @@ function TeacherView({ onLogout, teacherAuth }) {
                     </div>
                   </div>
                 )}
-                {sel.feedback && <div style={styles.card}><h4 style={{ color:"#7c83ff", marginBottom:6 }}>🤖 Nyx (último aviso)</h4><p style={{ color:sel.feedback.ok?"#34d399":"#f87171", fontSize:13 }}>{sel.feedback.ok?"✅":"⚠"} {sel.feedback.message}</p></div>}
+                {sel.feedback && <div className="cardfx" style={styles.card}><h4 style={{ color:"#7c83ff", marginBottom:6 }}>🤖 Nyx (último aviso)</h4><p style={{ color:sel.feedback.ok?"#34d399":"#f87171", fontSize:13 }}>{sel.feedback.ok?"✅":"⚠"} {sel.feedback.message}</p></div>}
                 {sel.answers && sel.dynamicActivity && (
-                  <div style={styles.card}>
+                  <div className="cardfx" style={styles.card}>
                     <h4 style={{ color:"#7c83ff", marginBottom:10 }}>📝 Atividade</h4>
                     {sel.dynamicActivity.map((q,i)=>(
                       <div key={i} style={{ marginBottom:10, background:"#0d1122", borderRadius:8, padding:"8px 12px" }}>
@@ -5101,11 +5230,11 @@ function TeacherView({ onLogout, teacherAuth }) {
                   const fb = sel.finalFeedback;
                   const st = fb && typeof fb === "object" && Array.isArray(fb.secoes);
                   const text = st ? [fb.intro, ...fb.secoes.map(s=>`${s.titulo}: ${s.explicacao}`), fb.dica ? `Dica: ${fb.dica}` : ""].filter(Boolean).join("\n") : (typeof fb === "string" ? fb : "");
-                  return text ? <div style={styles.card}><h4 style={{ color:"#7c83ff", marginBottom:8 }}>🤖 Feedback do Nyx ao aluno</h4><p style={{ color:"#c7cfee", fontSize:13, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{text}</p></div> : null;
+                  return text ? <div className="cardfx" style={styles.card}><h4 style={{ color:"#7c83ff", marginBottom:8 }}>🤖 Feedback do Nyx ao aluno</h4><p style={{ color:"#c7cfee", fontSize:13, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{text}</p></div> : null;
                 })()}
               </>
             ) : (
-              <div style={{ ...styles.card, textAlign:"center", padding:40 }}>
+              <div className="cardfx" style={{ ...styles.card, textAlign:"center", padding:40 }}>
                 <div style={{ fontSize:36 }}>👆</div>
                 <p style={{ color:"#5d679c" }}>Clique em um aluno no monitoramento para ver o código, a atividade e os detalhes.</p>
               </div>
@@ -5121,7 +5250,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           .filter(s => difficultyOf(s).level==="dif");
         return (
           <div style={{ padding:"8px 14px 14px" }}>
-            <div style={{ ...styles.card, padding:12, margin:"6px 0" }}>
+            <div className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, flexWrap:"wrap" }}>
                 <div style={{ flex:"1 1 260px" }}>
                   <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>👨‍💻 Meu código</h3>
@@ -5145,7 +5274,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       {/* ─────────── CALENDÁRIO ─────────── */}
       {tab==="calendar" && (
         <div style={{ display:"flex", gap:14, padding:14, maxWidth:900, margin:"0 auto", alignItems:"flex-start", flexWrap:"wrap" }}>
-          <div style={{ ...styles.card, flex:"1 1 380px" }}>
+          <div className="cardfx" style={{ ...styles.card, flex:"1 1 380px" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8, marginBottom:12 }}>
               <h3 style={{ color:"#fbbf24", margin:0 }}>🗓️ Calendário de aulas</h3>
               <div style={{ display:"flex", gap:8 }}>
@@ -5157,7 +5286,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             <p style={{ color:"#96a0cc", fontSize:13, marginBottom:12 }}>Os dias com aula ficam em verde (são marcados sozinhos quando há alunos online, e você também pode clicar para marcar/desmarcar). O 📖 indica os dias que já têm conteúdo gerado para a turma {shiftMeta(codeShift).label} — passe o mouse para ver o tema.</p>
             <Calendar classDays={meta.classDays||[]} contentNames={calContentNames} onToggle={toggleClassDay} />
           </div>
-          <div style={{ ...styles.card, flex:"1 1 260px" }}>
+          <div className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:12 }}>📍 Sua cidade no DF</h3>
             <input list="df-cities" value={cityInput} onChange={e=>setCityInput(e.target.value)} onBlur={saveCity} placeholder="Ex: Ceilândia"
               style={{ width:"100%", background:"#0d1122", border:"2px solid #2a3154", borderRadius:10, padding:"10px 12px", color:"#e8ebfa", fontSize:15, boxSizing:"border-box" }} />
@@ -5167,7 +5296,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             <hr style={{ borderColor:"#2a3154", margin:"14px 0" }}/>
             <p style={{ color:"#96a0cc", fontSize:13 }}>Total de dias de aula registrados: <b style={{ color:"#e8ebfa" }}>{(meta.classDays||[]).length}</b></p>
           </div>
-          <div style={{ ...styles.card, flex:"1 1 260px" }}>
+          <div className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:8 }}>📖 Conteúdo de hoje ({shiftMeta(codeShift).label})</h3>
             {contentFor(codeShift)
               ? <p style={{ color:"#34d399", fontSize:16, fontWeight:600, lineHeight:1.5, margin:"4px 0 12px" }}>{contentFor(codeShift)}</p>
@@ -5181,7 +5310,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       {/* ─────────── FEEDBACK DOS ALUNOS ─────────── */}
       {tab==="feedback" && (
         <div style={{ padding:14, maxWidth:760, margin:"0 auto" }}>
-          <div style={styles.card}>
+          <div className="cardfx" style={styles.card}>
             <h3 style={{ color:"#fbbf24", marginBottom:12 }}>💬 Feedback dos alunos sobre as aulas</h3>
             <p style={{ color:"#96a0cc", fontSize:12.5, margin:"-4px 0 12px" }}>Do mais recente para o mais antigo, com a turma de cada aluno.</p>
             {feedbacks.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno enviou feedback ainda. Eles podem avaliar ao terminar a aula.</p> : (
@@ -5229,7 +5358,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
             {/* estado: idle */}
             {examConfig.status === 'idle' && (
-              <div style={styles.card}>
+              <div className="cardfx" style={styles.card}>
                 <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🏆 Criar Prova</h3>
                 <p style={{ color:"#96a0cc", fontSize:13, marginBottom:14, lineHeight:1.6 }}>A IA gera automaticamente um resumo de revisão e 10 questões de múltipla escolha com base no código de hoje. Os alunos revisam, entram na sala e então você inicia.</p>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>
@@ -5250,7 +5379,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             {/* estado: review */}
             {examConfig.status === 'review' && (
               <>
-                <div style={styles.card}>
+                <div className="cardfx" style={styles.card}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:10 }}>
                     <div>
                       <h3 style={{ color:"#fbbf24", margin:"0 0 4px" }}>📝 Fase de Revisão</h3>
@@ -5263,7 +5392,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   </div>
                   {examMsg && <p style={{ color:"#34d399", fontSize:13, marginTop:10 }}>{examMsg}</p>}
                 </div>
-                <div style={styles.card}>
+                <div className="cardfx" style={styles.card}>
                   <h4 style={{ color:"#fbbf24", marginBottom:10 }}>Alunos prontos ({readyStudents.length}/{examStudents.length})</h4>
                   <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                     {examStudents.map(s=>(
@@ -5281,7 +5410,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             {/* estado: active */}
             {examConfig.status === 'active' && (
               <>
-                <div style={styles.card}>
+                <div className="cardfx" style={styles.card}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
                     <div>
                       <h3 style={{ color:"#fbbf24", margin:"0 0 4px" }}>🏆 Prova em andamento</h3>
@@ -5291,7 +5420,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   </div>
                   {examMsg && <p style={{ color:"#34d399", fontSize:13, marginTop:8 }}>{examMsg}</p>}
                 </div>
-                <div style={styles.card}>
+                <div className="cardfx" style={styles.card}>
                   <h4 style={{ color:"#fbbf24", marginBottom:12 }}>📊 Ranking ao vivo</h4>
                   {ranking.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Aguardando alunos terminarem...</p> : (
                     ranking.map((s,i)=>(
@@ -5311,7 +5440,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             {/* estado: done */}
             {examConfig.status === 'done' && (
               <>
-                <div style={styles.card}>
+                <div className="cardfx" style={styles.card}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
                     <div>
                       <h3 style={{ color:"#34d399", margin:"0 0 4px" }}>✅ Prova Encerrada</h3>
@@ -5320,7 +5449,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                     <button onClick={resetExam} style={styles.btn("#5d679c")}>🔄 Nova Prova</button>
                   </div>
                 </div>
-                <div style={{ ...styles.card, borderColor:"#7c83ff" }}>
+                <div className="cardfx" style={{ ...styles.card, borderColor:"#7c83ff" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                       <NyxRobot state="thinking" size={44} showName={false} />
@@ -5335,7 +5464,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   </div>
                   {examAnalysis && <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.8, whiteSpace:"pre-wrap", margin:"12px 0 0" }}>{examAnalysis}</p>}
                 </div>
-                <div style={styles.card}>
+                <div className="cardfx" style={styles.card}>
                   <h4 style={{ color:"#fbbf24", marginBottom:12 }}>🏆 Ranking Final</h4>
                   {ranking.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno respondeu.</p> : (
                     ranking.map((s,i)=>(
@@ -5466,7 +5595,7 @@ function Login({ onJoin }) {
       <div className="pop" style={styles.card}>
         <div style={{ textAlign:"center", marginBottom:20 }}>
           <NyxRobot state="idle" size={86} showName={false} />
-          <h1 style={{ fontSize:28, margin:"6px 0 2px", fontWeight:900, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Aula de C#</h1>
+          <h1 className="shine" style={{ fontSize:28, margin:"6px 0 2px", fontWeight:900, background:"linear-gradient(120deg,#7c83ff,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Aula de C#</h1>
           <p style={{ color:"#5d679c", fontSize:13, margin:0 }}>Plataforma da turma · com o robô <b style={{ color:"#7c83ff" }}>Nyx</b></p>
         </div>
 
