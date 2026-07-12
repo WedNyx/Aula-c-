@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getInspection, setInspection } from "./storage.js";
 import { xlsxBlob } from "./xlsx.js";
 
 // ── tema ──
@@ -58,6 +58,7 @@ function playSound(kind) {
     else if (kind === "levelup") { [392, 523.25, 659.25].forEach((f, i) => playTone(ctx, f, t + i * 0.1, 0.2, "sine", 0.1)); }
     else if (kind === "click") { playTone(ctx, 740, t, 0.06, "sine", 0.05); }
     else if (kind === "enter") { [440, 660].forEach((f, i) => playTone(ctx, f, t + i * 0.09, 0.16, "sine", 0.07)); }
+    else if (kind === "bell") { [987.77, 1318.5, 987.77].forEach((f, i) => playTone(ctx, f, t + i * 0.22, 0.5, "sine", 0.12)); }
   } catch {}
 }
 function setSoundsMuted(v) { soundsMuted = v; try { localStorage.setItem("nyx_sounds_muted", v ? "1" : "0"); } catch {} }
@@ -2611,6 +2612,33 @@ function requestFS(){
 const goFullscreen = () => { requestFS().catch(()=>{}); };
 const todayKey = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 
+// ── horário automático de aula: converte "HH:MM" em minutos desde a meia-noite (hora do próprio
+// aparelho — o mesmo relógio que já é usado pra saber "que dia é hoje" no resto do sistema) ──
+function hmToMin(hm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hm||"").trim());
+  if (!m) return null;
+  return (+m[1]) * 60 + (+m[2]);
+}
+function nowMin() { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+// calcula a situação da aula AGORA a partir do horário configurado pro turno — sem horário
+// definido (start/end vazios), a aula fica sempre aberta (a trava é 100% opt-in)
+function classStatus(sched) {
+  const start = hmToMin(sched?.start), end = hmToMin(sched?.end);
+  if (start == null || end == null) return { configured:false, open:true, inBreak:false, warnEnd:false };
+  const n = nowMin();
+  const bStart = hmToMin(sched?.breakStart);
+  const bMin = Number(sched?.breakMin) || 0;
+  const bEnd = (bStart != null && bMin > 0) ? bStart + bMin : null;
+  const inBreak = bStart != null && bEnd != null && n >= bStart && n < bEnd;
+  const before = n < start, after = n >= end;
+  const minutesToEnd = end - n;
+  return {
+    configured: true, open: !before && !after, before, after, inBreak,
+    minutesToEnd, minutesToBreakEnd: inBreak ? (bEnd - n) : null,
+    warnEnd: !before && !after && !inBreak && minutesToEnd > 0 && minutesToEnd <= 5,
+  };
+}
+
 // ── turnos (matutino / vespertino) ──
 const SHIFTS = [
   { id:"matutino",   label:"Matutino",   emoji:"☀️" },
@@ -2723,6 +2751,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [helpAt, setHelpAt] = useState(null);
   // 👾 chefão da turma ativo (evento do telão) — aqui só aparece o aviso motivador
   const [bossInfo, setBossInfo] = useState(null);
+  // 🕐 horário automático de aula (do turno) + vistoria (libera este aluno específico fora do horário)
+  const [mySchedule, setMySchedule] = useState({});
+  const [myInspection, setMyInspection] = useState(false);
+  const [breakEndMsg, setBreakEndMsg] = useState("");
+  const breakEndNotifiedRef = useRef(null);
+  // relógio próprio (1x por segundo) só pra a contagem regressiva do intervalo/fim de aula ficar fluida
+  const [clockNow, setClockNow] = useState(() => Date.now());
+  useEffect(() => { const iv = setInterval(() => setClockNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
   // 🔮 previsão do dia (dispensável; lembrada por dia no navegador)
   const [videnteDismissed, setVidenteDismissed] = useState(() => {
     try { return localStorage.getItem(`nyx_vidente_${todayKey()}`) === "1"; } catch { return false; }
@@ -2812,6 +2848,23 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
   useEffect(() => { if (nyxLocks.zeker && showDuel) setShowDuel(false); }, [nyxLocks.zeker, showDuel]);
+
+  // ── fim do intervalo: sininho + aviso, uma vez só por intervalo (não repete a cada nova checagem) ──
+  const classStatusNow = classStatus(mySchedule);
+  useEffect(() => {
+    const bEnd = mySchedule?.breakStart && mySchedule?.breakMin ? `${todayKey()}-${mySchedule.breakStart}-${mySchedule.breakMin}` : null;
+    if (!bEnd) return;
+    if (!classStatusNow.inBreak && classStatusNow.configured && breakEndNotifiedRef.current !== bEnd) {
+      // só dispara se JÁ passou do horário do intervalo hoje (evita disparar antes de começar)
+      const bStartMin = hmToMin(mySchedule.breakStart);
+      if (bStartMin != null && nowMin() >= bStartMin + Number(mySchedule.breakMin || 0)) {
+        breakEndNotifiedRef.current = bEnd;
+        playSound("bell");
+        setBreakEndMsg("🔔 Intervalo acabou! Hora de voltar aos estudos.");
+        setTimeout(() => setBreakEndMsg(""), 8000);
+      }
+    }
+  }, [classStatusNow.inBreak, classStatusNow.configured, mySchedule?.breakStart, mySchedule?.breakMin]);
 
 
   const persist = useCallback(async (extra = {}) => {
@@ -3138,6 +3191,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       try {
         const b = await getBoss();
         setBossInfo(b && b.status === "active" ? b : null);
+      } catch {}
+      // 🕐 horário automático da turma + 🔍 vistoria (libera este aluno específico fora do horário)
+      try {
+        const m = await getTeacherMeta();
+        setMySchedule((m.schedule || {})[shift] || {});
+        setMyInspection(await getInspection(shift, studentName));
       } catch {}
       // modo guiado (acessibilidade) — o professor pode ligar/desligar por aluno a qualquer momento
       try {
@@ -3680,6 +3739,23 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     </div>
   );
 
+  // ── HORÁRIO AUTOMÁTICO: fora do horário configurado, a sala fica fechada (a vistoria do professor libera na hora) ──
+  if (classStatusNow.configured && !classStatusNow.open && !myInspection) return (
+    <div style={{ ...styles.container, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"2px solid #7c83ff", borderRadius:22, padding:"34px 28px", maxWidth:460, width:"100%", textAlign:"center", boxShadow:"0 24px 70px rgba(0,0,0,.6), 0 0 60px #7c83ff22" }}>
+        <div style={{ animation:"nyx-float 3s ease-in-out infinite" }}>
+          <NyxRobot state="idle" size={110} showName={false} gear={nyxGear} />
+        </div>
+        <h2 style={{ color:"#7c83ff", fontSize:23, fontWeight:900, margin:"14px 0 6px" }}>{classStatusNow.before ? "⏰ A aula ainda não começou" : "👋 A aula de hoje já encerrou"}</h2>
+        <p style={{ color:"#c7cfee", fontSize:15, lineHeight:1.7, margin:0 }}>
+          {classStatusNow.before
+            ? `A turma ${shiftMeta(shift).label} começa às ${mySchedule.start}. Até já!`
+            : "Até a próxima aula! Seu código já está salvo, então pode ficar tranquilo(a)."}
+        </p>
+      </div>
+    </div>
+  );
+
   // classes de apoio (aplicadas em todas as telas do aluno) + rotina visual da aula
   const supportClass = [calmMode && "calm", easyRead && "easy-read"].filter(Boolean).join(" ") || undefined;
   const showRoutine = accessMode || calmMode || focusMode || easyRead || ownPace;
@@ -4182,6 +4258,28 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             <span style={{ fontSize:20, animation:"nyx-shake 2.2s ease-in-out infinite" }}>{bossInfo.emoji}</span>
             <span style={{ flex:1, color:"#e9d5ff" }}><b style={{ color:"#c4b5fd" }}>{bossInfo.name} invadiu a aula!</b> Cada resposta certa da turma tira vida dele — acompanhe a batalha no telão! ⚔️</span>
           </div>
+        </div>
+      )}
+
+      {classStatusNow.inBreak && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div style={{ background:"linear-gradient(90deg,#0e749922,#22d3ee22)", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:20 }}>🍎</span>
+            <span style={{ flex:1, color:"#a5f3fc" }}><b style={{ color:"#22d3ee" }}>Hora do intervalo!</b> Volta em {classStatusNow.minutesToBreakEnd} min. Pode continuar mexendo no código se quiser — é só descanso, sem pressa. 😊</span>
+          </div>
+        </div>
+      )}
+      {classStatusNow.warnEnd && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div style={{ background:"#fbbf2418", border:"1px solid #fbbf24", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:20 }}>⏰</span>
+            <span style={{ flex:1, color:"#fcd9a0" }}><b style={{ color:"#fbbf24" }}>Faltam {classStatusNow.minutesToEnd} minuto{classStatusNow.minutesToEnd!==1?"s":""} pra aula acabar!</b> Já pode ir salvando seu trabalho.</span>
+          </div>
+        </div>
+      )}
+      {breakEndMsg && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div style={{ background:"#22d3ee18", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#a5f3fc", fontWeight:700 }}>{breakEndMsg}</div>
         </div>
       )}
 
@@ -4713,6 +4811,12 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [diag, setDiag] = useState(null);
   const [tab, setTab] = useState("monitor");
   const [meta, setMeta] = useState({ city:"", classDays:[], contentNames:{} });
+  // horário automático de aula (por turno) + vistoria (libera um aluno específico fora do horário)
+  const [schedule, setSchedule] = useState({});
+  const [scheduleMsg, setScheduleMsg] = useState("");
+  const [selInspection, setSelInspection] = useState(false);
+  const [breakEndMsgTeacher, setBreakEndMsgTeacher] = useState("");
+  const breakEndNotifiedTeacherRef = useRef({});
   const [cityInput, setCityInput] = useState("");
   const [shiftFilter, setShiftFilter] = useState("all");
   const [genName, setGenName] = useState(false);
@@ -4781,6 +4885,24 @@ function TeacherView({ onLogout, teacherAuth }) {
   }, [load]);
 
   useEffect(() => { diagnose().then(setDiag); }, []);
+
+  // 🍎 intervalo: status de cada turno (recalcula a cada carregamento da turma, ~2s) + sininho no fim
+  const shiftBreakStatuses = SHIFTS.map(sh => ({ ...sh, status: classStatus(schedule[sh.id] || {}) }));
+  useEffect(() => {
+    shiftBreakStatuses.forEach(({ id, label, status }) => {
+      const sc = schedule[id] || {};
+      if (!sc.breakStart || !sc.breakMin) return;
+      const bKey = `${todayKey()}-${id}-${sc.breakStart}-${sc.breakMin}`;
+      const bStartMin = hmToMin(sc.breakStart);
+      if (bStartMin == null) return;
+      if (!status.inBreak && status.configured && nowMin() >= bStartMin + Number(sc.breakMin) && breakEndNotifiedTeacherRef.current[bKey] !== true) {
+        breakEndNotifiedTeacherRef.current[bKey] = true;
+        playSound("bell");
+        setBreakEndMsgTeacher(`🔔 Intervalo da turma ${label} acabou!`);
+        setTimeout(() => setBreakEndMsgTeacher(""), 8000);
+      }
+    });
+  }, [shiftBreakStatuses.map(s => s.status.inBreak).join(","), schedule]);
   // mapa de perfis de apoio (indicador 💙 nos tiles) — atualiza de vez em quando, não precisa ser ao vivo
   useEffect(() => {
     let active = true;
@@ -4802,7 +4924,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     const iv = setInterval(check, 4000);
     return () => { active = false; clearInterval(iv); };
   }, []);
-  useEffect(() => { getTeacherMeta().then(m => { metaRef.current = m; setMeta(m); setCityInput(m.city||""); }); }, []);
+  useEffect(() => { getTeacherMeta().then(m => { metaRef.current = m; setMeta(m); setCityInput(m.city||""); setSchedule(m.schedule||{}); }); }, []);
   // carrega o código salvo do professor uma vez, para cada turno
   useEffect(() => {
     (async () => {
@@ -4825,6 +4947,13 @@ function TeacherView({ onLogout, teacherAuth }) {
   }, [proFilesByShift, proLoaded]);
 
   const saveCity = async () => { const nm = { ...metaRef.current, city:cityInput.trim() }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
+  const saveSchedule = async () => {
+    const nm = { ...metaRef.current, schedule };
+    metaRef.current = nm; setMeta(nm);
+    await saveTeacherMeta(nm, teacherAuth);
+    setScheduleMsg("✅ Horário salvo!");
+    setTimeout(()=>setScheduleMsg(""), 4000);
+  };
   const toggleClassDay = async (k) => {
     const has = metaRef.current.classDays.includes(k);
     const days = has ? metaRef.current.classDays.filter(d=>d!==k) : [...metaRef.current.classDays, k];
@@ -5332,6 +5461,8 @@ function TeacherView({ onLogout, teacherAuth }) {
     else setSelAccessMode(false);
     if (sel) getSupport(sel.shift, sel.name).then(v => { if (alive) setSelSupport(v || {}); });
     else setSelSupport({});
+    if (sel) getInspection(sel.shift, sel.name).then(v => { if (alive) setSelInspection(v); });
+    else setSelInspection(false);
     return () => { alive = false; };
   }, [sel?.shift, sel?.name]);
   const doToggleAccessMode = async (s) => {
@@ -5352,6 +5483,13 @@ function TeacherView({ onLogout, teacherAuth }) {
   const markHelped = async (s) => {
     await setScoreFix(s.shift, s.name, { kind: "help-attended" }, teacherAuth);
     flashMgmt(`✅ Pedido de ajuda de ${s.name} marcado como atendido.`);
+  };
+  // 🔍 vistoria: libera este aluno específico mesmo fora do horário automático
+  const doToggleInspection = async (s) => {
+    const next = !selInspection;
+    await setInspection(s.shift, s.name, next, teacherAuth);
+    setSelInspection(next);
+    flashMgmt(next ? `🔍 Vistoria aberta pra ${s.name} — ele pode entrar mesmo fora do horário.` : "✅ Vistoria concluída.");
   };
   // 🔑 reseta o PIN do aluno (ele cria um novo na próxima entrada)
   const doResetPin = async (s) => {
@@ -5481,6 +5619,17 @@ function TeacherView({ onLogout, teacherAuth }) {
         <div style={{ position:"fixed", top:12, left:12, zIndex:1200, background:"#181d38", border:"1px solid #fbbf24", borderRadius:10, padding:"7px 12px", display:"flex", alignItems:"center", gap:8, boxShadow:"0 8px 24px rgba(0,0,0,.4)" }}>
           <span style={{ display:"inline-block", width:9, height:9, borderRadius:"50%", background:"#fbbf24", animation:"nyx-antenna 1s ease-in-out infinite" }} />
           <span style={{ color:"#fbbf24", fontSize:12.5, fontWeight:700 }}>🔄 Reconectando Nyx...</span>
+        </div>
+      )}
+      {shiftBreakStatuses.filter(s => s.status.inBreak).map(s => (
+        <div key={s.id} style={{ position:"fixed", top: aiDown ? 54 : 12, right:12, zIndex:1200, background:"#0e1f2e", border:"1px solid #22d3ee", borderRadius:10, padding:"7px 12px", display:"flex", alignItems:"center", gap:8, boxShadow:"0 8px 24px rgba(0,0,0,.4)" }}>
+          <span style={{ fontSize:15 }}>🍎</span>
+          <span style={{ color:"#a5f3fc", fontSize:12.5, fontWeight:700 }}>Intervalo {s.label} · volta em {s.status.minutesToBreakEnd}min</span>
+        </div>
+      ))}
+      {breakEndMsgTeacher && (
+        <div style={{ position:"fixed", top:12, right:12, zIndex:1200, background:"#0e1f2e", border:"1px solid #22d3ee", borderRadius:10, padding:"7px 12px", boxShadow:"0 8px 24px rgba(0,0,0,.4)" }}>
+          <span style={{ color:"#a5f3fc", fontSize:12.5, fontWeight:700 }}>{breakEndMsgTeacher}</span>
         </div>
       )}
       <div style={{ ...styles.header, ...(tab==="code" ? { padding:"6px 14px" } : {}) }}>
@@ -5974,6 +6123,13 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>O PIN protege o perfil contra colegas. Se o aluno esquecer, resete aqui — ele cria um novo na próxima entrada.</span>
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
+                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🔍 Vistoria:</span>
+                      <button onClick={()=>doToggleInspection(sel)} style={{ ...styles.btn(selInspection?"#22d3ee":"#2a3154"), padding:"6px 14px", fontSize:12.5 }}>
+                        {selInspection ? "✅ Vistoria aberta — Encerrar" : "Liberar fora do horário"}
+                      </button>
+                      <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>{selInspection ? "Esse aluno consegue entrar agora, mesmo fora do horário configurado." : "Se o horário automático estiver fechado, isso libera só ESTE aluno pra você inspecionar o trabalho dele."}</span>
+                    </div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
                       <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>📤 Código:</span>
                       <button onClick={()=>doSendClassCode(sel)} style={{ ...styles.btn("#22d3ee"), padding:"6px 14px", fontSize:12.5 }}>Enviar código da turma</button>
                       <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>Manda todos os arquivos da aba "Meu código" (turno {shiftLabel(sel.shift)}) direto pro editor deste aluno.</span>
@@ -6106,6 +6262,40 @@ function TeacherView({ onLogout, teacherAuth }) {
             {meta.city && <p style={{ color:"#34d399", fontSize:13, marginTop:10 }}>Cidade salva: {meta.city}</p>}
             <hr style={{ borderColor:"#2a3154", margin:"14px 0" }}/>
             <p style={{ color:"#96a0cc", fontSize:13 }}>Total de dias de aula registrados: <b style={{ color:"#e8ebfa" }}>{(meta.classDays||[]).length}</b></p>
+          </div>
+          <div className="cardfx" style={{ ...styles.card, flex:"1 1 300px" }}>
+            <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🕐 Horário da turma ({shiftMeta(codeShift).label})</h3>
+            <p style={{ color:"#96a0cc", fontSize:12.5, margin:"0 0 12px", lineHeight:1.6 }}>Defina o horário e o Nyx libera/bloqueia o perfil dos alunos sozinho. Deixe em branco pra não restringir nada.</p>
+            {(() => {
+              const sc = schedule[codeShift] || {};
+              const setSc = (patch) => setSchedule(prev => ({ ...prev, [codeShift]: { ...(prev[codeShift]||{}), ...patch } }));
+              const status = classStatus(sc);
+              return (
+                <>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                    <label style={{ fontSize:11.5, color:"#96a0cc" }}>Início da aula
+                      <input type="time" value={sc.start||""} onChange={e=>setSc({start:e.target.value})} style={{ width:"100%", background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 8px", color:"#e8ebfa", fontSize:13, marginTop:3 }} />
+                    </label>
+                    <label style={{ fontSize:11.5, color:"#96a0cc" }}>Fim da aula
+                      <input type="time" value={sc.end||""} onChange={e=>setSc({end:e.target.value})} style={{ width:"100%", background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 8px", color:"#e8ebfa", fontSize:13, marginTop:3 }} />
+                    </label>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
+                    <label style={{ fontSize:11.5, color:"#96a0cc" }}>Início do intervalo
+                      <input type="time" value={sc.breakStart||""} onChange={e=>setSc({breakStart:e.target.value})} style={{ width:"100%", background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 8px", color:"#e8ebfa", fontSize:13, marginTop:3 }} />
+                    </label>
+                    <label style={{ fontSize:11.5, color:"#96a0cc" }}>Duração (min)
+                      <input type="number" min={0} value={sc.breakMin||""} onChange={e=>setSc({breakMin:e.target.value})} placeholder="ex: 15" style={{ width:"100%", background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 8px", color:"#e8ebfa", fontSize:13, marginTop:3, boxSizing:"border-box" }} />
+                    </label>
+                  </div>
+                  <button style={{ ...styles.btn("#7c83ff"), width:"100%", padding:"8px 0", fontSize:13 }} onClick={saveSchedule}>💾 Salvar horário</button>
+                  {scheduleMsg && <p style={{ color:"#34d399", fontSize:12, margin:"8px 0 0" }}>{scheduleMsg}</p>}
+                  <p style={{ fontSize:12, margin:"10px 0 0", fontWeight:700, color: !status.configured ? "#5d679c" : status.open ? (status.inBreak ? "#22d3ee" : "#34d399") : "#f87171" }}>
+                    {!status.configured ? "⚪ Sem restrição — aberto o dia todo" : status.inBreak ? `🍎 Em intervalo agora (volta em ${status.minutesToBreakEnd}min)` : status.open ? "🟢 Aula liberada agora" : status.before ? `🔴 Fechado — abre às ${sc.start}` : "🔴 Fechado — aula já encerrou hoje"}
+                  </p>
+                </>
+              );
+            })()}
           </div>
           <div className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:8 }}>📖 Conteúdo de hoje ({shiftMeta(codeShift).label})</h3>

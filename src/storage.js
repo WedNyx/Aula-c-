@@ -149,6 +149,23 @@ export async function listAllSupport() {
   } catch { return {} }
 }
 
+// ── vistoria: libera um aluno específico fora do horário automático da aula ──
+function inspectionKeyFor(shift, name) {
+  return `inspection:${shift || 'sem-turno'}:${safeName(name)}`
+}
+export async function getInspection(shift, name) {
+  try {
+    const r = await kvCall({ action: 'get', key: inspectionKeyFor(shift, name) })
+    return r.value === '1'
+  } catch { return false }
+}
+export async function setInspection(shift, name, value, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: inspectionKeyFor(shift, name), value: value ? '1' : '0', auth })
+    return r.ok === true
+  } catch { return false }
+}
+
 // ── travas do Nyx acionadas pelo professor no chat (zek / zeker) ──
 const NYX_LOCKS_KEY = 'nyxlocks:global'
 export async function getNyxLocks() {
