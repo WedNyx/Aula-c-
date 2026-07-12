@@ -2159,17 +2159,20 @@ const TYPING_SNIPPETS = [
 ];
 
 // ════════════════════════════════════════════════════════════════════════════
-//  ⌨️ TUTORIAL DE TECLADO (layout ABNT2 — teclado brasileiro)
-//  PROVISÓRIO: o professor ainda vai mandar uma foto do teclado real da carreta
-//  pra conferir/ajustar essa tabela — a validação de tecla (o que realmente conta
-//  como "certo") usa o que o navegador reporta pro teclado FÍSICO conectado, então
-//  funciona certo mesmo antes do ajuste; só o textinho de dica pode mudar depois.
+//  ⌨️ TUTORIAL DE TECLADO (ABNT2 — réplica do notebook Lenovo da carreta)
+//  Desenhado tecla por tecla a partir da FOTO do teclado real enviada pelo
+//  professor: mesmas posições, mesmos símbolos nas mesmas teclas — assim o aluno
+//  acha no computador exatamente o que vê brilhando na tela. A validação usa o
+//  que o navegador reporta do teclado físico, então acompanha o layout de verdade.
 // ════════════════════════════════════════════════════════════════════════════
-const ABNT2_ROWS = [
-  ["'", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="],
-  ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "]"],
-  ["A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "~"],
-  ["Z", "X", "C", "V", "B", "N", "M", ",", ".", "/"],
+// cada tecla: id (usado pro destaque), rótulo principal, símbolo do Shift (canto de cima) e largura
+const kbKey = (id, label, shiftSym, w) => ({ id, label: label ?? id, shiftSym: shiftSym || null, w: w || 34 });
+const KB_ROWS = [
+  [ kbKey("'", "'", '"'), kbKey("1","1","!"), kbKey("2","2","@"), kbKey("3","3","#"), kbKey("4","4","$"), kbKey("5","5","%"), kbKey("6","6","¨"), kbKey("7","7","&"), kbKey("8","8","*"), kbKey("9","9","("), kbKey("0","0",")"), kbKey("-","-","_"), kbKey("=","=","+"), kbKey("Backspace","⌫",null,54) ],
+  [ kbKey("Tab","Tab ⇆",null,52), kbKey("Q"), kbKey("W"), kbKey("E"), kbKey("R"), kbKey("T"), kbKey("Y"), kbKey("U"), kbKey("I"), kbKey("O"), kbKey("P"), kbKey("´","´","`"), kbKey("[","[","{"), kbKey("Enter","⏎",null,50) ],
+  [ kbKey("CapsLock","CapsLk",null,62), kbKey("A"), kbKey("S"), kbKey("D"), kbKey("F"), kbKey("G"), kbKey("H"), kbKey("J"), kbKey("K"), kbKey("L"), kbKey("Ç"), kbKey("~","~","^"), kbKey("]","]","}") ],
+  [ kbKey("ShiftL","⇧ Shift",null,62), kbKey("\\","\\","|"), kbKey("Z"), kbKey("X"), kbKey("C"), kbKey("V"), kbKey("B"), kbKey("N"), kbKey("M"), kbKey(",",",","<"), kbKey(".",".",">"), kbKey(";",";",":"), kbKey("ShiftR","⇧ Shift",null,62) ],
+  [ kbKey("Ctrl","Ctrl",null,44), kbKey("Fn","Fn"), kbKey("Win","⊞"), kbKey("Alt","Alt"), kbKey("Space","espaço",null,168), kbKey("AltGr","Alt Gr",null,50), kbKey("/","/","?") ],
 ];
 // qual tecla física (+ modificador) produz cada símbolo de programação no ABNT2
 const SYMBOL_KEYCAP = {
@@ -2194,7 +2197,8 @@ const KEY_NAMES = {
   "(": "parêntese", ")": "parêntese", '"': "aspas", "'": "apóstrofo",
   ";": "ponto e vírgula", "_": "traço baixo (underline)", "-": "hífen",
   "=": "igual", ".": "ponto", ",": "vírgula", "<": "menor que", ">": "maior que",
-  "9": "nove", "0": "zero",
+  "9": "nove", "0": "zero", "/": "barra", "\\": "barra invertida",
+  "´": "acento agudo", "~": "til", "ç": "cê-cedilha",
 };
 const keyName = (k) => KEY_NAMES[k] ? `${KEY_NAMES[k]} (${k})` : k;
 function comboLabel(sym) {
@@ -2216,30 +2220,45 @@ const KEYBOARD_LEVELS = [
   { id:5, title:"Teste final", line: 'int x = 10;\nif (x > 5) { Console.WriteLine("Oi"); }' },
 ];
 function MiniKeyboard({ highlight }) {
-  const keyStyle = (active, extraMinWidth) => ({
-    display:"flex", alignItems:"center", justifyContent:"center", minWidth: extraMinWidth || 30, height:34, padding:"0 4px",
+  // a tecla principal E o(s) modificador(es) brilham juntos — é isso que precisa ser apertado ao mesmo tempo
+  const isActive = (k) => {
+    if (!highlight) return false;
+    const mods = highlight.mods || [];
+    if (k.id === "ShiftL" || k.id === "ShiftR") return mods.includes("shift");
+    if (k.id === "Ctrl") return mods.includes("ctrl");
+    if (k.id === "AltGr") return mods.includes("altgr");
+    return highlight.key === k.id;
+  };
+  const keyStyle = (active, w, h) => ({
+    display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minWidth: w, height: h || 34, padding:"0 4px", boxSizing:"border-box",
     background: active ? "linear-gradient(180deg,#fbbf24,#f59310)" : "linear-gradient(180deg,#2a3154,#1c2140)",
     border:`1px solid ${active?"#fbbf24":"#3a4270"}`, borderRadius:6, color: active?"#1c1400":"#c7cfee",
-    fontWeight:800, fontSize:12.5, fontFamily:"monospace", boxShadow: active ? "0 0 14px #fbbf2488" : "0 2px 0 #10142866",
+    fontWeight:800, fontSize:12, fontFamily:"monospace", lineHeight:1.05, boxShadow: active ? "0 0 14px #fbbf2488" : "0 2px 0 #10142866",
     animation: active ? "nyx-shake 0.9s ease-in-out infinite" : "none", transition:"background .15s",
   });
-  // a tecla principal E o(s) modificador(es) brilham juntos — é isso que precisa ser apertado ao mesmo tempo
-  const isKey = (k) => !!highlight && highlight.key === k;
-  const isMod = (m) => !!highlight && (highlight.mods||[]).includes(m);
+  const renderKey = (k) => {
+    const active = isActive(k);
+    return (
+      <div key={k.id} style={keyStyle(active, k.w)} title={k.shiftSym ? `Shift + ${k.label} = ${k.shiftSym}` : undefined}>
+        {k.shiftSym && <span style={{ fontSize:9, color: active ? "#1c1400aa" : "#7d87b8" }}>{k.shiftSym}</span>}
+        <span>{k.label}</span>
+      </div>
+    );
+  };
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", margin:"14px 0", overflowX:"auto" }}>
-      {ABNT2_ROWS.map((row, ri) => (
-        <div key={ri} style={{ display:"flex", gap:4 }}>
-          {row.map(k => <div key={k} style={keyStyle(isKey(k))}>{k}</div>)}
-        </div>
+      {KB_ROWS.slice(0, 4).map((row, ri) => (
+        <div key={ri} style={{ display:"flex", gap:4 }}>{row.map(renderKey)}</div>
       ))}
-      <div style={{ display:"flex", gap:4 }}>
-        <div style={keyStyle(isMod("shift"), 64)}>Shift</div>
-        <div style={keyStyle(isMod("ctrl"), 44)}>Ctrl</div>
-        <div style={keyStyle(false)}>Alt</div>
-        <div style={keyStyle(false, 160)}>espaço</div>
-        <div style={keyStyle(isMod("altgr"), 54)}>Alt Gr</div>
-        <div style={keyStyle(isMod("ctrl"), 44)}>Ctrl</div>
+      {/* última fileira + bloco de setas (← ↑/↓ →), igual ao notebook da carreta */}
+      <div style={{ display:"flex", gap:4, alignItems:"stretch" }}>
+        {KB_ROWS[4].map(renderKey)}
+        <div style={keyStyle(false, 34)}>←</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+          <div style={{ ...keyStyle(false, 34, 16), fontSize:8 }}>↑ PgUp</div>
+          <div style={{ ...keyStyle(false, 34, 16), fontSize:8 }}>↓ PgDn</div>
+        </div>
+        <div style={keyStyle(false, 34)}>→</div>
       </div>
     </div>
   );
