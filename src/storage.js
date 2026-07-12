@@ -166,6 +166,38 @@ export async function setInspection(shift, name, value, auth) {
   } catch { return false }
 }
 
+// ── 🏆 Hall da Fama: uma "placa" por cidade encerrada, visível para os alunos das próximas cidades ──
+const HALL_KEY = 'hall:entries'
+export async function getHallOfFame() {
+  try {
+    const r = await kvCall({ action: 'get', key: HALL_KEY })
+    return r.value ? JSON.parse(r.value) : []
+  } catch { return [] }
+}
+export async function saveHallOfFame(entries, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: HALL_KEY, value: JSON.stringify(entries || []), auth })
+    return r.ok === true
+  } catch { return false }
+}
+
+// ── ⌨️ tutorial de teclado: o professor "empurra" a abertura da tela pro aluno específico ──
+function kbLaunchKeyFor(shift, name) {
+  return `kblaunch:${shift || 'sem-turno'}:${safeName(name)}`
+}
+export async function setKeyboardLaunch(shift, name, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: kbLaunchKeyFor(shift, name), value: String(Date.now()), auth })
+    return r.ok === true
+  } catch { return false }
+}
+export async function getKeyboardLaunch(shift, name) {
+  try {
+    const r = await kvCall({ action: 'get', key: kbLaunchKeyFor(shift, name) })
+    return r.value ? parseInt(r.value, 10) : null
+  } catch { return null }
+}
+
 // ── travas do Nyx acionadas pelo professor no chat (zek / zeker) ──
 const NYX_LOCKS_KEY = 'nyxlocks:global'
 export async function getNyxLocks() {

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getInspection, setInspection } from "./storage.js";
-import { xlsxBlob } from "./xlsx.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch } from "./storage.js";
+import { xlsxBlob, colLetter } from "./xlsx.js";
 
 // ── tema ──
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
@@ -276,6 +276,7 @@ const ACHIEVEMENTS = [
   { id:"duelista-3",         emoji:"🏆", label:"Campeão de Duelos", desc:"Venceu 3 duelos" },
   // extras
   { id:"artista",            emoji:"🎨", label:"Artista",        desc:"Pediu ao Nyx um fundo de cor personalizada" },
+  { id:"teclado-mestre",     emoji:"🎹", label:"Mestre do Teclado", desc:"Completou o tutorial de teclado até o fim" },
   // secreta: só se revela quando alguém descobre um comando escondido no terminal
   { id:"segredo",            emoji:"🥚", label:"Caçador de Segredos", desc:"Descobriu um comando secreto no terminal", secret:true },
 ];
@@ -2157,6 +2158,275 @@ const TYPING_SNIPPETS = [
   'string resposta = Console.ReadLine();\nConsole.WriteLine(resposta);',
 ];
 
+// ════════════════════════════════════════════════════════════════════════════
+//  ⌨️ TUTORIAL DE TECLADO (layout ABNT2 — teclado brasileiro)
+//  PROVISÓRIO: o professor ainda vai mandar uma foto do teclado real da carreta
+//  pra conferir/ajustar essa tabela — a validação de tecla (o que realmente conta
+//  como "certo") usa o que o navegador reporta pro teclado FÍSICO conectado, então
+//  funciona certo mesmo antes do ajuste; só o textinho de dica pode mudar depois.
+// ════════════════════════════════════════════════════════════════════════════
+const ABNT2_ROWS = [
+  ["'", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="],
+  ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "]"],
+  ["A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "~"],
+  ["Z", "X", "C", "V", "B", "N", "M", ",", ".", "/"],
+];
+// qual tecla física (+ modificador) produz cada símbolo de programação no ABNT2
+const SYMBOL_KEYCAP = {
+  "(": { key: "9", mod: "shift" },
+  ")": { key: "0", mod: "shift" },
+  "[": { key: "[", mod: null },
+  "]": { key: "]", mod: null },
+  "{": { key: "[", mod: "altgr" },
+  "}": { key: "]", mod: "altgr" },
+  '"': { key: "'", mod: "shift" },
+  ";": { key: ";", mod: null },
+  "_": { key: "-", mod: "shift" },
+  "=": { key: "=", mod: null },
+  ".": { key: ".", mod: null },
+  ",": { key: ",", mod: null },
+  "<": { key: ",", mod: "shift" },
+  ">": { key: ".", mod: "shift" },
+};
+function comboLabel(sym) {
+  const c = SYMBOL_KEYCAP[sym];
+  if (!c) return `Aperte a tecla ${sym}`;
+  if (c.mod === "shift") return `Segure Shift e aperte a tecla ${c.key}`;
+  if (c.mod === "altgr") return `Segure Alt Gr (à direita da barra de espaço) e aperte a tecla ${c.key}`;
+  return `Aperte a tecla ${c.key} (sem precisar de mais nada)`;
+}
+const KEYBOARD_LEVELS = [
+  { id:1, title:"Letras e números", targets: "abcdefghijklmnopqrstuvwxyz0123456789".split("").map(char => ({ char })) },
+  { id:2, title:"Shift (maiúsculas)", targets: "NYXCODAR".split("").map(char => ({ char, shift:true })) },
+  { id:3, title:"Ctrl (copiar, colar, desfazer)", targets: [
+    { char:"c", ctrl:true, label:"Ctrl + C, copiar" },
+    { char:"v", ctrl:true, label:"Ctrl + V, colar" },
+    { char:"z", ctrl:true, label:"Ctrl + Z, desfazer" },
+  ] },
+  { id:4, title:"Símbolos de programação", targets: ["(",")","[","]","{","}",'"',";","_","=",".",",","<",">"].map(char => ({ char, symbol:true })) },
+  { id:5, title:"Teste final", line: 'int x = 10;\nif (x > 5) { Console.WriteLine("Oi"); }' },
+];
+function MiniKeyboard({ highlight }) {
+  const keyStyle = (active, extraMinWidth) => ({
+    display:"flex", alignItems:"center", justifyContent:"center", minWidth: extraMinWidth || 30, height:34, padding:"0 4px",
+    background: active ? "linear-gradient(180deg,#fbbf24,#f59310)" : "linear-gradient(180deg,#2a3154,#1c2140)",
+    border:`1px solid ${active?"#fbbf24":"#3a4270"}`, borderRadius:6, color: active?"#1c1400":"#c7cfee",
+    fontWeight:800, fontSize:12.5, fontFamily:"monospace", boxShadow: active ? "0 0 14px #fbbf2488" : "0 2px 0 #10142866",
+    animation: active ? "nyx-shake 0.9s ease-in-out infinite" : "none", transition:"background .15s",
+  });
+  const isKey = (k) => !!highlight && !highlight.mod && highlight.key === k;
+  const isMod = (m) => !!highlight && highlight.mod === m;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", margin:"14px 0", overflowX:"auto" }}>
+      {ABNT2_ROWS.map((row, ri) => (
+        <div key={ri} style={{ display:"flex", gap:4 }}>
+          {row.map(k => <div key={k} style={keyStyle(isKey(k))}>{k}</div>)}
+        </div>
+      ))}
+      <div style={{ display:"flex", gap:4 }}>
+        <div style={keyStyle(isMod("shift"), 64)}>Shift</div>
+        <div style={keyStyle(isMod("ctrl"), 44)}>Ctrl</div>
+        <div style={keyStyle(false)}>Alt</div>
+        <div style={keyStyle(false, 160)}>espaço</div>
+        <div style={keyStyle(isMod("altgr"), 54)}>Alt Gr</div>
+        <div style={keyStyle(isMod("ctrl"), 44)}>Ctrl</div>
+      </div>
+    </div>
+  );
+}
+function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
+  const [levelIdx, setLevelIdx] = useState(0);
+  const [targetIdx, setTargetIdx] = useState(0);
+  const [wrongFlash, setWrongFlash] = useState(false);
+  const [finalTyped, setFinalTyped] = useState("");
+  const [done, setDone] = useState(false);
+  const level = KEYBOARD_LEVELS[levelIdx];
+  const target = level.targets ? level.targets[targetIdx] : null;
+
+  useEffect(() => {
+    if (done) return;
+    if (level.line) { speak("Última etapa! Digite essa linha de código inteira, prestando atenção em cada tecla, sem colar."); return; }
+    if (!target) return;
+    let text;
+    if (target.symbol) text = `${comboLabel(target.char)}, para escrever o símbolo ${target.char}.`;
+    else if (target.ctrl) text = `Segure Ctrl e aperte ${target.char.toUpperCase()}. Isso é o atalho de ${target.label}.`;
+    else if (target.shift) text = `Segure Shift e aperte a tecla ${target.char}, pra sair maiúscula.`;
+    else text = `Aperte a tecla ${target.char.toUpperCase()}.`;
+    speak(text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [levelIdx, targetIdx, done]);
+
+  useEffect(() => {
+    if (done || level.line) return;
+    const onKey = (e) => {
+      if (!target) return;
+      let ok = false;
+      if (target.symbol) ok = e.key === target.char;
+      else if (target.ctrl) { ok = e.ctrlKey && e.key.toLowerCase() === target.char.toLowerCase(); if (ok) e.preventDefault(); }
+      else if (target.shift) ok = e.shiftKey && e.key === target.char.toUpperCase();
+      else ok = !e.shiftKey && !e.ctrlKey && e.key.toLowerCase() === target.char.toLowerCase();
+      if (ok) {
+        playSound("correct");
+        if (targetIdx + 1 < level.targets.length) setTargetIdx(i => i + 1);
+        else if (levelIdx + 1 < KEYBOARD_LEVELS.length) { setLevelIdx(l => l + 1); setTargetIdx(0); playSound("levelup"); }
+      } else if (!["Shift","Control","Alt","AltGraph","Meta","Tab","CapsLock"].includes(e.key)) {
+        playSound("wrong");
+        setWrongFlash(true); setTimeout(() => setWrongFlash(false), 300);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [levelIdx, targetIdx, done, level, target]);
+
+  const finishAll = async () => {
+    setDone(true);
+    stopSpeech?.();
+    playSound("achievement");
+    await onFinish();
+  };
+  const onFinalType = (v) => {
+    setFinalTyped(v);
+    if (v === level.line) finishAll();
+  };
+
+  const highlight = (() => {
+    if (!target) return null;
+    if (target.symbol) { const c = SYMBOL_KEYCAP[target.char]; return c ? { key: c.key.toUpperCase(), mod: c.mod } : null; }
+    if (target.ctrl) return { key: target.char.toUpperCase(), mod: "ctrl" };
+    if (target.shift) return { key: target.char.toUpperCase(), mod: "shift" };
+    return { key: target.char.toUpperCase(), mod: null };
+  })();
+
+  const totalTargets = KEYBOARD_LEVELS.slice(0, 4).reduce((n, l) => n + l.targets.length, 0);
+  const doneTargets = KEYBOARD_LEVELS.slice(0, levelIdx).reduce((n, l) => n + (l.targets ? l.targets.length : 0), 0) + targetIdx;
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.88)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1200, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>⌨️ Tutorial de Teclado</h2>
+          <button onClick={()=>{ stopSpeech?.(); onClose(); }} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        {done ? (
+          <div className="pop" style={{ textAlign:"center", padding:"20px 0" }}>
+            <div style={{ fontSize:44 }}>🎹</div>
+            <p style={{ color:"#e8ebfa", fontWeight:900, fontSize:20, margin:"8px 0 4px" }}>Você é um Mestre do Teclado!</p>
+            <p style={{ color:"#96a0cc", fontSize:13 }}>Treine de novo sempre que quiser — o botão continua aqui.</p>
+            <button onClick={onClose} style={{ marginTop:14, background:"linear-gradient(135deg,#34d399,#059669)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"9px 22px", cursor:"pointer", fontSize:14 }}>Fechar</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
+              {KEYBOARD_LEVELS.map((l, i) => (
+                <span key={l.id} style={{ background: i<levelIdx?"#34d39922":i===levelIdx?"#fbbf2422":"#0d1122", color: i<levelIdx?"#34d399":i===levelIdx?"#fbbf24":"#5d679c", border:`1px solid ${i<levelIdx?"#34d399":i===levelIdx?"#fbbf24":"#2a3154"}`, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:800 }}>
+                  {i<levelIdx?"✓ ":""}{l.title}
+                </span>
+              ))}
+            </div>
+            {level.line ? (
+              <>
+                <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 10px" }}>Última etapa! Digite essa linha de código inteira, prestando atenção em cada tecla — sem colar. 💪</p>
+                <pre style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:10, padding:"12px 14px", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{level.line}</pre>
+                <textarea autoFocus value={finalTyped} onChange={e=>onFinalType(e.target.value)} onPaste={e=>e.preventDefault()} spellCheck={false} autoCorrect="off" autoCapitalize="off"
+                  style={{ width:"100%", minHeight:70, marginTop:8, background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:"10px 12px", color:"#e8ebfa", fontFamily:"'Courier New',monospace", fontSize:14, outline:"none" }} />
+              </>
+            ) : target && (
+              <>
+                <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 4px" }}>{targetIdx}/{level.targets.length} teclas neste nível · <b style={{ color:"#fbbf24" }}>{level.title}</b> ({doneTargets}/{totalTargets} no total)</p>
+                <div className="pop" style={{ background: wrongFlash ? "#f8717122" : "#0d1122", border:`1px solid ${wrongFlash?"#f87171":"#2a3154"}`, borderRadius:14, padding:"16px", textAlign:"center", transition:"background .15s" }}>
+                  <div style={{ fontSize:38, fontWeight:900, fontFamily:"monospace", color: wrongFlash?"#f87171":"#22d3ee" }}>
+                    {target.symbol ? target.char : target.ctrl ? `Ctrl + ${target.char.toUpperCase()}` : target.shift ? target.char : target.char.toUpperCase()}
+                  </div>
+                  <p style={{ color:"#c7cfee", fontSize:13, margin:"6px 0 0" }}>
+                    {target.symbol ? comboLabel(target.char) : target.ctrl ? target.label : target.shift ? `Segure Shift e aperte ${target.char}` : `Aperte essa tecla`}
+                  </p>
+                </div>
+                <MiniKeyboard highlight={highlight} />
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── 📋 justificar falta: o aluno escreve o motivo de um dia que faltou, o professor aprova depois ──
+function JustifyModal({ absences, onSubmit, onClose }) {
+  // "congela" a lista no momento em que o modal abre — depois de justificar uma falta ela some
+  // de "pendingAbsences" no componente pai, mas aqui a linha precisa continuar visível pra
+  // mostrar a confirmação "✅ Justificativa enviada"
+  const [frozenAbsences] = useState(absences);
+  const [texts, setTexts] = useState({});
+  const [sent, setSent] = useState({});
+  const send = async (d) => {
+    const t = (texts[d] || "").trim();
+    if (!t) return;
+    await onSubmit(d, t);
+    setSent(s => ({ ...s, [d]: true }));
+  };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#f87171,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>😔 Justificar falta</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Escreva o motivo — o professor vai ver e pode aprovar, virando "justificado" na chamada.</p>
+        {frozenAbsences.slice(0, 5).map(d => {
+          const [y, m, dd] = d.split("-");
+          return (
+            <div key={d} style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 12px", marginBottom:10 }}>
+              <p style={{ color:"#e8ebfa", fontWeight:800, fontSize:13, margin:"0 0 6px" }}>📅 {dd}/{m}/{y}</p>
+              {sent[d] ? (
+                <p style={{ color:"#34d399", fontSize:12.5, margin:0 }}>✅ Justificativa enviada — aguardando o professor.</p>
+              ) : (
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  <input value={texts[d]||""} onChange={e=>setTexts(t=>({ ...t, [d]: e.target.value }))} onKeyDown={e=>e.key==="Enter"&&send(d)}
+                    placeholder="Ex: fui ao médico" style={{ flex:"1 1 180px", background:"#131730", border:"1px solid #2a3154", borderRadius:8, padding:"7px 10px", color:"#e8ebfa", fontSize:13, outline:"none" }} />
+                  <button onClick={()=>send(d)} disabled={!(texts[d]||"").trim()} style={{ background:"linear-gradient(135deg,#f87171,#dc2626)", border:"none", borderRadius:8, color:"#fff", fontWeight:800, padding:"7px 14px", fontSize:12.5, cursor:"pointer", opacity:(texts[d]||"").trim()?1:0.5 }}>Enviar</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {frozenAbsences.length > 5 && <p style={{ color:"#5d679c", fontSize:12 }}>+{frozenAbsences.length - 5} outra(s) falta(s) — justifique essas primeiro e depois abra de novo.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── 🏆 hall da fama: mural com uma placa por cidade encerrada ──
+function HallOfFameModal({ entries, onClose }) {
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:600, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#fbbf24,#fb923c)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🏆 Hall da Fama</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Quem se destacou nas cidades por onde a carreta já passou. 🚌✨</p>
+        {entries.length === 0 ? (
+          <p style={{ color:"#5d679c", fontSize:13, textAlign:"center", padding:"20px 0" }}>Ainda não tem nenhuma placa aqui — a próxima cidade encerrada entra pra esse mural!</p>
+        ) : (
+          [...entries].reverse().map((e, i) => (
+            <div key={i} className="pop" style={{ background:"linear-gradient(135deg,#fbbf2414,#fb923c10)", border:"1px solid #fbbf2455", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
+              <p style={{ color:"#fbbf24", fontWeight:900, fontSize:15, margin:"0 0 8px" }}>📍 {e.city || "Cidade sem nome"}</p>
+              {(e.students||[]).map((s, j) => (
+                <div key={j} style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, marginBottom:4 }}>
+                  <span>{["🥇","🥈","🥉"][j] || "🏅"}</span>
+                  <span style={{ flex:1, color:"#e8ebfa", fontWeight:700 }}>{s.name}</span>
+                  <span style={{ color:"#96a0cc", fontSize:12 }}>{s.highlight}</span>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TypingRaceModal({ onClose, onFinish }) {
   const [target] = useState(() => TYPING_SNIPPETS[Math.floor(Math.random() * TYPING_SNIPPETS.length)]);
   const [typed, setTyped] = useState("");
@@ -2611,6 +2881,8 @@ function requestFS(){
 }
 const goFullscreen = () => { requestFS().catch(()=>{}); };
 const todayKey = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+// mesma chave "AAAA-MM-DD", mas a partir de um timestamp qualquer (ex: a data de criação do perfil)
+const dateKeyOf = (ts) => { const d = new Date(ts||Date.now()); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 
 // ── horário automático de aula: converte "HH:MM" em minutos desde a meia-noite (hora do próprio
 // aparelho — o mesmo relógio que já é usado pra saber "que dia é hoje" no resto do sistema) ──
@@ -2754,14 +3026,30 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // 🕐 horário automático de aula (do turno) + vistoria (libera este aluno específico fora do horário)
   const [mySchedule, setMySchedule] = useState({});
   const [myInspection, setMyInspection] = useState(false);
+  const [myClassDays, setMyClassDays] = useState([]);
   const [breakEndMsg, setBreakEndMsg] = useState("");
   const breakEndNotifiedRef = useRef(null);
+  // 📋 falta a justificar + horário do 1º acesso do dia (pra marcar atrasado na chamada)
+  const [justifications, setJustifications] = useState({});
+  const attendanceFirstRef = useRef({});
+  const createdAtRef = useRef(Date.now());
+  const [showJustify, setShowJustify] = useState(false);
+  // ⌨️ tutorial de teclado (ABNT2): sempre disponível + pode ser "empurrado" pelo professor
+  const [showKeyboard, setShowKeyboard] = useState(false);
+  const [keyboardDone, setKeyboardDone] = useState(false);
+  const kbLaunchSeenRef = useRef(null);
+  // 🏆 hall da fama: placas de cidades anteriores
+  const [showHallOfFame, setShowHallOfFame] = useState(false);
+  const [hallEntries, setHallEntries] = useState([]);
   // relógio próprio (1x por segundo) só pra a contagem regressiva do intervalo/fim de aula ficar fluida
   const [clockNow, setClockNow] = useState(() => Date.now());
   useEffect(() => { const iv = setInterval(() => setClockNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
   // 🔮 previsão do dia (dispensável; lembrada por dia no navegador)
   const [videnteDismissed, setVidenteDismissed] = useState(() => {
     try { return localStorage.getItem(`nyx_vidente_${todayKey()}`) === "1"; } catch { return false; }
+  });
+  const [kbSuggestDismissed, setKbSuggestDismissed] = useState(() => {
+    try { return localStorage.getItem(`nyx_kbsuggest_${todayKey()}`) === "1"; } catch { return false; }
   });
   // 🏁 corrida de digitação
   const [showRace, setShowRace] = useState(false);
@@ -2843,7 +3131,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -2873,13 +3161,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     const tk = todayKey();
     const didWork = (s.code && s.code.trim().length >= 10) || (s.phase && s.phase !== "coding") || (s.score != null) || (s.answers && Object.keys(s.answers).length > 0);
     attendanceRef.current = { ...attendanceRef.current, [tk]: didWork ? "present" : "idle" };
+    // guarda o horário do PRIMEIRO acesso de hoje (uma vez só) — usado pra marcar "atrasado" na chamada
+    if (!attendanceFirstRef.current[tk]) attendanceFirstRef.current = { ...attendanceFirstRef.current, [tk]: Date.now() };
     const ok = await saveStudent(shift, studentName, {
       name: studentName,
       shift: shift || "sem-turno",
       avatar: s.avatar || DEFAULT_AVATAR,
       joinedAt: sessionStart.current,
+      createdAt: createdAtRef.current,
       lastSeen: Date.now(),
       attendance: attendanceRef.current,
+      attendanceFirst: attendanceFirstRef.current,
+      justifications: s.justifications || {},
+      keyboardDone: s.keyboardDone || false,
       files: s.files || [{name:"Program.cs",code:""}],
       code: s.code || "",
       phase: s.phase,
@@ -2949,6 +3243,29 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // ── ✋ pedir ajuda: acende o tile do aluno no monitoramento do professor (expira em 15 min lá) ──
   const askHelp = async () => { const t = Date.now(); setHelpAt(t); await persist({ helpAt: t }); };
   const cancelHelp = async () => { setHelpAt(null); await persist({ helpAt: null }); };
+
+  // 📋 dias de aula sem presença registrada, entre a criação do perfil e hoje — ainda sem justificativa
+  const pendingAbsences = myClassDays
+    .filter(d => d < todayKey() && d >= dateKeyOf(createdAtRef.current))
+    .filter(d => !attendanceRef.current[d] && !justifications[d])
+    .sort().reverse();
+  const submitJustification = async (dateKey, text) => {
+    if (!text || !text.trim()) return;
+    const next = { ...justifications, [dateKey]: { text: text.trim(), status: "pending", at: Date.now() } };
+    setJustifications(next);
+    await persist({ justifications: next });
+  };
+
+  // ⌨️ conclui o tutorial de teclado: pontos + conquista, 1x (pode repetir o treino, mas não repontua)
+  const finishKeyboardTutorial = async () => {
+    if (keyboardDone) return;
+    setKeyboardDone(true);
+    const np = nyxPoints + 5;
+    setNyxPoints(np);
+    await persist({ keyboardDone: true, nyxPoints: np });
+    unlockAchievement("teclado-mestre");
+    checkPointsAchievements(np);
+  };
 
   // ── 🏁 fim da corrida de digitação: pontos 1x por dia (+1 bônus por recorde pessoal) ──
   const finishTypingRace = async (ms) => {
@@ -3037,6 +3354,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.detailedSummaryHistory) setDetailedSummaryHistory(prev.detailedSummaryHistory);
           if (Array.isArray(prev.guidedBlocks)) setGuidedBlocks(prev.guidedBlocks);
           if (Array.isArray(prev.guidedLessons)) setGuidedLessons(prev.guidedLessons);
+          if (prev.createdAt) createdAtRef.current = prev.createdAt; // preserva a data ORIGINAL de criação (não a da sessão atual)
+          if (prev.attendanceFirst) attendanceFirstRef.current = prev.attendanceFirst;
+          if (prev.justifications) setJustifications(prev.justifications);
+          if (prev.keyboardDone) setKeyboardDone(true);
         }
         // rede de segurança: se um backup local recente tem MAIS código do que o servidor, uma queda de
         // conexão bem na hora de salvar deve ter perdido esse trecho — restaura e resalva pra reconciliar
@@ -3197,6 +3518,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         const m = await getTeacherMeta();
         setMySchedule((m.schedule || {})[shift] || {});
         setMyInspection(await getInspection(shift, studentName));
+        setMyClassDays(m.classDays || []);
+      } catch {}
+      // ⌨️ o professor "empurrou" a abertura do tutorial de teclado pra este aluno
+      try {
+        const launchedAt = await getKeyboardLaunch(shift, studentName);
+        if (launchedAt && kbLaunchSeenRef.current !== launchedAt) {
+          kbLaunchSeenRef.current = launchedAt;
+          setShowKeyboard(true);
+        }
       } catch {}
       // modo guiado (acessibilidade) — o professor pode ligar/desligar por aluno a qualquer momento
       try {
@@ -4296,6 +4626,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         </div>
       )}
 
+      {!kbSuggestDismissed && !keyboardDone && (supportFlags.leitura || supportFlags.motora) && phase==="coding" && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div style={{ background:"linear-gradient(90deg,#0e749922,#22d3ee22)", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:20 }}>⌨️</span>
+            <span style={{ flex:1, color:"#a5f3fc" }}><b style={{ color:"#22d3ee" }}>Quer treinar o teclado?</b> O Nyx te mostra tecla por tecla, no seu ritmo — pode fazer quando quiser.</span>
+            <button onClick={()=>{ setShowKeyboard(true); setKbSuggestDismissed(true); try { localStorage.setItem(`nyx_kbsuggest_${todayKey()}`, "1"); } catch {} }} style={{ ...styles.btn("#22d3ee"), padding:"6px 12px", fontSize:12.5 }}>Treinar agora</button>
+            <button onClick={()=>{ setKbSuggestDismissed(true); try { localStorage.setItem(`nyx_kbsuggest_${todayKey()}`, "1"); } catch {} }} style={{ background:"transparent", border:"none", color:"#22d3ee", fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
+          </div>
+        </div>
+      )}
+
       {curiosity && !curiosityDismissed && !focusMode && phase==="coding" && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
           <div style={{ background:"#22d3ee18", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
@@ -4494,6 +4835,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             {!focusMode && <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
               🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
             </button>}
+            <button onClick={()=>setShowKeyboard(true)} style={{ ...styles.btn("#22d3ee"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Aprenda onde fica cada tecla, no seu ritmo — pode treinar quando quiser">
+              ⌨️ Tutorial de Teclado
+            </button>
+            <button onClick={()=>{ setShowHallOfFame(true); getHallOfFame().then(setHallEntries); }} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja quem se destacou nas cidades por onde a carreta já passou">
+              🏆 Hall da Fama
+            </button>
+            {pendingAbsences.length>0 && (
+              <button onClick={()=>setShowJustify(true)} style={{ ...styles.btn("#f87171"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Justifique uma falta pro professor avaliar">
+                😔 Justificar falta ({pendingAbsences.length})
+              </button>
+            )}
           </div>
           <div className="cardfx" style={styles.card}>
             <p style={{ color:"#fbbf24", fontWeight:700, marginBottom:8, fontSize:13 }}>🏆 Turma & Você</p>
@@ -4557,6 +4909,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {showNotebook && <NotebookModal history={summaryHistory} detailedHistory={detailedSummaryHistory} onClose={()=>setShowNotebook(false)} />}
       {showVoicePicker && <VoicePickerModal onClose={()=>setShowVoicePicker(false)} />}
       {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
+      {showKeyboard && <KeyboardTutorialModal onClose={()=>setShowKeyboard(false)} onFinish={finishKeyboardTutorial} speak={speak} stopSpeech={stopSpeech} />}
+      {showJustify && <JustifyModal absences={pendingAbsences} onSubmit={submitJustification} onClose={()=>setShowJustify(false)} />}
+      {showHallOfFame && <HallOfFameModal entries={hallEntries} onClose={()=>setShowHallOfFame(false)} />}
       {showDuel && (
         <DuelModal
           shift={shift}
@@ -4818,9 +5173,18 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [breakEndMsgTeacher, setBreakEndMsgTeacher] = useState("");
   const breakEndNotifiedTeacherRef = useRef({});
   const [cityInput, setCityInput] = useState("");
+  // 🏆 hall da fama: encerra a cidade atual e guarda uma placa com quem se destacou
+  const [hallMsg, setHallMsg] = useState("");
+  const [confirmCloseCity, setConfirmCloseCity] = useState(false);
   const [shiftFilter, setShiftFilter] = useState("all");
   const [genName, setGenName] = useState(false);
   const [nameMsg, setNameMsg] = useState("");
+  const [autoNameMsg, setAutoNameMsg] = useState("");
+  const autoNameTriedRef = useRef({});
+  // ✋ notificação de pedido de ajuda (toast, igual ao "Reconectando Nyx")
+  const [helpNotice, setHelpNotice] = useState("");
+  const helpSeenRef = useRef({});
+  const helpInitRef = useRef(false);
   const [nudged, setNudged] = useState({});
   const metaRef = useRef({ city:"", classDays:[], contentNames:{} });
   // código do professor (aba "Meu código") — um exemplo independente por turno
@@ -4911,6 +5275,44 @@ function TeacherView({ onLogout, teacherAuth }) {
     const iv = setInterval(loadSupport, 20000);
     return () => { active = false; clearInterval(iv); };
   }, []);
+  // ✨ nome do conteúdo automático: quando TODOS os alunos de um turno (que apareceram hoje) já
+  // passaram da fase de codar (estão no resumo, na atividade ou concluíram), gera o nome sozinho —
+  // sem o professor precisar lembrar de clicar. Só tenta 1x por turno por dia.
+  useEffect(() => {
+    const tk = todayKey();
+    SHIFTS.forEach(sh => {
+      const key = `${tk}-${sh.id}`;
+      if (autoNameTriedRef.current[key]) return;
+      if (contentNameFor((meta.contentNames||{})[tk], sh.id)) { autoNameTriedRef.current[key] = true; return; }
+      const todayList = students.filter(s => (s.shift||"sem-turno")===sh.id && (s.shift||"")!==TEST_SHIFT.id && isSameDayTs(s.lastSeen));
+      if (todayList.length === 0) return;
+      const allPastCoding = todayList.every(s => ["summary","activity","done"].includes(s.phase));
+      if (!allPastCoding) return;
+      autoNameTriedRef.current[key] = true;
+      computeContentName(sh.id)
+        .then(({ title }) => { setAutoNameMsg(`✨ Nome do conteúdo gerado sozinho (${shiftMeta(sh.id).label}): ${title}`); setTimeout(()=>setAutoNameMsg(""), 8000); })
+        .catch(() => {}); // sem exemplo do professor nem código de aluno ainda — tenta de novo quando alguém escrever
+    });
+  }, [students, meta.contentNames]);
+  // ✋ toast de pedido de ajuda: dispara na hora que um aluno clica, mesmo se o professor não
+  // estiver olhando o Monitoramento — não avisa pedidos que já estavam pendentes ao abrir o painel
+  useEffect(() => {
+    students.filter(s => (s.shift||"") !== TEST_SHIFT.id).forEach(s => {
+      const k = `${s.shift||"sem-turno"}:${s.name}`;
+      const prevSeen = helpSeenRef.current[k];
+      if (s.helpAt && s.helpAt !== prevSeen) {
+        helpSeenRef.current[k] = s.helpAt;
+        if (helpInitRef.current && Date.now() - s.helpAt < 20000) {
+          playSound("enter");
+          setHelpNotice(`✋ ${s.name} pediu ajuda!`);
+          setTimeout(() => setHelpNotice(""), 8000);
+        }
+      } else if (!s.helpAt && prevSeen) {
+        helpSeenRef.current[k] = null;
+      }
+    });
+    helpInitRef.current = true;
+  }, [students]);
   // fica de olho na saúde do Nyx: se a última chamada de IA registrada (de qualquer aluno/professor)
   // foi erro e é recente, mostra "Reconectando Nyx"; some assim que uma chamada der certo de novo
   useEffect(() => {
@@ -4947,6 +5349,28 @@ function TeacherView({ onLogout, teacherAuth }) {
   }, [proFilesByShift, proLoaded]);
 
   const saveCity = async () => { const nm = { ...metaRef.current, city:cityInput.trim() }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
+  // 🏆 encerra a cidade atual: guarda uma placa no Hall da Fama com quem mais se destacou, pra
+  // os alunos da PRÓXIMA cidade verem — não apaga nem reseta nada, é só um retrato do fechamento
+  const doCloseCity = async () => {
+    setConfirmCloseCity(false);
+    if (!meta.city) { setHallMsg("❌ Defina o nome da cidade antes de encerrar."); setTimeout(()=>setHallMsg(""), 5000); return; }
+    const active = students.filter(s => (s.shift||"") !== TEST_SHIFT.id);
+    const highlightOf = (s) => {
+      const notas = [...Object.values(s.scoreHistory||{}), s.score, s.examScore].filter(n => typeof n === "number");
+      return notas.length ? Math.max(...notas) : 0;
+    };
+    const podio = active
+      .map(s => ({ name: s.name, nota: highlightOf(s), pts: s.nyxPoints||0 }))
+      .filter(s => s.nota > 0 || s.pts > 0)
+      .sort((a,b) => (b.nota - a.nota) || (b.pts - a.pts))
+      .slice(0, 3)
+      .map(s => ({ name: s.name, highlight: s.nota > 0 ? `nota ${s.nota} · ${s.pts} pts do Nyx` : `${s.pts} pts do Nyx` }));
+    const entries = await getHallOfFame();
+    const next = [...entries, { city: meta.city, students: podio, closedAt: Date.now() }];
+    await saveHallOfFame(next, teacherAuth);
+    setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama! Os alunos da próxima cidade já vão poder ver.`);
+    setTimeout(()=>setHallMsg(""), 8000);
+  };
   const saveSchedule = async () => {
     const nm = { ...metaRef.current, schedule };
     metaRef.current = nm; setMeta(nm);
@@ -5056,17 +5480,30 @@ function TeacherView({ onLogout, teacherAuth }) {
     });
     const groups = SHIFTS.map(sh => ({ ...sh, list: rows.filter(s => (s.shift||"sem-turno")===sh.id) })).filter(g => g.list.length > 0);
 
+    // dias de aula (marcados no Calendário) — cada um vira uma coluna com presença/falta/justificado
+    const classDays = [...new Set(meta.classDays || [])].sort();
+    const dayCell = (s, d) => {
+      const enrollFrom = s.createdAt ? dateKeyOf(s.createdAt) : (Object.keys(s.attendance||{}).sort()[0] || null);
+      const lastDay = s.lastSeen ? dateKeyOf(s.lastSeen) : null;
+      if ((enrollFrom && d < enrollFrom) || (lastDay && d > lastDay)) return { v:"–", st:null }; // fora do período do aluno
+      if ((s.attendance||{})[d] === "present") return { v:"✓", st:"present" };
+      const just = (s.justifications||{})[d];
+      if (just && just.status === "approved") return { v:"J", st:"justified" };
+      return { v:"✗", st:"absent" };
+    };
+
+    const totalCols = 5 + classDays.length; // ALUNO + dias + DIAS PRESENTES + MAIOR NOTA + SITUAÇÃO + DESTAQUE
     const xlsRows = [];
     const merges = [];
-    const wide = (st) => Array.from({ length: 5 }, () => ({ v: "", st })); // linha inteira com o mesmo estilo (pra faixa colorida cobrir as 5 colunas)
-    const mergeRow = () => merges.push(`A${xlsRows.length}:E${xlsRows.length}`);
+    const wide = (st) => Array.from({ length: totalCols }, () => ({ v: "", st })); // linha inteira com o mesmo estilo (pra faixa colorida cobrir a planilha toda)
+    const mergeRow = () => merges.push(`A${xlsRows.length}:${colLetter(totalCols-1)}${xlsRows.length}`);
 
     // título + subtítulo
     let cells = wide({ b:1, sz:15, color:"FFFFFF", fill:"1F2547" });
     cells[0].v = "AULA DE C# — ACOMPANHAMENTO DA TURMA";
     xlsRows.push({ cells, ht: 30 }); mergeRow();
     cells = wide({ i:1, sz:10, color:"C9CFEF", fill:"2E3560" });
-    cells[0].v = `${meta.city ? meta.city + "  •  " : ""}gerado em ${new Date().toLocaleDateString("pt-BR")}`;
+    cells[0].v = `${meta.city ? meta.city + "  •  " : ""}gerado em ${new Date().toLocaleDateString("pt-BR")}${classDays.length ? `  •  ✓ presente · ✗ falta · J justificado · – fora do período do aluno` : ""}`;
     xlsRows.push({ cells }); mergeRow();
     xlsRows.push({ cells: [] });
 
@@ -5078,8 +5515,9 @@ function TeacherView({ onLogout, teacherAuth }) {
       cells[0].v = `${g.emoji} TURMA ${g.label.toUpperCase()} — ${g.list.length} aluno${g.list.length!==1?"s":""}`;
       xlsRows.push({ cells, ht: 22 }); mergeRow();
 
-      xlsRows.push({ cells: ["ALUNO","DIAS PRESENTES","MAIOR NOTA","SITUAÇÃO","DESTAQUE"].map((h,i)=>({
-        v: h, st: { b:1, color:"FFFFFF", fill:"303869", border:1, align: i>0 ? "center" : "left" },
+      const dayHeaders = classDays.map(d => { const [, m, dd] = d.split("-"); return `${dd}/${m}`; });
+      xlsRows.push({ cells: ["ALUNO", ...dayHeaders, "DIAS PRESENTES","MAIOR NOTA","SITUAÇÃO","DESTAQUE"].map((h,i)=>({
+        v: h, st: { b:1, sz: i>0&&i<=classDays.length?9:11, color:"FFFFFF", fill:"303869", border:1, align: i>0 ? "center" : "left" },
       })) });
 
       g.list.forEach((s, i) => {
@@ -5092,8 +5530,14 @@ function TeacherView({ onLogout, teacherAuth }) {
           : maiorNota >= 60
             ? { v:"✔ Satisfatório", st:{ b:1, color:"1E8E5A", fill, border:1, align:"center" } }
             : { v:"⚠ Insatisfatório", st:{ b:1, color:"C2410C", fill, border:1, align:"center" } };
+        const dayCells = classDays.map(d => {
+          const c = dayCell(s, d);
+          const color = c.st==="present" ? "1E8E5A" : c.st==="absent" ? "C2410C" : c.st==="justified" ? "B45309" : "AAB0C8";
+          return { v: c.v, st:{ b: c.st==="present"||c.st==="absent", color, fill, border:1, align:"center" } };
+        });
         xlsRows.push({ cells: [
           { v: s.name, st:{ b:1, color:"1F2547", fill, border:1 } },
+          ...dayCells,
           { v: att, st:{ fill, border:1, align:"center" } },
           { v: maiorNota ?? "—", st:{ b:1, sz:12, color:"303869", fill, border:1, align:"center" } },
           situacao,
@@ -5109,7 +5553,8 @@ function TeacherView({ onLogout, teacherAuth }) {
       xlsRows.push({ cells: [] });
     });
 
-    const blob = xlsxBlob({ sheetName:"Turma", colWidths:[34,16,12,18,28], rows:xlsRows, merges });
+    const colWidths = [34, ...classDays.map(()=>6), 16, 12, 18, 28];
+    const blob = xlsxBlob({ sheetName:"Turma", colWidths, rows:xlsRows, merges });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = `planilha-aula-csharp-${todayKey()}.xlsx`;
@@ -5484,6 +5929,13 @@ function TeacherView({ onLogout, teacherAuth }) {
     await setScoreFix(s.shift, s.name, { kind: "help-attended" }, teacherAuth);
     flashMgmt(`✅ Pedido de ajuda de ${s.name} marcado como atendido.`);
   };
+  // 📋 aprova a justificativa de uma falta — vira "justificado" na chamada do aluno
+  const doApproveJustification = async (s, dateKey) => {
+    const next = { ...(s.justifications || {}), [dateKey]: { ...(s.justifications||{})[dateKey], status: "approved" } };
+    await patchStudent(s.shift, s.name, { justifications: next });
+    flashMgmt(`✅ Falta de ${s.name} justificada.`);
+    load();
+  };
   // 🔍 vistoria: libera este aluno específico mesmo fora do horário automático
   const doToggleInspection = async (s) => {
     const next = !selInspection;
@@ -5574,6 +6026,17 @@ function TeacherView({ onLogout, teacherAuth }) {
     if (a) return a;
     return isSameDayTs(s.lastSeen) ? "present" : "absent";
   };
+  // ⏰ atrasado: só faz sentido se o turno tem horário configurado — compara o 1º acesso de HOJE com o início da aula
+  const isLate = (s) => {
+    const sched = schedule[s.shift];
+    const startMin = sched && hmToMin(sched.start);
+    const firstToday = s.attendanceFirst && s.attendanceFirst[tk];
+    if (startMin == null || !firstToday) return false;
+    const d = new Date(firstToday);
+    return (d.getHours() * 60 + d.getMinutes()) > startMin;
+  };
+  // 📋 faltas pendentes de justificativa (aparecem no detalhe do aluno)
+  const pendingJustifications = (s) => Object.entries(s.justifications || {}).filter(([, j]) => j.status === "pending");
   const presentList = sorted.filter(s => attStatus(s)==="present");
   const idleList    = sorted.filter(s => attStatus(s)==="idle");
   const absentList  = sorted.filter(s => attStatus(s)==="absent");
@@ -5630,6 +6093,17 @@ function TeacherView({ onLogout, teacherAuth }) {
       {breakEndMsgTeacher && (
         <div style={{ position:"fixed", top:12, right:12, zIndex:1200, background:"#0e1f2e", border:"1px solid #22d3ee", borderRadius:10, padding:"7px 12px", boxShadow:"0 8px 24px rgba(0,0,0,.4)" }}>
           <span style={{ color:"#a5f3fc", fontSize:12.5, fontWeight:700 }}>{breakEndMsgTeacher}</span>
+        </div>
+      )}
+      {autoNameMsg && (
+        <div style={{ position:"fixed", top: breakEndMsgTeacher ? 54 : 12, right:12, zIndex:1200, background:"#1e1b4b", border:"1px solid #a855f7", borderRadius:10, padding:"7px 12px", boxShadow:"0 8px 24px rgba(0,0,0,.4)", maxWidth:340 }}>
+          <span style={{ color:"#ddd6fe", fontSize:12.5, fontWeight:700 }}>{autoNameMsg}</span>
+        </div>
+      )}
+      {helpNotice && (
+        <div style={{ position:"fixed", top: (breakEndMsgTeacher?42:0) + (autoNameMsg?42:0) + 12, right:12, zIndex:1200, background:"#2a1a10", border:"1px solid #fbbf24", borderRadius:10, padding:"7px 12px", display:"flex", alignItems:"center", gap:8, boxShadow:"0 8px 24px rgba(0,0,0,.4)" }}>
+          <span style={{ fontSize:15 }}>✋</span>
+          <span style={{ color:"#fcd9a0", fontSize:12.5, fontWeight:700 }}>{helpNotice}</span>
         </div>
       )}
       <div style={{ ...styles.header, ...(tab==="code" ? { padding:"6px 14px" } : {}) }}>
@@ -5787,7 +6261,10 @@ function TeacherView({ onLogout, teacherAuth }) {
             <div className="cardfx" style={styles.card}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
                 <h3 style={{ color:"#fbbf24" }}>📋 Lista de Chamada</h3>
-                <span style={styles.badge("#34d399")}>{present} online / {shown.length}</span>
+                <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                  <span style={styles.badge("#34d399")}>{present} online / {shown.length}</span>
+                  <button onClick={async ()=>{ await Promise.all(shown.map(s=>setKeyboardLaunch(s.shift, s.name, teacherAuth))); flashMgmt(`⌨️ Tutorial de teclado aberto pra ${shown.length} aluno(s).`); }} style={{ ...styles.btn("#22d3ee"), padding:"5px 10px", fontSize:12 }} title="Abre o tutorial de teclado na tela de todos os alunos filtrados">⌨️ Abrir teclado pra todos</button>
+                </div>
               </div>
               {shown.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno na chamada ainda.</p> : (
                 chamadaGroups.map((g, gi) => (
@@ -5806,8 +6283,9 @@ function TeacherView({ onLogout, teacherAuth }) {
                         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))", gap:8 }}>
                           {g.list.map((s, tileIdx)=>{
                             const st = attStatus(s);
-                            const stColor = st==="present"?"#34d399":st==="idle"?"#fbbf24":"#f87171";
-                            const stLabel = st==="present"?"✅ Presente":st==="idle"?"⚠ Sem atividade":"❌ Falta";
+                            const late = (st==="present"||st==="idle") && isLate(s);
+                            const stColor = late?"#fb923c":st==="present"?"#34d399":st==="idle"?"#fbbf24":"#f87171";
+                            const stLabel = late?"⏰ Atrasado":st==="present"?"✅ Presente":st==="idle"?"⚠ Sem atividade":"❌ Falta";
                             return (
                               <div key={s.name} className="tilefx" style={{ background:"#0d1122", border:`1px solid ${st==="absent"?"#3f2530":"#2a3154"}`, borderRadius:8, padding:"8px 10px", opacity:st==="absent"?0.7:1, animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
                                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -6100,6 +6578,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                             ["foco", "🎯 Foco", "Esconde ranking, loja, duelos e curiosidade — sobra só o essencial: editor, Nyx e salvar."],
                             ["leitura", "📖 Leitura", "Letras e linhas mais espaçadas em toda a tela do aluno — ajuda na dislexia."],
                             ["ritmo", "🐢 Ritmo próprio", "Atividade do dia com 4 questões bem diretas em vez de 8 — termina junto com a turma."],
+                            ["motora", "🖐️ Motora", "Sugere o tutorial de teclado pra esse aluno automaticamente — ajuda quem tem dificuldade motora pra digitar."],
                           ].map(([flag, label, hint]) => (
                             <button key={flag} onClick={()=>doToggleSupport(sel, flag, label)} title={hint}
                               style={{ background: selSupport[flag] ? "#3b82f6" : "#0d1122", color: selSupport[flag] ? "#fff" : "#96a0cc", border:`1px solid ${selSupport[flag] ? "#3b82f6" : "#2a3154"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:12 }}>
@@ -6116,6 +6595,25 @@ function TeacherView({ onLogout, teacherAuth }) {
                         <button onClick={()=>markHelped(sel)} style={{ ...styles.btn("#34d399"), padding:"6px 14px", fontSize:12.5 }}>✔ Marcar como atendido</button>
                       </div>
                     )}
+                    {pendingJustifications(sel).length > 0 && (
+                      <div style={{ display:"flex", flexDirection:"column", gap:6, borderTop:"1px solid #f87171", paddingTop:10, background:"#f8717110", borderRadius:8, padding:"10px" }}>
+                        <span style={{ color:"#f87171", fontSize:13, fontWeight:800 }}>😔 Justificativa(s) de falta pendente(s):</span>
+                        {pendingJustifications(sel).map(([d, j]) => {
+                          const [y, m, dd] = d.split("-");
+                          return (
+                            <div key={d} style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                              <span style={{ color:"#e8ebfa", fontSize:12.5 }}>📅 {dd}/{m}/{y}: <i>"{j.text}"</i></span>
+                              <button onClick={()=>doApproveJustification(sel, d)} style={{ ...styles.btn("#34d399"), padding:"5px 12px", fontSize:12 }}>✔ Justificar</button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
+                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>⌨️ Teclado:</span>
+                      <button onClick={async ()=>{ await setKeyboardLaunch(sel.shift, sel.name, teacherAuth); flashMgmt(`⌨️ Tutorial de teclado aberto na tela de ${sel.name}.`); }} style={{ ...styles.btn("#22d3ee"), padding:"6px 14px", fontSize:12.5 }}>Abrir na tela do aluno</button>
+                      <span style={{ color: sel.keyboardDone ? "#34d399" : "#5d679c", fontSize:11.5, flex:"1 1 200px" }}>{sel.keyboardDone ? "✅ Já concluiu o tutorial." : "Ainda não concluiu o tutorial."}</span>
+                    </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
                       <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🔑 PIN:</span>
                       <span style={{ color: sel.pin ? "#34d399" : "#5d679c", fontSize:13, fontWeight:700 }}>{sel.pin ? "definido ✓" : "ainda não criado"}</span>
@@ -6262,6 +6760,18 @@ function TeacherView({ onLogout, teacherAuth }) {
             {meta.city && <p style={{ color:"#34d399", fontSize:13, marginTop:10 }}>Cidade salva: {meta.city}</p>}
             <hr style={{ borderColor:"#2a3154", margin:"14px 0" }}/>
             <p style={{ color:"#96a0cc", fontSize:13 }}>Total de dias de aula registrados: <b style={{ color:"#e8ebfa" }}>{(meta.classDays||[]).length}</b></p>
+            <hr style={{ borderColor:"#2a3154", margin:"14px 0" }}/>
+            <p style={{ color:"#fbbf24", fontWeight:700, fontSize:13, marginBottom:6 }}>🏆 Hall da Fama</p>
+            <p style={{ color:"#96a0cc", fontSize:12.5, lineHeight:1.6, margin:"0 0 10px" }}>Quando a carreta for mudar de cidade, encerre aqui: guarda uma placa com quem mais se destacou, pros alunos da próxima cidade verem. Não apaga nada da turma atual.</p>
+            {confirmCloseCity ? (
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                <button style={{ ...styles.btn("#fbbf24") }} onClick={doCloseCity}>Sim, encerrar {meta.city || "a cidade"}</button>
+                <button style={styles.btn("#2a3154")} onClick={()=>setConfirmCloseCity(false)}>Cancelar</button>
+              </div>
+            ) : (
+              <button style={{ ...styles.btn("#fbbf24"), width:"100%" }} onClick={()=>setConfirmCloseCity(true)}>🏆 Encerrar cidade e gerar placa</button>
+            )}
+            {hallMsg && <p style={{ color: hallMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:8, lineHeight:1.5 }}>{hallMsg}</p>}
           </div>
           <div className="cardfx" style={{ ...styles.card, flex:"1 1 300px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🕐 Horário da turma ({shiftMeta(codeShift).label})</h3>
