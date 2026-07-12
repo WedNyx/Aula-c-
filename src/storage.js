@@ -348,12 +348,25 @@ export async function resetAll(shift, auth) {
   } catch { return false }
 }
 
+// horário padrão das aulas, informado pelo professor — já vem preenchido de fábrica e vale
+// enquanto ele não salvar outro no Calendário (o que ele salvar por cidade sempre vence;
+// deixar um campo em branco por lá continua desligando a trava daquele turno)
+const DEFAULT_SCHEDULE = {
+  matutino:   { start: '09:00', end: '11:50', breakStart: '10:45', breakMin: '15' },
+  vespertino: { start: '14:00', end: '16:50', breakStart: '15:45', breakMin: '15' },
+}
+
 export async function getTeacherMeta() {
   const empty = { city: '', classDays: [], contentNames: {} }
   try {
     const r = await kvCall({ action: 'get', key: TEACHER_META_KEY })
-    return r.value ? { ...empty, ...JSON.parse(r.value) } : empty
-  } catch { return empty }
+    const m = r.value ? { ...empty, ...JSON.parse(r.value) } : empty
+    m.schedule = {
+      matutino: { ...DEFAULT_SCHEDULE.matutino, ...((m.schedule || {}).matutino || {}) },
+      vespertino: { ...DEFAULT_SCHEDULE.vespertino, ...((m.schedule || {}).vespertino || {}) },
+    }
+    return m
+  } catch { return empty } // sem conexão, sem trava — uma queda de rede não pode trancar aluno
 }
 
 export async function saveTeacherMeta(meta, auth) {
