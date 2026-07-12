@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons } from "./storage.js";
 import { xlsxBlob } from "./xlsx.js";
 
 // ── tema ──
@@ -4413,8 +4413,11 @@ function TeacherView({ onLogout, teacherAuth }) {
   // PDF com o código e o resumo de cada aluno (pra guardar/enviar ao fim do curso)
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [pdfMsg, setPdfMsg] = useState("");
-  // biblioteca de aulas prontas + backup completo
+  // biblioteca de aulas (as SUAS aulas salvas + modelos de exemplo) + backup completo
   const [showLessons, setShowLessons] = useState(false);
+  const [myLessons, setMyLessons] = useState([]);
+  const [lessonName, setLessonName] = useState("");
+  const [showModels, setShowModels] = useState(false);
   const [backupBusy, setBackupBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -4525,10 +4528,10 @@ function TeacherView({ onLogout, teacherAuth }) {
       ? "Este é o código C# que o professor escreveu como exemplo na aula de hoje"
       : "Estes são os códigos C# que os alunos escreveram na aula de hoje";
     const out = await askClaude(
-      `${ctx}:\n\n${source}\n\nGere um TÍTULO curto de conteúdo para esta aula, em português, com no máximo 6 palavras, que resuma o principal tema/conceito trabalhado (ex: "Variáveis e Console.WriteLine", "Condições com if e else", "Entrada de dados com ReadLine"). Responda APENAS com o título, sem aspas e sem ponto final.`,
-      "Você nomeia o conteúdo de aulas de C# para iniciantes. Responda só com um título curto."
+      `${ctx}:\n\n${source}\n\nANALISE o código com atenção antes de nomear: identifique quais conceitos aparecem de verdade (tipos usados, estruturas de controle, entrada/saída, métodos, o que o programa FAZ quando roda) e qual deles é o protagonista da aula.\n\nDepois, gere um NOME DE CONTEÚDO criativo e descritivo para esta aula, em português, que dê orgulho de aparecer no calendário do curso. Pode usar até 12 palavras — capriche: nada de nome genérico tipo "Aula de C#". Bons exemplos: "Variáveis e o primeiro diálogo com o usuário", "Tomando decisões: if, else e a nota da prova", "O jogo de adivinhação: while, Random e lógica de tentativas".\n\nResponda APENAS com o nome do conteúdo, sem aspas e sem ponto final.`,
+      "Você é um professor criativo que nomeia conteúdos de aulas de C# para iniciantes. Analise o código de verdade e crie um nome específico e caprichado. Responda só com o nome."
     );
-    const title = out.replace(/["\n`]/g,"").trim().slice(0,80);
+    const title = out.replace(/["\n`]/g,"").trim().slice(0,110);
     const nm = { ...metaRef.current, contentNames: withContentName(metaRef.current.contentNames, tk, shift, title) };
     metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth);
     return { title, origem };
@@ -5026,6 +5029,25 @@ function TeacherView({ onLogout, teacherAuth }) {
     setExamMsg(accept ? `✅ Pontos da prova devolvidos pra ${s.name}.` : `Desconto mantido pra ${s.name}.`);
     setTimeout(() => setExamMsg(""), 6000);
   };
+  // 📚 aulas salvas pelo professor (o código DELE vira a biblioteca)
+  useEffect(() => { getTeacherLessons().then(ls => setMyLessons(Array.isArray(ls) ? ls : [])); }, []);
+  const saveCurrentLesson = async () => {
+    const files = (proFiles || []).filter(f => (f.code || "").trim());
+    if (!files.length) { setNameMsg(`⚠ Programe algo na turma ${shiftMeta(codeShift).label} primeiro — a aula salva é o código que está no editor.`); setTimeout(()=>setNameMsg(""), 6000); return; }
+    const title = lessonName.trim() || `Aula de ${new Date().toLocaleDateString("pt-BR")}`;
+    const next = [...myLessons, { title, files: files.map(f => ({ ...f })), at: Date.now() }];
+    setMyLessons(next);
+    setLessonName("");
+    await saveTeacherLessons(next, teacherAuth);
+    setNameMsg(`✅ "${title}" salva na sua biblioteca!`);
+    setTimeout(()=>setNameMsg(""), 6000);
+  };
+  const deleteLesson = async (idx) => {
+    const next = myLessons.filter((_, i) => i !== idx);
+    setMyLessons(next);
+    await saveTeacherLessons(next, teacherAuth);
+  };
+
   // 📦 backup completo: baixa tudo do banco num JSON (seguro antes de resetar/trocar de cidade)
   const exportBackup = async () => {
     setBackupBusy(true);
@@ -5173,27 +5195,63 @@ function TeacherView({ onLogout, teacherAuth }) {
 
       {showTelao && <TelaoModal students={students} shift={shiftFilter} onClose={()=>setShowTelao(false)} />}
 
-      {/* biblioteca de aulas prontas */}
+      {/* biblioteca de aulas: as SUAS aulas salvas (o seu código) + modelos de exemplo */}
       {showLessons && (
         <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
           <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-              <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📚 Aulas prontas</h2>
+              <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📚 Minhas aulas</h2>
               <button onClick={()=>setShowLessons(false)} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
             </div>
-            <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Exemplos completos e comentados, na ordem do curso. Carregar uma aula <b>substitui</b> o código atual da turma {shiftMeta(codeShift).label}.</p>
-            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              {LESSON_LIBRARY.map((lesson, li) => (
-                <div key={li} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 14px", flexWrap:"wrap" }}>
-                  <div style={{ flex:"1 1 260px" }}>
-                    <p style={{ color:"#e8ebfa", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
-                    <p style={{ color:"#96a0cc", fontSize:12, margin:"3px 0 0" }}>{lesson.desc}</p>
-                  </div>
-                  <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
-                    style={{ ...styles.btn("#34d399"), padding:"7px 14px", fontSize:12.5 }}>Usar esta aula →</button>
-                </div>
-              ))}
+            <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Sua biblioteca: salve o código que está no editor com um nome e reutilize em qualquer turma, quantas vezes quiser. Carregar uma aula <b>substitui</b> o código atual da turma {shiftMeta(codeShift).label}.</p>
+
+            {/* salvar a aula atual */}
+            <div style={{ background:"#0d1122", border:"1px dashed #34d399", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
+              <p style={{ color:"#34d399", fontSize:12.5, fontWeight:800, margin:"0 0 8px" }}>💾 Salvar o código atual ({shiftMeta(codeShift).label}) como aula</p>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                <input value={lessonName} onChange={e=>setLessonName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveCurrentLesson()} placeholder={`Nome da aula (ex: Variáveis e ReadLine)`}
+                  style={{ flex:"1 1 220px", background:"#131730", border:"1px solid #2a3154", borderRadius:10, padding:"8px 12px", color:"#e8ebfa", fontSize:13, outline:"none" }} />
+                <button onClick={saveCurrentLesson} style={{ ...styles.btn("#34d399"), padding:"8px 14px", fontSize:12.5 }}>💾 Salvar</button>
+              </div>
             </div>
+
+            {/* aulas salvas */}
+            {myLessons.length === 0 ? (
+              <p style={{ color:"#5d679c", fontSize:13, marginBottom:14 }}>Você ainda não salvou nenhuma aula. Programe na aba Meu código e clique em Salvar acima — ela aparece aqui pra sempre.</p>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
+                {myLessons.map((lesson, li) => (
+                  <div key={li} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 14px", flexWrap:"wrap" }}>
+                    <div style={{ flex:"1 1 220px" }}>
+                      <p style={{ color:"#e8ebfa", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
+                      <p style={{ color:"#5d679c", fontSize:11.5, margin:"3px 0 0" }}>salva em {new Date(lesson.at).toLocaleDateString("pt-BR")} · {lesson.files.length} arquivo{lesson.files.length!==1?"s":""}</p>
+                    </div>
+                    <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
+                      style={{ ...styles.btn("#34d399"), padding:"7px 14px", fontSize:12.5 }}>Usar esta aula →</button>
+                    <button onClick={()=>deleteLesson(li)} title="Excluir esta aula da biblioteca" style={{ background:"transparent", border:"1px solid #f8717155", color:"#f87171", borderRadius:8, padding:"6px 10px", fontSize:12, cursor:"pointer" }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* modelos de exemplo (secundário, recolhido) */}
+            <button onClick={()=>setShowModels(v=>!v)} style={{ background:"transparent", border:"1px solid #2a3154", color:"#96a0cc", borderRadius:10, padding:"7px 14px", fontSize:12.5, cursor:"pointer", width:"100%" }}>
+              {showModels ? "▾" : "▸"} Modelos de exemplo do Nyx ({LESSON_LIBRARY.length}) — ponto de partida, se quiser
+            </button>
+            {showModels && (
+              <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:10 }}>
+                {LESSON_LIBRARY.map((lesson, li) => (
+                  <div key={li} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 14px", flexWrap:"wrap" }}>
+                    <div style={{ flex:"1 1 260px" }}>
+                      <p style={{ color:"#e8ebfa", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
+                      <p style={{ color:"#96a0cc", fontSize:12, margin:"3px 0 0" }}>{lesson.desc}</p>
+                    </div>
+                    <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
+                      style={{ ...styles.btn("#2a3154"), padding:"7px 14px", fontSize:12.5 }}>Usar este modelo →</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -5670,7 +5728,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <p style={{ color:"#96a0cc", fontSize:12.5, margin:"3px 0 0", lineHeight:1.5 }}>Cada turma tem seu próprio exemplo. Programe aqui e gere o nome do conteúdo a partir dele — é isso que aparece no calendário.</p>
                 </div>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  <button style={{ ...styles.btn("#34d399"), padding:"7px 12px", fontSize:12.5 }} onClick={()=>setShowLessons(true)} title="Aulas de exemplo prontas (Olá mundo, variáveis, if/else, loops...) pra carregar com um clique">📚 Aulas prontas</button>
+                  <button style={{ ...styles.btn("#34d399"), padding:"7px 12px", fontSize:12.5 }} onClick={()=>setShowLessons(true)} title="Sua biblioteca de aulas: salve o código atual com um nome e reutilize quando quiser">📚 Minhas aulas</button>
                   <button style={{ ...styles.btn("#7c83ff"), opacity:genName?0.6:1, padding:"7px 12px", fontSize:12.5 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift).label})`}</button>
                 </div>
               </div>

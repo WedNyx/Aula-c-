@@ -300,6 +300,22 @@ export async function saveTeacherCode(files, shift, auth) {
   } catch { return false }
 }
 
+// ── biblioteca de aulas do PROFESSOR: aulas que ele salvou do próprio editor ──
+// (chave sob teachercode: → escrita protegida pela senha do professor no servidor)
+const TEACHER_LESSONS_KEY = 'teachercode:lessons'
+export async function getTeacherLessons() {
+  try {
+    const r = await kvCall({ action: 'get', key: TEACHER_LESSONS_KEY })
+    return r.value ? JSON.parse(r.value) : []
+  } catch { return [] }
+}
+export async function saveTeacherLessons(lessons, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: TEACHER_LESSONS_KEY, value: JSON.stringify(lessons || []), auth })
+    return r.ok === true
+  } catch { return false }
+}
+
 export async function getTeacherCode(shift) {
   try {
     const r = await kvCall({ action: 'get', key: teacherCodeKey(shift) })
