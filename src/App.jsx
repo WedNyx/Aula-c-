@@ -2177,8 +2177,8 @@ const SYMBOL_KEYCAP = {
   ")": { key: "0", mod: "shift" },
   "[": { key: "[", mod: null },
   "]": { key: "]", mod: null },
-  "{": { key: "[", mod: "altgr" },
-  "}": { key: "]", mod: "altgr" },
+  "{": { key: "[", mod: "shift" },
+  "}": { key: "]", mod: "shift" },
   '"': { key: "'", mod: "shift" },
   ";": { key: ";", mod: null },
   "_": { key: "-", mod: "shift" },
@@ -2188,12 +2188,21 @@ const SYMBOL_KEYCAP = {
   "<": { key: ",", mod: "shift" },
   ">": { key: ".", mod: "shift" },
 };
+// nome falado/escrito de cada tecla — pra quem não conhece o nome do símbolo saber do que se trata
+const KEY_NAMES = {
+  "[": "colchete", "]": "colchete", "{": "chave", "}": "chave",
+  "(": "parêntese", ")": "parêntese", '"': "aspas", "'": "apóstrofo",
+  ";": "ponto e vírgula", "_": "traço baixo (underline)", "-": "hífen",
+  "=": "igual", ".": "ponto", ",": "vírgula", "<": "menor que", ">": "maior que",
+  "9": "nove", "0": "zero",
+};
+const keyName = (k) => KEY_NAMES[k] ? `${KEY_NAMES[k]} (${k})` : k;
 function comboLabel(sym) {
   const c = SYMBOL_KEYCAP[sym];
-  if (!c) return `Aperte a tecla ${sym}`;
-  if (c.mod === "shift") return `Segure Shift e aperte a tecla ${c.key}`;
-  if (c.mod === "altgr") return `Segure Alt Gr (à direita da barra de espaço) e aperte a tecla ${c.key}`;
-  return `Aperte a tecla ${c.key} (sem precisar de mais nada)`;
+  if (!c) return `Aperte a tecla ${keyName(sym)}`;
+  if (c.mod === "shift") return `Segure Shift e aperte a tecla ${keyName(c.key)}`;
+  if (c.mod === "altgr") return `Segure Alt Gr (à direita da barra de espaço) e aperte a tecla ${keyName(c.key)}`;
+  return `Aperte a tecla ${keyName(c.key)} (sem precisar de mais nada)`;
 }
 const KEYBOARD_LEVELS = [
   { id:1, title:"Letras e números", targets: "abcdefghijklmnopqrstuvwxyz0123456789".split("").map(char => ({ char })) },
@@ -2214,8 +2223,9 @@ function MiniKeyboard({ highlight }) {
     fontWeight:800, fontSize:12.5, fontFamily:"monospace", boxShadow: active ? "0 0 14px #fbbf2488" : "0 2px 0 #10142866",
     animation: active ? "nyx-shake 0.9s ease-in-out infinite" : "none", transition:"background .15s",
   });
-  const isKey = (k) => !!highlight && !highlight.mod && highlight.key === k;
-  const isMod = (m) => !!highlight && highlight.mod === m;
+  // a tecla principal E o(s) modificador(es) brilham juntos — é isso que precisa ser apertado ao mesmo tempo
+  const isKey = (k) => !!highlight && highlight.key === k;
+  const isMod = (m) => !!highlight && (highlight.mods||[]).includes(m);
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", margin:"14px 0", overflowX:"auto" }}>
       {ABNT2_ROWS.map((row, ri) => (
@@ -2248,9 +2258,9 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
     if (level.line) { speak("Última etapa! Digite essa linha de código inteira, prestando atenção em cada tecla, sem colar."); return; }
     if (!target) return;
     let text;
-    if (target.symbol) text = `${comboLabel(target.char)}, para escrever o símbolo ${target.char}.`;
-    else if (target.ctrl) text = `Segure Ctrl e aperte ${target.char.toUpperCase()}. Isso é o atalho de ${target.label}.`;
-    else if (target.shift) text = `Segure Shift e aperte a tecla ${target.char}, pra sair maiúscula.`;
+    if (target.symbol) text = `${comboLabel(target.char)}, para escrever o símbolo ${keyName(target.char)}.`;
+    else if (target.ctrl) text = `Segure a tecla Ctrl e, ao mesmo tempo, aperte a tecla ${target.char.toUpperCase()}. Isso é o atalho de ${target.label}.`;
+    else if (target.shift) text = `Segure a tecla Shift e, ao mesmo tempo, aperte a tecla ${target.char}, pra sair maiúscula.`;
     else text = `Aperte a tecla ${target.char.toUpperCase()}.`;
     speak(text);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2291,10 +2301,10 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
 
   const highlight = (() => {
     if (!target) return null;
-    if (target.symbol) { const c = SYMBOL_KEYCAP[target.char]; return c ? { key: c.key.toUpperCase(), mod: c.mod } : null; }
-    if (target.ctrl) return { key: target.char.toUpperCase(), mod: "ctrl" };
-    if (target.shift) return { key: target.char.toUpperCase(), mod: "shift" };
-    return { key: target.char.toUpperCase(), mod: null };
+    if (target.symbol) { const c = SYMBOL_KEYCAP[target.char]; return c ? { key: c.key.toUpperCase(), mods: c.mod ? [c.mod] : [] } : null; }
+    if (target.ctrl) return { key: target.char.toUpperCase(), mods: ["ctrl"] };
+    if (target.shift) return { key: target.char.toUpperCase(), mods: ["shift"] };
+    return { key: target.char.toUpperCase(), mods: [] };
   })();
 
   const totalTargets = KEYBOARD_LEVELS.slice(0, 4).reduce((n, l) => n + l.targets.length, 0);
@@ -2338,7 +2348,7 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
                     {target.symbol ? target.char : target.ctrl ? `Ctrl + ${target.char.toUpperCase()}` : target.shift ? target.char : target.char.toUpperCase()}
                   </div>
                   <p style={{ color:"#c7cfee", fontSize:13, margin:"6px 0 0" }}>
-                    {target.symbol ? comboLabel(target.char) : target.ctrl ? target.label : target.shift ? `Segure Shift e aperte ${target.char}` : `Aperte essa tecla`}
+                    {target.symbol ? `${comboLabel(target.char)} — isso escreve ${keyName(target.char)}` : target.ctrl ? `Segure Ctrl e aperte ${target.char.toUpperCase()} ao mesmo tempo — ${target.label}` : target.shift ? `Segure Shift e aperte ${target.char} ao mesmo tempo` : `Aperte essa tecla`}
                   </p>
                 </div>
                 <MiniKeyboard highlight={highlight} />
