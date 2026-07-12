@@ -2174,7 +2174,7 @@ const KB_ROWS = [
   [ kbKey("ShiftL","⇧ Shift",null,62), kbKey("\\","\\","|"), kbKey("Z"), kbKey("X"), kbKey("C"), kbKey("V"), kbKey("B"), kbKey("N"), kbKey("M"), kbKey(",",",","<"), kbKey(".",".",">"), kbKey(";",";",":"), kbKey("ShiftR","⇧ Shift",null,62) ],
   [ kbKey("Ctrl","Ctrl",null,44), kbKey("Fn","Fn"), kbKey("Win","⊞"), kbKey("Alt","Alt"), kbKey("Space","espaço",null,168), kbKey("AltGr","Alt Gr",null,50), kbKey("/","/","?") ],
 ];
-// qual tecla física (+ modificador) produz cada símbolo de programação no ABNT2
+// qual tecla física (+ modificador) produz cada símbolo no teclado da carreta (ABNT2)
 const SYMBOL_KEYCAP = {
   "(": { key: "9", mod: "shift" },
   ")": { key: "0", mod: "shift" },
@@ -2190,6 +2190,19 @@ const SYMBOL_KEYCAP = {
   ",": { key: ",", mod: null },
   "<": { key: ",", mod: "shift" },
   ">": { key: ".", mod: "shift" },
+  // operadores e símbolos de conta (nível "Operadores e contas")
+  "+": { key: "=", mod: "shift" },
+  "*": { key: "8", mod: "shift" },
+  "/": { key: "/", mod: null },
+  "%": { key: "5", mod: "shift" },
+  "!": { key: "1", mod: "shift" },
+  "?": { key: "/", mod: "shift" },
+  ":": { key: ";", mod: "shift" },
+  "'": { key: "'", mod: null },
+  "\\": { key: "\\", mod: null },
+  "&": { key: "7", mod: "shift" },
+  "@": { key: "2", mod: "shift" },
+  "$": { key: "4", mod: "shift" },
 };
 // nome falado/escrito de cada tecla — pra quem não conhece o nome do símbolo saber do que se trata
 const KEY_NAMES = {
@@ -2199,6 +2212,9 @@ const KEY_NAMES = {
   "=": "igual", ".": "ponto", ",": "vírgula", "<": "menor que", ">": "maior que",
   "9": "nove", "0": "zero", "/": "barra", "\\": "barra invertida",
   "´": "acento agudo", "~": "til", "ç": "cê-cedilha",
+  "+": "mais", "*": "asterisco", "%": "porcentagem", "!": "exclamação",
+  "?": "interrogação", ":": "dois pontos", "&": "e comercial", "@": "arroba", "$": "cifrão",
+  "1": "um", "2": "dois", "4": "quatro", "5": "cinco", "7": "sete", "8": "oito",
 };
 const keyName = (k) => KEY_NAMES[k] ? `${KEY_NAMES[k]} (${k})` : k;
 function comboLabel(sym) {
@@ -2210,24 +2226,42 @@ function comboLabel(sym) {
 }
 const KEYBOARD_LEVELS = [
   { id:1, title:"Letras e números", targets: "abcdefghijklmnopqrstuvwxyz0123456789".split("").map(char => ({ char })) },
-  { id:2, title:"Shift (maiúsculas)", targets: "NYXCODAR".split("").map(char => ({ char, shift:true })) },
-  { id:3, title:"Ctrl (copiar, colar, desfazer)", targets: [
+  { id:2, title:"Espaço, Enter e companhia", targets: [
+    { char:" ",          special:true, display:"espaço",       hint:"A barra comprida embaixo — separa as palavras",                     speakText:"Aperte a barra de espaço, aquela tecla comprida embaixo. Ela separa as palavras." },
+    { char:"Enter",      special:true, display:"Enter ⏎",      hint:"Pula pra linha de baixo — no código usamos o tempo todo",           speakText:"Aperte a tecla Enter, à direita. Ela pula para a linha de baixo. No código, a gente usa o Enter o tempo todo." },
+    { char:"Backspace",  special:true, display:"⌫ Backspace",  hint:"Apaga a última coisa que você digitou",                             speakText:"Aperte a tecla Backspace, lá no canto de cima, à direita. Ela apaga a última coisa que você digitou." },
+    { char:"Tab",        special:true, display:"Tab ⇆",        hint:"Empurra o código pra dentro — deixa tudo organizado (indentação)",  speakText:"Aperte a tecla Tab, à esquerda, em cima do Caps Lock. Ela empurra o código para dentro, deixando tudo organizado." },
+    { char:"ArrowLeft",  special:true, display:"←",            hint:"As setas movem o cursor sem apagar nada",                           speakText:"Agora as setas, embaixo à direita. Aperte a seta para a esquerda. As setas movem o cursor pelo texto sem apagar nada." },
+    { char:"ArrowRight", special:true, display:"→",            hint:"Move o cursor pra direita",                                         speakText:"Aperte a seta para a direita." },
+    { char:"ArrowUp",    special:true, display:"↑",            hint:"Sobe uma linha no código",                                          speakText:"Aperte a seta para cima, ela sobe uma linha." },
+    { char:"ArrowDown",  special:true, display:"↓",            hint:"Desce uma linha no código",                                         speakText:"E aperte a seta para baixo, ela desce uma linha." },
+  ] },
+  { id:3, title:"Shift (maiúsculas)", targets: "NYXCODAR".split("").map(char => ({ char, shift:true })) },
+  { id:4, title:"Ctrl (atalhos mágicos)", targets: [
     { char:"c", ctrl:true, label:"Ctrl + C, copiar" },
     { char:"v", ctrl:true, label:"Ctrl + V, colar" },
     { char:"z", ctrl:true, label:"Ctrl + Z, desfazer" },
+    { char:"a", ctrl:true, label:"Ctrl + A, selecionar tudo" },
   ] },
-  { id:4, title:"Símbolos de programação", targets: ["(",")","[","]","{","}",'"',";","_","=",".",",","<",">"].map(char => ({ char, symbol:true })) },
-  { id:5, title:"Teste final", line: 'int x = 10;\nif (x > 5) { Console.WriteLine("Oi"); }' },
+  { id:5, title:"Símbolos de programação", targets: ["(",")","[","]","{","}",'"',";","_","=",".",",","<",">"].map(char => ({ char, symbol:true })) },
+  { id:6, title:"Operadores e contas", targets: ["+","*","/","%","!","?",":","'","\\","&","@","$"].map(char => ({ char, symbol:true })) },
+  { id:7, title:"Acentos do português", targets: [
+    { char:"ç", accent:true, keys:["Ç"],     display:"ç", hint:"Aperte a tecla Ç — ela fica ao lado do L",                                        speakText:"Aperte a tecla cê-cedilha. Ela fica ao lado da letra L." },
+    { char:"á", accent:true, keys:["´","A"], display:"á", hint:"Aperte o acento agudo (ao lado do P) e DEPOIS a letra A",                          speakText:"Para escrever o A com acento agudo, aperte primeiro o acento agudo, ao lado do P, e depois aperte a letra A." },
+    { char:"ã", accent:true, keys:["~","A"], display:"ã", hint:"Aperte o til (ao lado do Ç) e DEPOIS a letra A",                                   speakText:"Para escrever o A com til, aperte primeiro o til, ao lado do cê-cedilha, e depois aperte a letra A." },
+  ] },
+  { id:8, title:"Teste final", line: 'int x = 10;\nif (x > 5) { Console.WriteLine("Oi!"); }' },
 ];
 function MiniKeyboard({ highlight }) {
-  // a tecla principal E o(s) modificador(es) brilham juntos — é isso que precisa ser apertado ao mesmo tempo
+  // a(s) tecla(s) principais E o(s) modificador(es) brilham juntos — é isso que precisa ser apertado
+  // (keys é uma lista pra combinações em sequência, tipo acento agudo + letra A)
   const isActive = (k) => {
     if (!highlight) return false;
     const mods = highlight.mods || [];
     if (k.id === "ShiftL" || k.id === "ShiftR") return mods.includes("shift");
     if (k.id === "Ctrl") return mods.includes("ctrl");
     if (k.id === "AltGr") return mods.includes("altgr");
-    return highlight.key === k.id;
+    return (highlight.keys || []).includes(k.id);
   };
   const keyStyle = (active, w, h) => ({
     display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minWidth: w, height: h || 34, padding:"0 4px", boxSizing:"border-box",
@@ -2253,12 +2287,12 @@ function MiniKeyboard({ highlight }) {
       {/* última fileira + bloco de setas (← ↑/↓ →), igual ao notebook da carreta */}
       <div style={{ display:"flex", gap:4, alignItems:"stretch" }}>
         {KB_ROWS[4].map(renderKey)}
-        <div style={keyStyle(false, 34)}>←</div>
+        <div style={keyStyle(isActive({ id:"←" }), 34)}>←</div>
         <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-          <div style={{ ...keyStyle(false, 34, 16), fontSize:8 }}>↑ PgUp</div>
-          <div style={{ ...keyStyle(false, 34, 16), fontSize:8 }}>↓ PgDn</div>
+          <div style={{ ...keyStyle(isActive({ id:"↑" }), 34, 16), fontSize:8 }}>↑ PgUp</div>
+          <div style={{ ...keyStyle(isActive({ id:"↓" }), 34, 16), fontSize:8 }}>↓ PgDn</div>
         </div>
-        <div style={keyStyle(false, 34)}>→</div>
+        <div style={keyStyle(isActive({ id:"→" }), 34)}>→</div>
       </div>
     </div>
   );
@@ -2277,7 +2311,8 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
     if (level.line) { speak("Última etapa! Digite essa linha de código inteira, prestando atenção em cada tecla, sem colar."); return; }
     if (!target) return;
     let text;
-    if (target.symbol) text = `${comboLabel(target.char)}, para escrever o símbolo ${keyName(target.char)}.`;
+    if (target.speakText) text = target.speakText;
+    else if (target.symbol) text = `${comboLabel(target.char)}, para escrever o símbolo ${keyName(target.char)}.`;
     else if (target.ctrl) text = `Segure a tecla Ctrl e, ao mesmo tempo, aperte a tecla ${target.char.toUpperCase()}. Isso é o atalho de ${target.label}.`;
     else if (target.shift) text = `Segure a tecla Shift e, ao mesmo tempo, aperte a tecla ${target.char}, pra sair maiúscula.`;
     else text = `Aperte a tecla ${target.char.toUpperCase()}.`;
@@ -2289,8 +2324,12 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
     if (done || level.line) return;
     const onKey = (e) => {
       if (!target) return;
+      // com o tutorial aberto, Tab/espaço não devem trocar o foco nem rolar a página
+      if (["Tab", " "].includes(e.key)) e.preventDefault();
       let ok = false;
-      if (target.symbol) ok = e.key === target.char;
+      if (target.special) { ok = e.key === target.char; if (ok) e.preventDefault(); }
+      else if (target.accent) ok = e.key.toLowerCase() === target.char; // o navegador entrega a letra já composta (´+a → "á")
+      else if (target.symbol) ok = e.key === target.char;
       else if (target.ctrl) { ok = e.ctrlKey && e.key.toLowerCase() === target.char.toLowerCase(); if (ok) e.preventDefault(); }
       else if (target.shift) ok = e.shiftKey && e.key === target.char.toUpperCase();
       else ok = !e.shiftKey && !e.ctrlKey && e.key.toLowerCase() === target.char.toLowerCase();
@@ -2298,7 +2337,8 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
         playSound("correct");
         if (targetIdx + 1 < level.targets.length) setTargetIdx(i => i + 1);
         else if (levelIdx + 1 < KEYBOARD_LEVELS.length) { setLevelIdx(l => l + 1); setTargetIdx(0); playSound("levelup"); }
-      } else if (!["Shift","Control","Alt","AltGraph","Meta","Tab","CapsLock"].includes(e.key)) {
+      } else if (!["Shift","Control","Alt","AltGraph","Meta","Tab","CapsLock","Dead"].includes(e.key)) {
+        // "Dead" = tecla de acento esperando a letra (´, ~, ^) — não é erro, é o meio do caminho
         playSound("wrong");
         setWrongFlash(true); setTimeout(() => setWrongFlash(false), 300);
       }
@@ -2318,15 +2358,19 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
     if (v === level.line) finishAll();
   };
 
+  // qual tecla do desenho corresponde a cada tecla especial (id no KB_ROWS/bloco de setas)
+  const SPECIAL_KEYCAP = { " ": "Space", "Enter": "Enter", "Backspace": "Backspace", "Tab": "Tab", "ArrowLeft": "←", "ArrowRight": "→", "ArrowUp": "↑", "ArrowDown": "↓" };
   const highlight = (() => {
     if (!target) return null;
-    if (target.symbol) { const c = SYMBOL_KEYCAP[target.char]; return c ? { key: c.key.toUpperCase(), mods: c.mod ? [c.mod] : [] } : null; }
-    if (target.ctrl) return { key: target.char.toUpperCase(), mods: ["ctrl"] };
-    if (target.shift) return { key: target.char.toUpperCase(), mods: ["shift"] };
-    return { key: target.char.toUpperCase(), mods: [] };
+    if (target.special) return { keys: [SPECIAL_KEYCAP[target.char]].filter(Boolean), mods: [] };
+    if (target.accent) return { keys: target.keys || [], mods: [] };
+    if (target.symbol) { const c = SYMBOL_KEYCAP[target.char]; return c ? { keys: [c.key.toUpperCase()], mods: c.mod ? [c.mod] : [] } : null; }
+    if (target.ctrl) return { keys: [target.char.toUpperCase()], mods: ["ctrl"] };
+    if (target.shift) return { keys: [target.char.toUpperCase()], mods: ["shift"] };
+    return { keys: [target.char.toUpperCase()], mods: [] };
   })();
 
-  const totalTargets = KEYBOARD_LEVELS.slice(0, 4).reduce((n, l) => n + l.targets.length, 0);
+  const totalTargets = KEYBOARD_LEVELS.filter(l => l.targets).reduce((n, l) => n + l.targets.length, 0);
   const doneTargets = KEYBOARD_LEVELS.slice(0, levelIdx).reduce((n, l) => n + (l.targets ? l.targets.length : 0), 0) + targetIdx;
 
   return (
@@ -2364,10 +2408,10 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
                 <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 4px" }}>{targetIdx}/{level.targets.length} teclas neste nível · <b style={{ color:"#fbbf24" }}>{level.title}</b> ({doneTargets}/{totalTargets} no total)</p>
                 <div className="pop" style={{ background: wrongFlash ? "#f8717122" : "#0d1122", border:`1px solid ${wrongFlash?"#f87171":"#2a3154"}`, borderRadius:14, padding:"16px", textAlign:"center", transition:"background .15s" }}>
                   <div style={{ fontSize:38, fontWeight:900, fontFamily:"monospace", color: wrongFlash?"#f87171":"#22d3ee" }}>
-                    {target.symbol ? target.char : target.ctrl ? `Ctrl + ${target.char.toUpperCase()}` : target.shift ? target.char : target.char.toUpperCase()}
+                    {target.special || target.accent ? (target.display || target.char) : target.symbol ? target.char : target.ctrl ? `Ctrl + ${target.char.toUpperCase()}` : target.shift ? target.char : target.char.toUpperCase()}
                   </div>
                   <p style={{ color:"#c7cfee", fontSize:13, margin:"6px 0 0" }}>
-                    {target.symbol ? `${comboLabel(target.char)} — isso escreve ${keyName(target.char)}` : target.ctrl ? `Segure Ctrl e aperte ${target.char.toUpperCase()} ao mesmo tempo — ${target.label}` : target.shift ? `Segure Shift e aperte ${target.char} ao mesmo tempo` : `Aperte essa tecla`}
+                    {target.hint ? target.hint : target.symbol ? `${comboLabel(target.char)} — isso escreve ${keyName(target.char)}` : target.ctrl ? `Segure Ctrl e aperte ${target.char.toUpperCase()} ao mesmo tempo — ${target.label}` : target.shift ? `Segure Shift e aperte ${target.char} ao mesmo tempo` : `Aperte essa tecla`}
                   </p>
                 </div>
                 <MiniKeyboard highlight={highlight} />
