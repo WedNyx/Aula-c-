@@ -106,6 +106,24 @@ export async function setSupport(shift, name, flags, auth) {
     return r.ok === true
   } catch { return false }
 }
+// ── chefão da turma (evento do telão): a turma causa "dano" ganhando pontos ──
+const BOSS_KEY = 'boss:config'
+export async function getBoss() {
+  try {
+    const r = await kvCall({ action: 'get', key: BOSS_KEY })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
+export async function setBoss(state, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: BOSS_KEY, value: JSON.stringify(state), auth })
+    return r.ok === true
+  } catch { return false }
+}
+export async function clearBoss(auth) {
+  try { await kvCall({ action: 'delete', key: BOSS_KEY, auth }) } catch {}
+}
+
 // backup completo: baixa TODAS as chaves do banco (menos as técnicas) num JSON —
 // seguro contra acidente e histórico permanente antes de resetar a turma de uma cidade
 export async function exportAllData() {

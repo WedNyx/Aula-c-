@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss } from "./storage.js";
 import { xlsxBlob } from "./xlsx.js";
 
 // ── tema ──
@@ -275,6 +275,8 @@ const ACHIEVEMENTS = [
   { id:"duelista-3",         emoji:"🏆", label:"Campeão de Duelos", desc:"Venceu 3 duelos" },
   // extras
   { id:"artista",            emoji:"🎨", label:"Artista",        desc:"Pediu ao Nyx um fundo de cor personalizada" },
+  // secreta: só se revela quando alguém descobre um comando escondido no terminal
+  { id:"segredo",            emoji:"🥚", label:"Caçador de Segredos", desc:"Descobriu um comando secreto no terminal", secret:true },
 ];
 const achievementInfo = (id) => ACHIEVEMENTS.find(a => a.id === id);
 
@@ -1228,7 +1230,7 @@ function AvatarBuilder({ value, onChange }) {
 // ════════════════════════════════════════════════════════════════════════════
 const TERM_PROMPT = "C:\\Aula\\MeuProjeto>";
 
-function Terminal({ files, dataTour, maxHeight = 260 }) {
+function Terminal({ files, dataTour, maxHeight = 260, onEasterEgg = null }) {
   const [hist, setHist] = useState([
     "Terminal da Aula C#",
     'Digite "ajuda" para ver os comandos disponíveis.',
@@ -1330,6 +1332,36 @@ function Terminal({ files, dataTour, maxHeight = 260 }) {
     }
     if (low === "dotnet run") { doRun(); return; }
     if (low === "dotnet build") { buildProgram(); return; }
+    // ── comandos secretos: ninguém conta, eles descobrem 🥚 ──
+    if (low === "dotnet moo") {
+      push("         (__)", "         (oo)", "   /------\\/", "  / |    ||", " *  /\\---/\\", "    ~~   ~~", '"Muuu!" Você encontrou a vaca escondida do .NET! 🐄', "");
+      onEasterEgg && onEasterEgg("moo");
+      return;
+    }
+    if (low === "nyx dance") {
+      push("♪┏(・o･)┛♪┗ (･o･) ┓♪", "♪┗ (･o･) ┓♪┏(・o･)┛♪", "♪┏(・o･)┛♪┗ (･o･) ┓♪", "O Nyx está DANÇANDO! Olha pro lado! 💃", "");
+      onEasterEgg && onEasterEgg("dance");
+      return;
+    }
+    if (low === "matrix") {
+      const chars = "01アイウエオカキクケコサシスセソ";
+      const rain = Array.from({ length: 10 }, () => Array.from({ length: 46 }, () => chars[Math.floor(Math.random() * chars.length)]).join(""));
+      push(...rain, "Acorde, Neo... a Matrix te achou. 🐇", "");
+      onEasterEgg && onEasterEgg("matrix");
+      return;
+    }
+    if (low === "nyx piada") {
+      const piadas = [
+        "Como o programador pede café? while (true) { café++; }",
+        "Por que o C# terminou o namoro com o JavaScript? Porque ele tinha tipos demais... e o JS não tinha nenhum!",
+        "O que o int disse pro double? \"Para de aparecer com essas vírgulas!\"",
+        "Qual o animal favorito do programador? O polvo, porque tem 8 bits! 🐙",
+        "Erro 404: piada não encontrada. (brincadeira, essa era a piada 😅)",
+      ];
+      push(piadas[Math.floor(Math.random() * piadas.length)], "");
+      onEasterEgg && onEasterEgg("piada");
+      return;
+    }
     if (low === "dotnet" || low.startsWith("dotnet ")) { push("Uso:  dotnet run  |  dotnet build", ""); return; }
     push(`'${c}' não é reconhecido como um comando. Digite "ajuda" para ver os comandos.`, "");
   };
@@ -1831,10 +1863,10 @@ function AchievementsModal({ unlocked, onClose }) {
             const got = unlocked.includes(a.id);
             return (
               <div key={a.id} style={{ background:got?"#fbbf2418":"#0d1122", border:`1px solid ${got?"#fbbf24":"#241f38"}`, borderRadius:14, padding:"12px 14px", display:"flex", gap:10, alignItems:"center", opacity:got?1:0.55 }}>
-                <div style={{ fontSize:26, filter:got?"none":"grayscale(1)" }}>{a.emoji}</div>
+                <div style={{ fontSize:26, filter:got?"none":"grayscale(1)" }}>{a.secret && !got ? "❓" : a.emoji}</div>
                 <div>
-                  <div style={{ color:"#e8ebfa", fontWeight:800, fontSize:13 }}>{a.label}</div>
-                  <div style={{ color:"#5d679c", fontSize:11.5 }}>{a.desc}</div>
+                  <div style={{ color:"#e8ebfa", fontWeight:800, fontSize:13 }}>{a.secret && !got ? "???" : a.label}</div>
+                  <div style={{ color:"#5d679c", fontSize:11.5 }}>{a.secret && !got ? "Um segredo espera por quem explora o terminal..." : a.desc}</div>
                 </div>
               </div>
             );
@@ -1904,8 +1936,37 @@ function ClassGoalBar({ sum }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  TELÃO DA TURMA — tela cheia só de visualização, pra projetar durante a aula
 // ════════════════════════════════════════════════════════════════════════════
-function TelaoModal({ students, shift, onClose }) {
+const BOSS_PRESETS = [
+  { name: "Bugzilla", emoji: "👾" },
+  { name: "Null Pointer", emoji: "🐉" },
+  { name: "Lag Monstro", emoji: "🦑" },
+  { name: "Stack Overlord", emoji: "🤖" },
+];
+
+function TelaoModal({ students, shift, onClose, teacherAuth }) {
   const [telaoShift, setTelaoShift] = useState(shift && shift !== "all" ? shift : "matutino");
+  // 👾 chefão da turma: HP = dano que a turma precisa causar; cada ponto ganho desde a invocação = 1 de dano
+  const [boss, setBossState] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => { const b = await getBoss(); if (alive) setBossState(b && b.status === "active" ? b : null); };
+    load();
+    const iv = setInterval(load, 4000);
+    return () => { alive = false; clearInterval(iv); };
+  }, []);
+  const summonBoss = async (maxHp) => {
+    const preset = BOSS_PRESETS[Math.floor(Math.random() * BOSS_PRESETS.length)];
+    const baseline = {};
+    (students || []).filter(s => (s.shift||"") !== TEST_SHIFT.id).forEach(s => { baseline[`${s.shift||"sem-turno"}:${s.name}`] = s.nyxPoints || 0; });
+    const b = { status: "active", ...preset, maxHp, baseline, startedAt: Date.now() };
+    await setBoss(b, teacherAuth);
+    setBossState(b);
+  };
+  const endBoss = async () => { await clearBoss(teacherAuth); setBossState(null); };
+  const bossDamage = boss ? (students || []).filter(s => (s.shift||"") !== TEST_SHIFT.id)
+    .reduce((sum, s) => sum + Math.max(0, (s.nyxPoints || 0) - (boss.baseline?.[`${s.shift||"sem-turno"}:${s.name}`] ?? 0)), 0) : 0;
+  const bossHp = boss ? Math.max(0, boss.maxHp - bossDamage) : 0;
+  const bossDefeated = boss && bossHp === 0;
   useEffect(() => { goFullscreen(); }, []);
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -1930,6 +1991,36 @@ function TelaoModal({ students, shift, onClose }) {
           <button onClick={onClose} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:12, padding:"10px 18px", fontSize:16, cursor:"pointer", fontWeight:800 }}>✕ Sair (Esc)</button>
         </div>
       </div>
+      {/* 👾 chefão da turma */}
+      {boss ? (
+        <div className="telao-card" style={{ position:"relative", background: bossDefeated ? "linear-gradient(135deg,#14532d,#166534)" : "linear-gradient(135deg,#3b0764,#1e1b4b)", border:`2px solid ${bossDefeated ? "#34d399" : "#a855f7"}`, borderRadius:24, padding:"22px 28px", marginBottom:24 }}>
+          {bossDefeated && <ConfettiParty level={1} />}
+          <div style={{ display:"flex", alignItems:"center", gap:18, flexWrap:"wrap" }}>
+            <span style={{ fontSize:"clamp(40px, 8vw, 64px)", animation: bossDefeated ? "none" : "nyx-shake 2.2s ease-in-out infinite" }}>{bossDefeated ? "💀" : boss.emoji}</span>
+            <div style={{ flex:"1 1 240px", minWidth:0 }}>
+              <h2 style={{ margin:0, fontSize:"clamp(18px, 4.5vw, 26px)", color: bossDefeated ? "#bbf7d0" : "#e9d5ff" }}>
+                {bossDefeated ? `${boss.name} FOI DERROTADO! 🎉` : `${boss.name} invadiu a aula!`}
+              </h2>
+              <p style={{ margin:"4px 0 10px", color: bossDefeated ? "#86efac" : "#c4b5fd", fontSize:"clamp(12px, 3vw, 14px)" }}>
+                {bossDefeated ? "A turma venceu junta — parabéns, guerreiros do código!" : "Cada resposta certa da turma tira vida dele. Ao ataque!"}
+              </p>
+              <div className="bar-glow" style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:20, height:24, overflow:"hidden" }}>
+                <div style={{ width:`${boss.maxHp ? (bossHp / boss.maxHp) * 100 : 0}%`, height:"100%", background: bossDefeated ? "#14532d" : "linear-gradient(90deg,#ef4444,#a855f7)", transition:"width .8s ease" }} />
+              </div>
+              <p style={{ margin:"6px 0 0", color:"#e8ebfa", fontWeight:900, fontSize:"clamp(13px, 3.5vw, 16px)" }}>❤️ {bossHp}/{boss.maxHp} · dano da turma: {Math.min(bossDamage, boss.maxHp)}</p>
+            </div>
+            <button onClick={endBoss} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:800 }}>{bossDefeated ? "🏁 Encerrar festa" : "✕ Dispensar chefão"}</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20, flexWrap:"wrap" }}>
+          <span style={{ color:"#96a0cc", fontSize:14, fontWeight:800 }}>👾 Invocar chefão (a turma derrota ganhando pontos):</span>
+          {[["Fácil", 30], ["Médio", 60], ["Épico", 120]].map(([label, hp]) => (
+            <button key={hp} onClick={()=>summonBoss(hp)} style={{ background:"#3b0764", color:"#e9d5ff", border:"1px solid #a855f7", borderRadius:12, padding:"8px 16px", fontSize:13, fontWeight:800, cursor:"pointer" }}>{label} · {hp} HP</button>
+          ))}
+        </div>
+      )}
+
       <div className="telao-grid" style={{ display:"grid", gridTemplateColumns: "1.3fr 1fr", gap:28, flex:1 }}>
         <div className="telao-card" style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32 }}>
           <h2 style={{ margin:"0 0 20px", fontSize:"clamp(20px, 4.5vw, 26px)", color:"#22d3ee" }}>📊 Ranking ao vivo</h2>
@@ -2489,6 +2580,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [examAppeal, setExamAppeal] = useState(null);
   // ✋ pedir ajuda: acende o tile do aluno no monitoramento do professor
   const [helpAt, setHelpAt] = useState(null);
+  // 👾 chefão da turma ativo (evento do telão) — aqui só aparece o aviso motivador
+  const [bossInfo, setBossInfo] = useState(null);
   // loja do Nyx: nyxPoints = pontos GANHOS (ranking/meta usam este); nyxSpent = total gasto na loja
   // carteira disponível = nyxPoints - nyxSpent; nyxOwned = itens comprados
   const [nyxPoints, setNyxPoints] = useState(0);
@@ -2849,6 +2942,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       try {
         const locks = await getNyxLocks();
         setNyxLocksState({ zek: !!locks.zek, zeker: !!locks.zeker });
+      } catch {}
+      // 👾 chefão da turma (evento do telão)
+      try {
+        const b = await getBoss();
+        setBossInfo(b && b.status === "active" ? b : null);
       } catch {}
       // modo guiado (acessibilidade) — o professor pode ligar/desligar por aluno a qualquer momento
       try {
@@ -3872,6 +3970,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         </div>
       )}
 
+      {bossInfo && phase==="coding" && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div style={{ background:"linear-gradient(90deg,#3b076422,#1e1b4b44)", border:"1px solid #a855f7", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:20, animation:"nyx-shake 2.2s ease-in-out infinite" }}>{bossInfo.emoji}</span>
+            <span style={{ flex:1, color:"#e9d5ff" }}><b style={{ color:"#c4b5fd" }}>{bossInfo.name} invadiu a aula!</b> Cada resposta certa da turma tira vida dele — acompanhe a batalha no telão! ⚔️</span>
+          </div>
+        </div>
+      )}
+
       {curiosity && !curiosityDismissed && !focusMode && phase==="coding" && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
           <div style={{ background:"#22d3ee18", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
@@ -4005,7 +4112,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 </div>
               </div>
 
-              <Terminal files={files} dataTour="terminal" />
+              <Terminal files={files} dataTour="terminal" onEasterEgg={(egg) => {
+                unlockAchievement("segredo");
+                if (egg === "dance") { setRobotState("ok"); setRobotMsg("💃 Você achou meu passo de dança secreto! Não conta pra ninguém... ou conta, vai ser divertido."); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
+              }} />
             </div>
           ) : (
             <>
@@ -4033,7 +4143,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 </div>
               </div>
 
-              <Terminal files={files} dataTour="terminal" />
+              <Terminal files={files} dataTour="terminal" onEasterEgg={(egg) => {
+                unlockAchievement("segredo");
+                if (egg === "dance") { setRobotState("ok"); setRobotMsg("💃 Você achou meu passo de dança secreto! Não conta pra ninguém... ou conta, vai ser divertido."); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
+              }} />
             </>
           )}
         </div>
@@ -5195,7 +5308,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         </div>
       )}
 
-      {showTelao && <TelaoModal students={students} shift={shiftFilter} onClose={()=>setShowTelao(false)} />}
+      {showTelao && <TelaoModal students={students} shift={shiftFilter} onClose={()=>setShowTelao(false)} teacherAuth={teacherAuth} />}
 
       {/* biblioteca de aulas: as SUAS aulas salvas (o seu código) + modelos de exemplo */}
       {showLessons && (
