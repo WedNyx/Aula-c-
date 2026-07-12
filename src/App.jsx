@@ -258,7 +258,7 @@ const ACHIEVEMENTS = [
   { id:"sequencia-14",       emoji:"🌋", label:"Duas Semanas!",  desc:"Veio 14 dias seguidos de aula" },
   { id:"presencas-5",        emoji:"📅", label:"Frequente",      desc:"Participou de 5 aulas" },
   { id:"presencas-15",       emoji:"🗓️", label:"Assíduo",        desc:"Participou de 15 aulas" },
-  { id:"presencas-30",       emoji:"🏫", label:"Veterano",       desc:"Participou de 30 aulas" },
+  { id:"cem-linhas",         emoji:"🏗️", label:"Arquiteto de Código", desc:"Escreveu 100 linhas de código no seu projeto" },
   // combos
   { id:"combo-5",            emoji:"⚡", label:"Combo Elétrico", desc:"Acertou 5 questões seguidas numa atividade" },
   { id:"combo-8",            emoji:"🚀", label:"Combo Insano",  desc:"Acertou 8 questões seguidas numa atividade" },
@@ -2692,7 +2692,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             const owned = Array.isArray(prev.nyxOwned) ? prev.nyxOwned : [];
             setNyxOwned([...new Set([...owned, ...equipped])]);
           }
-          if (Array.isArray(prev.achievements)) setAchievements(prev.achievements);
+          if (Array.isArray(prev.achievements)) setAchievements(prev.achievements.filter(id => achievementInfo(id)));
           if (prev.doneAt) setDoneAt(prev.doneAt);
           if (prev.scoreHistory) setScoreHistory(prev.scoreHistory);
           if (prev.summaryHistory) setSummaryHistory(prev.summaryHistory);
@@ -2909,7 +2909,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const presences = Object.values(attendanceRef.current).filter(v => v === "present").length;
       if (presences >= 5) unlockAchievement("presencas-5");
       if (presences >= 15) unlockAchievement("presencas-15");
-      if (presences >= 30) unlockAchievement("presencas-30");
+      // 🏗️ Arquiteto de Código: 100 linhas de verdade (não vazias) somando todos os arquivos
+      const totalLines = (s.files || []).reduce((n, f) => n + (f.code ? f.code.split("\n").filter(l => l.trim()).length : 0), 0);
+      if (totalLines >= 100) unlockAchievement("cem-linhas");
     };
     tick();
     const iv = setInterval(tick, 3000);
