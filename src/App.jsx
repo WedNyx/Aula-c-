@@ -2165,14 +2165,20 @@ const TYPING_SNIPPETS = [
 //  acha no computador exatamente o que vê brilhando na tela. A validação usa o
 //  que o navegador reporta do teclado físico, então acompanha o layout de verdade.
 // ════════════════════════════════════════════════════════════════════════════
-// cada tecla: id (usado pro destaque), rótulo principal, símbolo do Shift (canto de cima) e largura
-const kbKey = (id, label, shiftSym, w) => ({ id, label: label ?? id, shiftSym: shiftSym || null, w: w || 34 });
+// cada tecla: id (pro destaque), rótulo (com \n vira duas linhas, como as setinhas do Tab),
+// símbolo do Shift (canto de cima à esquerda), largura, símbolo do Alt Gr (canto de baixo à
+// direita, tipo ¹ ² ³ £ ª º °) e altura — tudo copiado da foto do notebook, tecla por tecla
+const kbKey = (id, label, shiftSym, w, altSym, h) => ({ id, label: label ?? id, shiftSym: shiftSym || null, altSym: altSym || null, w: w || 34, h: h || 34 });
+const KB_FN_ROW = [
+  kbKey("Esc","Esc",null,42,null,20), ...Array.from({ length: 12 }, (_, i) => kbKey(`F${i+1}`,`F${i+1}`,null,34,null,20)),
+  kbKey("Insert","Insert",null,42,null,20), kbKey("PrtSc","PrtSc",null,42,null,20), kbKey("Delete","Delete",null,46,null,20),
+];
 const KB_ROWS = [
-  [ kbKey("'", "'", '"'), kbKey("1","1","!"), kbKey("2","2","@"), kbKey("3","3","#"), kbKey("4","4","$"), kbKey("5","5","%"), kbKey("6","6","¨"), kbKey("7","7","&"), kbKey("8","8","*"), kbKey("9","9","("), kbKey("0","0",")"), kbKey("-","-","_"), kbKey("=","=","+"), kbKey("Backspace","⌫",null,54) ],
-  [ kbKey("Tab","Tab ⇆",null,52), kbKey("Q"), kbKey("W"), kbKey("E"), kbKey("R"), kbKey("T"), kbKey("Y"), kbKey("U"), kbKey("I"), kbKey("O"), kbKey("P"), kbKey("´","´","`"), kbKey("[","[","{"), kbKey("Enter","⏎",null,50) ],
-  [ kbKey("CapsLock","CapsLk",null,62), kbKey("A"), kbKey("S"), kbKey("D"), kbKey("F"), kbKey("G"), kbKey("H"), kbKey("J"), kbKey("K"), kbKey("L"), kbKey("Ç"), kbKey("~","~","^"), kbKey("]","]","}") ],
-  [ kbKey("ShiftL","⇧ Shift",null,62), kbKey("\\","\\","|"), kbKey("Z"), kbKey("X"), kbKey("C"), kbKey("V"), kbKey("B"), kbKey("N"), kbKey("M"), kbKey(",",",","<"), kbKey(".",".",">"), kbKey(";",";",":"), kbKey("ShiftR","⇧ Shift",null,62) ],
-  [ kbKey("Ctrl","Ctrl",null,44), kbKey("Fn","Fn"), kbKey("Win","⊞"), kbKey("Alt","Alt"), kbKey("Space","espaço",null,168), kbKey("AltGr","Alt Gr",null,50), kbKey("/","/","?") ],
+  [ kbKey("'", "'", '"'), kbKey("1","1","!",34,"¹"), kbKey("2","2","@",34,"²"), kbKey("3","3","#",34,"³"), kbKey("4","4","$",34,"£"), kbKey("5","5","%",34,"¢"), kbKey("6","6","¨",34,"¬"), kbKey("7","7","&"), kbKey("8","8","*"), kbKey("9","9","("), kbKey("0","0",")"), kbKey("-","-","_"), kbKey("=","=","+",34,"§"), kbKey("Backspace","⌫",null,56) ],
+  [ kbKey("Tab","⇤\n⇥",null,50), kbKey("Q"), kbKey("W"), kbKey("E"), kbKey("R"), kbKey("T"), kbKey("Y"), kbKey("U"), kbKey("I"), kbKey("O"), kbKey("P"), kbKey("´","´","`"), kbKey("[","[","{",34,"ª") ],
+  [ kbKey("CapsLock","CapsLk",null,50), kbKey("A"), kbKey("S"), kbKey("D"), kbKey("F"), kbKey("G"), kbKey("H"), kbKey("J"), kbKey("K"), kbKey("L"), kbKey("Ç"), kbKey("~","~","^"), kbKey("]","]","}",34,"º") ],
+  [ kbKey("ShiftL","⇧",null,48), kbKey("\\","\\","|"), kbKey("Z"), kbKey("X"), kbKey("C"), kbKey("V"), kbKey("B"), kbKey("N"), kbKey("M"), kbKey(",",",","<"), kbKey(".",".",">"), kbKey(";",";",":"), kbKey("ShiftR","⇧",null,88) ],
+  [ kbKey("Ctrl","Ctrl",null,44), kbKey("Fn","Fn"), kbKey("Win","⊞"), kbKey("Alt","Alt"), kbKey("Space","",null,176), kbKey("AltGr","AltGr",null,48), kbKey("/","/","?",34,"°") ],
 ];
 // qual tecla física (+ modificador) produz cada símbolo no teclado da carreta (ABNT2)
 const SYMBOL_KEYCAP = {
@@ -2264,35 +2270,56 @@ function MiniKeyboard({ highlight }) {
     return (highlight.keys || []).includes(k.id);
   };
   const keyStyle = (active, w, h) => ({
-    display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minWidth: w, height: h || 34, padding:"0 4px", boxSizing:"border-box",
+    position:"relative", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minWidth: w, height: h || 34, padding:"0 4px", boxSizing:"border-box",
     background: active ? "linear-gradient(180deg,#fbbf24,#f59310)" : "linear-gradient(180deg,#2a3154,#1c2140)",
     border:`1px solid ${active?"#fbbf24":"#3a4270"}`, borderRadius:6, color: active?"#1c1400":"#c7cfee",
-    fontWeight:800, fontSize:12, fontFamily:"monospace", lineHeight:1.05, boxShadow: active ? "0 0 14px #fbbf2488" : "0 2px 0 #10142866",
+    fontWeight:800, fontSize:12, fontFamily:"monospace", lineHeight:1.1, boxShadow: active ? "0 0 14px #fbbf2488" : "0 2px 0 #10142866",
     animation: active ? "nyx-shake 0.9s ease-in-out infinite" : "none", transition:"background .15s",
   });
-  const renderKey = (k) => {
+  // legendas nos mesmos cantos das teclas físicas: Shift em cima à esquerda, base embaixo à
+  // esquerda, Alt Gr embaixo à direita; letras sozinhas ficam no alto à esquerda, como no Lenovo
+  const renderKey = (k, hOverride) => {
     const active = isActive(k);
+    const h = hOverride || k.h;
+    const iconOnly = ["⌫","↵","⇧","⊞"].includes(k.label);
+    const lines = String(k.label).split("\n");
     return (
-      <div key={k.id} style={keyStyle(active, k.w)} title={k.shiftSym ? `Shift + ${k.label} = ${k.shiftSym}` : undefined}>
-        {k.shiftSym && <span style={{ fontSize:9, color: active ? "#1c1400aa" : "#7d87b8" }}>{k.shiftSym}</span>}
-        <span>{k.label}</span>
+      <div key={k.id} style={keyStyle(active, k.w, h)} title={k.shiftSym ? `Shift + ${k.label} = ${k.shiftSym}` : k.id === "Space" ? "barra de espaço" : undefined}>
+        {k.shiftSym && <span style={{ position:"absolute", top:2, left:5, fontSize:8.5, color: active ? "#1c1400aa" : "#7d87b8" }}>{k.shiftSym}</span>}
+        {k.altSym && <span style={{ position:"absolute", bottom:2, right:4, fontSize:7.5, color: active ? "#1c1400aa" : "#5d679c" }}>{k.altSym}</span>}
+        {k.shiftSym
+          ? <span style={{ position:"absolute", bottom:2, left:5, fontSize:12 }}>{k.label}</span>
+          : lines.length > 1
+            ? lines.map((l, i) => <span key={i} style={{ fontSize: l.length <= 1 ? 10 : 7.5 }}>{l}</span>)
+            : iconOnly || h <= 20
+              ? <span style={{ fontSize: iconOnly ? 14 : 8 }}>{k.label}</span>
+              : <span style={{ position:"absolute", top:3, left:6, fontSize: k.label.length > 3 ? 9 : 11.5 }}>{k.label}</span>}
       </div>
     );
   };
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", margin:"14px 0", overflowX:"auto" }}>
-      {KB_ROWS.slice(0, 4).map((row, ri) => (
-        <div key={ri} style={{ display:"flex", gap:4 }}>{row.map(renderKey)}</div>
-      ))}
-      {/* última fileira + bloco de setas (← ↑/↓ →), igual ao notebook da carreta */}
+      {/* fileira de cima: Esc, F1–F12, Insert, PrtSc, Delete (meia altura, como no notebook) */}
+      <div style={{ display:"flex", gap:4 }}>{KB_FN_ROW.map(k => renderKey(k))}</div>
+      <div style={{ display:"flex", gap:4 }}>{KB_ROWS[0].map(k => renderKey(k))}</div>
+      {/* fileiras do meio lado a lado com o Enter ocupando as DUAS, igual ao Enter em L do Lenovo */}
       <div style={{ display:"flex", gap:4, alignItems:"stretch" }}>
-        {KB_ROWS[4].map(renderKey)}
-        <div style={keyStyle(isActive({ id:"←" }), 34)}>←</div>
-        <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-          <div style={{ ...keyStyle(isActive({ id:"↑" }), 34, 16), fontSize:8 }}>↑ PgUp</div>
-          <div style={{ ...keyStyle(isActive({ id:"↓" }), 34, 16), fontSize:8 }}>↓ PgDn</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+          <div style={{ display:"flex", gap:4 }}>{KB_ROWS[1].map(k => renderKey(k))}</div>
+          <div style={{ display:"flex", gap:4 }}>{KB_ROWS[2].map(k => renderKey(k))}</div>
         </div>
-        <div style={keyStyle(isActive({ id:"→" }), 34)}>→</div>
+        {renderKey(kbKey("Enter","↵",null,46), 72)}
+      </div>
+      <div style={{ display:"flex", gap:4 }}>{KB_ROWS[3].map(k => renderKey(k))}</div>
+      {/* última fileira + bloco de setas com Home/End/PgUp/PgDn, igual ao notebook da carreta */}
+      <div style={{ display:"flex", gap:4, alignItems:"stretch" }}>
+        {KB_ROWS[4].map(k => renderKey(k))}
+        {renderKey(kbKey("←","←\nHome",null,38))}
+        <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+          {renderKey(kbKey("↑","↑ PgUp",null,42,null,16))}
+          {renderKey(kbKey("↓","↓ PgDn",null,42,null,16))}
+        </div>
+        {renderKey(kbKey("→","→\nEnd",null,38))}
       </div>
     </div>
   );
@@ -2375,7 +2402,7 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.88)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1200, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:720, width:"100%", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>⌨️ Tutorial de Teclado</h2>
           <button onClick={()=>{ stopSpeech?.(); onClose(); }} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
