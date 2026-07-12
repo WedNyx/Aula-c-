@@ -2106,6 +2106,147 @@ function SummaryPretty({ sum }) {
 }
 
 // caderno: lista os resumos por data e mostra o escolhido
+// ── 🔮 Nyx Vidente: previsão do dia, maluca e personalizada (determinística: nome+data → mesma previsão o dia todo) ──
+const VIDENTE_PREVISOES = [
+  "{nome}, os astros dizem que hoje você não vai esquecer NENHUM ponto e vírgula. Nenhum!",
+  "Sinto uma energia de nota 100 vindo na sua direção, {nome}... ela está próxima!",
+  "{nome}, a bola de cristal mostrou você encontrando um bug... e derrotando ele em segundos. 🐛⚔️",
+  "Hoje o universo conspira a favor das suas chaves { }. Elas vão fechar sozinhas, {nome}!",
+  "Vejo... vejo um combo de acertos seguidos no seu futuro, {nome}. As cartas não mentem!",
+  "{nome}, Mercúrio saiu do modo retrógrado do seu código: hoje TUDO compila de primeira!",
+  "Os espíritos do C# sussurram: '{nome} vai impressionar o professor hoje.' Eu só repito o que ouço!",
+  "Cuidado, {nome}: previsão de chuva de pontos do Nyx na sua conta ainda hoje. Leve um balde!",
+  "{nome}, hoje sua variável favorita será o double. Não me pergunte como eu sei. 🔮",
+  "A sorte do dia diz: quem digita com calma, como você fará hoje {nome}, erra menos que o compilador espera.",
+  "Vejo você descobrindo algo escondido na plataforma, {nome}... explore com atenção! 👀",
+  "{nome}, hoje seu Console.WriteLine vai imprimir coisas LENDÁRIAS. A bola de cristal nunca erra (quase).",
+  "Alerta cósmico: {nome} está 87% mais inteligente hoje. Os outros 13% chegam depois do lanche.",
+  "As estrelas formaram um 'if' no céu essa noite, {nome}. É um sinal: suas decisões de código serão perfeitas.",
+  "{nome}, sinto que um loop infinito tentará te pegar hoje... mas você vai escapar com um break elegante!",
+  "Previsão do dia: {nome} termina a atividade e ainda sobra tempo pra ajudar um colega. Que nobre!",
+  "O oráculo do .NET falou, {nome}: 'hoje é dia de código limpo e mente tranquila.'",
+  "{nome}, vejo pontos... muitos pontos... e um item novo da loja no seu futuro próximo! 🛍️",
+  "Hmm... a bola de cristal embaçou. Só consegui ver isto: {nome} + teclado = magia. ✨",
+  "Segundo meu horóscopo binário, {nome}, seu número da sorte hoje é 01000001. (É um 'A' de Aprovado!)",
+];
+function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
+
+// ── 🎁 presente misterioso do dia (aparece ao concluir a atividade, 1x por dia) ──
+const GIFT_TIERS = [
+  { chance: 0.55, pts: 3,  label: "Presente comum",  emoji: "💝", color: "#34d399" },
+  { chance: 0.30, pts: 6,  label: "Presente RARO",   emoji: "💎", color: "#22d3ee" },
+  { chance: 0.15, pts: 12, label: "Presente ÉPICO",  emoji: "👑", color: "#fbbf24" },
+];
+function rollGift() {
+  const r = Math.random();
+  if (r < GIFT_TIERS[0].chance) return GIFT_TIERS[0];
+  if (r < GIFT_TIERS[0].chance + GIFT_TIERS[1].chance) return GIFT_TIERS[1];
+  return GIFT_TIERS[2];
+}
+
+// ── 🏁 corrida de digitação: digitar um trecho C# exato contra o relógio ──
+const TYPING_SNIPPETS = [
+  'Console.WriteLine("Olá, mundo!");',
+  'int idade = 14;\nConsole.WriteLine(idade);',
+  'string nome = "Nyx";\nConsole.WriteLine($"Oi, {nome}!");',
+  'double preco = 9.99;\nConsole.WriteLine(preco * 2);',
+  'int soma = 7 + 8;\nConsole.WriteLine($"Total: {soma}");',
+  'if (nota >= 60)\n{\n    Console.WriteLine("Passou!");\n}',
+  'for (int i = 1; i <= 5; i++)\n{\n    Console.WriteLine(i);\n}',
+  'string resposta = Console.ReadLine();\nConsole.WriteLine(resposta);',
+];
+
+function TypingRaceModal({ onClose, onFinish }) {
+  const [target] = useState(() => TYPING_SNIPPETS[Math.floor(Math.random() * TYPING_SNIPPETS.length)]);
+  const [typed, setTyped] = useState("");
+  const [startAt, setStartAt] = useState(null);
+  const [now, setNow] = useState(Date.now());
+  const [result, setResult] = useState(null); // { ms, reward, newRecord }
+  const [top, setTop] = useState(null);
+  useEffect(() => {
+    if (!startAt || result) return;
+    const iv = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(iv);
+  }, [startAt, result]);
+  // pódio: os 3 melhores tempos da turma inteira
+  useEffect(() => {
+    listStudents().then(all => setTop(
+      all.filter(s => s.typingBest && typeof s.typingBest.ms === "number")
+        .sort((a, b) => a.typingBest.ms - b.typingBest.ms).slice(0, 3)
+    )).catch(() => setTop([]));
+  }, [result]);
+  const onType = (v) => {
+    if (result) return;
+    if (!startAt && v.length) setStartAt(Date.now());
+    setTyped(v);
+    if (v === target) {
+      const ms = Date.now() - (startAt || Date.now());
+      playSound("combo");
+      Promise.resolve(onFinish(ms)).then(r => setResult({ ms, ...(r || {}) }));
+    }
+  };
+  const elapsed = startAt ? ((result ? result.ms : now - startAt) / 1000) : 0;
+  const okLen = (() => { let i = 0; while (i < typed.length && typed[i] === target[i]) i++; return i; })();
+  const hasError = typed.length > okLen;
+  const medals = ["🥇", "🥈", "🥉"];
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:600, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#f87171,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🏁 Corrida de Digitação</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 12px" }}>Digite o código abaixo EXATAMENTE igual, o mais rápido que conseguir. O relógio começa na primeira tecla — e colar não vale! 😉</p>
+
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+          <span style={{ color:"#fbbf24", fontWeight:900, fontSize:22, fontVariantNumeric:"tabular-nums" }}>⏱ {elapsed.toFixed(1)}s</span>
+          <span style={{ color: hasError ? "#f87171" : "#34d399", fontSize:12.5, fontWeight:800 }}>{result ? "🏁 Chegada!" : hasError ? "✗ tem uma letra errada aí!" : `${okLen}/${target.length} caracteres`}</span>
+        </div>
+        <div className="bar-glow" style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:20, height:10, overflow:"hidden", marginBottom:12 }}>
+          <div style={{ width:`${(okLen / target.length) * 100}%`, height:"100%", background: hasError ? "#f87171" : "linear-gradient(90deg,#f87171,#fbbf24,#34d399)", transition:"width .15s ease" }} />
+        </div>
+
+        <pre style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:10, padding:"12px 14px", fontFamily:"'Courier New',monospace", fontSize:15, lineHeight:1.7, margin:"0 0 10px", whiteSpace:"pre-wrap", wordBreak:"break-all" }}>
+          {target.split("").map((ch, i) => (
+            <span key={i} style={{
+              color: i < okLen ? "#34d399" : (i < typed.length ? "#0d1122" : "#d4d4d4"),
+              background: i < okLen ? "transparent" : (i < typed.length ? "#f87171" : "transparent"),
+              borderRadius: 2,
+            }}>{ch}</span>
+          ))}
+        </pre>
+
+        {!result ? (
+          <textarea autoFocus value={typed} onChange={e => onType(e.target.value)} onPaste={e => e.preventDefault()} spellCheck={false} autoCorrect="off" autoCapitalize="off"
+            placeholder="Digite aqui... o tempo começa na primeira tecla!"
+            style={{ width:"100%", minHeight:90, background:"#0d1122", border:`2px solid ${hasError ? "#f87171" : "#2a3154"}`, borderRadius:12, padding:"10px 12px", color:"#e8ebfa", fontFamily:"'Courier New',monospace", fontSize:15, lineHeight:1.7, outline:"none", resize:"vertical" }} />
+        ) : (
+          <div className="pop" style={{ background:"linear-gradient(135deg,#34d39922,#22d3ee22)", border:"1px solid #34d399", borderRadius:14, padding:"16px 18px", textAlign:"center" }}>
+            <div style={{ fontSize:38 }}>🏁</div>
+            <p style={{ color:"#e8ebfa", fontWeight:900, fontSize:20, margin:"6px 0 2px" }}>{(result.ms / 1000).toFixed(1)} segundos!</p>
+            {result.newRecord && <p style={{ color:"#fbbf24", fontWeight:800, fontSize:14, margin:"2px 0" }}>🌟 NOVO RECORDE PESSOAL!</p>}
+            <p style={{ color:"#96a0cc", fontSize:13, margin:"4px 0 0" }}>{result.reward > 0 ? `+${result.reward} ponto${result.reward>1?"s":""} do Nyx pra você!` : "Pontos da corrida já garantidos hoje — mas o recorde continua valendo!"}</p>
+            <button onClick={onClose} style={{ marginTop:12, background:"linear-gradient(135deg,#34d399,#059669)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"9px 22px", cursor:"pointer", fontSize:14 }}>Fechar</button>
+          </div>
+        )}
+
+        <div style={{ marginTop:14, borderTop:"1px solid #2a3154", paddingTop:10 }}>
+          <p style={{ color:"#fbbf24", fontSize:12.5, fontWeight:800, margin:"0 0 8px" }}>🏆 Pilotos mais rápidos da turma</p>
+          {top === null ? <p style={{ color:"#5d679c", fontSize:12 }}>Carregando pódio...</p>
+            : top.length === 0 ? <p style={{ color:"#5d679c", fontSize:12 }}>Ninguém correu ainda — seja o primeiro do pódio!</p>
+            : top.map((s, i) => (
+              <div key={s.name} style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, marginBottom:4 }}>
+                <span>{medals[i]}</span>
+                <span style={{ flex:1, color:"#e8ebfa", fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</span>
+                <span style={{ color:"#34d399", fontWeight:800, fontVariantNumeric:"tabular-nums" }}>{(s.typingBest.ms / 1000).toFixed(1)}s</span>
+              </div>
+            ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NotebookModal({ history, detailedHistory, onClose }) {
   const dates = Object.keys(history || {}).sort((a,b)=>b.localeCompare(a));
   const [sel, setSel] = useState(dates[0] || null);
@@ -2582,6 +2723,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [helpAt, setHelpAt] = useState(null);
   // 👾 chefão da turma ativo (evento do telão) — aqui só aparece o aviso motivador
   const [bossInfo, setBossInfo] = useState(null);
+  // 🔮 previsão do dia (dispensável; lembrada por dia no navegador)
+  const [videnteDismissed, setVidenteDismissed] = useState(() => {
+    try { return localStorage.getItem(`nyx_vidente_${todayKey()}`) === "1"; } catch { return false; }
+  });
+  // 🏁 corrida de digitação
+  const [showRace, setShowRace] = useState(false);
+  const [typingBest, setTypingBest] = useState(null);
+  const [typingRewardDay, setTypingRewardDay] = useState(null);
+  // 🎁 presente misterioso do dia (na tela de atividade concluída)
+  const [giftLastClaim, setGiftLastClaim] = useState(null);
+  const [giftReveal, setGiftReveal] = useState(null);
   // loja do Nyx: nyxPoints = pontos GANHOS (ranking/meta usam este); nyxSpent = total gasto na loja
   // carteira disponível = nyxPoints - nyxSpent; nyxOwned = itens comprados
   const [nyxPoints, setNyxPoints] = useState(0);
@@ -2655,7 +2807,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -2694,6 +2846,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       examScoreRaw: s.examScoreRaw ?? null,
       examAppeal: s.examAppeal || null,
       helpAt: s.helpAt || null,
+      typingBest: s.typingBest || null,
+      typingRewardDay: s.typingRewardDay || null,
+      giftLastClaim: s.giftLastClaim || null,
       pin: pinRef.current || null,
       theme: s.theme || "dark",
       nyxPoints: s.nyxPoints || 0,
@@ -2742,6 +2897,39 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const askHelp = async () => { const t = Date.now(); setHelpAt(t); await persist({ helpAt: t }); };
   const cancelHelp = async () => { setHelpAt(null); await persist({ helpAt: null }); };
 
+  // ── 🏁 fim da corrida de digitação: pontos 1x por dia (+1 bônus por recorde pessoal) ──
+  const finishTypingRace = async (ms) => {
+    const today = todayKey();
+    const firstToday = typingRewardDay !== today;
+    const newRecord = !typingBest || ms < typingBest.ms;
+    const reward = (firstToday ? 2 : 0) + (newRecord ? 1 : 0);
+    const best = newRecord ? { ms, at: Date.now() } : typingBest;
+    if (newRecord) setTypingBest(best);
+    if (firstToday) setTypingRewardDay(today);
+    if (reward > 0) {
+      const np = nyxPoints + reward;
+      setNyxPoints(np);
+      await persist({ nyxPoints: np, typingBest: best, typingRewardDay: firstToday ? today : typingRewardDay });
+      checkPointsAchievements(np);
+    } else {
+      await persist({ typingBest: best });
+    }
+    return { reward, newRecord };
+  };
+
+  // ── 🎁 abre o presente misterioso do dia (sorteio de raridade) ──
+  const openGift = async () => {
+    if (giftLastClaim === todayKey()) return;
+    const tier = rollGift();
+    const np = nyxPoints + tier.pts;
+    setGiftReveal(tier);
+    setGiftLastClaim(todayKey());
+    setNyxPoints(np);
+    playSound("combo");
+    await persist({ nyxPoints: np, giftLastClaim: todayKey() });
+    checkPointsAchievements(np);
+  };
+
   // carrega perfil salvo (nome + código + avatar + tudo)
   useEffect(() => {
     let alive = true;
@@ -2773,6 +2961,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.examScoreRaw != null) setExamScoreRaw(prev.examScoreRaw);
           if (prev.examAppeal) setExamAppeal(prev.examAppeal);
           if (prev.helpAt) setHelpAt(prev.helpAt);
+          if (prev.typingBest) setTypingBest(prev.typingBest);
+          if (prev.typingRewardDay) setTypingRewardDay(prev.typingRewardDay);
+          if (prev.giftLastClaim) setGiftLastClaim(prev.giftLastClaim);
           if (prev.pin) pinRef.current = prev.pin;
           if (prev.theme) setTheme(prev.theme);
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
@@ -3784,6 +3975,21 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <div style={{ fontSize:72 }}>{g.emoji}</div>
           <h2 style={{ color:g.color, fontSize:26, fontWeight:900 }}>{g.label} — Você fez {score} pontos!</h2>
 
+          {/* 🎁 presente misterioso do dia: recompensa por concluir a atividade, 1x por dia */}
+          {giftReveal ? (
+            <div className="pop" style={{ margin:"18px auto 0", maxWidth:340, background:`linear-gradient(135deg, ${giftReveal.color}22, ${giftReveal.color}0a)`, border:`2px solid ${giftReveal.color}`, borderRadius:18, padding:"18px 20px", boxShadow:`0 0 34px ${giftReveal.color}44` }}>
+              <div style={{ fontSize:46 }}>{giftReveal.emoji}</div>
+              <p style={{ color:giftReveal.color, fontWeight:900, fontSize:17, margin:"6px 0 2px" }}>{giftReveal.label}!</p>
+              <p style={{ color:"#e8ebfa", fontWeight:800, fontSize:15, margin:0 }}>+{giftReveal.pts} pontos do Nyx ✨</p>
+            </div>
+          ) : giftLastClaim !== todayKey() ? (
+            <button onClick={openGift} className="pop" title="Um presente por dia pra quem conclui a atividade!"
+              style={{ margin:"18px auto 0", display:"block", background:"linear-gradient(135deg,#3b0764,#1e1b4b)", border:"2px dashed #a855f7", borderRadius:18, padding:"14px 26px", cursor:"pointer", boxShadow:"0 0 26px #a855f733" }}>
+              <span style={{ fontSize:42, display:"inline-block", animation:"gift-wiggle 1.6s ease-in-out infinite" }}>🎁</span>
+              <span style={{ display:"block", color:"#e9d5ff", fontWeight:900, fontSize:14, marginTop:4 }}>Presente misterioso do dia — toque pra abrir!</span>
+            </button>
+          ) : null}
+
           <div style={{ marginTop:18, textAlign:"left" }}>
             {/* topo em destaque, mesma estética do Resumo da Aula */}
             <div style={{ background:"linear-gradient(135deg,#7c83ff,#8b5cf6)", borderRadius:18, padding:"20px 20px", textAlign:"center", boxShadow:"0 12px 30px #7c83ff55" }}>
@@ -3975,6 +4181,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <div style={{ background:"linear-gradient(90deg,#3b076422,#1e1b4b44)", border:"1px solid #a855f7", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:20, animation:"nyx-shake 2.2s ease-in-out infinite" }}>{bossInfo.emoji}</span>
             <span style={{ flex:1, color:"#e9d5ff" }}><b style={{ color:"#c4b5fd" }}>{bossInfo.name} invadiu a aula!</b> Cada resposta certa da turma tira vida dele — acompanhe a batalha no telão! ⚔️</span>
+          </div>
+        </div>
+      )}
+
+      {!videnteDismissed && !focusMode && phase==="coding" && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div style={{ position:"relative", background:"linear-gradient(120deg,#1e1b4b,#3b0764,#1e1b4b)", border:"1px solid #8b5cf6", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10, overflow:"hidden" }}>
+            <span style={{ fontSize:22, animation:"nyx-float 3s ease-in-out infinite", flexShrink:0 }}>🔮</span>
+            <span style={{ flex:1, color:"#ddd6fe", lineHeight:1.6 }}>
+              <b className="shine" style={{ background:"linear-gradient(120deg,#c4b5fd,#f0abfc,#c4b5fd)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Nyx Vidente prevê:</b>{" "}
+              {VIDENTE_PREVISOES[hashStr(studentName + todayKey()) % VIDENTE_PREVISOES.length].replace("{nome}", String(studentName).split(" ")[0])} ✨
+            </span>
+            <button onClick={()=>{ setVidenteDismissed(true); try { localStorage.setItem(`nyx_vidente_${todayKey()}`, "1"); } catch {} }} style={{ background:"transparent", border:"none", color:"#8b5cf6", fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
           </div>
         </div>
       )}
@@ -4188,6 +4407,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 style={{ ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:nyxLocks.zeker?0.45:1, cursor:nyxLocks.zeker?"not-allowed":"pointer" }}>
                 {nyxLocks.zeker ? "🔒 Duelos bloqueados" : "⚔️ Duelo entre alunos"}
               </button>}
+              {!focusMode && <button onClick={()=>setShowRace(true)} title="Digite um trecho de código contra o relógio — pontos 1x por dia e pódio da turma"
+                style={{ ...styles.btn("#fb923c"), fontSize:12, padding:"7px 0" }}>🏁 Corrida de digitação{typingBest ? ` · ${(typingBest.ms/1000).toFixed(1)}s` : ""}</button>}
             </div>
             {!focusMode && <ClassGoalBar sum={classPointsSum} />}
           </div>
@@ -4237,6 +4458,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {showRanking && <RankingModal shift={shift} myName={studentName} onClose={()=>setShowRanking(false)} />}
       {showNotebook && <NotebookModal history={summaryHistory} detailedHistory={detailedSummaryHistory} onClose={()=>setShowNotebook(false)} />}
       {showVoicePicker && <VoicePickerModal onClose={()=>setShowVoicePicker(false)} />}
+      {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
       {showDuel && (
         <DuelModal
           shift={shift}
