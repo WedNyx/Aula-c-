@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData } from "./storage.js";
 import { xlsxBlob } from "./xlsx.js";
 
 // ── tema ──
@@ -2425,7 +2425,7 @@ function quickCheck(code){
 // ════════════════════════════════════════════════════════════════════════════
 //  ALUNO
 // ════════════════════════════════════════════════════════════════════════════
-function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
+function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initialPin }) {
   const [showIntro, setShowIntro] = useState(!!isNew);
   const [files, setFiles] = useState([{ name:"Program.cs", code:"" }]);
   const [active, setActive] = useState(0);
@@ -2483,6 +2483,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [examAnswers, setExamAnswers] = useState({});
   const [examDone, setExamDone] = useState(false);
   const [examCurrentQ, setExamCurrentQ] = useState(0);
+  // anti-cola: saídas da aba durante a prova (cada uma desconta 10 pts) + defesa do aluno no fim
+  const [examExits, setExamExits] = useState(0);
+  const [examScoreRaw, setExamScoreRaw] = useState(null);
+  const [examAppeal, setExamAppeal] = useState(null);
+  // ✋ pedir ajuda: acende o tile do aluno no monitoramento do professor
+  const [helpAt, setHelpAt] = useState(null);
   // loja do Nyx: nyxPoints = pontos GANHOS (ranking/meta usam este); nyxSpent = total gasto na loja
   // carteira disponível = nyxPoints - nyxSpent; nyxOwned = itens comprados
   const [nyxPoints, setNyxPoints] = useState(0);
@@ -2551,14 +2557,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const attendanceRef = useRef({});
   // "foto" do código no primeiro acesso do dia: o resumo da aula cobre só o que foi escrito DEPOIS dela
   const daySnapshotRef = useRef(null);
+  // PIN do aluno (protege o perfil contra colegas — proteção nível sala de aula)
+  const pinRef = useRef(initialPin || null);
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
   useEffect(() => { if (nyxLocks.zeker && showDuel) setShowDuel(false); }, [nyxLocks.zeker, showDuel]);
+
 
   const persist = useCallback(async (extra = {}) => {
     const s = stateRef.current;
@@ -2588,6 +2597,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       examScore: s.examScore ?? null,
       examAnswers: s.examAnswers || {},
       examDone: s.examDone || false,
+      examExits: s.examExits || 0,
+      examScoreRaw: s.examScoreRaw ?? null,
+      examAppeal: s.examAppeal || null,
+      helpAt: s.helpAt || null,
+      pin: pinRef.current || null,
       theme: s.theme || "dark",
       nyxPoints: s.nyxPoints || 0,
       nyxSpent: s.nyxSpent || 0,
@@ -2608,6 +2622,32 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     setConnected(ok);
     return ok;
   }, [studentName, shift]);
+
+  // ── anti-cola: durante a prova ativa, cada saída da aba é contada (e desconta 10 pts no fim) ──
+  const examActive = examInfo.status === 'active' && !examDone;
+  useEffect(() => {
+    if (!examActive) return;
+    const registerExit = () => setExamExits(n => {
+      const next = n + 1;
+      setTimeout(() => persist({ examExits: next }), 0);
+      return next;
+    });
+    // se a aba foi FECHADA e reaberta no meio da prova, o sessionStorage some mas as
+    // respostas continuam no servidor — isso entrega que a prova foi interrompida
+    try {
+      if (!sessionStorage.getItem("nyx_exam_open")) {
+        sessionStorage.setItem("nyx_exam_open", "1");
+        if (Object.keys(stateRef.current.examAnswers || {}).length > 0) registerExit();
+      }
+    } catch {}
+    const onVis = () => { if (document.hidden) registerExit(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [examActive, persist]);
+
+  // ── ✋ pedir ajuda: acende o tile do aluno no monitoramento do professor (expira em 15 min lá) ──
+  const askHelp = async () => { const t = Date.now(); setHelpAt(t); await persist({ helpAt: t }); };
+  const cancelHelp = async () => { setHelpAt(null); await persist({ helpAt: null }); };
 
   // carrega perfil salvo (nome + código + avatar + tudo)
   useEffect(() => {
@@ -2636,6 +2676,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.examScore != null) setExamScore(prev.examScore);
           if (prev.examAnswers) setExamAnswers(prev.examAnswers);
           if (prev.examDone) setExamDone(true);
+          if (prev.examExits) setExamExits(prev.examExits);
+          if (prev.examScoreRaw != null) setExamScoreRaw(prev.examScoreRaw);
+          if (prev.examAppeal) setExamAppeal(prev.examAppeal);
+          if (prev.helpAt) setHelpAt(prev.helpAt);
+          if (prev.pin) pinRef.current = prev.pin;
           if (prev.theme) setTheme(prev.theme);
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
           if (prev.nyxSpent) setNyxSpent(prev.nyxSpent);
@@ -2780,18 +2825,23 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           const curA = s.examAnswers || {};
           let pts = 0;
           qs.forEach((q, i) => { if (curA[i] === q.correct) pts++; });
-          const partial = pts * 10;
-          setExamScore(partial); setExamDone(true);
-          const newNyxPoints = (s.nyxPoints || 0) + pts;
+          const rawPartial = pts * 10;
+          const penalty = Math.min(rawPartial, (s.examExits || 0) * 10);
+          const partial = rawPartial - penalty;
+          try { sessionStorage.removeItem("nyx_exam_open"); } catch {}
+          setExamScore(partial); setExamScoreRaw(rawPartial); setExamDone(true);
+          const newNyxPoints = (s.nyxPoints || 0) + Math.round(partial / 10);
           setNyxPoints(newNyxPoints);
-          await persist({ examScore: partial, examDone: true, nyxPoints: newNyxPoints });
+          await persist({ examScore: partial, examScoreRaw: rawPartial, examExits: s.examExits || 0, examDone: true, nyxPoints: newNyxPoints });
           checkPointsAchievements(newNyxPoints);
           if (qs.length && pts / qs.length >= 0.8) unlockAchievement("prova-mestre");
           if (qs.length && pts === qs.length) unlockAchievement("prova-100");
         } else if (es.status === 'idle' && s.examDone) {
           // professor resetou a prova
           setExamReady(false); setExamScore(null); setExamAnswers({}); setExamDone(false); setExamCurrentQ(0);
-          await persist({ examReady: false, examScore: null, examAnswers: {}, examDone: false });
+          setExamExits(0); setExamScoreRaw(null); setExamAppeal(null);
+          try { sessionStorage.removeItem("nyx_exam_open"); } catch {}
+          await persist({ examReady: false, examScore: null, examAnswers: {}, examDone: false, examExits: 0, examScoreRaw: null, examAppeal: null });
         }
         setExamInfo(es);
       } catch {}
@@ -2815,7 +2865,24 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       // professor corrigiu a nota da atividade → aplica e limpa a flag
       try {
         const fix = await getScoreFix(shift, studentName);
-        if (fix && typeof fix.score === "number") {
+        if (fix && fix.kind === "exam" && typeof fix.score === "number") {
+          // professor ACEITOU a defesa: devolve os pontos descontados da prova
+          const ap = { ...(stateRef.current.examAppeal || {}), status: "accepted" };
+          setExamScore(fix.score); setExamAppeal(ap);
+          await clearScoreFix(shift, studentName);
+          await persist({ examScore: fix.score, examAppeal: ap });
+        } else if (fix && fix.kind === "help-attended") {
+          // professor marcou o pedido de ajuda como atendido
+          setHelpAt(null);
+          await clearScoreFix(shift, studentName);
+          await persist({ helpAt: null });
+        } else if (fix && fix.kind === "exam-appeal-rejected") {
+          // professor RECUSOU a defesa: desconto mantido
+          const ap = { ...(stateRef.current.examAppeal || {}), status: "rejected" };
+          setExamAppeal(ap);
+          await clearScoreFix(shift, studentName);
+          await persist({ examAppeal: ap });
+        } else if (fix && typeof fix.score === "number") {
           setScore(fix.score);
           await clearScoreFix(shift, studentName);
           await persist({ score: fix.score });
@@ -3254,11 +3321,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     } else {
       let pts = 0;
       qs.forEach((q, i) => { if (newAnswers[i] === q.correct) pts++; });
-      const finalScore = pts * 10;
-      setExamScore(finalScore); setExamDone(true);
-      const newNyxPoints = nyxPoints + pts;
+      const raw = pts * 10;
+      // anti-cola: cada saída da aba desconta 10 pts (o professor pode devolver se o aluno se explicar)
+      const exits = stateRef.current.examExits || 0;
+      const penalty = Math.min(raw, exits * 10);
+      const finalScore = raw - penalty;
+      try { sessionStorage.removeItem("nyx_exam_open"); } catch {}
+      setExamScore(finalScore); setExamScoreRaw(raw); setExamDone(true);
+      const newNyxPoints = nyxPoints + Math.round(finalScore / 10);
       setNyxPoints(newNyxPoints);
-      await persist({ examAnswers: newAnswers, examScore: finalScore, examDone: true, nyxPoints: newNyxPoints });
+      await persist({ examAnswers: newAnswers, examScore: finalScore, examScoreRaw: raw, examExits: exits, examDone: true, nyxPoints: newNyxPoints });
       checkPointsAchievements(newNyxPoints);
       if (qs.length && pts / qs.length >= 0.8) unlockAchievement("prova-mestre");
       if (qs.length && pts === qs.length) unlockAchievement("prova-100");
@@ -3350,6 +3422,22 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <div style={{ fontSize:56, fontWeight:900, color:"#fff", margin:"8px 0" }}>{examScore ?? 0}</div>
           <p style={{ color:"#d1fae5", fontSize:15 }}>pontos de {(examInfo.questions||[]).length * 10}</p>
         </div>
+        {examExits > 0 && (
+          <div style={{ background:"#151a31", border:"1px solid #f87171", borderRadius:14, padding:"14px 16px", marginTop:16, textAlign:"left" }}>
+            <p style={{ color:"#fca5a5", fontSize:13.5, lineHeight:1.7, margin:0 }}>
+              ⚠ Você saiu da prova <b>{examExits}x</b> — desconto de <b>{Math.max(0, (examScoreRaw ?? examScore ?? 0) - (examScore ?? 0))} pontos</b> (nota sem desconto: {examScoreRaw ?? examScore}).
+            </p>
+            {!examAppeal && (
+              <button onClick={async ()=>{ const ap = { at: Date.now(), status:"pending" }; setExamAppeal(ap); await persist({ examAppeal: ap }); }}
+                style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"9px 0", fontSize:13 }}>
+                ✋ Foi sem querer (a aba fechou sozinha) — avisar o professor
+              </button>
+            )}
+            {examAppeal?.status === "pending" && <p style={{ color:"#fbbf24", fontSize:13, margin:"10px 0 0", fontWeight:700 }}>✋ Aviso enviado — o professor vai decidir se devolve os pontos.</p>}
+            {examAppeal?.status === "accepted" && <p style={{ color:"#34d399", fontSize:13, margin:"10px 0 0", fontWeight:700 }}>✅ O professor aceitou sua explicação — pontos devolvidos!</p>}
+            {examAppeal?.status === "rejected" && <p style={{ color:"#96a0cc", fontSize:13, margin:"10px 0 0", fontWeight:700 }}>O professor analisou e manteve o desconto.</p>}
+          </div>
+        )}
         <p style={{ color:"#96a0cc", marginTop:20, fontSize:14, lineHeight:1.6 }}>Aguarde o professor encerrar a prova para ver o ranking da turma!</p>
       </div>
     </div>
@@ -3393,6 +3481,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <span style={{ color:"#96a0cc", fontSize:13 }}>Questão {examCurrentQ+1} de {qs.length}</span>
         </div>
         <div style={{ maxWidth:620, margin:"30px auto", padding:"0 16px" }}>
+          {examExits > 0 && (
+            <div style={{ background:"#f8717118", border:"1px solid #f87171", borderRadius:12, padding:"10px 14px", marginBottom:12, fontSize:13, color:"#fca5a5", lineHeight:1.6 }}>
+              ⚠ <b>Saída da prova detectada ({examExits}x).</b> Cada saída da aba desconta <b>10 pontos</b> da sua nota. Fique na prova!
+            </div>
+          )}
           <div style={{ background:"#151a31", borderRadius:14, padding:22, border:"1px solid #2a3154" }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
               <span style={{ color:"#7c83ff", fontWeight:700 }}>Questão {examCurrentQ+1}/{qs.length}</span>
@@ -3963,6 +4056,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               {ttsSupported && <div style={{ marginTop:8 }}><button onClick={()=>speak(robotMsg)} style={{ background:"transparent", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, color:robotState==="error"?"#f87171":"#34d399", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>🔊 Ouvir</button></div>}
             </div>)}
             {keysToShow.length>0&&(<div style={{ marginTop:10 }}><p style={{ color:"#fbbf24", fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
+            {helpAt
+              ? <button onClick={cancelHelp} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="O professor já foi avisado — clique pra cancelar o pedido">✋ Professor avisado! (cancelar)</button>
+              : <button onClick={askHelp} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Acende seu nome no painel do professor pra ele vir te ajudar">✋ Pedir ajuda do professor</button>}
             {!focusMode && <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
               🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
             </button>}
@@ -4246,6 +4342,19 @@ function difficultyOf(s) {
   return { level:"neutro", text:"Está escrevendo o código." };
 }
 
+// ── biblioteca de aulas prontas: exemplos completos que o professor carrega com 1 clique ──
+const LESSON_LIBRARY = [
+  { title:"Aula 1 · Olá, mundo!", desc:"O primeiro programa: mostrar texto na tela.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // Console.WriteLine mostra um texto na tela\n        Console.WriteLine("Olá, mundo!");\n        Console.WriteLine("Bem-vindos à aula de C#!");\n    }\n}' }] },
+  { title:"Aula 2 · Variáveis e tipos", desc:"Guardar textos e números: string, int e double.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // variáveis guardam valores pra usar depois\n        string nome = "Nyx";      // texto\n        int idade = 14;            // número inteiro\n        double altura = 1.62;      // número com vírgula\n\n        Console.WriteLine("Nome: " + nome);\n        Console.WriteLine("Idade: " + idade);\n        Console.WriteLine("Altura: " + altura);\n    }\n}' }] },
+  { title:"Aula 3 · Conversando com o programa", desc:"Ler o que a pessoa digita com Console.ReadLine.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine("Qual é o seu nome?");\n        string nome = Console.ReadLine(); // espera a pessoa digitar\n\n        Console.WriteLine("Quantos anos você tem?");\n        int idade = int.Parse(Console.ReadLine()); // converte o texto pra número\n\n        // o $ deixa colocar variáveis dentro do texto com { }\n        Console.WriteLine($"Olá, {nome}! Você tem {idade} anos.");\n    }\n}' }] },
+  { title:"Aula 4 · Decisões com if/else", desc:"O programa escolhe um caminho conforme a condição.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine("Digite a sua nota (0 a 100):");\n        int nota = int.Parse(Console.ReadLine());\n\n        // o if testa uma condição; o else é o "senão"\n        if (nota >= 60)\n        {\n            Console.WriteLine("Parabéns, você passou!");\n        }\n        else\n        {\n            Console.WriteLine("Quase! Vamos estudar mais um pouco.");\n        }\n    }\n}' }] },
+  { title:"Aula 5 · Repetição com for", desc:"Repetir um bloco várias vezes sem copiar código.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // o for repete: começa no 1, vai até 10, somando 1 por vez\n        for (int i = 1; i <= 10; i++)\n        {\n            Console.WriteLine($"Contando: {i}");\n        }\n\n        Console.WriteLine("Fim da contagem!");\n    }\n}' }] },
+  { title:"Aula 6 · Enquanto... (while)", desc:"Repetir enquanto uma condição for verdadeira.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        int vidas = 3;\n\n        // o while repete ENQUANTO a condição for verdadeira\n        while (vidas > 0)\n        {\n            Console.WriteLine($"Você tem {vidas} vida(s). Cuidado!");\n            vidas = vidas - 1; // perde uma vida\n        }\n\n        Console.WriteLine("Game over! 😅");\n    }\n}' }] },
+  { title:"Aula 7 · Métodos", desc:"Organizar o código em pedaços com nome.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // métodos são "mini-programas" com nome — é só chamar\n        DarOi("Ana");\n        DarOi("Bruno");\n\n        int soma = Somar(7, 5);\n        Console.WriteLine($"7 + 5 = {soma}");\n    }\n\n    static void DarOi(string nome)\n    {\n        Console.WriteLine($"Oi, {nome}! Tudo bem?");\n    }\n\n    static int Somar(int a, int b)\n    {\n        return a + b; // devolve o resultado pra quem chamou\n    }\n}' }] },
+  { title:"Aula 8 · Listas", desc:"Guardar vários valores juntos com List.", files:[{ name:"Program.cs", code:'using System;\nusing System.Collections.Generic;\n\nclass Program\n{\n    static void Main()\n    {\n        // uma lista guarda vários valores do mesmo tipo\n        List<string> turma = new List<string>();\n        turma.Add("Ana");\n        turma.Add("Bruno");\n        turma.Add("Carla");\n\n        Console.WriteLine($"A turma tem {turma.Count} alunos:");\n        foreach (string aluno in turma)\n        {\n            Console.WriteLine("- " + aluno);\n        }\n    }\n}' }] },
+  { title:"Aula 9 · Mini projeto: jogo de adivinhação", desc:"Junta tudo: variáveis, while, if e Random.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // Random sorteia um número secreto de 1 a 20\n        Random sorteio = new Random();\n        int secreto = sorteio.Next(1, 21);\n        int tentativas = 0;\n        int chute = 0;\n\n        Console.WriteLine("Adivinhe o número secreto (1 a 20)!");\n\n        while (chute != secreto)\n        {\n            Console.WriteLine("Seu chute:");\n            chute = int.Parse(Console.ReadLine());\n            tentativas++;\n\n            if (chute < secreto)\n            {\n                Console.WriteLine("É MAIOR! Tente de novo.");\n            }\n            else if (chute > secreto)\n            {\n                Console.WriteLine("É menor! Tente de novo.");\n            }\n        }\n\n        Console.WriteLine($"🎉 Acertou em {tentativas} tentativa(s)!");\n    }\n}' }] },
+];
+
 function TeacherView({ onLogout, teacherAuth }) {
   const [students, setStudents] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -4304,6 +4413,9 @@ function TeacherView({ onLogout, teacherAuth }) {
   // PDF com o código e o resumo de cada aluno (pra guardar/enviar ao fim do curso)
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [pdfMsg, setPdfMsg] = useState("");
+  // biblioteca de aulas prontas + backup completo
+  const [showLessons, setShowLessons] = useState(false);
+  const [backupBusy, setBackupBusy] = useState(false);
 
   const load = useCallback(async () => {
     const arr = await listStudents();
@@ -4896,6 +5008,40 @@ function TeacherView({ onLogout, teacherAuth }) {
     setSupportMap(m => ({ ...m, [`${s.shift||"sem-turno"}:${s.name}`]: next }));
     flashMgmt(next[flag] ? `💙 ${label} ativado para ${s.name}.` : `✅ ${label} desativado para ${s.name}.`);
   };
+  // ✋ marca o pedido de ajuda como atendido (via canal scorefix, que o aluno online obedece)
+  const markHelped = async (s) => {
+    await setScoreFix(s.shift, s.name, { kind: "help-attended" }, teacherAuth);
+    flashMgmt(`✅ Pedido de ajuda de ${s.name} marcado como atendido.`);
+  };
+  // 🔑 reseta o PIN do aluno (ele cria um novo na próxima entrada)
+  const doResetPin = async (s) => {
+    await patchStudent(s.shift, s.name, { pin: null });
+    await load();
+    flashMgmt(`🔑 PIN de ${s.name} resetado — ele cria um novo na próxima entrada.`);
+  };
+  // 👀 anti-cola: decide a defesa do aluno (aceitar devolve os pontos; recusar mantém o desconto)
+  const decideAppeal = async (s, accept) => {
+    if (accept) await setScoreFix(s.shift, s.name, { kind: "exam", score: s.examScoreRaw ?? s.examScore ?? 0 }, teacherAuth);
+    else await setScoreFix(s.shift, s.name, { kind: "exam-appeal-rejected" }, teacherAuth);
+    setExamMsg(accept ? `✅ Pontos da prova devolvidos pra ${s.name}.` : `Desconto mantido pra ${s.name}.`);
+    setTimeout(() => setExamMsg(""), 6000);
+  };
+  // 📦 backup completo: baixa tudo do banco num JSON (seguro antes de resetar/trocar de cidade)
+  const exportBackup = async () => {
+    setBackupBusy(true);
+    try {
+      const data = await exportAllData();
+      const payload = { app: "aula-csharp", exportedAt: new Date().toISOString(), city: meta.city || "", totalKeys: Object.keys(data).length, data };
+      const blob = new Blob([JSON.stringify(payload, null, 1)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `backup-aula-csharp-${todayKey()}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch {}
+    setBackupBusy(false);
+  };
+
   const present = shown.filter(isOnline).length;
   const goingWell = sorted.filter(s => difficultyOf(s).level==="bem");
   const needHelp  = sorted.filter(s => difficultyOf(s).level==="dif");
@@ -5027,6 +5173,31 @@ function TeacherView({ onLogout, teacherAuth }) {
 
       {showTelao && <TelaoModal students={students} shift={shiftFilter} onClose={()=>setShowTelao(false)} />}
 
+      {/* biblioteca de aulas prontas */}
+      {showLessons && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+              <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📚 Aulas prontas</h2>
+              <button onClick={()=>setShowLessons(false)} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+            </div>
+            <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Exemplos completos e comentados, na ordem do curso. Carregar uma aula <b>substitui</b> o código atual da turma {shiftMeta(codeShift).label}.</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {LESSON_LIBRARY.map((lesson, li) => (
+                <div key={li} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 14px", flexWrap:"wrap" }}>
+                  <div style={{ flex:"1 1 260px" }}>
+                    <p style={{ color:"#e8ebfa", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
+                    <p style={{ color:"#96a0cc", fontSize:12, margin:"3px 0 0" }}>{lesson.desc}</p>
+                  </div>
+                  <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
+                    style={{ ...styles.btn("#34d399"), padding:"7px 14px", fontSize:12.5 }}>Usar esta aula →</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* confirmação de reset (dentro do app, sem depender do navegador) */}
       {confirmReset && (
         <div style={{ position:"fixed", inset:0, background:"#000000aa", display:"flex", alignItems:"center", justifyContent:"center", zIndex:999, padding:16 }}>
@@ -5034,6 +5205,9 @@ function TeacherView({ onLogout, teacherAuth }) {
             <div style={{ fontSize:40, textAlign:"center" }}>⚠️</div>
             <h3 style={{ color:"#f87171", textAlign:"center", margin:"8px 0" }}>Resetar perfis dos alunos?</h3>
             <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.6, textAlign:"center" }}>Isso apaga os alunos escolhidos e tudo o que eles fizeram (códigos, atividades e feedbacks). O calendário, a cidade e os nomes de conteúdo <b>não</b> são apagados. Não dá para desfazer.</p>
+            <button onClick={exportBackup} disabled={backupBusy} style={{ ...styles.btn("#34d399"), width:"100%", padding:"9px 0", fontSize:13, margin:"10px 0 4px", opacity:backupBusy?0.7:1 }}>
+              {backupBusy ? "⏳ Gerando backup..." : "📦 Baixar backup completo antes de apagar (recomendado)"}
+            </button>
             <p style={{ color:"#96a0cc", fontSize:13, margin:"14px 0 6px" }}>O que você quer resetar?</p>
             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
               <button onClick={()=>setResetScope("all")} style={{ ...styles.tab(resetScope==="all"), flex:"1 1 120px" }}>Todos os turnos</button>
@@ -5140,6 +5314,9 @@ function TeacherView({ onLogout, teacherAuth }) {
                 {pdfGenerating ? "⏳ Gerando PDF..." : "📄 Exportar PDF (códigos + explicações)"}
               </button>
               {pdfMsg && <p style={{ color: pdfMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:11.5, marginTop:6 }}>{pdfMsg}</p>}
+              <button onClick={exportBackup} disabled={backupBusy} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:8, padding:"7px 0", fontSize:12.5, opacity:backupBusy?0.7:1 }} title="Baixa um arquivo com TUDO (alunos, notas, presenças, códigos, configurações) — guarde antes de resetar ou trocar de cidade">
+                {backupBusy ? "⏳ Gerando backup..." : "📦 Baixar backup completo"}
+              </button>
             </div>
 
             <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
@@ -5221,8 +5398,10 @@ function TeacherView({ onLogout, teacherAuth }) {
               <div style={{ maxHeight:400, overflowY:"auto", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(128px,1fr))", gap:8 }}>
                 {sorted.map((s, tileIdx)=>{
                   const d = difficultyOf(s);
+                  const hasHand = s.helpAt && Date.now() - s.helpAt < 15 * 60 * 1000; // pedido de ajuda expira em 15 min
                   return (
-                    <div key={s.name} className="tilefx" onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ position:"relative", background:selected===s.name?"#7c83ff22":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":"#2a3154"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center", animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
+                    <div key={s.name} className="tilefx" onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ position:"relative", background:selected===s.name?"#7c83ff22":hasHand?"#fbbf2415":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":hasHand?"#fbbf24":"#2a3154"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center", animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
+                      {hasHand && <span title="Pediu ajuda! Clique pra ver e marcar como atendido." style={{ position:"absolute", top:4, right:24, fontSize:15, animation:"pulse-dot 1s ease-in-out infinite" }}>✋</span>}
                       {s.score!=null && <span style={{ position:"absolute", top:6, left:6, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:6, padding:"1px 6px", fontSize:10.5, fontWeight:800 }}>🏆 {s.score}</span>}
                       {Object.values(supportMap[`${s.shift||"sem-turno"}:${s.name}`] || {}).some(Boolean) && (
                         <span title="Aluno com perfil de apoio ativo (clique pra ver no detalhe)" style={{ position:"absolute", bottom:6, left:6, fontSize:11 }}>💙</span>
@@ -5387,6 +5566,18 @@ function TeacherView({ onLogout, teacherAuth }) {
                         <p style={{ color:"#5d679c", fontSize:11.5, margin:"6px 0 0" }}>Perfis de apoio pra educação inclusiva — a tela do aluno se adapta sozinha. Só você vê essas marcações; os colegas não.</p>
                       </div>
                     </div>
+                    {sel.helpAt && Date.now() - sel.helpAt < 15 * 60 * 1000 && (
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #fbbf24", paddingTop:10, background:"#fbbf2410", borderRadius:8, padding:"10px" }}>
+                        <span style={{ color:"#fbbf24", fontSize:13, fontWeight:800 }}>✋ Este aluno pediu ajuda {new Date(sel.helpAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}!</span>
+                        <button onClick={()=>markHelped(sel)} style={{ ...styles.btn("#34d399"), padding:"6px 14px", fontSize:12.5 }}>✔ Marcar como atendido</button>
+                      </div>
+                    )}
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
+                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🔑 PIN:</span>
+                      <span style={{ color: sel.pin ? "#34d399" : "#5d679c", fontSize:13, fontWeight:700 }}>{sel.pin ? "definido ✓" : "ainda não criado"}</span>
+                      {sel.pin && <button onClick={()=>doResetPin(sel)} style={{ ...styles.btn("#2a3154"), padding:"6px 14px", fontSize:12.5 }}>Resetar PIN</button>}
+                      <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>O PIN protege o perfil contra colegas. Se o aluno esquecer, resete aqui — ele cria um novo na próxima entrada.</span>
+                    </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
                       <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>📤 Código:</span>
                       <button onClick={()=>doSendClassCode(sel)} style={{ ...styles.btn("#22d3ee"), padding:"6px 14px", fontSize:12.5 }}>Enviar código da turma</button>
@@ -5478,7 +5669,10 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>👨‍💻 Meu código</h3>
                   <p style={{ color:"#96a0cc", fontSize:12.5, margin:"3px 0 0", lineHeight:1.5 }}>Cada turma tem seu próprio exemplo. Programe aqui e gere o nome do conteúdo a partir dele — é isso que aparece no calendário.</p>
                 </div>
-                <button style={{ ...styles.btn("#7c83ff"), opacity:genName?0.6:1, padding:"7px 12px", fontSize:12.5 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift).label})`}</button>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  <button style={{ ...styles.btn("#34d399"), padding:"7px 12px", fontSize:12.5 }} onClick={()=>setShowLessons(true)} title="Aulas de exemplo prontas (Olá mundo, variáveis, if/else, loops...) pra carregar com um clique">📚 Aulas prontas</button>
+                  <button style={{ ...styles.btn("#7c83ff"), opacity:genName?0.6:1, padding:"7px 12px", fontSize:12.5 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift).label})`}</button>
+                </div>
               </div>
               <div style={{ display:"flex", gap:8, marginTop:10 }}>
                 {SHIFTS.map(sh => (
@@ -5646,12 +5840,17 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <h4 style={{ color:"#fbbf24", marginBottom:12 }}>📊 Ranking ao vivo</h4>
                   {ranking.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Aguardando alunos terminarem...</p> : (
                     ranking.map((s,i)=>(
-                      <div key={s.name} style={{ display:"flex", alignItems:"center", gap:12, background:"#0d1122", border:`1px solid ${i===0?"#fbbf24":"#2a3154"}`, borderRadius:10, padding:"10px 14px", marginBottom:8 }}>
-                        <span style={{ fontSize:22, width:28 }}>{medal(i)||`#${i+1}`}</span>
-                        <Avatar cfg={s.avatar} size={28} />
-                        <span style={{ flex:1, fontWeight:600 }}>{s.name}</span>
-                        <span style={{ color:"#34d399", fontWeight:700, fontSize:16 }}>{s.examScore} pts</span>
-                        <span style={styles.badge(s.examDone?"#34d399":"#fbbf24")}>{s.examDone?"Concluído":"Respondendo"}</span>
+                      <div key={s.name} style={{ background:"#0d1122", border:`1px solid ${i===0?"#fbbf24":"#2a3154"}`, borderRadius:10, padding:"10px 14px", marginBottom:8 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                          <span style={{ fontSize:22, width:28 }}>{medal(i)||`#${i+1}`}</span>
+                          <Avatar cfg={s.avatar} size={28} />
+                          <span style={{ flex:1, fontWeight:600 }}>{s.name}</span>
+                          <span style={{ color:"#34d399", fontWeight:700, fontSize:16 }}>{s.examScore} pts</span>
+                          <span style={styles.badge(s.examDone?"#34d399":"#fbbf24")}>{s.examDone?"Concluído":"Respondendo"}</span>
+                        </div>
+                        {(s.examExits||0) > 0 && (
+                          <p style={{ color:"#f87171", fontSize:12, margin:"6px 0 0 40px", fontWeight:700 }}>🚨 saiu da prova {s.examExits}x — desconto de {Math.min((s.examScoreRaw ?? ((s.examScore||0) + s.examExits*10)), s.examExits*10)} pts</p>
+                        )}
                       </div>
                     ))
                   )}
@@ -5690,12 +5889,30 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <h4 style={{ color:"#fbbf24", marginBottom:12 }}>🏆 Ranking Final</h4>
                   {ranking.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno respondeu.</p> : (
                     ranking.map((s,i)=>(
-                      <div key={s.name} style={{ display:"flex", alignItems:"center", gap:12, background:i===0?"#fbbf2422":"#0d1122", border:`2px solid ${i===0?"#fbbf24":i===1?"#96a0cc":i===2?"#c2410c":"#2a3154"}`, borderRadius:12, padding:"12px 16px", marginBottom:8 }}>
-                        <span style={{ fontSize:26, width:32 }}>{medal(i)||<span style={{color:"#5d679c",fontSize:16}}>#{i+1}</span>}</span>
-                        <Avatar cfg={s.avatar} size={32} />
-                        <span style={{ flex:1, fontWeight:700, fontSize:15 }}>{s.name}</span>
-                        <span style={{ color:"#34d399", fontWeight:800, fontSize:20 }}>{s.examScore ?? 0}</span>
-                        <span style={{ color:"#96a0cc", fontSize:12 }}>/{qLen*10}</span>
+                      <div key={s.name} style={{ background:i===0?"#fbbf2422":"#0d1122", border:`2px solid ${i===0?"#fbbf24":i===1?"#96a0cc":i===2?"#c2410c":"#2a3154"}`, borderRadius:12, padding:"12px 16px", marginBottom:8 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                          <span style={{ fontSize:26, width:32 }}>{medal(i)||<span style={{color:"#5d679c",fontSize:16}}>#{i+1}</span>}</span>
+                          <Avatar cfg={s.avatar} size={32} />
+                          <span style={{ flex:1, fontWeight:700, fontSize:15 }}>{s.name}</span>
+                          <span style={{ color:"#34d399", fontWeight:800, fontSize:20 }}>{s.examScore ?? 0}</span>
+                          <span style={{ color:"#96a0cc", fontSize:12 }}>/{qLen*10}</span>
+                        </div>
+                        {(s.examExits||0) > 0 && (
+                          <div style={{ margin:"8px 0 0 44px", padding:"8px 12px", background:"#f8717112", border:"1px solid #f8717155", borderRadius:8 }}>
+                            <p style={{ color:"#fca5a5", fontSize:12.5, margin:0, fontWeight:700 }}>
+                              🚨 Saiu da prova {s.examExits}x — nota sem desconto: {s.examScoreRaw ?? "—"} · com desconto: {s.examScore ?? 0}
+                            </p>
+                            {s.examAppeal?.status === "pending" && (
+                              <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", marginTop:8 }}>
+                                <span style={{ color:"#fbbf24", fontSize:12.5, fontWeight:700 }}>✋ O aluno alega que foi sem querer (a aba fechou).</span>
+                                <button onClick={()=>decideAppeal(s, true)} style={{ ...styles.btn("#34d399"), padding:"5px 12px", fontSize:12 }}>✔ Aceitar (devolver pontos)</button>
+                                <button onClick={()=>decideAppeal(s, false)} style={{ ...styles.btn("#f87171"), padding:"5px 12px", fontSize:12 }}>✕ Recusar</button>
+                              </div>
+                            )}
+                            {s.examAppeal?.status === "accepted" && <p style={{ color:"#34d399", fontSize:12, margin:"6px 0 0", fontWeight:700 }}>✅ Defesa aceita — pontos devolvidos.</p>}
+                            {s.examAppeal?.status === "rejected" && <p style={{ color:"#96a0cc", fontSize:12, margin:"6px 0 0", fontWeight:700 }}>Defesa recusada — desconto mantido.</p>}
+                          </div>
+                        )}
                       </div>
                     ))
                   )}
@@ -5756,6 +5973,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 //  LOGIN
 // ════════════════════════════════════════════════════════════════════════════
 function Login({ onJoin }) {
+  const [newPin, setNewPin] = useState(""); // PIN do perfil novo (4 números)
   const vw = useViewportWidth();
   const isNarrow = vw < 720; // abaixo disso, a personalização do avatar empilha em vez de ficar em 2 colunas
   const [name, setName] = useState("");
@@ -5786,8 +6004,28 @@ function Login({ onJoin }) {
   }, []);
   useEffect(() => { if (role==="student") loadProfiles(); }, [role, loadProfiles]);
 
-  const enterStudent = (studentName, avatarCfg, shiftId, isNew) => { goFullscreen(); onJoin("student", studentName, avatarCfg, shiftId || "matutino", isNew); };
-  const handleNewStudent = () => { if(!name.trim()){ setError("Digite seu nome!"); return; } enterStudent(name.trim(), avatar, shift, true); };
+  const enterStudent = (studentName, avatarCfg, shiftId, isNew, pin) => { goFullscreen(); onJoin("student", studentName, avatarCfg, shiftId || "matutino", isNew, null, pin); };
+  const handleNewStudent = () => {
+    if(!name.trim()){ setError("Digite seu nome!"); return; }
+    if(!/^\d{4}$/.test(newPin)){ setError("Crie um PIN de 4 números — é a senha que protege o seu perfil!"); return; }
+    enterStudent(name.trim(), avatar, shift, true, newPin);
+  };
+  // ── PIN do aluno: perfis salvos pedem o PIN pra entrar; perfis antigos sem PIN criam um na hora ──
+  // (proteção nível sala de aula: impede colega de entrar no perfil do outro e gastar os pontos)
+  const [pinModal, setPinModal] = useState(null); // { profile, mode: "verify" | "create" }
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
+  const openProfile = (p) => {
+    setPinInput(""); setPinError("");
+    setPinModal({ profile: p, mode: p.pin ? "verify" : "create" });
+  };
+  const confirmPin = () => {
+    const { profile, mode } = pinModal;
+    if (!/^\d{4}$/.test(pinInput)) { setPinError("O PIN tem 4 números."); return; }
+    if (mode === "verify" && pinInput !== String(profile.pin)) { setPinError("PIN errado. Se esqueceu, peça pro professor resetar."); return; }
+    setPinModal(null);
+    enterStudent(profile.name, profile.avatar, profile.shift, false, mode === "create" ? pinInput : undefined);
+  };
   // a senha do professor é validada no SERVIDOR (variável TEACHER_PASSWORD no Vercel) — nunca fica no código do site
   const handleTeacher = async () => {
     if (teacherChecking) return;
@@ -5883,7 +6121,7 @@ function Login({ onJoin }) {
                     : (
                       <div style={{ maxHeight:170, overflowY:"auto", display:"flex", flexDirection:"column", gap:8 }}>
                         {profiles.filter(p => (p.shift||"matutino")===shift).map(p=>(
-                          <button key={`${p.shift||"x"}:${p.name}`} onClick={()=>enterStudent(p.name, p.avatar, p.shift)} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"2px solid #2a3154", borderRadius:10, padding:"8px 12px", cursor:"pointer", color:"#e8ebfa", textAlign:"left" }}>
+                          <button key={`${p.shift||"x"}:${p.name}`} onClick={()=>openProfile(p)} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"2px solid #2a3154", borderRadius:10, padding:"8px 12px", cursor:"pointer", color:"#e8ebfa", textAlign:"left" }}>
                             <Avatar cfg={p.avatar} size={32} />
                             <span style={{ fontWeight:600, flex:1 }}>{p.name}</span>
                             <span style={{ color:"#7c83ff", fontSize:13, fontWeight:700 }}>Entrar →</span>
@@ -5900,6 +6138,8 @@ function Login({ onJoin }) {
                 </div>
 
                 <input style={styles.input} placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} />
+                <input style={{ ...styles.input, marginTop:8 }} type="password" inputMode="numeric" maxLength={4} placeholder="Crie um PIN de 4 números (sua senha)" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} />
+                <p style={{ color:"#5d679c", fontSize:11.5, margin:"6px 0 0" }}>🔒 O PIN protege o seu perfil: só entra com ele. Não esqueça!</p>
                 <p style={{ color:"#96a0cc", fontSize:13, margin:"14px 0 8px", textAlign:"center" }}>🎨 Seu boneco:</p>
                 <AvatarPreview value={avatar} onChange={setAvatar} />
                 <AvatarControls value={avatar} onChange={setAvatar} part="basic" />
@@ -5932,6 +6172,31 @@ function Login({ onJoin }) {
           </>
         )}
       </div>
+
+      {/* PIN do perfil: confirma (perfil com PIN) ou cria na hora (perfil antigo sem PIN) */}
+      {pinModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1200, padding:16 }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"2px solid #7c83ff", borderRadius:18, padding:"22px 24px", maxWidth:360, width:"100%", textAlign:"center" }}>
+            <div style={{ fontSize:34 }}>🔒</div>
+            <h3 style={{ color:"#e8ebfa", margin:"8px 0 4px" }}>{pinModal.mode === "verify" ? `Oi, ${String(pinModal.profile.name).split(" ")[0]}!` : "Vamos proteger seu perfil!"}</h3>
+            <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, margin:"0 0 14px" }}>
+              {pinModal.mode === "verify"
+                ? "Digite o seu PIN de 4 números pra entrar."
+                : "Seu perfil ainda não tem PIN. Crie um de 4 números — só você entra com ele."}
+            </p>
+            <input autoFocus type="password" inputMode="numeric" maxLength={4} value={pinInput}
+              onChange={e=>{ setPinInput(e.target.value.replace(/\D/g,"").slice(0,4)); setPinError(""); }}
+              onKeyDown={e=>e.key==="Enter"&&confirmPin()}
+              placeholder="• • • •"
+              style={{ width:150, background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:"12px 0", color:"#e8ebfa", fontSize:26, textAlign:"center", letterSpacing:10, outline:"none" }} />
+            {pinError && <p style={{ color:"#f87171", fontSize:12.5, margin:"10px 0 0" }}>{pinError}</p>}
+            <div style={{ display:"flex", gap:8, marginTop:16 }}>
+              <button onClick={()=>setPinModal(null)} style={{ ...styles.btn("#2a3154"), flex:1 }}>Voltar</button>
+              <button onClick={confirmPin} style={{ ...styles.btn("#7c83ff"), flex:2 }}>{pinModal.mode === "verify" ? "Entrar →" : "Criar e entrar →"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -5941,7 +6206,7 @@ function Login({ onJoin }) {
 // ════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [session, setSession] = useState(null);
-  if (!session) return <Login onJoin={(role,name,avatar,shift,isNew,teacherAuth)=>setSession({role,name,avatar,shift,isNew,teacherAuth})} />;
+  if (!session) return <Login onJoin={(role,name,avatar,shift,isNew,teacherAuth,pin)=>setSession({role,name,avatar,shift,isNew,teacherAuth,pin})} />;
   if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} />;
-  return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} onLogout={()=>setSession(null)} />;
+  return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialPin={session.pin} onLogout={()=>setSession(null)} />;
 }

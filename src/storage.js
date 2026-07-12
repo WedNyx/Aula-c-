@@ -106,6 +106,18 @@ export async function setSupport(shift, name, flags, auth) {
     return r.ok === true
   } catch { return false }
 }
+// backup completo: baixa TODAS as chaves do banco (menos as técnicas) num JSON —
+// seguro contra acidente e histórico permanente antes de resetar a turma de uma cidade
+export async function exportAllData() {
+  const r = await kvCall({ action: 'list_with_values', prefix: '' })
+  const data = {}
+  for (const item of r.items || []) {
+    if (/^(ratelimit:|aihealth)/.test(item.key)) continue // contadores técnicos não interessam
+    data[item.key] = item.value
+  }
+  return data
+}
+
 // todos os perfis de apoio de uma vez (pro indicador 💙 nos tiles do monitoramento)
 export async function listAllSupport() {
   try {
@@ -173,8 +185,13 @@ export async function checkKick(shift, name, joinedAt) {
 function scoreFixKeyFor(shift, name) {
   return `scorefix:${shift || 'sem-turno'}:${safeName(name)}`
 }
+// aceita um número (correção de nota da atividade, uso original) ou um objeto
+// (ex: { kind:'exam', score } pra devolver pontos da prova, { kind:'exam-appeal-rejected' } pra recusar defesa)
 export async function setScoreFix(shift, name, score, auth) {
-  try { await kvCall({ action: 'set', key: scoreFixKeyFor(shift, name), value: JSON.stringify({ score, at: Date.now() }), auth }) } catch {}
+  try {
+    const payload = (score && typeof score === 'object') ? { ...score, at: Date.now() } : { score, at: Date.now() }
+    await kvCall({ action: 'set', key: scoreFixKeyFor(shift, name), value: JSON.stringify(payload), auth })
+  } catch {}
 }
 export async function getScoreFix(shift, name) {
   try {
