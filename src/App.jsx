@@ -1364,6 +1364,26 @@ function Terminal({ files, dataTour, maxHeight = 260, onEasterEgg = null }) {
       onEasterEgg && onEasterEgg("piada");
       return;
     }
+    if (low === "sudo faça um sanduíche" || low === "sudo faca um sanduiche") {
+      push("🥪 Ok.", "(Só funcionou porque você pediu com \"sudo\" — pesquise essa piada com seu professor um dia!)", "");
+      onEasterEgg && onEasterEgg("sanduiche");
+      return;
+    }
+    if (low === "nyx café" || low === "nyx cafe") {
+      push("        ( (", "         ) )", "      ........", "      |      |]", "      \\      /", "       `----'", "☕ Bem mais desperto agora! Bora codar? 😄", "");
+      onEasterEgg && onEasterEgg("cafe");
+      return;
+    }
+    if (low === "42") {
+      push("🌌 A resposta para a vida, o universo e tudo mais... é 42!", "(Se você não entendeu essa, é hora de conhecer 'O Guia do Mochileiro das Galáxias' 👽)", "");
+      onEasterEgg && onEasterEgg("42");
+      return;
+    }
+    if (low === "rm -rf /" || low === "rm -rf /*") {
+      push("😅 Boa tentativa! Mas esse terminal é só de mentirinha — nada aqui se apaga de verdade.", "");
+      onEasterEgg && onEasterEgg("rm");
+      return;
+    }
     if (low === "dotnet" || low.startsWith("dotnet ")) { push("Uso:  dotnet run  |  dotnet build", ""); return; }
     push(`'${c}' não é reconhecido como um comando. Digite "ajuda" para ver os comandos.`, "");
   };
@@ -3066,7 +3086,7 @@ function quickCheck(code){
 // ════════════════════════════════════════════════════════════════════════════
 //  ALUNO
 // ════════════════════════════════════════════════════════════════════════════
-function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initialPin }) {
+function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [showIntro, setShowIntro] = useState(!!isNew);
   const [files, setFiles] = useState([{ name:"Program.cs", code:"" }]);
   const [active, setActive] = useState(0);
@@ -3235,8 +3255,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const attendanceRef = useRef({});
   // "foto" do código no primeiro acesso do dia: o resumo da aula cobre só o que foi escrito DEPOIS dela
   const daySnapshotRef = useRef(null);
-  // PIN do aluno (protege o perfil contra colegas — proteção nível sala de aula)
-  const pinRef = useRef(initialPin || null);
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
@@ -3305,7 +3323,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       typingBest: s.typingBest || null,
       typingRewardDay: s.typingRewardDay || null,
       giftLastClaim: s.giftLastClaim || null,
-      pin: pinRef.current || null,
       theme: s.theme || "dark",
       nyxPoints: s.nyxPoints || 0,
       nyxSpent: s.nyxSpent || 0,
@@ -3443,7 +3460,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.typingBest) setTypingBest(prev.typingBest);
           if (prev.typingRewardDay) setTypingRewardDay(prev.typingRewardDay);
           if (prev.giftLastClaim) setGiftLastClaim(prev.giftLastClaim);
-          if (prev.pin) pinRef.current = prev.pin;
           if (prev.theme) setTheme(prev.theme);
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
           if (prev.nyxSpent) setNyxSpent(prev.nyxSpent);
@@ -4882,6 +4898,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               <Terminal files={files} dataTour="terminal" onEasterEgg={(egg) => {
                 unlockAchievement("segredo");
                 if (egg === "dance") { setRobotState("ok"); setRobotMsg("💃 Você achou meu passo de dança secreto! Não conta pra ninguém... ou conta, vai ser divertido."); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
+                if (egg === "cafe") { setRobotState("ok"); setRobotMsg("☕ Aaah, muito obrigado pelo café! Bora codar com tudo agora!"); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
               }} />
             </div>
           ) : (
@@ -4913,6 +4930,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               <Terminal files={files} dataTour="terminal" onEasterEgg={(egg) => {
                 unlockAchievement("segredo");
                 if (egg === "dance") { setRobotState("ok"); setRobotMsg("💃 Você achou meu passo de dança secreto! Não conta pra ninguém... ou conta, vai ser divertido."); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
+                if (egg === "cafe") { setRobotState("ok"); setRobotMsg("☕ Aaah, muito obrigado pelo café! Bora codar com tudo agora!"); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
               }} />
             </>
           )}
@@ -6052,12 +6070,6 @@ function TeacherView({ onLogout, teacherAuth }) {
     setSelInspection(next);
     flashMgmt(next ? `🔍 Vistoria aberta pra ${s.name} — ele pode entrar mesmo fora do horário.` : "✅ Vistoria concluída.");
   };
-  // 🔑 reseta o PIN do aluno (ele cria um novo na próxima entrada)
-  const doResetPin = async (s) => {
-    await patchStudent(s.shift, s.name, { pin: null });
-    await load();
-    flashMgmt(`🔑 PIN de ${s.name} resetado — ele cria um novo na próxima entrada.`);
-  };
   // 👀 anti-cola: decide a defesa do aluno (aceitar devolve os pontos; recusar mantém o desconto)
   const decideAppeal = async (s, accept) => {
     if (accept) await setScoreFix(s.shift, s.name, { kind: "exam", score: s.examScoreRaw ?? s.examScore ?? 0 }, teacherAuth);
@@ -6724,12 +6736,6 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <span style={{ color: sel.keyboardDone ? "#34d399" : "#5d679c", fontSize:11.5, flex:"1 1 200px" }}>{sel.keyboardDone ? "✅ Já concluiu o tutorial." : "Ainda não concluiu o tutorial."}</span>
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
-                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🔑 PIN:</span>
-                      <span style={{ color: sel.pin ? "#34d399" : "#5d679c", fontSize:13, fontWeight:700 }}>{sel.pin ? "definido ✓" : "ainda não criado"}</span>
-                      {sel.pin && <button onClick={()=>doResetPin(sel)} style={{ ...styles.btn("#2a3154"), padding:"6px 14px", fontSize:12.5 }}>Resetar PIN</button>}
-                      <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>O PIN protege o perfil contra colegas. Se o aluno esquecer, resete aqui — ele cria um novo na próxima entrada.</span>
-                    </div>
-                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
                       <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🔍 Vistoria:</span>
                       <button onClick={()=>doToggleInspection(sel)} style={{ ...styles.btn(selInspection?"#22d3ee":"#2a3154"), padding:"6px 14px", fontSize:12.5 }}>
                         {selInspection ? "✅ Vistoria aberta — Encerrar" : "Liberar fora do horário"}
@@ -7177,7 +7183,6 @@ function TeacherView({ onLogout, teacherAuth }) {
 //  LOGIN
 // ════════════════════════════════════════════════════════════════════════════
 function Login({ onJoin }) {
-  const [newPin, setNewPin] = useState(""); // PIN do perfil novo (4 números)
   const vw = useViewportWidth();
   const isNarrow = vw < 720; // abaixo disso, a personalização do avatar empilha em vez de ficar em 2 colunas
   const [name, setName] = useState("");
@@ -7208,28 +7213,12 @@ function Login({ onJoin }) {
   }, []);
   useEffect(() => { if (role==="student") loadProfiles(); }, [role, loadProfiles]);
 
-  const enterStudent = (studentName, avatarCfg, shiftId, isNew, pin) => { goFullscreen(); onJoin("student", studentName, avatarCfg, shiftId || "matutino", isNew, null, pin); };
+  const enterStudent = (studentName, avatarCfg, shiftId, isNew) => { goFullscreen(); onJoin("student", studentName, avatarCfg, shiftId || "matutino", isNew, null); };
   const handleNewStudent = () => {
     if(!name.trim()){ setError("Digite seu nome!"); return; }
-    if(!/^\d{4}$/.test(newPin)){ setError("Crie um PIN de 4 números — é a senha que protege o seu perfil!"); return; }
-    enterStudent(name.trim(), avatar, shift, true, newPin);
+    enterStudent(name.trim(), avatar, shift, true);
   };
-  // ── PIN do aluno: perfis salvos pedem o PIN pra entrar; perfis antigos sem PIN criam um na hora ──
-  // (proteção nível sala de aula: impede colega de entrar no perfil do outro e gastar os pontos)
-  const [pinModal, setPinModal] = useState(null); // { profile, mode: "verify" | "create" }
-  const [pinInput, setPinInput] = useState("");
-  const [pinError, setPinError] = useState("");
-  const openProfile = (p) => {
-    setPinInput(""); setPinError("");
-    setPinModal({ profile: p, mode: p.pin ? "verify" : "create" });
-  };
-  const confirmPin = () => {
-    const { profile, mode } = pinModal;
-    if (!/^\d{4}$/.test(pinInput)) { setPinError("O PIN tem 4 números."); return; }
-    if (mode === "verify" && pinInput !== String(profile.pin)) { setPinError("PIN errado. Se esqueceu, peça pro professor resetar."); return; }
-    setPinModal(null);
-    enterStudent(profile.name, profile.avatar, profile.shift, false, mode === "create" ? pinInput : undefined);
-  };
+  const openProfile = (p) => enterStudent(p.name, p.avatar, p.shift, false);
   // a senha do professor é validada no SERVIDOR (variável TEACHER_PASSWORD no Vercel) — nunca fica no código do site
   const handleTeacher = async () => {
     if (teacherChecking) return;
@@ -7342,8 +7331,6 @@ function Login({ onJoin }) {
                 </div>
 
                 <input style={styles.input} placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} />
-                <input style={{ ...styles.input, marginTop:8 }} type="password" inputMode="numeric" maxLength={4} placeholder="Crie um PIN de 4 números (sua senha)" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} />
-                <p style={{ color:"#5d679c", fontSize:11.5, margin:"6px 0 0" }}>🔒 O PIN protege o seu perfil: só entra com ele. Não esqueça!</p>
                 <p style={{ color:"#96a0cc", fontSize:13, margin:"14px 0 8px", textAlign:"center" }}>🎨 Seu boneco:</p>
                 <AvatarPreview value={avatar} onChange={setAvatar} />
                 <AvatarControls value={avatar} onChange={setAvatar} part="basic" />
@@ -7377,30 +7364,6 @@ function Login({ onJoin }) {
         )}
       </div>
 
-      {/* PIN do perfil: confirma (perfil com PIN) ou cria na hora (perfil antigo sem PIN) */}
-      {pinModal && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1200, padding:16 }}>
-          <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"2px solid #7c83ff", borderRadius:18, padding:"22px 24px", maxWidth:360, width:"100%", textAlign:"center" }}>
-            <div style={{ fontSize:34 }}>🔒</div>
-            <h3 style={{ color:"#e8ebfa", margin:"8px 0 4px" }}>{pinModal.mode === "verify" ? `Oi, ${String(pinModal.profile.name).split(" ")[0]}!` : "Vamos proteger seu perfil!"}</h3>
-            <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, margin:"0 0 14px" }}>
-              {pinModal.mode === "verify"
-                ? "Digite o seu PIN de 4 números pra entrar."
-                : "Seu perfil ainda não tem PIN. Crie um de 4 números — só você entra com ele."}
-            </p>
-            <input autoFocus type="password" inputMode="numeric" maxLength={4} value={pinInput}
-              onChange={e=>{ setPinInput(e.target.value.replace(/\D/g,"").slice(0,4)); setPinError(""); }}
-              onKeyDown={e=>e.key==="Enter"&&confirmPin()}
-              placeholder="• • • •"
-              style={{ width:150, background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:"12px 0", color:"#e8ebfa", fontSize:26, textAlign:"center", letterSpacing:10, outline:"none" }} />
-            {pinError && <p style={{ color:"#f87171", fontSize:12.5, margin:"10px 0 0" }}>{pinError}</p>}
-            <div style={{ display:"flex", gap:8, marginTop:16 }}>
-              <button onClick={()=>setPinModal(null)} style={{ ...styles.btn("#2a3154"), flex:1 }}>Voltar</button>
-              <button onClick={confirmPin} style={{ ...styles.btn("#7c83ff"), flex:2 }}>{pinModal.mode === "verify" ? "Entrar →" : "Criar e entrar →"}</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -7410,7 +7373,7 @@ function Login({ onJoin }) {
 // ════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [session, setSession] = useState(null);
-  if (!session) return <Login onJoin={(role,name,avatar,shift,isNew,teacherAuth,pin)=>setSession({role,name,avatar,shift,isNew,teacherAuth,pin})} />;
+  if (!session) return <Login onJoin={(role,name,avatar,shift,isNew,teacherAuth)=>setSession({role,name,avatar,shift,isNew,teacherAuth})} />;
   if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} />;
-  return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialPin={session.pin} onLogout={()=>setSession(null)} />;
+  return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} onLogout={()=>setSession(null)} />;
 }
