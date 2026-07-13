@@ -2258,7 +2258,7 @@ const KEYBOARD_LEVELS = [
   ] },
   { id:8, title:"Teste final", line: 'int x = 10;\nif (x > 5) { Console.WriteLine("Oi!"); }' },
 ];
-function MiniKeyboard({ highlight }) {
+function MiniKeyboard({ highlight, zoom = 1 }) {
   // a(s) tecla(s) principais E o(s) modificador(es) brilham juntos — é isso que precisa ser apertado
   // (keys é uma lista pra combinações em sequência, tipo acento agudo + letra A)
   const isActive = (k) => {
@@ -2298,7 +2298,9 @@ function MiniKeyboard({ highlight }) {
     );
   };
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", margin:"14px 0", overflowX:"auto" }}>
+    // "zoom" amplia teclas E letras juntas, mantendo as proporções da réplica — pedido do professor
+    // pra enxergar melhor as teclas; em telas menores o tutorial encolhe o teclado sozinho
+    <div style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", margin:"14px 0", overflowX:"auto", zoom }}>
       {/* fileira de cima: Esc, F1–F12, Insert, PrtSc, Delete (meia altura, como no notebook) */}
       <div style={{ display:"flex", gap:4 }}>{KB_FN_ROW.map(k => renderKey(k))}</div>
       <div style={{ display:"flex", gap:4 }}>{KB_ROWS[0].map(k => renderKey(k))}</div>
@@ -2332,6 +2334,9 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
   const [done, setDone] = useState(false);
   const level = KEYBOARD_LEVELS[levelIdx];
   const target = level.targets ? level.targets[targetIdx] : null;
+  // teclado grandão pra enxergar bem as teclas; encolhe sozinho se a janela for estreita
+  const vw = useViewportWidth();
+  const kbZoom = vw >= 1050 ? 1.4 : vw >= 780 ? 1.05 : 0.85;
 
   useEffect(() => {
     if (done) return;
@@ -2402,7 +2407,7 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.88)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1200, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:720, width:"100%", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:980, width:"100%", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>⌨️ Tutorial de Teclado</h2>
           <button onClick={()=>{ stopSpeech?.(); onClose(); }} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
@@ -2441,7 +2446,7 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
                     {target.hint ? target.hint : target.symbol ? `${comboLabel(target.char)} — isso escreve ${keyName(target.char)}` : target.ctrl ? `Segure Ctrl e aperte ${target.char.toUpperCase()} ao mesmo tempo — ${target.label}` : target.shift ? `Segure Shift e aperte ${target.char} ao mesmo tempo` : `Aperte essa tecla`}
                   </p>
                 </div>
-                <MiniKeyboard highlight={highlight} />
+                <MiniKeyboard highlight={highlight} zoom={kbZoom} />
               </>
             )}
           </>
