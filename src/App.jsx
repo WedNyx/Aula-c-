@@ -2358,12 +2358,16 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
       if (!target) return;
       // com o tutorial aberto, Tab/espaço não devem trocar o foco nem rolar a página
       if (["Tab", " "].includes(e.key)) e.preventDefault();
+      // segurar a tecla (repetição automática do teclado) não pode "pular" vários alvos de uma vez
+      if (e.repeat) return;
       let ok = false;
       if (target.special) { ok = e.key === target.char; if (ok) e.preventDefault(); }
       else if (target.accent) ok = e.key.toLowerCase() === target.char; // o navegador entrega a letra já composta (´+a → "á")
       else if (target.symbol) ok = e.key === target.char;
       else if (target.ctrl) { ok = e.ctrlKey && e.key.toLowerCase() === target.char.toLowerCase(); if (ok) e.preventDefault(); }
-      else if (target.shift) ok = e.shiftKey && e.key === target.char.toUpperCase();
+      // compara sem diferenciar maiúscula/minúscula: se o Caps Lock estiver ligado sem o aluno perceber,
+      // segurar Shift produz a letra MINÚSCULA (Caps Lock inverte o Shift) — não pode travar o nível por isso
+      else if (target.shift) ok = e.shiftKey && e.key.toLowerCase() === target.char.toLowerCase();
       else ok = !e.shiftKey && !e.ctrlKey && e.key.toLowerCase() === target.char.toLowerCase();
       if (ok) {
         playSound("correct");
