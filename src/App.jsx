@@ -5688,6 +5688,9 @@ function TeacherView({ onLogout, teacherAuth }) {
   // PDF com o código e o resumo de cada aluno (pra guardar/enviar ao fim do curso)
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [pdfMsg, setPdfMsg] = useState("");
+  // 📄 PDF do dia: resumo curto do código de HOJE pra mandar pra um aluno específico (ex: quem vai faltar)
+  const [dailyPdfBusy, setDailyPdfBusy] = useState(false);
+  const [dailyPdfMsg, setDailyPdfMsg] = useState("");
   // biblioteca de aulas (as SUAS aulas salvas + modelos de exemplo) + backup completo
   const [showLessons, setShowLessons] = useState(false);
   const [myLessons, setMyLessons] = useState([]);
@@ -6226,6 +6229,141 @@ function TeacherView({ onLogout, teacherAuth }) {
       setPdfMsg("❌ Não consegui gerar o PDF agora. Tente de novo.");
     }
     setPdfGenerating(false);
+  };
+
+  // ── 📄 PDF do dia: um resumo curto do código de HOJE (aba "Meu código" do turno do aluno) +
+  // explicação do Nyx, pronto pra enviar de volta pra um aluno que vai faltar não ficar pra trás ──
+  const exportDailyPDF = async (shift, studentName) => {
+    setDailyPdfBusy(true);
+    setDailyPdfMsg("");
+    const dayFiles = (proFilesByShift[shift] || []).filter(f => (f.code || "").trim());
+    if (dayFiles.length === 0) {
+      setDailyPdfMsg('⚠ Programe o exemplo de hoje na aba "Meu código" primeiro.');
+      setDailyPdfBusy(false);
+      return;
+    }
+    const code = dayFiles.map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n");
+    let explain = null, aiOffline = false;
+    try {
+      explain = await askClaudeJson(
+        `Este é o código C# que o professor ensinou HOJE para a turma ${shiftMeta(shift).label} (pode ter vários arquivos):\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie uma explicação COMPLETA e didática desse código, para um aluno que FALTOU hoje e vai estudar esse material sozinho em casa. Percorra o código NA ORDEM em que ele aparece.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 a 2 frases dizendo o que foi ensinado hoje como um todo",\n  "secoes": [ { "titulo": "nome curto do conceito/parte", "explicacao": "explicação clara de 2 a 4 frases, em português simples", "exemplo": "trecho C# bem curto ilustrando (opcional — use \\n pra quebrar linha)" } ],\n  "dica": "1 frase final encorajando o aluno a estudar em casa e perguntar na próxima aula se tiver dúvida"\n}\n\nFaça uma seção para cada parte ou conceito importante (entre 2 e 8 seções). Garanta JSON válido.`,
+        "Você é um professor de C# escrevendo, com carinho, um resumo por escrito para um aluno que faltou não ficar pra trás. Português correto e simples. Responda APENAS JSON puro válido."
+      );
+    } catch { aiOffline = true; }
+
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 48;
+      const maxW = pageW - margin * 2;
+      let y = margin;
+      const hexRgb = (hex) => {
+        const h = hex.replace("#", "");
+        const n = parseInt(h.length === 3 ? h.split("").map(c=>c+c).join("") : h, 16);
+        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+      };
+      const clean = (t) => String(t || "").replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}️]/gu, "").replace(/\s+/g, " ").trim();
+      const ensureSpace = (needed) => { if (y + needed > pageH - margin - 16) { doc.addPage(); y = margin; } };
+      const writeParagraph = (text, opts = {}) => {
+        const { size = 10.5, font = "helvetica", style = "normal", color = "#2a2f45", lineGap = 4.5, x = margin, width = maxW } = opts;
+        doc.setFont(font, style); doc.setFontSize(size); doc.setTextColor(...hexRgb(color));
+        doc.splitTextToSize(String(text || " "), width).forEach(line => {
+          ensureSpace(size + lineGap);
+          doc.text(line, x, y);
+          y += size + lineGap;
+        });
+      };
+      const writeCodeBlock = (codeText) => {
+        doc.setFont("courier", "normal"); doc.setFontSize(8.5);
+        const lines = codeText.split("\n").flatMap(l => doc.splitTextToSize(l.length ? l : " ", maxW - 24));
+        const lh = 11.5;
+        let i = 0;
+        while (i < lines.length) {
+          ensureSpace(lh * 2 + 16);
+          const fit = Math.max(1, Math.floor((pageH - margin - 16 - y - 16) / lh));
+          const chunk = lines.slice(i, i + fit);
+          const h = chunk.length * lh + 14;
+          doc.setFillColor(...hexRgb("#f2f4fc")); doc.setDrawColor(...hexRgb("#d8dcf0"));
+          doc.roundedRect(margin, y - 4, maxW, h, 5, 5, "FD");
+          doc.setFont("courier", "normal"); doc.setFontSize(8.5); doc.setTextColor(...hexRgb("#33395c"));
+          chunk.forEach((ln, j) => doc.text(ln, margin + 12, y + 10 + j * lh));
+          y += h + 8;
+          i += fit;
+        }
+      };
+
+      // ── cabeçalho ──
+      const accent = shift === "matutino" ? "#f59e0b" : "#7c83ff";
+      doc.setFillColor(...hexRgb(accent)); doc.roundedRect(margin, y - 8, maxW, 56, 10, 10, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(255, 255, 255);
+      doc.text(clean(`Resumo da aula de hoje — para ${studentName}`), margin + 16, y + 16);
+      const dataBr = new Date().toLocaleDateString("pt-BR");
+      const contentName = contentFor(shift);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.setTextColor(255, 255, 255);
+      doc.text(clean(`${dataBr} • Turma ${shiftMeta(shift).label}${contentName ? " • " + contentName : ""}`), margin + 16, y + 35);
+      y += 74;
+
+      writeParagraph("Oi! Você faltou hoje, mas aqui está tudo o que a turma viu — dá uma olhada com calma e, se ficar com alguma dúvida, é só perguntar na próxima aula. 💜", { size: 11, style: "italic", color: "#4a5170" });
+      y += 8;
+
+      if (explain && Array.isArray(explain.secoes) && explain.secoes.length) {
+        if (explain.intro) { writeParagraph(clean(explain.intro), { size: 11.5, style: "bold", color: "#1f2547" }); y += 6; }
+        explain.secoes.forEach((sec, i) => {
+          ensureSpace(40);
+          doc.setFillColor(...hexRgb(accent));
+          doc.roundedRect(margin, y - 10, 18, 18, 5, 5, "F");
+          doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(255, 255, 255);
+          doc.text(String(i + 1), margin + 9, y + 3, { align: "center" });
+          writeParagraph(clean(sec.titulo), { size: 12, style: "bold", color: "#1f2547", x: margin + 26, width: maxW - 26 });
+          if (sec.explicacao) writeParagraph(clean(sec.explicacao), { size: 10.5, x: margin + 26, width: maxW - 26 });
+          if (sec.exemplo && String(sec.exemplo).trim()) writeParagraph(String(sec.exemplo).replace(/\r/g, ""), { size: 9, font: "courier", color: "#5b3fd1", x: margin + 26, width: maxW - 26 });
+          y += 8;
+        });
+        if (explain.dica) {
+          ensureSpace(30);
+          doc.setFillColor(...hexRgb("#fff7e0")); doc.setDrawColor(...hexRgb("#f0d896"));
+          const dicaLines = doc.splitTextToSize("Dica:  " + clean(explain.dica), maxW - 24);
+          const dh = dicaLines.length * 14 + 14;
+          doc.roundedRect(margin, y - 4, maxW, dh, 6, 6, "FD");
+          doc.setFont("helvetica", "italic"); doc.setFontSize(10.5); doc.setTextColor(...hexRgb("#8a6d1a"));
+          dicaLines.forEach((ln, j) => doc.text(ln, margin + 12, y + 12 + j * 14));
+          y += dh + 10;
+        }
+      } else {
+        writeParagraph("A explicação automática não pôde ser gerada agora (Nyx offline). O código completo está logo abaixo.", { size: 10.5, style: "italic", color: "#8a8fa8" });
+        y += 6;
+      }
+
+      y += 6;
+      writeParagraph("Código completo de hoje", { size: 13, style: "bold", color: "#1f2547" });
+      y += 4;
+      dayFiles.forEach(f => {
+        ensureSpace(34);
+        doc.setFillColor(...hexRgb("#1f2547"));
+        doc.roundedRect(margin, y - 4, maxW, 22, 5, 5, "F");
+        doc.setFont("courier", "bold"); doc.setFontSize(9.5); doc.setTextColor(255, 255, 255);
+        doc.text(clean(f.name), margin + 12, y + 10);
+        y += 26;
+        writeCodeBlock(f.code.replace(/\r/g, ""));
+        y += 4;
+      });
+
+      const total = doc.getNumberOfPages();
+      for (let p = 1; p <= total; p++) {
+        doc.setPage(p);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...hexRgb("#9aa1c2"));
+        doc.text("Aula de C#  •  resumo do dia", margin, pageH - 24);
+        doc.text(`${p} / ${total}`, pageW - margin, pageH - 24, { align: "right" });
+      }
+
+      doc.save(`resumo-hoje-${String(studentName).replace(/[^a-zA-Z0-9]+/g, "-")}-${todayKey()}.pdf`);
+      setDailyPdfMsg(aiOffline ? "✅ PDF gerado (sem a explicação — o Nyx estava offline)." : "✅ PDF gerado!");
+    } catch {
+      setDailyPdfMsg("❌ Não consegui gerar o PDF agora. Tente de novo.");
+    }
+    setDailyPdfBusy(false);
   };
 
   // ── gestão de alunos: renomear, mover de turno, corrigir nota, excluir ──
@@ -7135,6 +7273,14 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>📤 Código:</span>
                       <button onClick={()=>doSendClassCode(sel)} style={{ ...styles.btn("#22d3ee"), padding:"6px 14px", fontSize:12.5 }}>Enviar código da turma</button>
                       <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>Manda todos os arquivos da aba "Meu código" (turno {shiftLabel(sel.shift)}) direto pro editor deste aluno.</span>
+                    </div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
+                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>📄 PDF do dia:</span>
+                      <button onClick={()=>exportDailyPDF(sel.shift, sel.name)} disabled={dailyPdfBusy} style={{ ...styles.btn("#fbbf24"), padding:"6px 14px", fontSize:12.5, opacity: dailyPdfBusy ? 0.7 : 1 }}>
+                        {dailyPdfBusy ? "⏳ Gerando..." : "Gerar resumo de hoje em PDF"}
+                      </button>
+                      <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>Baixa um PDF com o código de hoje (aba "Meu código") e a explicação do Nyx — bom pra mandar pra quem faltou.</span>
+                      {dailyPdfMsg && <p style={{ width:"100%", margin:0, color: dailyPdfMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:11.5 }}>{dailyPdfMsg}</p>}
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
                       <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🗑️ Perfil:</span>
