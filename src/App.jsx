@@ -5688,9 +5688,13 @@ function TeacherView({ onLogout, teacherAuth }) {
   // PDF com o código e o resumo de cada aluno (pra guardar/enviar ao fim do curso)
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [pdfMsg, setPdfMsg] = useState("");
-  // 📄 PDF do dia: resumo curto do código de HOJE pra mandar pra um aluno específico (ex: quem vai faltar)
+  // 📄 PDF do dia: resumo curto do código de HOJE pra mandar pra um aluno específico (ex: quem vai
+  // faltar) — o professor confirma/edita o código antes de gerar, pra não depender de "Meu código"
+  // estar necessariamente atualizado com o que foi passado hoje
   const [dailyPdfBusy, setDailyPdfBusy] = useState(false);
   const [dailyPdfMsg, setDailyPdfMsg] = useState("");
+  const [dailyPdfModal, setDailyPdfModal] = useState(null); // { shift, studentName } | null
+  const [dailyPdfCode, setDailyPdfCode] = useState("");
   // biblioteca de aulas (as SUAS aulas salvas + modelos de exemplo) + backup completo
   const [showLessons, setShowLessons] = useState(false);
   const [myLessons, setMyLessons] = useState([]);
@@ -6233,16 +6237,14 @@ function TeacherView({ onLogout, teacherAuth }) {
 
   // ── 📄 PDF do dia: um resumo curto do código de HOJE (aba "Meu código" do turno do aluno) +
   // explicação do Nyx, pronto pra enviar de volta pra um aluno que vai faltar não ficar pra trás ──
-  const exportDailyPDF = async (shift, studentName) => {
+  const exportDailyPDF = async (shift, studentName, code) => {
     setDailyPdfBusy(true);
     setDailyPdfMsg("");
-    const dayFiles = (proFilesByShift[shift] || []).filter(f => (f.code || "").trim());
-    if (dayFiles.length === 0) {
-      setDailyPdfMsg('⚠ Programe o exemplo de hoje na aba "Meu código" primeiro.');
+    if (!String(code || "").trim()) {
+      setDailyPdfMsg("⚠ Escreva o código de hoje antes de gerar.");
       setDailyPdfBusy(false);
       return;
     }
-    const code = dayFiles.map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n");
     let explain = null, aiOffline = false;
     try {
       explain = await askClaudeJson(
@@ -6339,16 +6341,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       y += 6;
       writeParagraph("Código completo de hoje", { size: 13, style: "bold", color: "#1f2547" });
       y += 4;
-      dayFiles.forEach(f => {
-        ensureSpace(34);
-        doc.setFillColor(...hexRgb("#1f2547"));
-        doc.roundedRect(margin, y - 4, maxW, 22, 5, 5, "F");
-        doc.setFont("courier", "bold"); doc.setFontSize(9.5); doc.setTextColor(255, 255, 255);
-        doc.text(clean(f.name), margin + 12, y + 10);
-        y += 26;
-        writeCodeBlock(f.code.replace(/\r/g, ""));
-        y += 4;
-      });
+      writeCodeBlock(String(code).replace(/\r/g, ""));
 
       const total = doc.getNumberOfPages();
       for (let p = 1; p <= total; p++) {
@@ -6795,6 +6788,29 @@ function TeacherView({ onLogout, teacherAuth }) {
 
       {showTelao && <TelaoModal students={students} shift={shiftFilter} onClose={()=>setShowTelao(false)} teacherAuth={teacherAuth} />}
       {showTripOverview && <TripOverviewModal entries={tripHallEntries} onClose={()=>setShowTripOverview(false)} />}
+
+      {dailyPdfModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+              <h2 style={{ margin:0, fontSize:19, fontWeight:900, background:"linear-gradient(135deg,#fbbf24,#fb923c)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📄 Resumo de hoje — {dailyPdfModal.studentName}</h2>
+              <button onClick={()=>setDailyPdfModal(null)} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+            </div>
+            <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 12px", lineHeight:1.6 }}>
+              Confirme (ou cole por cima) o código que você passou HOJE pra turma {shiftLabel(dailyPdfModal.shift)}. O Nyx explica exatamente o que estiver aqui embaixo — só o que já estava salvo em "Meu código" veio pré-preenchido.
+            </p>
+            <textarea value={dailyPdfCode} onChange={e=>setDailyPdfCode(e.target.value)} disabled={dailyPdfBusy} rows={14} spellCheck={false}
+              style={{ width:"100%", background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:"10px 12px", color:"#e8ebfa", fontFamily:"'Courier New',monospace", fontSize:12.5, outline:"none", resize:"vertical", boxSizing:"border-box" }} />
+            <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
+              <button onClick={()=>exportDailyPDF(dailyPdfModal.shift, dailyPdfModal.studentName, dailyPdfCode)} disabled={dailyPdfBusy || !dailyPdfCode.trim()} style={{ ...styles.btn("#fbbf24"), padding:"9px 18px", fontSize:13.5, opacity: (dailyPdfBusy || !dailyPdfCode.trim()) ? 0.6 : 1 }}>
+                {dailyPdfBusy ? "⏳ Gerando..." : "✅ Gerar PDF"}
+              </button>
+              <button onClick={()=>setDailyPdfModal(null)} disabled={dailyPdfBusy} style={{ ...styles.btn("#2a3154"), padding:"9px 18px", fontSize:13.5 }}>Cancelar</button>
+            </div>
+            {dailyPdfMsg && <p style={{ color: dailyPdfMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:10 }}>{dailyPdfMsg}</p>}
+          </div>
+        </div>
+      )}
 
       {/* biblioteca de aulas: as SUAS aulas salvas (o seu código) + modelos de exemplo */}
       {showLessons && (
@@ -7276,10 +7292,15 @@ function TeacherView({ onLogout, teacherAuth }) {
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
                       <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>📄 PDF do dia:</span>
-                      <button onClick={()=>exportDailyPDF(sel.shift, sel.name)} disabled={dailyPdfBusy} style={{ ...styles.btn("#fbbf24"), padding:"6px 14px", fontSize:12.5, opacity: dailyPdfBusy ? 0.7 : 1 }}>
+                      <button onClick={()=>{
+                        const dayFiles = (proFilesByShift[sel.shift] || []).filter(f => (f.code||"").trim());
+                        setDailyPdfCode(dayFiles.map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n"));
+                        setDailyPdfMsg("");
+                        setDailyPdfModal({ shift: sel.shift, studentName: sel.name });
+                      }} disabled={dailyPdfBusy} style={{ ...styles.btn("#fbbf24"), padding:"6px 14px", fontSize:12.5, opacity: dailyPdfBusy ? 0.7 : 1 }}>
                         {dailyPdfBusy ? "⏳ Gerando..." : "Gerar resumo de hoje em PDF"}
                       </button>
-                      <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>Baixa um PDF com o código de hoje (aba "Meu código") e a explicação do Nyx — bom pra mandar pra quem faltou.</span>
+                      <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>Confirme o código de hoje e o Nyx gera a explicação — bom pra mandar pra quem faltou.</span>
                       {dailyPdfMsg && <p style={{ width:"100%", margin:0, color: dailyPdfMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:11.5 }}>{dailyPdfMsg}</p>}
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
