@@ -2278,6 +2278,10 @@ const KEYBOARD_LEVELS = [
   ] },
   { id:8, title:"Teste final", line: 'int x = 10;\nif (x > 5) { Console.WriteLine("Oi!"); }' },
 ];
+// versão simplificada pro Modo Guiado (dificuldade de leitura/escrita/motora): só os níveis sem
+// combinação de teclas difícil (fora o Shift, que é bem comum) — sem atalhos de Ctrl, símbolos,
+// acentos com tecla morta nem o teste final de digitar uma linha inteira — e treina em loop, sem "fim"
+const KEYBOARD_LEVELS_EASY = KEYBOARD_LEVELS.filter(l => l.id <= 3);
 function MiniKeyboard({ highlight, zoom = 1 }) {
   // a(s) tecla(s) principais E o(s) modificador(es) brilham juntos — é isso que precisa ser apertado
   // (keys é uma lista pra combinações em sequência, tipo acento agudo + letra A)
@@ -2346,13 +2350,14 @@ function MiniKeyboard({ highlight, zoom = 1 }) {
     </div>
   );
 }
-function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
+function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech, accessMode = false }) {
+  const levels = accessMode ? KEYBOARD_LEVELS_EASY : KEYBOARD_LEVELS;
   const [levelIdx, setLevelIdx] = useState(0);
   const [targetIdx, setTargetIdx] = useState(0);
   const [wrongFlash, setWrongFlash] = useState(false);
   const [finalTyped, setFinalTyped] = useState("");
   const [done, setDone] = useState(false);
-  const level = KEYBOARD_LEVELS[levelIdx];
+  const level = levels[levelIdx];
   const target = level.targets ? level.targets[targetIdx] : null;
   // teclado grandão pra enxergar bem as teclas; encolhe sozinho se a janela for estreita
   const vw = useViewportWidth();
@@ -2392,7 +2397,13 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
       if (ok) {
         playSound("correct");
         if (targetIdx + 1 < level.targets.length) setTargetIdx(i => i + 1);
-        else if (levelIdx + 1 < KEYBOARD_LEVELS.length) { setLevelIdx(l => l + 1); setTargetIdx(0); playSound("levelup"); }
+        else if (levelIdx + 1 < levels.length) { setLevelIdx(l => l + 1); setTargetIdx(0); playSound("levelup"); }
+        // chegou no fim do último nível de teclas: no Modo Guiado treina pra sempre, voltando pro
+        // começo (senão travava aqui — o alvo final ficava "preso" sem nunca avançar nem terminar);
+        // fora do Modo Guiado sempre existe um próximo nível (o "Teste final" com .line), então este
+        // caminho não roda, mas fica como rede de segurança caso os níveis mudem
+        else if (accessMode) { playSound("levelup"); onFinish(); setLevelIdx(0); setTargetIdx(0); }
+        else finishAll();
       } else if (!["Shift","Control","Alt","AltGraph","Meta","Tab","CapsLock","Dead"].includes(e.key)) {
         // "Dead" = tecla de acento esperando a letra (´, ~, ^) — não é erro, é o meio do caminho
         playSound("wrong");
@@ -2426,8 +2437,8 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
     return { keys: [target.char.toUpperCase()], mods: [] };
   })();
 
-  const totalTargets = KEYBOARD_LEVELS.filter(l => l.targets).reduce((n, l) => n + l.targets.length, 0);
-  const doneTargets = KEYBOARD_LEVELS.slice(0, levelIdx).reduce((n, l) => n + (l.targets ? l.targets.length : 0), 0) + targetIdx;
+  const totalTargets = levels.filter(l => l.targets).reduce((n, l) => n + l.targets.length, 0);
+  const doneTargets = levels.slice(0, levelIdx).reduce((n, l) => n + (l.targets ? l.targets.length : 0), 0) + targetIdx;
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.88)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1200, padding:16 }}>
@@ -2436,6 +2447,7 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>⌨️ Tutorial de Teclado</h2>
           <button onClick={()=>{ stopSpeech?.(); onClose(); }} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
+        {accessMode && !done && <p style={{ color:"#a5f3fc", fontSize:12, margin:"0 0 10px", fontWeight:700 }}>🧩 Treino do Modo Guiado — só o essencial, e recomeça sozinho pra treinar à vontade.</p>}
         {done ? (
           <div className="pop" style={{ textAlign:"center", padding:"20px 0" }}>
             <div style={{ fontSize:44 }}>🎹</div>
@@ -2446,7 +2458,7 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech }) {
         ) : (
           <>
             <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
-              {KEYBOARD_LEVELS.map((l, i) => (
+              {levels.map((l, i) => (
                 <span key={l.id} style={{ background: i<levelIdx?"#34d39922":i===levelIdx?"#fbbf2422":"#0d1122", color: i<levelIdx?"#34d399":i===levelIdx?"#fbbf24":"#5d679c", border:`1px solid ${i<levelIdx?"#34d399":i===levelIdx?"#fbbf24":"#2a3154"}`, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:800 }}>
                   {i<levelIdx?"✓ ":""}{l.title}
                 </span>
@@ -3685,6 +3697,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           setExamAppeal(ap);
           await clearScoreFix(shift, studentName);
           await persist({ examAppeal: ap });
+        } else if (fix && fix.kind === "justify-approved" && fix.dateKey) {
+          // professor aprovou a justificativa de uma falta — aplica no estado local antes que o
+          // próprio autosave periódico sobrescreva o registro inteiro com a versão local desatualizada
+          const cur = stateRef.current.justifications || {};
+          const nextJ = { ...cur, [fix.dateKey]: { ...cur[fix.dateKey], status: "approved" } };
+          setJustifications(nextJ);
+          await clearScoreFix(shift, studentName);
+          await persist({ justifications: nextJ });
         } else if (fix && typeof fix.score === "number") {
           setScore(fix.score);
           await clearScoreFix(shift, studentName);
@@ -3918,11 +3938,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   };
 
   // compra um item na Loja do Nyx: gasta os pontos (nyxSpent), entra pro inventário e já equipa
+  // lê/escreve via stateRef (não os closures de nyxOwned/nyxSpent/nyxGear) pra dois cliques bem
+  // rápidos seguidos (comum na tela touch da carreta) não passarem os dois pela checagem com o
+  // mesmo estado "antigo" e um deles sobrescrever o outro sem gastar/registrar o item direito
   const handleBuyItem = async (item) => {
-    if (nyxOwned.includes(item.id) || (nyxPoints - nyxSpent) < item.cost) return;
-    const newSpent = nyxSpent + item.cost;
-    const newOwned = [...nyxOwned, item.id];
-    const newGear = { ...nyxGear, [item.slot]: item.id };
+    const s = stateRef.current;
+    if ((s.nyxOwned||[]).includes(item.id) || ((s.nyxPoints||0) - (s.nyxSpent||0)) < item.cost) return;
+    const newSpent = (s.nyxSpent||0) + item.cost;
+    const newOwned = [...(s.nyxOwned||[]), item.id];
+    const newGear = { ...(s.nyxGear||DEFAULT_NYX_GEAR), [item.slot]: item.id };
+    stateRef.current = { ...s, nyxSpent: newSpent, nyxOwned: newOwned, nyxGear: newGear };
     setNyxSpent(newSpent);
     setNyxOwned(newOwned);
     setNyxGear(newGear);
@@ -4052,8 +4077,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       if (!activity.length) return;
       const optionKey = e.key.toUpperCase().charCodeAt(0) - 65;
       if (optionKey >= 0 && optionKey < 4) {
-        const currentQ = Object.keys(answers).length;
-        if (currentQ < activity.length) {
+        // todas as questões ficam na mesma página (o aluno pode clicar em qualquer uma, fora de
+        // ordem) — usar Object.keys(answers).length como "questão atual" respondia a questão ERRADA
+        // sempre que uma resposta por clique não seguia a ordem; mira sempre na primeira sem resposta
+        const currentQ = activity.findIndex((_, i) => answers[i] == null);
+        if (currentQ !== -1) {
           pickAnswer(currentQ, optionKey);
         }
       }
@@ -4120,8 +4148,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     const newAnswers = { ...examAnswers, [qIdx]: optIdx };
     setExamAnswers(newAnswers);
     const qs = examInfo.questions || [];
-    if (qIdx < qs.length - 1) {
-      setExamCurrentQ(qIdx + 1);
+    // só finaliza quando TODAS as questões têm resposta — os pontinhos de navegação deixam o aluno
+    // pular pra qualquer questão fora de ordem, então responder a última da lista primeiro não pode
+    // encerrar a prova sozinho contando as anteriores (ainda não vistas) como erradas
+    const allAnswered = qs.every((_, i) => newAnswers[i] != null);
+    if (!allAnswered) {
+      const nextUnanswered = qs.findIndex((_, i) => newAnswers[i] == null);
+      setExamCurrentQ(nextUnanswered !== -1 ? nextUnanswered : Math.min(qIdx + 1, qs.length - 1));
       await persist({ examAnswers: newAnswers });
     } else {
       let pts = 0;
@@ -5036,7 +5069,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       {showNotebook && <NotebookModal history={summaryHistory} detailedHistory={detailedSummaryHistory} onClose={()=>setShowNotebook(false)} />}
       {showVoicePicker && <VoicePickerModal onClose={()=>setShowVoicePicker(false)} />}
       {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
-      {showKeyboard && <KeyboardTutorialModal onClose={()=>setShowKeyboard(false)} onFinish={finishKeyboardTutorial} speak={speak} stopSpeech={stopSpeech} />}
+      {showKeyboard && <KeyboardTutorialModal onClose={()=>setShowKeyboard(false)} onFinish={finishKeyboardTutorial} speak={speak} stopSpeech={stopSpeech} accessMode={accessMode} />}
       {showJustify && <JustifyModal absences={pendingAbsences} onSubmit={submitJustification} onClose={()=>setShowJustify(false)} />}
       {showHallOfFame && <HallOfFameModal entries={hallEntries} onClose={()=>setShowHallOfFame(false)} />}
       {showDuel && (
@@ -6060,6 +6093,10 @@ function TeacherView({ onLogout, teacherAuth }) {
   const doApproveJustification = async (s, dateKey) => {
     const next = { ...(s.justifications || {}), [dateKey]: { ...(s.justifications||{})[dateKey], status: "approved" } };
     await patchStudent(s.shift, s.name, { justifications: next });
+    // se o aluno estiver com a aba aberta na hora, o autosave periódico dele reescreve o registro
+    // inteiro a partir do estado local (que ainda não sabe da aprovação) e desfaz o patch acima sem
+    // querer — o canal scorefix avisa o cliente online pra atualizar o estado local antes de resalvar
+    await setScoreFix(s.shift, s.name, { kind: "justify-approved", dateKey }, teacherAuth);
     flashMgmt(`✅ Falta de ${s.name} justificada.`);
     load();
   };
