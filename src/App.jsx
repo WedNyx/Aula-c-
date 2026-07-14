@@ -3327,9 +3327,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [errorAt, setErrorAt] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const lastErrorReportRef = useRef(0);
-  // 📋 retomada da aula passada (dispensável; lembrada por dia no navegador)
+  // 📋 retomada da aula passada (dispensável; lembrada por dia no navegador, por ALUNO — o
+  // notebook da carreta é compartilhado entre vários alunos no mesmo dia, então a chave não pode
+  // valer só pra data, senão o primeiro que dispensar esconde o aviso dos próximos também)
   const [recapDismissed, setRecapDismissed] = useState(() => {
-    try { return localStorage.getItem(`nyx_recap_${todayKey()}`) === "1"; } catch { return false; }
+    try { return localStorage.getItem(`nyx_recap_${todayKey()}_${shift}_${studentName}`) === "1"; } catch { return false; }
   });
   const [breakEndMsg, setBreakEndMsg] = useState("");
   const breakEndNotifiedRef = useRef(null);
@@ -3348,12 +3350,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   // relógio próprio (1x por segundo) só pra a contagem regressiva do intervalo/fim de aula ficar fluida
   const [clockNow, setClockNow] = useState(() => Date.now());
   useEffect(() => { const iv = setInterval(() => setClockNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
-  // 🔮 previsão do dia (dispensável; lembrada por dia no navegador)
+  // 🔮 previsão do dia (dispensável; lembrada por dia no navegador, por ALUNO — mesmo motivo do
+  // aviso de retomada acima: o notebook da carreta é compartilhado entre vários alunos por dia)
   const [videnteDismissed, setVidenteDismissed] = useState(() => {
-    try { return localStorage.getItem(`nyx_vidente_${todayKey()}`) === "1"; } catch { return false; }
+    try { return localStorage.getItem(`nyx_vidente_${todayKey()}_${shift}_${studentName}`) === "1"; } catch { return false; }
   });
   const [kbSuggestDismissed, setKbSuggestDismissed] = useState(() => {
-    try { return localStorage.getItem(`nyx_kbsuggest_${todayKey()}`) === "1"; } catch { return false; }
+    try { return localStorage.getItem(`nyx_kbsuggest_${todayKey()}_${shift}_${studentName}`) === "1"; } catch { return false; }
   });
   // 🏁 corrida de digitação
   const [showRace, setShowRace] = useState(false);
@@ -4977,7 +4980,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <div style={{ background:"#34d39918", border:"1px solid #34d399", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:20 }}>📋</span>
             <span style={{ flex:1, color:"#c7f5df" }}><b style={{ color:"#34d399" }}>Retomando:</b> {recapText}</span>
-            <button onClick={()=>{ setRecapDismissed(true); try { localStorage.setItem(`nyx_recap_${todayKey()}`, "1"); } catch {} }} style={{ background:"transparent", border:"none", color:"#34d399", fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
+            <button onClick={()=>{ setRecapDismissed(true); try { localStorage.setItem(`nyx_recap_${todayKey()}_${shift}_${studentName}`, "1"); } catch {} }} style={{ background:"transparent", border:"none", color:"#34d399", fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
           </div>
         </div>
       )}
@@ -4990,7 +4993,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               <b className="shine" style={{ background:"linear-gradient(120deg,#c4b5fd,#f0abfc,#c4b5fd)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Nyx Vidente prevê:</b>{" "}
               {VIDENTE_PREVISOES[hashStr(studentName + todayKey()) % VIDENTE_PREVISOES.length].replace("{nome}", String(studentName).split(" ")[0])} ✨
             </span>
-            <button onClick={()=>{ setVidenteDismissed(true); try { localStorage.setItem(`nyx_vidente_${todayKey()}`, "1"); } catch {} }} style={{ background:"transparent", border:"none", color:"#8b5cf6", fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
+            <button onClick={()=>{ setVidenteDismissed(true); try { localStorage.setItem(`nyx_vidente_${todayKey()}_${shift}_${studentName}`, "1"); } catch {} }} style={{ background:"transparent", border:"none", color:"#8b5cf6", fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
           </div>
         </div>
       )}
@@ -5000,8 +5003,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <div style={{ background:"linear-gradient(90deg,#0e749922,#22d3ee22)", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:20 }}>⌨️</span>
             <span style={{ flex:1, color:"#a5f3fc" }}><b style={{ color:"#22d3ee" }}>Quer treinar o teclado?</b> O Nyx te mostra tecla por tecla, no seu ritmo — pode fazer quando quiser.</span>
-            <button onClick={()=>{ setShowKeyboard(true); setKbSuggestDismissed(true); try { localStorage.setItem(`nyx_kbsuggest_${todayKey()}`, "1"); } catch {} }} style={{ ...styles.btn("#22d3ee"), padding:"6px 12px", fontSize:12.5 }}>Treinar agora</button>
-            <button onClick={()=>{ setKbSuggestDismissed(true); try { localStorage.setItem(`nyx_kbsuggest_${todayKey()}`, "1"); } catch {} }} style={{ background:"transparent", border:"none", color:"#22d3ee", fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
+            <button onClick={()=>{ setShowKeyboard(true); setKbSuggestDismissed(true); try { localStorage.setItem(`nyx_kbsuggest_${todayKey()}_${shift}_${studentName}`, "1"); } catch {} }} style={{ ...styles.btn("#22d3ee"), padding:"6px 12px", fontSize:12.5 }}>Treinar agora</button>
+            <button onClick={()=>{ setKbSuggestDismissed(true); try { localStorage.setItem(`nyx_kbsuggest_${todayKey()}_${shift}_${studentName}`, "1"); } catch {} }} style={{ background:"transparent", border:"none", color:"#22d3ee", fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
           </div>
         </div>
       )}
@@ -5767,7 +5770,13 @@ function TeacherView({ onLogout, teacherAuth }) {
     const notasValidas = active.map(highlightOf).filter(n => n > 0);
     const avgScore = notasValidas.length ? Math.round(notasValidas.reduce((a,b)=>a+b,0) / notasValidas.length) : 0;
     const entries = await getHallOfFame();
-    const next = [...entries, { city: meta.city, students: podio, closedAt: Date.now(), totalStudents: active.length, totalClasses: (meta.classDays||[]).length, avgScore }];
+    // meta.classDays é uma lista que só CRESCE desde sempre (nunca reseta de cidade pra cidade) —
+    // "aulas dadas NESTA cidade" precisa ser a diferença desde a última cidade encerrada, senão toda
+    // cidade nova soma o histórico inteiro da viagem e o total infla sem parar
+    const cumulativeClassDays = (meta.classDays||[]).length;
+    const previousCumulative = entries.length ? (entries[entries.length-1].classDaysSnapshot || 0) : 0;
+    const totalClasses = Math.max(0, cumulativeClassDays - previousCumulative);
+    const next = [...entries, { city: meta.city, students: podio, closedAt: Date.now(), totalStudents: active.length, totalClasses, avgScore, classDaysSnapshot: cumulativeClassDays }];
     await saveHallOfFame(next, teacherAuth);
     setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama! Os alunos da próxima cidade já vão poder ver.`);
     setTimeout(()=>setHallMsg(""), 8000);
