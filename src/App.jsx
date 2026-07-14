@@ -1978,15 +1978,27 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
     const iv = setInterval(load, 4000);
     return () => { alive = false; clearInterval(iv); };
   }, []);
+  // ⏳ 10min de estudo antes da batalha começar de verdade — dá tempo da turma revisar o que
+  // aprendeu antes do chefão aparecer pra valer
+  const STUDY_MS = 10 * 60 * 1000;
   const summonBoss = async (maxHp) => {
     const preset = BOSS_PRESETS[Math.floor(Math.random() * BOSS_PRESETS.length)];
     const baseline = {};
     (students || []).filter(s => (s.shift||"") !== TEST_SHIFT.id).forEach(s => { baseline[`${s.shift||"sem-turno"}:${s.name}`] = s.nyxPoints || 0; });
-    const b = { status: "active", ...preset, maxHp, baseline, startedAt: Date.now() };
+    const b = { status: "active", ...preset, maxHp, baseline, startedAt: Date.now(), studyUntil: Date.now() + STUDY_MS };
+    await setBoss(b, teacherAuth);
+    setBossState(b);
+  };
+  const skipStudy = async () => {
+    if (!boss) return;
+    const b = { ...boss, studyUntil: 0 };
     await setBoss(b, teacherAuth);
     setBossState(b);
   };
   const endBoss = async () => { await clearBoss(teacherAuth); setBossState(null); };
+  const [telaoNow, setTelaoNow] = useState(() => Date.now());
+  useEffect(() => { const iv = setInterval(() => setTelaoNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
+  const bossStudying = boss && boss.studyUntil && telaoNow < boss.studyUntil;
   const bossDamage = boss ? (students || []).filter(s => (s.shift||"") !== TEST_SHIFT.id)
     .reduce((sum, s) => sum + Math.max(0, (s.nyxPoints || 0) - (boss.baseline?.[`${s.shift||"sem-turno"}:${s.name}`] ?? 0)), 0) : 0;
   const bossHp = boss ? Math.max(0, boss.maxHp - bossDamage) : 0;
@@ -2016,7 +2028,23 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
         </div>
       </div>
       {/* 👾 chefão da turma */}
-      {boss ? (
+      {boss && bossStudying ? (
+        <div className="telao-card" style={{ position:"relative", background:"linear-gradient(135deg,#3b0764,#1e1b4b)", border:"2px solid #a855f7", borderRadius:24, padding:"22px 28px", marginBottom:24 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:18, flexWrap:"wrap" }}>
+            <span style={{ fontSize:"clamp(40px, 8vw, 64px)" }}>🧠</span>
+            <div style={{ flex:"1 1 240px", minWidth:0 }}>
+              <h2 style={{ margin:0, fontSize:"clamp(18px, 4.5vw, 26px)", color:"#e9d5ff" }}>A turma está estudando...</h2>
+              <p style={{ margin:"4px 0 10px", color:"#c4b5fd", fontSize:"clamp(12px, 3vw, 14px)" }}>
+                {boss.name} aparece em <b style={{ color:"#fff" }}>{Math.ceil((boss.studyUntil - telaoNow) / 60000)} min</b> — cada aluno está revisando o próprio código na tela dele.
+              </p>
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={skipStudy} style={{ background:"#3b0764", color:"#e9d5ff", border:"1px solid #a855f7", borderRadius:12, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:800 }}>⏭ Pular estudo</button>
+              <button onClick={endBoss} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:800 }}>✕ Dispensar chefão</button>
+            </div>
+          </div>
+        </div>
+      ) : boss ? (
         <div className="telao-card" style={{ position:"relative", background: bossDefeated ? "linear-gradient(135deg,#14532d,#166534)" : "linear-gradient(135deg,#3b0764,#1e1b4b)", border:`2px solid ${bossDefeated ? "#34d399" : "#a855f7"}`, borderRadius:24, padding:"22px 28px", marginBottom:24 }}>
           {bossDefeated && <ConfettiParty level={1} />}
           <div style={{ display:"flex", alignItems:"center", gap:18, flexWrap:"wrap" }}>
@@ -2125,6 +2153,59 @@ function SummaryPretty({ sum }) {
           <p style={{ color:"#fcd9a0", fontSize:14, lineHeight:1.7, margin:0 }}>{sum.dica}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── 👾 chefão: tela de estudo de 10min antes da batalha — mostra o código atual do aluno e os
+// resumos/explicações de tudo que ele já aprendeu, com contagem regressiva até o chefão aparecer ──
+function BossStudyModal({ studyUntil, clockNow, files, summaryHistory, detailedSummaryHistory }) {
+  const msLeft = Math.max(0, studyUntil - clockNow);
+  const mm = Math.floor(msLeft / 60000);
+  const ss = Math.floor((msLeft % 60000) / 1000);
+  const dates = Object.keys(summaryHistory || {}).sort((a, b) => b.localeCompare(a));
+  const codedFiles = (files || []).filter(f => (f.code || "").trim());
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#05070f", zIndex:1500, overflowY:"auto", padding:"32px 20px 60px" }}>
+      <div style={{ maxWidth:820, margin:"0 auto" }}>
+        <div style={{ textAlign:"center", marginBottom:26 }}>
+          <div style={{ fontSize:52, animation:"nyx-shake 2.2s ease-in-out infinite" }}>🧠</div>
+          <h1 style={{ color:"#e9d5ff", fontSize:24, margin:"8px 0 4px", fontWeight:900 }}>Hora de estudar!</h1>
+          <p style={{ color:"#c4b5fd", fontSize:14, margin:"0 0 14px", lineHeight:1.6 }}>
+            Um chefão está chegando — revise seu código e o que você já aprendeu antes da batalha começar!
+          </p>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"#3b0764", border:"1px solid #a855f7", borderRadius:20, padding:"8px 20px" }}>
+            <span style={{ fontSize:18 }}>⏳</span>
+            <span style={{ color:"#e9d5ff", fontWeight:900, fontSize:20, fontVariantNumeric:"tabular-nums" }}>{String(mm).padStart(2,"0")}:{String(ss).padStart(2,"0")}</span>
+          </div>
+        </div>
+        <div className="cardfx" style={{ background:"#131730", border:"1px solid #2c3358", borderRadius:16, padding:18, marginBottom:16 }}>
+          <h3 style={{ color:"#22d3ee", margin:"0 0 10px", fontSize:15 }}>💻 Seu código até agora</h3>
+          {codedFiles.length === 0 ? (
+            <p style={{ color:"#5d679c", fontSize:13 }}>Você ainda não escreveu nenhum código.</p>
+          ) : codedFiles.map((f, i) => (
+            <div key={i} style={{ marginBottom:10 }}>
+              <p style={{ color:"#96a0cc", fontSize:12, fontWeight:700, margin:"0 0 4px" }}>📄 {f.name}</p>
+              <pre style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:10, padding:12, color:"#a5f3fc", fontFamily:"'Courier New',monospace", fontSize:13, overflowX:"auto", whiteSpace:"pre-wrap", margin:0 }}>{f.code}</pre>
+            </div>
+          ))}
+        </div>
+        <div className="cardfx" style={{ background:"#131730", border:"1px solid #2c3358", borderRadius:16, padding:18 }}>
+          <h3 style={{ color:"#22d3ee", margin:"0 0 10px", fontSize:15 }}>📚 O que você já aprendeu</h3>
+          {dates.length === 0 ? (
+            <p style={{ color:"#5d679c", fontSize:13 }}>Ainda não tem resumo de aula guardado — estude pelo código acima mesmo!</p>
+          ) : dates.map(d => {
+            const [, m, dd] = d.split("-");
+            const sum = (detailedSummaryHistory && detailedSummaryHistory[d]) || summaryHistory[d];
+            return (
+              <div key={d} style={{ marginBottom:18 }}>
+                <p style={{ color:"#fbbf24", fontWeight:800, fontSize:13, margin:"0 0 8px" }}>📅 {dd}/{m}</p>
+                <SummaryPretty sum={sum} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -4566,6 +4647,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       </div>
     );
   }
+
+  // 👾 chefão: os 10 minutos de estudo antes da batalha tomam a tela inteira (menos durante a
+  // prova, já tratada acima) — quando o tempo acaba, a tela normal volta sozinha e o banner de
+  // batalha (mais abaixo) aparece
+  if (bossInfo && bossInfo.studyUntil && clockNow < bossInfo.studyUntil) return (
+    <BossStudyModal studyUntil={bossInfo.studyUntil} clockNow={clockNow} files={files} summaryHistory={summaryHistory} detailedSummaryHistory={detailedSummaryHistory} />
+  );
 
   if (phase==="generating") return (
     <div className={supportClass} style={styles.container}>
