@@ -225,17 +225,19 @@ function useViewportWidth() {
   return w;
 }
 
-// ── sequência de dias (streak) a partir do mapa de presença ──
-function computeStreak(attendance) {
-  if (!attendance) return 0;
-  let streak = 0;
-  const d = new Date();
-  // se hoje ainda não tem presença registrada, começa a contar de ontem (não quebra a sequência no meio da aula)
+// ── sequência de dias (streak) a partir do mapa de presença, contando só os DIAS DE AULA de
+// verdade (classDays) — não dias de calendário corridos, senão a sequência quebra sozinha em
+// qualquer dia sem aula (fim de semana, feriado) e nunca bate os patamares de conquista ──
+function computeStreak(attendance, classDays) {
+  if (!attendance || !Array.isArray(classDays) || !classDays.length) return 0;
+  const days = [...new Set(classDays)].sort();
   const todayStr = todayKey();
-  if (attendance[todayStr] !== "present") d.setDate(d.getDate() - 1);
-  for (;;) {
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-    if (attendance[key] === "present") { streak++; d.setDate(d.getDate() - 1); }
+  let idx = days.length - 1;
+  // se hoje é dia de aula mas ainda sem presença registrada, começa a contar do dia de aula anterior
+  if (days[idx] === todayStr && attendance[todayStr] !== "present") idx--;
+  let streak = 0;
+  for (; idx >= 0; idx--) {
+    if (attendance[days[idx]] === "present") streak++;
     else break;
   }
   return streak;
@@ -2568,6 +2570,62 @@ function HallOfFameModal({ entries, onClose }) {
   );
 }
 
+// ── 📊 Visão da Viagem: soma tudo que a carreta já fez, cidade por cidade (só pro professor) ──
+function TripOverviewModal({ entries, onClose }) {
+  const cities = entries.filter(e => e.totalStudents != null || e.avgScore != null || e.totalClasses != null);
+  const totalCidades = entries.length;
+  const totalAlunos = cities.reduce((n, e) => n + (e.totalStudents || 0), 0);
+  const totalAulas = cities.reduce((n, e) => n + (e.totalClasses || 0), 0);
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:680, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#06b6d4,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📊 Visão da Viagem</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>O que a carreta já fez somando todas as cidades encerradas. 🚌</p>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:16 }}>
+          <div style={{ flex:"1 1 140px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
+            <div style={{ color:"#96a0cc", fontSize:11.5 }}>Cidades encerradas</div>
+            <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:26 }}>{totalCidades}</div>
+          </div>
+          <div style={{ flex:"1 1 140px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
+            <div style={{ color:"#96a0cc", fontSize:11.5 }}>Alunos que passaram</div>
+            <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:26 }}>{totalAlunos}</div>
+          </div>
+          <div style={{ flex:"1 1 140px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
+            <div style={{ color:"#96a0cc", fontSize:11.5 }}>Aulas dadas</div>
+            <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:26 }}>{totalAulas}</div>
+          </div>
+        </div>
+        {cities.length === 0 ? (
+          <p style={{ color:"#5d679c", fontSize:13, textAlign:"center", padding:"20px 0" }}>Ainda não tem estatísticas de cidade aqui — elas passam a aparecer a partir da próxima cidade encerrada.</p>
+        ) : (
+          <div className="cardfx" style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:14, padding:14 }}>
+            <p style={{ color:"#7c83ff", fontWeight:700, fontSize:13, margin:"0 0 10px" }}>📈 Nota média por cidade</p>
+            <div style={{ display:"flex", alignItems:"flex-end", gap:10, height:120, overflowX:"auto", paddingBottom:4, borderBottom:"1px solid #2a3154" }}>
+              {cities.map((e, i) => {
+                const g = gradeInfo(e.avgScore || 0);
+                return (
+                  <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:52 }}>
+                    <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{e.avgScore || 0}</span>
+                    <div style={{ width:30, height:Math.max(4, Math.round((e.avgScore||0) * 0.9)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color, -0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${e.city}: nota média ${e.avgScore||0}, ${e.totalStudents||0} aluno(s)`} />
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display:"flex", gap:10, marginTop:6 }}>
+              {cities.map((e, i) => (
+                <span key={i} style={{ color:"#5d679c", fontSize:10, minWidth:52, textAlign:"center", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }} title={e.city}>{e.city || "?"}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TypingRaceModal({ onClose, onFinish }) {
   const [target] = useState(() => TYPING_SNIPPETS[Math.floor(Math.random() * TYPING_SNIPPETS.length)]);
   const [typed, setTyped] = useState("");
@@ -2694,6 +2752,100 @@ function NotebookModal({ history, detailedHistory, onClose }) {
             {sel && <SummaryPretty sum={(view==="detalhado" && hasDetailed) ? detailedHistory[sel] : history[sel]} />}
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── 📊 Meu Desempenho: gráfico de notas + destaque/dificuldade + mensagem motivacional do Nyx ──
+function motivationalMessage(avg, name) {
+  const first = String(name || "").split(" ")[0] || "Programador(a)";
+  if (avg == null) return `${first}, você ainda está começando — cada linha de código já é um passo. Continue estudando, porque assim você vai longe! 🚀`;
+  if (avg >= 90) return `${first}, seu desempenho está excelente! Continue assim — quem estuda com essa dedicação vai muito longe. 🚀🏆`;
+  if (avg >= 75) return `${first}, você está indo muito bem! Continue estudando nesse ritmo, porque assim você vai longe. ⭐`;
+  if (avg >= 60) return `${first}, você está no caminho certo! Continue praticando um pouco mais — assim você vai longe. 👍`;
+  if (avg >= 40) return `${first}, programar é difícil no começo pra todo mundo. Não desista — continue estudando um pouquinho todo dia, porque assim você vai longe. 💪`;
+  return `${first}, todo programador começou exatamente de onde você está agora. Continue tentando e peça ajuda ao Nyx e ao professor sempre que precisar — continue estudando, porque assim você vai longe! 🌱`;
+}
+function PerformanceModal({ studentName, scoreHistory, achievements, duelWins, typingBest, streakCount, onClose }) {
+  const entries = Object.entries(scoreHistory || {}).sort(([a], [b]) => a.localeCompare(b));
+  const scores = entries.map(([, n]) => n);
+  const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+  const best = entries.length ? entries.reduce((b, e) => (e[1] > b[1] ? e : b)) : null;
+  const worst = entries.length ? entries.reduce((w, e) => (e[1] < w[1] ? e : w)) : null;
+  const fmt = (d) => { const [, m, dd] = d.split("-"); return `${dd}/${m}`; };
+  const highlight = best
+    ? `Sua melhor nota foi ${best[1]} em ${fmt(best[0])} — mandou muito bem! 🌟`
+    : achievements?.length
+      ? `Você já desbloqueou ${achievements.length} conquista(s) — continue assim!`
+      : `Você já deu os primeiros passos no C#. Continue!`;
+  const struggle = worst && worst[1] < 60 && entries.length > 1
+    ? `No dia ${fmt(worst[0])} você teve mais dificuldade (nota ${worst[1]}) — que tal pedir uma revisão desse conteúdo pro Nyx?`
+    : null;
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#06b6d4,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📊 Meu Desempenho</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", margin:"10px 0 16px" }}>
+          <div style={{ flex:"1 1 100px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 12px", textAlign:"center" }}>
+            <div style={{ color:"#96a0cc", fontSize:11 }}>Média geral</div>
+            <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:20 }}>{avg ?? "—"}</div>
+          </div>
+          <div style={{ flex:"1 1 100px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 12px", textAlign:"center" }}>
+            <div style={{ color:"#96a0cc", fontSize:11 }}>Atividades feitas</div>
+            <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:20 }}>{entries.length}</div>
+          </div>
+          <div style={{ flex:"1 1 100px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 12px", textAlign:"center" }}>
+            <div style={{ color:"#96a0cc", fontSize:11 }}>Conquistas</div>
+            <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:20 }}>{achievements?.length || 0}</div>
+          </div>
+          {streakCount >= 2 && (
+            <div style={{ flex:"1 1 100px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 12px", textAlign:"center" }}>
+              <div style={{ color:"#96a0cc", fontSize:11 }}>Sequência 🔥</div>
+              <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:20 }}>{streakCount}</div>
+            </div>
+          )}
+        </div>
+        {entries.length > 0 ? (
+          <div className="cardfx" style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:14, padding:14, marginBottom:14 }}>
+            <p style={{ color:"#7c83ff", fontWeight:700, fontSize:13, margin:"0 0 10px" }}>📈 Notas ao longo do tempo</p>
+            <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:120, overflowX:"auto", paddingBottom:4, borderBottom:"1px solid #2a3154" }}>
+              {entries.slice(-14).map(([d, n]) => {
+                const g = gradeInfo(n);
+                return (
+                  <div key={d} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
+                    <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{n}</span>
+                    <div style={{ width:24, height:Math.max(4, Math.round(n * 0.9)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color, -0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${fmt(d)}: ${n} pts`} />
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display:"flex", gap:8, marginTop:6 }}>
+              {entries.slice(-14).map(([d]) => (
+                <span key={d} style={{ color:"#5d679c", fontSize:10, minWidth:38, textAlign:"center" }}>{fmt(d)}</span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p style={{ color:"#5d679c", fontSize:13, textAlign:"center", padding:"16px 0" }}>Ainda não tem nenhuma atividade concluída — assim que você terminar a primeira, o gráfico aparece aqui!</p>
+        )}
+        <div className="cardfx" style={{ background:"#34d39912", border:"1px solid #34d399", borderRadius:12, padding:"12px 14px", marginBottom:10 }}>
+          <p style={{ color:"#34d399", fontWeight:800, fontSize:13, margin:"0 0 4px" }}>✨ Destaque</p>
+          <p style={{ color:"#c7f5df", fontSize:13, margin:0, lineHeight:1.6 }}>{highlight}</p>
+        </div>
+        {struggle && (
+          <div className="cardfx" style={{ background:"#f8717112", border:"1px solid #f87171", borderRadius:12, padding:"12px 14px", marginBottom:10 }}>
+            <p style={{ color:"#f87171", fontWeight:800, fontSize:13, margin:"0 0 4px" }}>📚 Pra revisar</p>
+            <p style={{ color:"#fca5a5", fontSize:13, margin:0, lineHeight:1.6 }}>{struggle}</p>
+          </div>
+        )}
+        <div className="cardfx" style={{ background:"linear-gradient(120deg,#1e1b4b,#3b0764,#1e1b4b)", border:"1px solid #8b5cf6", borderRadius:12, padding:"14px 16px" }}>
+          <p style={{ color:"#c4b5fd", fontWeight:800, fontSize:13, margin:"0 0 4px" }}>💜 Nyx pra você</p>
+          <p style={{ color:"#ddd6fe", fontSize:13.5, margin:0, lineHeight:1.7 }}>{motivationalMessage(avg, studentName)}</p>
+        </div>
       </div>
     </div>
   );
@@ -3168,6 +3320,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [mySchedule, setMySchedule] = useState({});
   const [myInspection, setMyInspection] = useState(false);
   const [myClassDays, setMyClassDays] = useState([]);
+  const [myContentNames, setMyContentNames] = useState({});
+  const [streakCount, setStreakCount] = useState(0);
+  const [showPerformance, setShowPerformance] = useState(false);
+  // ⚠️ erro em produção: avisa o professor sem o aluno precisar reclamar (espelha o pedido de ajuda)
+  const [errorAt, setErrorAt] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
+  const lastErrorReportRef = useRef(0);
+  // 📋 retomada da aula passada (dispensável; lembrada por dia no navegador)
+  const [recapDismissed, setRecapDismissed] = useState(() => {
+    try { return localStorage.getItem(`nyx_recap_${todayKey()}`) === "1"; } catch { return false; }
+  });
   const [breakEndMsg, setBreakEndMsg] = useState("");
   const breakEndNotifiedRef = useRef(null);
   // 📋 falta a justificar + horário do 1º acesso do dia (pra marcar atrasado na chamada)
@@ -3270,7 +3433,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -3332,6 +3495,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       examScoreRaw: s.examScoreRaw ?? null,
       examAppeal: s.examAppeal || null,
       helpAt: s.helpAt || null,
+      errorAt: s.errorAt || null,
+      errorMsg: s.errorMsg || "",
       typingBest: s.typingBest || null,
       typingRewardDay: s.typingRewardDay || null,
       giftLastClaim: s.giftLastClaim || null,
@@ -3381,6 +3546,25 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   // ── ✋ pedir ajuda: acende o tile do aluno no monitoramento do professor (expira em 15 min lá) ──
   const askHelp = async () => { const t = Date.now(); setHelpAt(t); await persist({ helpAt: t }); };
   const cancelHelp = async () => { setHelpAt(null); await persist({ helpAt: null }); };
+
+  // ── ⚠️ erro em produção: se a tela do aluno der um erro de JS de verdade, avisa o professor
+  // sozinho (mesmo painel de Monitoramento), sem o aluno precisar levantar a mão e reclamar.
+  // limitado a 1 relato por minuto pra uma tempestade de erros repetidos não spammar o servidor ──
+  useEffect(() => {
+    const reportError = (msg) => {
+      const now = Date.now();
+      if (now - lastErrorReportRef.current < 60000) return;
+      lastErrorReportRef.current = now;
+      const clipped = String(msg || "Erro desconhecido").slice(0, 200);
+      setErrorAt(now); setErrorMsg(clipped);
+      persist({ errorAt: now, errorMsg: clipped });
+    };
+    const onError = (e) => reportError(e.message ? `${e.message} (${e.filename||""}:${e.lineno||""})` : String(e));
+    const onRejection = (e) => reportError(`Promise rejeitada: ${e.reason?.message || e.reason || "motivo desconhecido"}`);
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => { window.removeEventListener("error", onError); window.removeEventListener("unhandledrejection", onRejection); };
+  }, [persist]);
 
   // 📋 dias de aula sem presença registrada, entre a criação do perfil e hoje — ainda sem justificativa
   const pendingAbsences = myClassDays
@@ -3469,6 +3653,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.examScoreRaw != null) setExamScoreRaw(prev.examScoreRaw);
           if (prev.examAppeal) setExamAppeal(prev.examAppeal);
           if (prev.helpAt) setHelpAt(prev.helpAt);
+          if (prev.errorAt) { setErrorAt(prev.errorAt); setErrorMsg(prev.errorMsg || ""); }
           if (prev.typingBest) setTypingBest(prev.typingBest);
           if (prev.typingRewardDay) setTypingRewardDay(prev.typingRewardDay);
           if (prev.giftLastClaim) setGiftLastClaim(prev.giftLastClaim);
@@ -3599,6 +3784,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   useEffect(() => {
     if (!loaded) return;
     let active2 = true;
+    let currentClassDays = myClassDays;
     const tick = async () => {
       if (!active2) return;
       if (await checkReset(shift, sessionStart.current)) { active2 = false; onLogout(); return; }
@@ -3655,7 +3841,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         const m = await getTeacherMeta();
         setMySchedule((m.schedule || {})[shift] || {});
         setMyInspection(await getInspection(shift, studentName));
-        setMyClassDays(m.classDays || []);
+        currentClassDays = m.classDays || [];
+        setMyClassDays(currentClassDays);
+        setMyContentNames(m.contentNames || {});
       } catch {}
       // ⌨️ o professor "empurrou" a abertura do tutorial de teclado pra este aluno
       try {
@@ -3725,7 +3913,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         }
       } catch {}
       await persist();
-      const streak = computeStreak(attendanceRef.current);
+      const streak = computeStreak(attendanceRef.current, currentClassDays);
+      setStreakCount(streak);
       if (streak >= 3) unlockAchievement("sequencia-3");
       if (streak >= 7) unlockAchievement("sequencia-7");
       if (streak >= 14) unlockAchievement("sequencia-14");
@@ -4244,6 +4433,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     </div>
   );
 
+  // 📋 retomada: lembra o conteúdo da aula passada (o dia de aula anterior a hoje, não simplesmente
+  // "ontem" no calendário) pra ajudar a turma a voltar de onde parou
+  const recapText = (() => {
+    const prevClassDay = [...myClassDays].filter(d => d < todayKey()).sort().pop();
+    if (!prevClassDay) return null;
+    const title = contentNameFor((myContentNames||{})[prevClassDay], shift);
+    if (!title) return null;
+    const [, m, dd] = prevClassDay.split("-");
+    return `Na aula passada (${dd}/${m}) vocês viram "${title}". Bora continuar de onde paramos!`;
+  })();
+
   // classes de apoio (aplicadas em todas as telas do aluno) + rotina visual da aula
   const supportClass = [calmMode && "calm", easyRead && "easy-read"].filter(Boolean).join(" ") || undefined;
   const showRoutine = accessMode || calmMode || focusMode || easyRead || ownPace;
@@ -4700,6 +4900,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           </span>
           <span style={{ background:"#7c83ff22", padding:"4px 12px", borderRadius:20, fontSize:13 }}>👤 {studentName}</span>
           <span style={{ background:"#0d1122", border:"1px solid #2a3154", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#96a0cc" }}>{shiftLabel(shift)}</span>
+          {streakCount >= 2 && <span title="Dias de aula seguidos que você participou" style={{ background:"#f8717122", border:"1px solid #f87171", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#fca5a5", fontWeight:800 }}>🔥 {streakCount} dias seguidos</span>}
           <button data-tour="tema" style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
           <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={toggleMuted} title={muted?"Ativar sons":"Silenciar sons"}>{muted?"🔇":"🔊"}</button>
           <button style={{ ...styles.btn(largeUiMode?"#06b6d4":"#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>{ setLargeUiMode(!largeUiMode); try { localStorage.setItem("nyx_large_ui", !largeUiMode?"1":"0"); } catch {} }} title={largeUiMode?"Desativar modo acessível":"Ativar modo acessível (letras maiores)"}>♿</button>
@@ -4768,6 +4969,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       {breakEndMsg && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
           <div style={{ background:"#22d3ee18", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#a5f3fc", fontWeight:700 }}>{breakEndMsg}</div>
+        </div>
+      )}
+
+      {!recapDismissed && recapText && phase==="coding" && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div style={{ background:"#34d39918", border:"1px solid #34d399", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:20 }}>📋</span>
+            <span style={{ flex:1, color:"#c7f5df" }}><b style={{ color:"#34d399" }}>Retomando:</b> {recapText}</span>
+            <button onClick={()=>{ setRecapDismissed(true); try { localStorage.setItem(`nyx_recap_${todayKey()}`, "1"); } catch {} }} style={{ background:"transparent", border:"none", color:"#34d399", fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
+          </div>
         </div>
       )}
 
@@ -5013,6 +5224,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               {!focusMode && <button onClick={()=>setShowRanking(true)} style={{ ...styles.btn("#22d3ee"), fontSize:12, padding:"7px 0" }}>📊 Ranking da turma</button>}
               <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btn("#a855f7"), fontSize:12, padding:"7px 0" }}>🎖️ Conquistas · {achievements.length}/{ACHIEVEMENTS.length}</button>
               <button onClick={()=>setShowNotebook(true)} style={{ ...styles.btn("#34d399"), fontSize:12, padding:"7px 0" }}>📒 Caderno de resumos</button>
+              <button onClick={()=>setShowPerformance(true)} style={{ ...styles.btn("#06b6d4"), fontSize:12, padding:"7px 0" }}>📊 Meu Desempenho</button>
               {!focusMode && <button onClick={()=>{ if (!nyxLocks.zeker) setShowDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : ""}
                 style={{ ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:nyxLocks.zeker?0.45:1, cursor:nyxLocks.zeker?"not-allowed":"pointer" }}>
                 {nyxLocks.zeker ? "🔒 Duelos bloqueados" : "⚔️ Duelo entre alunos"}
@@ -5072,6 +5284,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       {showKeyboard && <KeyboardTutorialModal onClose={()=>setShowKeyboard(false)} onFinish={finishKeyboardTutorial} speak={speak} stopSpeech={stopSpeech} accessMode={accessMode} />}
       {showJustify && <JustifyModal absences={pendingAbsences} onSubmit={submitJustification} onClose={()=>setShowJustify(false)} />}
       {showHallOfFame && <HallOfFameModal entries={hallEntries} onClose={()=>setShowHallOfFame(false)} />}
+      {showPerformance && <PerformanceModal studentName={studentName} scoreHistory={scoreHistory} achievements={achievements} duelWins={duelWins} typingBest={typingBest} streakCount={streakCount} onClose={()=>setShowPerformance(false)} />}
       {showDuel && (
         <DuelModal
           shift={shift}
@@ -5336,6 +5549,8 @@ function TeacherView({ onLogout, teacherAuth }) {
   // 🏆 hall da fama: encerra a cidade atual e guarda uma placa com quem se destacou
   const [hallMsg, setHallMsg] = useState("");
   const [confirmCloseCity, setConfirmCloseCity] = useState(false);
+  const [showTripOverview, setShowTripOverview] = useState(false);
+  const [tripHallEntries, setTripHallEntries] = useState([]);
   const [shiftFilter, setShiftFilter] = useState("all");
   const [genName, setGenName] = useState(false);
   const [nameMsg, setNameMsg] = useState("");
@@ -5345,6 +5560,10 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [helpNotice, setHelpNotice] = useState("");
   const helpSeenRef = useRef({});
   const helpInitRef = useRef(false);
+  // ⚠️ notificação de erro em produção na tela de um aluno (mesmo padrão do pedido de ajuda)
+  const [errorNotice, setErrorNotice] = useState("");
+  const errorSeenRef = useRef({});
+  const errorInitRef = useRef(false);
   const [nudged, setNudged] = useState({});
   const metaRef = useRef({ city:"", classDays:[], contentNames:{} });
   // código do professor (aba "Meu código") — um exemplo independente por turno
@@ -5473,6 +5692,25 @@ function TeacherView({ onLogout, teacherAuth }) {
     });
     helpInitRef.current = true;
   }, [students]);
+  // ⚠️ toast de erro em produção: mesma lógica do pedido de ajuda, mas pra quando a tela de um
+  // aluno quebra sozinha (erro de JS) — o professor fica sabendo sem o aluno precisar reclamar
+  useEffect(() => {
+    students.filter(s => (s.shift||"") !== TEST_SHIFT.id).forEach(s => {
+      const k = `${s.shift||"sem-turno"}:${s.name}`;
+      const prevSeen = errorSeenRef.current[k];
+      if (s.errorAt && s.errorAt !== prevSeen) {
+        errorSeenRef.current[k] = s.errorAt;
+        if (errorInitRef.current && Date.now() - s.errorAt < 20000) {
+          playSound("wrong");
+          setErrorNotice(`⚠️ A tela de ${s.name} deu um erro (${s.errorMsg || "sem detalhes"})`);
+          setTimeout(() => setErrorNotice(""), 10000);
+        }
+      } else if (!s.errorAt && prevSeen) {
+        errorSeenRef.current[k] = null;
+      }
+    });
+    errorInitRef.current = true;
+  }, [students]);
   // fica de olho na saúde do Nyx: se a última chamada de IA registrada (de qualquer aluno/professor)
   // foi erro e é recente, mostra "Reconectando Nyx"; some assim que uma chamada der certo de novo
   useEffect(() => {
@@ -5525,8 +5763,11 @@ function TeacherView({ onLogout, teacherAuth }) {
       .sort((a,b) => (b.nota - a.nota) || (b.pts - a.pts))
       .slice(0, 3)
       .map(s => ({ name: s.name, highlight: s.nota > 0 ? `nota ${s.nota} · ${s.pts} pts do Nyx` : `${s.pts} pts do Nyx` }));
+    // estatísticas da cidade inteira, pra "Visão da Viagem" (agregado de todas as cidades encerradas)
+    const notasValidas = active.map(highlightOf).filter(n => n > 0);
+    const avgScore = notasValidas.length ? Math.round(notasValidas.reduce((a,b)=>a+b,0) / notasValidas.length) : 0;
     const entries = await getHallOfFame();
-    const next = [...entries, { city: meta.city, students: podio, closedAt: Date.now() }];
+    const next = [...entries, { city: meta.city, students: podio, closedAt: Date.now(), totalStudents: active.length, totalClasses: (meta.classDays||[]).length, avgScore }];
     await saveHallOfFame(next, teacherAuth);
     setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama! Os alunos da próxima cidade já vão poder ver.`);
     setTimeout(()=>setHallMsg(""), 8000);
@@ -6264,6 +6505,12 @@ function TeacherView({ onLogout, teacherAuth }) {
           <span style={{ color:"#fcd9a0", fontSize:12.5, fontWeight:700 }}>{helpNotice}</span>
         </div>
       )}
+      {errorNotice && (
+        <div style={{ position:"fixed", top: (breakEndMsgTeacher?42:0) + (autoNameMsg?42:0) + (helpNotice?42:0) + 12, right:12, zIndex:1200, background:"#2a1010", border:"1px solid #f87171", borderRadius:10, padding:"7px 12px", display:"flex", alignItems:"center", gap:8, boxShadow:"0 8px 24px rgba(0,0,0,.4)", maxWidth:340 }}>
+          <span style={{ fontSize:15 }}>⚠️</span>
+          <span style={{ color:"#fca5a5", fontSize:12.5, fontWeight:700 }}>{errorNotice}</span>
+        </div>
+      )}
       <div style={{ ...styles.header, ...(tab==="code" ? { padding:"6px 14px" } : {}) }}>
         <div>
           <span className="shine" style={{ fontWeight:900, fontSize: tab==="code" ? 14 : 18, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
@@ -6312,6 +6559,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {showTelao && <TelaoModal students={students} shift={shiftFilter} onClose={()=>setShowTelao(false)} teacherAuth={teacherAuth} />}
+      {showTripOverview && <TripOverviewModal entries={tripHallEntries} onClose={()=>setShowTripOverview(false)} />}
 
       {/* biblioteca de aulas: as SUAS aulas salvas (o seu código) + modelos de exemplo */}
       {showLessons && (
@@ -6579,9 +6827,11 @@ function TeacherView({ onLogout, teacherAuth }) {
                 {sorted.map((s, tileIdx)=>{
                   const d = difficultyOf(s);
                   const hasHand = s.helpAt && Date.now() - s.helpAt < 15 * 60 * 1000; // pedido de ajuda expira em 15 min
+                  const hasError = s.errorAt && Date.now() - s.errorAt < 30 * 60 * 1000; // aviso de erro expira em 30 min
                   return (
-                    <div key={s.name} className="tilefx" onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ position:"relative", background:selected===s.name?"#7c83ff22":hasHand?"#fbbf2415":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":hasHand?"#fbbf24":"#2a3154"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center", animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
+                    <div key={s.name} className="tilefx" onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ position:"relative", background:selected===s.name?"#7c83ff22":hasHand?"#fbbf2415":hasError?"#f8717115":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":hasHand?"#fbbf24":hasError?"#f87171":"#2a3154"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center", animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
                       {hasHand && <span title="Pediu ajuda! Clique pra ver e marcar como atendido." style={{ position:"absolute", top:4, right:24, fontSize:15, animation:"pulse-dot 1s ease-in-out infinite" }}>✋</span>}
+                      {hasError && <span title={`A tela deu um erro: ${s.errorMsg || "sem detalhes"}`} style={{ position:"absolute", top:4, right: hasHand?42:24, fontSize:15 }}>⚠️</span>}
                       {s.score!=null && <span style={{ position:"absolute", top:6, left:6, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:6, padding:"1px 6px", fontSize:10.5, fontWeight:800 }}>🏆 {s.score}</span>}
                       {Object.values(supportMap[`${s.shift||"sem-turno"}:${s.name}`] || {}).some(Boolean) && (
                         <span title="Aluno com perfil de apoio ativo (clique pra ver no detalhe)" style={{ position:"absolute", bottom:6, left:6, fontSize:11 }}>💙</span>
@@ -6751,6 +7001,11 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #fbbf24", paddingTop:10, background:"#fbbf2410", borderRadius:8, padding:"10px" }}>
                         <span style={{ color:"#fbbf24", fontSize:13, fontWeight:800 }}>✋ Este aluno pediu ajuda {new Date(sel.helpAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}!</span>
                         <button onClick={()=>markHelped(sel)} style={{ ...styles.btn("#34d399"), padding:"6px 14px", fontSize:12.5 }}>✔ Marcar como atendido</button>
+                      </div>
+                    )}
+                    {sel.errorAt && Date.now() - sel.errorAt < 30 * 60 * 1000 && (
+                      <div style={{ display:"flex", flexWrap:"wrap", alignItems:"center", gap:8, borderTop:"1px solid #f87171", paddingTop:10, background:"#f8717110", borderRadius:8, padding:"10px" }}>
+                        <span style={{ color:"#f87171", fontSize:13, fontWeight:800 }}>⚠️ A tela deste aluno deu um erro {new Date(sel.errorAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}: <span style={{ fontWeight:400, color:"#fca5a5" }}>{sel.errorMsg || "sem detalhes"}</span></span>
                       </div>
                     )}
                     {pendingJustifications(sel).length > 0 && (
@@ -6924,6 +7179,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               <button style={{ ...styles.btn("#fbbf24"), width:"100%" }} onClick={()=>setConfirmCloseCity(true)}>🏆 Encerrar cidade e gerar placa</button>
             )}
             {hallMsg && <p style={{ color: hallMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:8, lineHeight:1.5 }}>{hallMsg}</p>}
+            <button style={{ ...styles.btn("#06b6d4"), width:"100%", marginTop:10 }} onClick={()=>{ getHallOfFame().then(setTripHallEntries); setShowTripOverview(true); }}>📊 Visão da Viagem</button>
           </div>
           <div className="cardfx" style={{ ...styles.card, flex:"1 1 300px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🕐 Horário da turma ({shiftMeta(codeShift).label})</h3>
