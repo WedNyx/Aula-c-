@@ -565,7 +565,11 @@ function VSEditor({ value, onChange, filename, errorLines }) {
           <div ref={highlightRef} style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, color:"#d4d4d4", pointerEvents:"none", overflow:"hidden", paddingLeft:14 }}>
             {highlight(value, errorLines)}
           </div>
-          <textarea ref={textareaRef} value={value} onChange={e => onChange(e.target.value)} onKeyDown={handleKeyDown} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
+          {/* tira \r de código colado (ex: do Windows/Visual Studio, que usa quebra de linha \r\n) —
+              sem isso, esse caractere invisível sobra escondido no texto e a camada colorida (que só
+              existe pra pintar as palavras) desenha uma letra a mais que o cursor de verdade não tem,
+              indo empurrando a marcação visual pra direita conforme a linha afetada cresce */}
+          <textarea ref={textareaRef} value={value} onChange={e => onChange(e.target.value.replace(/\r/g, ""))} onKeyDown={handleKeyDown} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
             style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, background:"transparent", color:"transparent", caretColor:"#aeafad", border:"none", outline:"none", resize:"none", zIndex:1, paddingLeft:14, overflow:"auto" }} />
         </div>
       </div>
@@ -3714,8 +3718,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         const prev = await getStudent(shift, studentName);
         if (alive && prev) {
           if (prev.attendance) attendanceRef.current = prev.attendance;
-          if (Array.isArray(prev.files) && prev.files.length) setFiles(prev.files);
-          else if (typeof prev.code === "string") setFiles([{ name:"Program.cs", code:prev.code }]);
+          // tira \r de código salvo ANTES da correção (colado do Windows/Visual Studio) — sem isso o
+          // editor ficava com a marcação colorida desalinhada do cursor de verdade nessas linhas
+          if (Array.isArray(prev.files) && prev.files.length) setFiles(prev.files.map(f => ({ ...f, code: String(f.code||"").replace(/\r/g, "") })));
+          else if (typeof prev.code === "string") setFiles([{ name:"Program.cs", code:prev.code.replace(/\r/g, "") }]);
           if (prev.avatar) setAvatar(prev.avatar);
           if (prev.score != null) setScore(prev.score);
           if (prev.answers) setAnswers(prev.answers);
@@ -5827,9 +5833,11 @@ function TeacherView({ onLogout, teacherAuth }) {
   useEffect(() => {
     (async () => {
       const [m, v] = await Promise.all([getTeacherCode("matutino"), getTeacherCode("vespertino")]);
+      // tira \r de código salvo ANTES da correção (colado do Windows/Visual Studio) — ver VSEditor
+      const clean = (files) => files.map(f => ({ ...f, code: String(f.code||"").replace(/\r/g, "") }));
       setProFilesByShift(prev => ({
-        matutino: (m && Array.isArray(m.files) && m.files.length) ? m.files : prev.matutino,
-        vespertino: (v && Array.isArray(v.files) && v.files.length) ? v.files : prev.vespertino,
+        matutino: (m && Array.isArray(m.files) && m.files.length) ? clean(m.files) : prev.matutino,
+        vespertino: (v && Array.isArray(v.files) && v.files.length) ? clean(v.files) : prev.vespertino,
       }));
       setProLoaded(true);
     })();
