@@ -9,6 +9,8 @@ const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
 // além dos brilhos, um "grid de pontos" bem sutil (26px) dá cara de bancada de programador
 const PAGE_BG = "radial-gradient(1100px 700px at 85% -10%, rgba(124,131,255,.18), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.11), transparent 55%), radial-gradient(760px 520px at 50% 115%, rgba(236,72,153,.05), transparent 60%), radial-gradient(rgba(124,131,255,.05) 1px, transparent 1.6px) 0 0 / 26px 26px, linear-gradient(180deg,#0a0c18 0%,#0c0f20 100%)";
 const LIGHT_BG = "radial-gradient(1000px 620px at 85% -10%, rgba(124,131,255,.20), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.14), transparent 55%), linear-gradient(180deg,#eef1fb 0%,#dde4f5 100%)";
+// tema exclusivo desbloqueado quando o aluno equipa espada + escudo juntos e o Nyx vira um Espartano
+const SPARTAN_BG = "radial-gradient(1100px 700px at 85% -10%, rgba(217,119,6,.24), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(153,27,27,.20), transparent 55%), radial-gradient(760px 520px at 50% 115%, rgba(120,53,15,.14), transparent 60%), linear-gradient(180deg,#2b1408 0%,#160a04 100%)";
 function customBg(spec) {
   const colors = String(spec).split(",").map(c=>c.trim()).filter(c=>/^#/.test(c)).slice(0,3);
   if (colors.length <= 1) {
@@ -18,7 +20,7 @@ function customBg(spec) {
   const stops = colors.map(c => shade(c, -0.32)).join(", ");
   return `linear-gradient(135deg, ${stops})`;
 }
-const pageBgFor = (theme) => theme === "light" ? LIGHT_BG : (typeof theme === "string" && theme.startsWith("#")) ? customBg(theme) : PAGE_BG;
+const pageBgFor = (theme) => theme === "light" ? LIGHT_BG : theme === "spartan" ? SPARTAN_BG : (typeof theme === "string" && theme.startsWith("#")) ? customBg(theme) : PAGE_BG;
 
 // ── efeitos sonoros (Web Audio, sem arquivos externos) ──
 let __audioCtx = null;
@@ -281,6 +283,9 @@ const ACHIEVEMENTS = [
   { id:"teclado-mestre",     emoji:"🎹", label:"Mestre do Teclado", desc:"Completou o tutorial de teclado até o fim" },
   // secreta: só se revela quando alguém descobre um comando escondido no terminal
   { id:"segredo",            emoji:"🥚", label:"Caçador de Segredos", desc:"Descobriu um comando secreto no terminal", secret:true },
+  // secretas: combo de equipamento e caça ao tesouro escondidos, sem nenhuma pista visível na loja
+  { id:"espartano",          emoji:"🛡️", label:"Guerreiro Espartano", desc:"Equipou espada e escudo ao mesmo tempo e viu o Nyx virar um Espartano", secret:true },
+  { id:"tesouro",            emoji:"🏴‍☠️", label:"Caçador de Tesouro", desc:"Encontrou o baú do tesouro escondido na plataforma", secret:true },
 ];
 const achievementInfo = (id) => ACHIEVEMENTS.find(a => a.id === id);
 
@@ -641,12 +646,14 @@ const NYX_ITEMS = [
   { id:"laco",   label:"Laço",           emoji:"🎀", slot:"neck", cost:8 },
   { id:"oculos", label:"Óculos escuros", emoji:"🕶️", slot:"face", cost:10 },
   { id:"chapeu", label:"Cartola",        emoji:"🎩", slot:"head", cost:15 },
-  { id:"escudo", label:"Escudo",         emoji:"🛡️", slot:"hand", cost:20 },
+  { id:"escudo", label:"Escudo",         emoji:"🛡️", slot:"shield", cost:20 },
   { id:"espada", label:"Espada",         emoji:"⚔️", slot:"hand", cost:30 },
   { id:"coroa",  label:"Coroa",          emoji:"👑", slot:"head", cost:40 },
   { id:"arco",   label:"Arco e flecha",  emoji:"🏹", slot:"hand", cost:50 },
+  // secreto: só aparece na loja depois de desbloqueado com o comando "nyx pirata" no terminal (de graça, não se compra)
+  { id:"chapeuPirata", label:"Chapéu Pirata", emoji:"🏴‍☠️", slot:"head", cost:0, secret:true },
 ];
-const DEFAULT_NYX_GEAR = { head:null, face:null, neck:null, hand:null };
+const DEFAULT_NYX_GEAR = { head:null, face:null, neck:null, hand:null, shield:null };
 
 // ── NYX: o robô assistente da turma (SVG + animações CSS) ──
 let __nyxSeq = 0;
@@ -719,18 +726,22 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
   const P = MAP[state] || MAP.idle;
   const antennaSpeed = state === "thinking" ? ".5s" : "1.8s";
 
+  // ⚔️🛡️ espada + escudo equipados juntos: o Nyx vira um Espartano (elmo, capa e postura de batalha exclusivos)
+  const isSpartan = G.hand === "espada" && G.shield === "escudo";
+
   // enquanto parado no estado idle, de vez em quando solta uma animação criativa (bocejo, pulinho, giro...)
   // pra parecer vivo — depois volta pro float calmo de sempre e agenda a próxima aleatoriamente
+  // (pausa enquanto o Nyx está em modo Espartano: um guerreiro não fica de bobeira dando pulinho)
   const [quirk, setQuirk] = useState(null);
   useEffect(() => {
-    if (state !== "idle") { setQuirk(null); return; }
+    if (state !== "idle" || isSpartan) { setQuirk(null); return; }
     let cancelled = false;
     const timeoutId = setTimeout(() => {
       if (cancelled) return;
       setQuirk(pickRandom(context === "teacher" ? NYX_TEACHER_IDLE_QUIRKS : NYX_IDLE_QUIRKS));
     }, 7000 + Math.random() * 9000);
     return () => { cancelled = true; clearTimeout(timeoutId); };
-  }, [state, quirk]);
+  }, [state, quirk, isSpartan]);
   const handleQuirkEnd = (e) => { if (quirk && e.animationName === quirk.name) setQuirk(null); };
 
   // sempre que o estado muda pra "pensando", "certo" ou "erro", sorteia uma reação nova daquele grupo
@@ -742,7 +753,23 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
     else setReactAnim(null);
   }, [state]);
 
+  // toca a animação exclusiva de transformação em Espartano uma única vez, bem no instante em que o
+  // combo espada+escudo é formado — depois disso, o idle de batalha assume enquanto durar o combo
+  const prevSpartanRef = useRef(false);
+  const [spartanBurst, setSpartanBurst] = useState(false);
+  useEffect(() => {
+    if (isSpartan && !prevSpartanRef.current) {
+      setSpartanBurst(true);
+      const t = setTimeout(() => setSpartanBurst(false), 1000);
+      prevSpartanRef.current = true;
+      return () => clearTimeout(t);
+    }
+    prevSpartanRef.current = isSpartan;
+  }, [isSpartan]);
+
   const wrapperAnim =
+    spartanBurst ? "nyx-spartan-transform 1s ease" :
+    (state === "idle" && isSpartan) ? "nyx-spartan-idle 2.6s ease-in-out infinite" :
     (state === "idle" && quirk) ? `${quirk.name} ${quirk.dur}s ease-in-out` :
     reactAnim ? `${reactAnim.name} ${reactAnim.dur}s ease-in-out${state === "thinking" ? " infinite" : ""}` :
     P.anim;
@@ -779,38 +806,60 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
           <rect x="28" y="20" width="64" height="44" rx="17" fill={`url(#${uid}h)`} />
           <rect x="28" y="20" width="64" height="20" rx="17" fill="#ffffff" opacity="0.12" />
 
-          {/* acessório de cabeça (por cima da cabeça; a antena sempre aparece por cima dele) */}
-          {G.head === "fone" && (
+          {/* acessório de cabeça (por cima da cabeça; a antena sempre aparece por cima dele) — o elmo
+              Espartano é uma TRANSFORMAÇÃO exclusiva e substitui qualquer chapéu normal enquanto durar o combo */}
+          {isSpartan ? (
             <g>
-              <path d="M23 38 Q60 6 97 38" stroke="#20242f" strokeWidth="6" fill="none" strokeLinecap="round" />
-              <path d="M28 35 Q60 11 92 35" stroke="#3a4152" strokeWidth="2" fill="none" strokeLinecap="round" />
-              <rect x="15" y="31" width="16" height="21" rx="7" fill="#20242f" />
-              <rect x="18.5" y="34.5" width="9" height="14" rx="4.5" fill={P.main} />
-              <ellipse cx="20" cy="37" rx="2.5" ry="3.5" fill="#ffffff" opacity="0.25" />
-              <rect x="89" y="31" width="16" height="21" rx="7" fill="#20242f" />
-              <rect x="92.5" y="34.5" width="9" height="14" rx="4.5" fill={P.main} />
-              <ellipse cx="94" cy="37" rx="2.5" ry="3.5" fill="#ffffff" opacity="0.25" />
+              <path d="M43 6 Q60 -11 77 6 L74 10.5 Q60 -1 46 10.5 Z" fill="#dc2626" stroke="#7a1010" strokeWidth="1" />
+              <path d="M46 10 Q60 2 74 10 L74 15 Q60 8 46 15 Z" fill="#b91c1c" opacity="0.9" />
+              <ellipse cx="60" cy="4" rx="17" ry="3.6" fill="#ef4444" />
+              <path d="M28 25 Q60 6 92 25 L92 20 Q60 2 28 20 Z" fill="#a1783f" stroke="#5c4326" strokeWidth="1" />
+              <rect x="30" y="19" width="60" height="8" rx="3" fill="#c99b53" stroke="#5c4326" strokeWidth="1" />
             </g>
-          )}
-          {G.head === "chapeu" && (
-            <g>
-              <ellipse cx="60" cy="20" rx="23" ry="4.5" fill="#1c1530" stroke="#8b83b0" strokeWidth="1" />
-              <path d="M46 20 L47.5 4 Q60 1 72.5 4 L74 20 Z" fill="#2d2447" stroke="#8b83b0" strokeWidth="1" />
-              <ellipse cx="60" cy="4.5" rx="12.5" ry="2.6" fill="#3a2f5c" />
-              <rect x="46.8" y="13" width="26.4" height="5" fill={P.main} />
-              <path d="M50 6 Q52 12 51.5 18" stroke="#ffffff" strokeWidth="1.6" opacity="0.18" fill="none" strokeLinecap="round" />
-            </g>
-          )}
-          {G.head === "coroa" && (
-            <g>
-              <path d="M40 20 L40 7 L49 14 L60 3 L71 14 L80 7 L80 20 Z" fill="#fbbf24" stroke="#d99b0d" strokeWidth="1.3" />
-              <path d="M44 10 L47 12" stroke="#fff7d6" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
-              <rect x="40" y="17" width="40" height="5" rx="2.2" fill="#f59e0b" stroke="#d99b0d" strokeWidth="1" />
-              <circle cx="60" cy="9" r="2.4" fill="#ef4444" stroke="#b91c1c" strokeWidth="0.8" />
-              <circle cx="48" cy="15" r="1.7" fill="#22d3ee" />
-              <circle cx="72" cy="15" r="1.7" fill="#22d3ee" />
-              <circle cx="60" cy="19.5" r="1.5" fill="#a855f7" />
-            </g>
+          ) : (
+            <>
+              {G.head === "fone" && (
+                <g>
+                  <path d="M23 38 Q60 6 97 38" stroke="#20242f" strokeWidth="6" fill="none" strokeLinecap="round" />
+                  <path d="M28 35 Q60 11 92 35" stroke="#3a4152" strokeWidth="2" fill="none" strokeLinecap="round" />
+                  <rect x="15" y="31" width="16" height="21" rx="7" fill="#20242f" />
+                  <rect x="18.5" y="34.5" width="9" height="14" rx="4.5" fill={P.main} />
+                  <ellipse cx="20" cy="37" rx="2.5" ry="3.5" fill="#ffffff" opacity="0.25" />
+                  <rect x="89" y="31" width="16" height="21" rx="7" fill="#20242f" />
+                  <rect x="92.5" y="34.5" width="9" height="14" rx="4.5" fill={P.main} />
+                  <ellipse cx="94" cy="37" rx="2.5" ry="3.5" fill="#ffffff" opacity="0.25" />
+                </g>
+              )}
+              {G.head === "chapeu" && (
+                <g>
+                  <ellipse cx="60" cy="20" rx="23" ry="4.5" fill="#1c1530" stroke="#8b83b0" strokeWidth="1" />
+                  <path d="M46 20 L47.5 4 Q60 1 72.5 4 L74 20 Z" fill="#2d2447" stroke="#8b83b0" strokeWidth="1" />
+                  <ellipse cx="60" cy="4.5" rx="12.5" ry="2.6" fill="#3a2f5c" />
+                  <rect x="46.8" y="13" width="26.4" height="5" fill={P.main} />
+                  <path d="M50 6 Q52 12 51.5 18" stroke="#ffffff" strokeWidth="1.6" opacity="0.18" fill="none" strokeLinecap="round" />
+                </g>
+              )}
+              {G.head === "coroa" && (
+                <g>
+                  <path d="M40 20 L40 7 L49 14 L60 3 L71 14 L80 7 L80 20 Z" fill="#fbbf24" stroke="#d99b0d" strokeWidth="1.3" />
+                  <path d="M44 10 L47 12" stroke="#fff7d6" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
+                  <rect x="40" y="17" width="40" height="5" rx="2.2" fill="#f59e0b" stroke="#d99b0d" strokeWidth="1" />
+                  <circle cx="60" cy="9" r="2.4" fill="#ef4444" stroke="#b91c1c" strokeWidth="0.8" />
+                  <circle cx="48" cy="15" r="1.7" fill="#22d3ee" />
+                  <circle cx="72" cy="15" r="1.7" fill="#22d3ee" />
+                  <circle cx="60" cy="19.5" r="1.5" fill="#a855f7" />
+                </g>
+              )}
+              {G.head === "chapeuPirata" && (
+                <g>
+                  <path d="M24 24 Q60 3 96 24 Q88 30.5 60 27 Q32 30.5 24 24 Z" fill="#1c1410" stroke="#000" strokeWidth="1" />
+                  <path d="M34 22 Q60 9 86 22 Q60 16.5 34 22 Z" fill="#332720" />
+                  <circle cx="60" cy="15.5" r="3.4" fill="#e5e7eb" stroke="#111" strokeWidth="0.6" />
+                  <path d="M57 14 L60 18.5 L63 14" stroke="#111" strokeWidth="0.9" fill="none" strokeLinecap="round" />
+                  <path d="M55.5 13.5 L58 13.5 M62 13.5 L64.5 13.5" stroke="#111" strokeWidth="0.8" strokeLinecap="round" />
+                </g>
+              )}
+            </>
           )}
 
           {/* antena (sempre por cima) */}
@@ -875,12 +924,17 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
             </g>
           )}
 
+          {/* capa Espartana (atrás de tudo — braços, mão e corpo ficam por cima dela) */}
+          {isSpartan && (
+            <path className="nyx-cape" d="M42 66 Q30 100 38 122 L60 112 L82 122 Q90 100 78 66 Q60 74 42 66 Z" fill="#991b1b" stroke="#5c1010" strokeWidth="1" opacity="0.92" />
+          )}
+
           {/* braços */}
           <rect x="26" y="74" width="10" height="24" rx="5" fill={P.dark} transform={state==="ok" ? "rotate(-38 31 76)" : "rotate(8 31 76)"} style={{ transition:"transform .3s" }} />
           <rect x="84" y="74" width="10" height="24" rx="5" fill={P.dark} transform={state==="ok" ? "rotate(38 89 76)" : "rotate(-8 89 76)"} style={{ transition:"transform .3s" }} />
 
-          {/* item na mão */}
-          {G.hand === "escudo" && (
+          {/* escudo (sempre na mão esquerda) */}
+          {G.shield === "escudo" && (
             <g>
               <path d="M12 82 Q12 78 22 76 Q32 78 32 82 L32 92 Q32 101 22 106 Q12 101 12 92 Z" fill="#94a3b8" stroke="#475569" strokeWidth="1.6" />
               <path d="M14.5 83 Q14.5 80 22 78.5 Q29.5 80 29.5 83 L29.5 91.5 Q29.5 98.5 22 102.5 Q14.5 98.5 14.5 91.5 Z" fill="#cbd5e1" stroke="none" opacity="0.5" />
@@ -890,25 +944,30 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
               <circle cx="28.5" cy="90" r="1.2" fill="#475569" />
             </g>
           )}
+          {/* arma (sempre na mão direita — espelhada da mesma arte da mão esquerda) */}
           {G.hand === "espada" && (
-            <g transform="rotate(-25 24 90)">
-              <path d="M23.5 62 L26.5 67 L26 94 L21 94 L20.5 67 Z" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.8" />
-              <line x1="23.5" y1="66" x2="23.5" y2="92" stroke="#94a3b8" strokeWidth="1" />
-              <path d="M13 94 Q23.5 90.5 34 94 L34 97 Q23.5 93.5 13 97 Z" fill="#eab308" stroke="#a16207" strokeWidth="0.8" />
-              <rect x="21" y="97" width="5" height="10" rx="2" fill="#78350f" />
-              <line x1="21.5" y1="100" x2="25.5" y2="100" stroke="#5b2c0c" strokeWidth="1" />
-              <line x1="21.5" y1="103" x2="25.5" y2="103" stroke="#5b2c0c" strokeWidth="1" />
-              <circle cx="23.5" cy="109.5" r="3" fill="#eab308" stroke="#a16207" strokeWidth="0.8" />
+            <g transform="translate(120,0) scale(-1,1)">
+              <g transform="rotate(-25 24 90)">
+                <path d="M23.5 62 L26.5 67 L26 94 L21 94 L20.5 67 Z" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.8" />
+                <line x1="23.5" y1="66" x2="23.5" y2="92" stroke="#94a3b8" strokeWidth="1" />
+                <path d="M13 94 Q23.5 90.5 34 94 L34 97 Q23.5 93.5 13 97 Z" fill="#eab308" stroke="#a16207" strokeWidth="0.8" />
+                <rect x="21" y="97" width="5" height="10" rx="2" fill="#78350f" />
+                <line x1="21.5" y1="100" x2="25.5" y2="100" stroke="#5b2c0c" strokeWidth="1" />
+                <line x1="21.5" y1="103" x2="25.5" y2="103" stroke="#5b2c0c" strokeWidth="1" />
+                <circle cx="23.5" cy="109.5" r="3" fill="#eab308" stroke="#a16207" strokeWidth="0.8" />
+              </g>
             </g>
           )}
           {G.hand === "arco" && (
-            <g transform="rotate(10 20 90)">
-              <path d="M16 68 Q34 90 16 112" stroke="#92400e" strokeWidth="3.6" fill="none" strokeLinecap="round" />
-              <path d="M17.5 72 Q30 90 17.5 108" stroke="#c2703d" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-              <line x1="16" y1="68" x2="16" y2="112" stroke="#e5e7eb" strokeWidth="1.2" />
-              <line x1="10" y1="90" x2="34" y2="90" stroke="#a16207" strokeWidth="2" />
-              <path d="M34 90 L28 86.5 L28 93.5 Z" fill="#64748b" />
-              <path d="M10 87 L14 90 L10 93" stroke="#ef4444" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+            <g transform="translate(120,0) scale(-1,1)">
+              <g transform="rotate(10 20 90)">
+                <path d="M16 68 Q34 90 16 112" stroke="#92400e" strokeWidth="3.6" fill="none" strokeLinecap="round" />
+                <path d="M17.5 72 Q30 90 17.5 108" stroke="#c2703d" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+                <line x1="16" y1="68" x2="16" y2="112" stroke="#e5e7eb" strokeWidth="1.2" />
+                <line x1="10" y1="90" x2="34" y2="90" stroke="#a16207" strokeWidth="2" />
+                <path d="M34 90 L28 86.5 L28 93.5 Z" fill="#64748b" />
+                <path d="M10 87 L14 90 L10 93" stroke="#ef4444" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+              </g>
             </g>
           )}
 
@@ -1370,24 +1429,9 @@ function Terminal({ files, dataTour, maxHeight = 260, onEasterEgg = null }) {
       onEasterEgg && onEasterEgg("piada");
       return;
     }
-    if (low === "sudo faça um sanduíche" || low === "sudo faca um sanduiche") {
-      push("🥪 Ok.", "(Só funcionou porque você pediu com \"sudo\" — pesquise essa piada com seu professor um dia!)", "");
-      onEasterEgg && onEasterEgg("sanduiche");
-      return;
-    }
-    if (low === "nyx café" || low === "nyx cafe") {
-      push("        ( (", "         ) )", "      ........", "      |      |]", "      \\      /", "       `----'", "☕ Bem mais desperto agora! Bora codar? 😄", "");
-      onEasterEgg && onEasterEgg("cafe");
-      return;
-    }
-    if (low === "42") {
-      push("🌌 A resposta para a vida, o universo e tudo mais... é 42!", "(Se você não entendeu essa, é hora de conhecer 'O Guia do Mochileiro das Galáxias' 👽)", "");
-      onEasterEgg && onEasterEgg("42");
-      return;
-    }
-    if (low === "rm -rf /" || low === "rm -rf /*") {
-      push("😅 Boa tentativa! Mas esse terminal é só de mentirinha — nada aqui se apaga de verdade.", "");
-      onEasterEgg && onEasterEgg("rm");
+    if (low === "nyx pirata") {
+      push("🏴‍☠️ Arrrr! Modo pirata ativado...", "Você desbloqueou um item secreto na Loja do Nyx! Vá conferir. 🗺️", "");
+      onEasterEgg && onEasterEgg("piratahat");
       return;
     }
     if (low === "dotnet" || low.startsWith("dotnet ")) { push("Uso:  dotnet run  |  dotnet build", ""); return; }
@@ -1730,7 +1774,7 @@ function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onClose }) 
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
-          {NYX_ITEMS.map(item => {
+          {NYX_ITEMS.filter(item => !item.secret || isTestShift || owned.includes(item.id)).map(item => {
             const has = isTestShift || owned.includes(item.id);
             const canBuy = !has && wallet >= item.cost;
             const clickable = has || canBuy;
@@ -3368,6 +3412,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [saveWarn, setSaveWarn] = useState("");
   // tema do fundo: 'dark' | 'light' | cor hex escolhida pelo Nyx
   const [theme, setTheme] = useState("dark");
+  // tema de antes de virar Espartano (pra poder voltar) + se já achou o baú do tesouro escondido
+  const [themeBeforeSpartan, setThemeBeforeSpartan] = useState(null);
+  const [treasureFound, setTreasureFound] = useState(false);
   // tour guiado do Nyx
   const [tourStep, setTourStep] = useState(-1);
   // explicações do Nyx sobre os erros da atividade (passo a passo, num modal)
@@ -3521,7 +3568,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -3589,6 +3636,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       typingRewardDay: s.typingRewardDay || null,
       giftLastClaim: s.giftLastClaim || null,
       theme: s.theme || "dark",
+      themeBeforeSpartan: s.themeBeforeSpartan || null,
+      treasureFound: s.treasureFound || false,
       nyxPoints: s.nyxPoints || 0,
       nyxSpent: s.nyxSpent || 0,
       nyxOwned: s.nyxOwned || [],
@@ -3748,10 +3797,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.typingRewardDay) setTypingRewardDay(prev.typingRewardDay);
           if (prev.giftLastClaim) setGiftLastClaim(prev.giftLastClaim);
           if (prev.theme) setTheme(prev.theme);
+          if (prev.themeBeforeSpartan) setThemeBeforeSpartan(prev.themeBeforeSpartan);
+          if (prev.treasureFound) setTreasureFound(true);
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
           if (prev.nyxSpent) setNyxSpent(prev.nyxSpent);
           if (prev.duelWins) setDuelWins(prev.duelWins);
-          if (prev.nyxGear) setNyxGear({ ...DEFAULT_NYX_GEAR, ...prev.nyxGear });
+          if (prev.nyxGear) {
+            // migra quem já tinha o escudo equipado ANTES da correção (quando ele dividia o mesmo
+            // slot da espada/arco) pro slot próprio "shield" — sem isso o escudo some da tela dele
+            const loadedGear = { ...DEFAULT_NYX_GEAR, ...prev.nyxGear };
+            if (loadedGear.hand === "escudo") { loadedGear.hand = null; loadedGear.shield = loadedGear.shield || "escudo"; }
+            setNyxGear(loadedGear);
+          }
           // inventário: migra quem já usava itens antes da loja cobrar — o que está equipado vira comprado (de graça)
           {
             const equipped = Object.values(prev.nyxGear || {}).filter(Boolean);
@@ -4214,6 +4271,78 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     setNewAchievement(achievementInfo(id));
     playSound("achievement");
     setTimeout(() => setNewAchievement(null), 4000);
+  };
+
+  // ⚔️🛡️ espada + escudo equipados juntos: o Nyx vira um Espartano. No instante em que o combo se
+  // forma, troca sozinho o tema de fundo pro tema Espartano (guardando o de antes) — o aluno decide
+  // depois, no botão do cabeçalho, se fica com ele ou volta pro tema de sempre; nada disso mexe no
+  // editor de código em si, só no fundo da página.
+  const isSpartan = nyxGear?.hand === "espada" && nyxGear?.shield === "escudo";
+  useEffect(() => {
+    if (isSpartan && theme !== "spartan") {
+      const prevTheme = themeBeforeSpartan || theme;
+      setThemeBeforeSpartan(prevTheme);
+      setTheme("spartan");
+      persist({ theme: "spartan", themeBeforeSpartan: prevTheme });
+      unlockAchievement("espartano");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSpartan]);
+
+  // 🥚 segredos escondidos na área do aluno (antigos comandos de terminal, agora achados clicando)
+  const triggerEgg = (kind) => {
+    unlockAchievement("segredo");
+    const msgs = {
+      sanduiche: ["🥪 Ei! Achou a migalha escondida... aqui está seu lanchinho imaginário. Bora continuar codando!", 6000],
+      cafe:      ["☕ Aaah, muito obrigado pelo café! Bora codar com tudo agora!", 6000],
+      "42":      ["🌌 A resposta para a vida, o universo e tudo mais... é 42! (Se não entendeu, pesquise 'O Guia do Mochileiro das Galáxias')", 7000],
+      rm:        ["😅 Boa tentativa! Mas esse cantinho aqui é só de mentirinha — nada se apaga de verdade.", 6000],
+    };
+    const found = msgs[kind];
+    if (found) { setRobotState("ok"); setRobotMsg(found[0]); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, found[1]); }
+  };
+
+  // 🏴‍☠️ baú do tesouro escondido: só concede os 200 pontos uma única vez por aluno
+  const findTreasure = () => {
+    if (treasureFound) return;
+    setTreasureFound(true);
+    const np = nyxPoints + 200;
+    setNyxPoints(np);
+    playSound("achievement");
+    persist({ treasureFound: true, nyxPoints: np });
+    unlockAchievement("tesouro");
+    checkPointsAchievements(np);
+    setRobotState("ok");
+    setRobotMsg("🏴‍☠️ VOCÊ ACHOU O TESOURO ESCONDIDO! +200 pontos do Nyx! Muito bem, caçador(a)!");
+    setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 8000);
+  };
+
+  // segredos do Terminal que reagem na tela do aluno (os outros só mostram texto no próprio terminal)
+  const handleEasterEgg = (egg) => {
+    unlockAchievement("segredo");
+    if (egg === "dance") { setRobotState("ok"); setRobotMsg("💃 Você achou meu passo de dança secreto! Não conta pra ninguém... ou conta, vai ser divertido."); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
+    if (egg === "piratahat") {
+      if (!nyxOwned.includes("chapeuPirata")) {
+        const newOwned = [...nyxOwned, "chapeuPirata"];
+        setNyxOwned(newOwned);
+        persist({ nyxOwned: newOwned });
+      }
+      setRobotState("ok");
+      setRobotMsg("🏴‍☠️ Arrr! Você desbloqueou o Chapéu Pirata na Loja do Nyx! Vá até a loja pra vestir.");
+      setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000);
+    }
+  };
+
+  // ao equipar o Chapéu Pirata, o Nyx pega um baú e solta a fala clássica — só na hora em que veste
+  const handleEquipGear = (newGear) => {
+    const wasPirateHat = nyxGear.head === "chapeuPirata";
+    setNyxGear(newGear);
+    persist({ nyxGear: newGear });
+    if (newGear.head === "chapeuPirata" && !wasPirateHat) {
+      setRobotState("ok");
+      setRobotMsg("🏴‍☠️ Argh! Olhem só, um chapéu de pirata!\n\n\"Quer o meu tesouro? Procure-o... nele há tudo o que essa plataforma pode oferecer.\"");
+      setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 9000);
+    }
   };
 
   // compra um item na Loja do Nyx: gasta os pontos (nyxSpent), entra pro inventário e já equipa
@@ -4955,6 +5084,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   return (
     <div className={supportClass} style={styles.container}>
       {routineBar}
+      {/* 🥚 segredos escondidos na área do aluno — quase invisíveis, esperando quem explorar e clicar.
+          position:fixed pra existirem em qualquer aba, sem nunca ocupar espaço nem atrapalhar o editor. */}
+      <span onClick={()=>triggerEgg("sanduiche")} title="" style={{ position:"fixed", bottom:6, left:6, fontSize:14, opacity:0.09, zIndex:3, cursor:"default", userSelect:"none" }}>🥪</span>
+      <span onClick={()=>triggerEgg("cafe")} title="" style={{ position:"fixed", right:6, top:"50%", transform:"translateY(-50%)", fontSize:14, opacity:0.08, zIndex:3, cursor:"default", userSelect:"none" }}>☕</span>
+      <span onClick={()=>triggerEgg("42")} title="" style={{ position:"fixed", bottom:6, right:6, fontSize:14, opacity:0.09, zIndex:3, cursor:"default", userSelect:"none" }}>🌌</span>
+      <span onClick={()=>triggerEgg("rm")} title="" style={{ position:"fixed", left:6, top:"50%", transform:"translateY(-50%)", fontSize:14, opacity:0.08, zIndex:3, cursor:"default", userSelect:"none" }}>🗑️</span>
+      <span onClick={findTreasure} title="" style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:14, height:14, lineHeight:"14px", textAlign:"center", fontSize:11, opacity:0.045, zIndex:3, cursor:"default", userSelect:"none" }}>🏴‍☠️</span>
       {/* apresentação do Nyx no primeiro acesso */}
       {showIntro && (
         <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
@@ -4999,6 +5135,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           <span style={{ background:"#0d1122", border:"1px solid #2a3154", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#96a0cc" }}>{shiftLabel(shift)}</span>
           {streakCount >= 2 && <span title="Dias de aula seguidos que você participou" style={{ background:"#f8717122", border:"1px solid #f87171", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#fca5a5", fontWeight:800 }}>🔥 {streakCount} dias seguidos</span>}
           <button data-tour="tema" style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
+          {isSpartan && (
+            <button style={{ ...styles.btn("#b45309"), padding:"6px 12px", fontSize:12 }}
+              onClick={()=>setThemeAndSave(theme==="spartan" ? (themeBeforeSpartan||"dark") : "spartan")}
+              title="Espada + escudo equipados: use o tema exclusivo do Espartano ou volte ao seu tema de sempre, é você quem escolhe">
+              {theme==="spartan" ? "🎨 Tema normal" : "🛡️ Tema Espartano"}
+            </button>
+          )}
           <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={toggleMuted} title={muted?"Ativar sons":"Silenciar sons"}>{muted?"🔇":"🔊"}</button>
           <button style={{ ...styles.btn(largeUiMode?"#06b6d4":"#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>{ setLargeUiMode(!largeUiMode); try { localStorage.setItem("nyx_large_ui", !largeUiMode?"1":"0"); } catch {} }} title={largeUiMode?"Desativar modo acessível":"Ativar modo acessível (letras maiores)"}>♿</button>
           {ttsSupported && <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>setShowVoicePicker(true)} title="Escolher a voz do Nyx (leitura em voz alta)">🗣️</button>}
@@ -5236,11 +5379,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
                 </div>
               </div>
 
-              <Terminal files={files} dataTour="terminal" onEasterEgg={(egg) => {
-                unlockAchievement("segredo");
-                if (egg === "dance") { setRobotState("ok"); setRobotMsg("💃 Você achou meu passo de dança secreto! Não conta pra ninguém... ou conta, vai ser divertido."); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
-                if (egg === "cafe") { setRobotState("ok"); setRobotMsg("☕ Aaah, muito obrigado pelo café! Bora codar com tudo agora!"); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
-              }} />
+              <Terminal files={files} dataTour="terminal" onEasterEgg={handleEasterEgg} />
             </div>
           ) : (
             <>
@@ -5268,11 +5407,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
                 </div>
               </div>
 
-              <Terminal files={files} dataTour="terminal" onEasterEgg={(egg) => {
-                unlockAchievement("segredo");
-                if (egg === "dance") { setRobotState("ok"); setRobotMsg("💃 Você achou meu passo de dança secreto! Não conta pra ninguém... ou conta, vai ser divertido."); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
-                if (egg === "cafe") { setRobotState("ok"); setRobotMsg("☕ Aaah, muito obrigado pelo café! Bora codar com tudo agora!"); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
-              }} />
+              <Terminal files={files} dataTour="terminal" onEasterEgg={handleEasterEgg} />
             </>
           )}
         </div>
@@ -5353,7 +5488,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           wallet={nyxPoints - nyxSpent}
           owned={nyxOwned}
           gear={nyxGear}
-          onEquip={(newGear)=>{ setNyxGear(newGear); persist({ nyxGear: newGear }); }}
+          onEquip={handleEquipGear}
           onBuy={handleBuyItem}
           isTestShift={shift === TEST_SHIFT.id}
           onClose={()=>setShowNyxShop(false)}

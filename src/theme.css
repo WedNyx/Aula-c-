@@ -166,6 +166,12 @@ input:focus, textarea:focus { border-color: #7c83ff !important; box-shadow: 0 0 
 @keyframes nyx-think-sway    { 0%,100% { transform: rotate(-4deg) translateX(-3px); } 50% { transform: rotate(4deg) translateX(3px); } }
 @keyframes nyx-think-orbit   { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(8deg) scale(1.03); } 100% { transform: rotate(0deg) scale(1); } }
 
+/* ── ⚔️🛡️ combo espada+escudo: Nyx vira um Espartano (transformação + postura de batalha + capa) ── */
+@keyframes nyx-spartan-transform { 0% { transform: scale(1) rotate(0deg); } 25% { transform: scale(1.22) rotate(-8deg); } 50% { transform: scale(.94) rotate(6deg); } 75% { transform: scale(1.1) rotate(-3deg); } 100% { transform: scale(1) rotate(0deg); } }
+@keyframes nyx-spartan-idle { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-4px) rotate(2deg); } }
+@keyframes nyx-cape-flutter { 0%,100% { transform: skewX(-2deg); } 50% { transform: skewX(3deg); } }
+.nyx-cape { transform-origin: 60px 66px; animation: nyx-cape-flutter 2.4s ease-in-out infinite; }
+
 /* ── animações gerais ── */
 @keyframes rise      { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pop       { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
