@@ -281,12 +281,27 @@ const ACHIEVEMENTS = [
   // extras
   { id:"artista",            emoji:"🎨", label:"Artista",        desc:"Pediu ao Nyx um fundo de cor personalizada" },
   { id:"teclado-mestre",     emoji:"🎹", label:"Mestre do Teclado", desc:"Completou o tutorial de teclado até o fim" },
-  // secreta: só se revela quando alguém descobre um comando escondido no terminal
+  // secreta: só se revela quando alguém descobre um comando escondido no terminal (mantida por
+  // compatibilidade com quem já tinha essa conquista — cada segredo agora também tem a sua própria)
   { id:"segredo",            emoji:"🥚", label:"Caçador de Segredos", desc:"Descobriu um comando secreto no terminal", secret:true },
   // secretas: combo de equipamento e caça ao tesouro escondidos, sem nenhuma pista visível na loja
   { id:"espartano",          emoji:"🛡️", label:"Guerreiro Espartano", desc:"Equipou espada e escudo ao mesmo tempo e viu o Nyx virar um Espartano", secret:true },
   { id:"tesouro",            emoji:"🏴‍☠️", label:"Caçador de Tesouro", desc:"Encontrou o baú do tesouro escondido na plataforma", secret:true },
+  // secretas individuais: uma pra cada Easter Egg escondido na plataforma
+  { id:"segredo-vaca",       emoji:"🐄", label:"Vaca do .NET",     desc:"Descobriu a vaca escondida do dotnet", secret:true },
+  { id:"segredo-danca",      emoji:"💃", label:"Passo Secreto",    desc:"Fez o Nyx dançar", secret:true },
+  { id:"segredo-matrix",     emoji:"🌧️", label:"Pílula Vermelha",  desc:"Encontrou a Matrix escondida no terminal", secret:true },
+  { id:"segredo-piada",      emoji:"😂", label:"Plateia do Nyx",   desc:"Pediu uma piada ao Nyx", secret:true },
+  { id:"segredo-pirata",     emoji:"🏴‍☠️", label:"Alma Pirata",     desc:"Descobriu o comando secreto do Nyx pirata", secret:true },
+  { id:"segredo-sanduiche",  emoji:"🥪", label:"Migalha Encontrada", desc:"Achou a migalha escondida na tela", secret:true },
+  { id:"segredo-cafe",       emoji:"☕", label:"Cafeína Descoberta", desc:"Achou a marca de café escondida na tela", secret:true },
+  { id:"segredo-42",         emoji:"🌌", label:"Guia do Mochileiro", desc:"Achou o número 42 escondido na tela", secret:true },
+  { id:"segredo-rm",         emoji:"🗑️", label:"Nada Se Perde",    desc:"Achou a lixeira escondida na tela", secret:true },
+  // meta: só quem achar TODOS os segredos acima
+  { id:"todos-segredos",     emoji:"🏆", label:"Caçador Lendário", desc:"Encontrou TODOS os segredos escondidos da plataforma", secret:true },
 ];
+// ids de todo Easter Egg individual que conta pra conquista "Caçador Lendário"
+const ALL_EGG_ACHIEVEMENT_IDS = ["segredo-vaca","segredo-danca","segredo-matrix","segredo-piada","segredo-pirata","segredo-sanduiche","segredo-cafe","segredo-42","segredo-rm","tesouro","espartano"];
 const achievementInfo = (id) => ACHIEVEMENTS.find(a => a.id === id);
 
 // ── metas coletivas da turma (soma dos pontos de todos da turma) ──
@@ -434,6 +449,40 @@ function highlight(code, errorLines) {
       if (line[i] === "/" && line[i+1] === "/") {
         tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i)}</span>);
         i = line.length; break;
+      }
+      // string interpolada: $"...{expr}..." — o texto fixo continua com a cor de string, mas as
+      // chaves e a variável/expressão de dentro ganham cor própria, pra ficar claro o que é texto
+      // fixo e o que é código de verdade (ex: Console.WriteLine($"{Name} atacou!"))
+      if (line[i] === "$" && line[i+1] === '"') {
+        tokens.push(<span key={i} style={{color:"#ce9178"}}>{'$"'}</span>);
+        i += 2;
+        let runStart = i;
+        const flushRun = (end) => { if (end > runStart) tokens.push(<span key={runStart} style={{color:"#ce9178"}}>{line.slice(runStart, end)}</span>); };
+        while (i < line.length && line[i] !== '"') {
+          if (line[i] === "{" && line[i+1] === "{") { i += 2; continue; } // {{ escapado: chave literal, continua como texto
+          if (line[i] === "}" && line[i+1] === "}") { i += 2; continue; } // }} escapado
+          if (line[i] === "{") {
+            flushRun(i);
+            tokens.push(<span key={i} style={{color:"#569cd6"}}>{"{"}</span>);
+            i++;
+            const exprStart = i;
+            let edepth = 1;
+            while (i < line.length && edepth > 0) {
+              if (line[i] === "{") edepth++;
+              else if (line[i] === "}") { edepth--; if (edepth === 0) break; }
+              i++;
+            }
+            const expr = line.slice(exprStart, i);
+            if (expr) tokens.push(<span key={exprStart} style={{color: /^[A-Z]/.test(expr) ? "#4ec9b0" : "#9cdcfe"}}>{expr}</span>);
+            if (line[i] === "}") { tokens.push(<span key={i} style={{color:"#569cd6"}}>{"}"}</span>); i++; }
+            runStart = i;
+            continue;
+          }
+          i++;
+        }
+        flushRun(i);
+        if (line[i] === '"') { tokens.push(<span key={i} style={{color:"#ce9178"}}>{'"'}</span>); i++; }
+        continue;
       }
       // string
       if (line[i] === '"') {
@@ -2481,7 +2530,7 @@ function MiniKeyboard({ highlight, zoom = 1 }) {
     </div>
   );
 }
-function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech, accessMode = false }) {
+function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech, accessMode = false, onEggFound }) {
   const levels = accessMode ? KEYBOARD_LEVELS_EASY : KEYBOARD_LEVELS;
   const [levelIdx, setLevelIdx] = useState(0);
   const [targetIdx, setTargetIdx] = useState(0);
@@ -2576,7 +2625,10 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech, accessMod
       <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:980, width:"100%", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>⌨️ Tutorial de Teclado</h2>
-          <button onClick={()=>{ stopSpeech?.(); onClose(); }} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            {onEggFound && <span onClick={()=>onEggFound("sanduiche")} title="" style={{ fontSize:15, opacity:0.16, cursor:"default", userSelect:"none" }}>🥪</span>}
+            <button onClick={()=>{ stopSpeech?.(); onClose(); }} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          </div>
         </div>
         {accessMode && !done && <p style={{ color:"#a5f3fc", fontSize:12, margin:"0 0 10px", fontWeight:700 }}>🧩 Treino do Modo Guiado — só o essencial, e recomeça sozinho pra treinar à vontade.</p>}
         {done ? (
@@ -3282,6 +3334,24 @@ function buildSummaryRequest(detail, hasTodayDiff, todayCode, fullCode) {
     system: "Você é um professor de C# paciente, para iniciantes de 13-14 anos que nunca programaram. Explique tudo do jeito MAIS SIMPLES possível: frases curtas, uma ideia por frase, sem jargão técnico desnecessário e sem explicações longas. Português correto e simples. Responda APENAS JSON puro válido.",
   };
 }
+// monta o pedido de CONTINUAÇÃO do resumo — usado quando o aluno já tinha um resumo pronto hoje e o
+// professor passou mais código depois; pede só as seções NOVAS, sem repetir o que já foi explicado
+function buildContinuationSummaryRequest(existingSummary, novoCode, fullCode) {
+  const jaExplicado = (existingSummary.secoes || []).map(s => s.titulo).filter(Boolean).join(", ") || "(nada ainda)";
+  return {
+    prompt: `Um aluno iniciante de C# já tinha um resumo de aula pronto, cobrindo estes conceitos: ${jaExplicado}.\n\nDepois disso, o professor passou MAIS código pra turma copiar, e isto é o que o aluno escreveu a mais:\n\`\`\`csharp\n${novoCode}\n\`\`\`\n\nCódigo completo do projeto até agora (contexto, pode repetir trechos de antes):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie a CONTINUAÇÃO do resumo: só seções sobre conceitos NOVOS que aparecem no código escrito depois. NÃO repita nenhum dos conceitos já listados acima.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito", "explicacao": "explicação BEM simples, em NO MÁXIMO 2 frases curtas, sem jargão técnico", "exemplo": "um trecho de código C# BEM curto (1 a 3 linhas) mostrando o uso (use \\n para quebrar linha)" }\n  ],\n  "dica": "uma dica final curta (1 frase), sobre o que aprendeu de novo"\n}\n\nSe não houver nenhum conceito realmente novo, devolva "secoes": [] mesmo assim. Frases curtas, simples, para quem começou a programar agora. Garanta JSON válido.`,
+    system: "Você é um professor de C# continuando um resumo de aula já começado — só acrescenta o que é novo, nunca repete o que já foi explicado antes. Português correto e simples. Responda APENAS JSON puro válido.",
+  };
+}
+// junta o resumo novo (só as seções novas) ao resumo que já existia, sem perder o que já tinha
+function mergeSummaryContinuation(existing, addition) {
+  const newSecoes = (addition && Array.isArray(addition.secoes)) ? addition.secoes : [];
+  return {
+    intro: existing.intro,
+    secoes: [...(existing.secoes || []), ...newSecoes],
+    dica: (addition && addition.dica) || existing.dica,
+  };
+}
 // dificuldade adaptativa: olha a média das últimas notas do aluno e devolve uma instrução extra pro
 // Nyx pesar a atividade pra mais fácil ou mais desafiadora — null quando não há dado suficiente ainda
 // ou quando o desempenho está equilibrado (mantém o mix padrão de sempre)
@@ -3415,6 +3485,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   // tema de antes de virar Espartano (pra poder voltar) + se já achou o baú do tesouro escondido
   const [themeBeforeSpartan, setThemeBeforeSpartan] = useState(null);
   const [treasureFound, setTreasureFound] = useState(false);
+  const [spartanIntroShown, setSpartanIntroShown] = useState(false);
   // tour guiado do Nyx
   const [tourStep, setTourStep] = useState(-1);
   // explicações do Nyx sobre os erros da atividade (passo a passo, num modal)
@@ -3565,10 +3636,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const attendanceRef = useRef({});
   // "foto" do código no primeiro acesso do dia: o resumo da aula cobre só o que foi escrito DEPOIS dela
   const daySnapshotRef = useRef(null);
+  // "foto" do código no momento em que o ÚLTIMO resumo foi gerado — se o professor passar mais
+  // código depois e o aluno salvar de novo, o próximo resumo é uma CONTINUAÇÃO (só o que é novo),
+  // não substitui o que já tinha sido criado antes
+  const summarySnapshotRef = useRef(null);
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, nyxPoints, nyxSpent, nyxOwned, nyxGear, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -3638,6 +3713,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       theme: s.theme || "dark",
       themeBeforeSpartan: s.themeBeforeSpartan || null,
       treasureFound: s.treasureFound || false,
+      spartanIntroShown: s.spartanIntroShown || false,
       nyxPoints: s.nyxPoints || 0,
       nyxSpent: s.nyxSpent || 0,
       nyxOwned: s.nyxOwned || [],
@@ -3646,6 +3722,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       duelWins: s.duelWins || 0,
       doneAt: s.doneAt || null,
       daySnapshot: daySnapshotRef.current || null,
+      summarySnapshot: summarySnapshotRef.current || null,
       scoreHistory: s.scoreHistory || {},
       summaryHistory: s.summaryHistory || {},
       detailedSummary: s.detailedSummary || null,
@@ -3799,6 +3876,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           if (prev.theme) setTheme(prev.theme);
           if (prev.themeBeforeSpartan) setThemeBeforeSpartan(prev.themeBeforeSpartan);
           if (prev.treasureFound) setTreasureFound(true);
+          if (prev.spartanIntroShown) setSpartanIntroShown(true);
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
           if (prev.nyxSpent) setNyxSpent(prev.nyxSpent);
           if (prev.duelWins) setDuelWins(prev.duelWins);
@@ -3853,6 +3931,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           } else {
             const baseFiles = (prev && Array.isArray(prev.files) && prev.files.length) ? prev.files : [{ name:"Program.cs", code:"" }];
             daySnapshotRef.current = { date: tk, files: baseFiles.map(f => ({ name: f.name, code: f.code || "" })) };
+          }
+          // foto do código na hora do ÚLTIMO resumo gerado hoje (se existir) — usada pra saber o
+          // que é realmente NOVO se o aluno salvar de novo depois do professor passar mais código
+          if (prev?.summarySnapshot && prev.summarySnapshot.date === tk) {
+            summarySnapshotRef.current = prev.summarySnapshot;
           }
         }
         const es = await getExamState();
@@ -4046,17 +4129,33 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
           await persist({ score: fix.score });
         }
       } catch {}
-      // professor selecionou este aluno e enviou o código da turma → troca TODOS os arquivos e avisa
+      // professor selecionou este aluno e enviou o código da turma → completa só o que falta e
+      // corrige o que já existia, sem apagar o que o aluno mesmo escreveu (nunca sobrescreve tudo)
       try {
         const sent = await getCodeSend(shift, studentName);
         if (sent && Array.isArray(sent.files) && sent.files.length) {
-          setFiles(sent.files);
+          const currentFiles = stateRef.current.files || files;
+          const hasOwnCode = currentFiles.some(f => (f.code||"").trim().length >= 10);
+          let mergedFiles = sent.files;
+          if (hasOwnCode) {
+            try {
+              const merged = await askClaudeJson(
+                `O professor passou este código pra turma copiar:\n${sent.files.map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n")}\n\nEste aluno JÁ tinha escrito isto no perfil dele (pode estar incompleto ou ter pequenos erros):\n${currentFiles.map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n")}\n\nCrie a versão final dos arquivos: MANTENHA tudo que o aluno já escreveu (não reescreva do zero nem mude o estilo do que já está certo), só ACRESCENTE o que estiver faltando (comparando com o código do professor) e CORRIJA erros de sintaxe/digitação que já existiam no que ele tinha.\n\nResponda APENAS em JSON puro, sem markdown: {"files":[{"name":"nome do arquivo","code":"código final"}]}`,
+                "Você funde com cuidado o código de um aluno com o material novo do professor, sem apagar o esforço dele. Responda APENAS JSON puro.",
+                { max_tokens: 4000 }
+              );
+              if (Array.isArray(merged.files) && merged.files.length) mergedFiles = merged.files;
+            } catch {}
+          }
+          setFiles(mergedFiles);
           setActive(0);
           await clearCodeSend(shift, studentName);
-          setRobotMsg("✅ O professor enviou um código novo pra você! Você pode modificar como quiser.");
+          setRobotMsg(hasOwnCode
+            ? "✅ O professor enviou código novo — completei o que faltava no seu, sem apagar o que você já tinha feito!"
+            : "✅ O professor enviou um código novo pra você! Você pode modificar como quiser.");
           setRobotState("ok");
-          await persist({ files: sent.files });
-          setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 4000);
+          await persist({ files: mergedFiles });
+          setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 5000);
         }
       } catch {}
       await persist();
@@ -4259,6 +4358,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 
   const toggleMuted = () => { setMuted(m => { setSoundsMuted(!m); return !m; }); };
 
+  // desbloqueia a conquista "Caçador Lendário" quando TODOS os Easter Eggs já tiverem sido achados
+  const checkAllEggsFound = () => {
+    const current = stateRef.current.achievements || [];
+    if (ALL_EGG_ACHIEVEMENT_IDS.every(id => current.includes(id))) unlockAchievement("todos-segredos");
+  };
+
   // desbloqueia uma conquista (se ainda não tiver) e mostra o aviso animado
   // lê/escreve via stateRef para funcionar mesmo chamada de dentro de closures "velhas" (ex: o heartbeat)
   const unlockAchievement = (id) => {
@@ -4285,13 +4390,26 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       setTheme("spartan");
       persist({ theme: "spartan", themeBeforeSpartan: prevTheme });
       unlockAchievement("espartano");
+      checkAllEggsFound();
+    }
+    // fala de guerreiro Espartano só na primeira vez que o combo é formado NA VIDA do aluno —
+    // depois disso, mesmo desequipando e equipando de novo, ela não repete
+    if (isSpartan && !spartanIntroShown) {
+      setSpartanIntroShown(true);
+      persist({ spartanIntroShown: true });
+      setRobotState("ok");
+      setRobotMsg("🛡️ ISTO... É... C#!! Nenhum erro de compilação assusta um guerreiro Espartano. Vamos à batalha pelo código perfeito!");
+      setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 10000);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSpartan]);
 
   // 🥚 segredos escondidos na área do aluno (antigos comandos de terminal, agora achados clicando)
+  const HIDDEN_EGG_ACHIEVEMENTS = { sanduiche:"segredo-sanduiche", cafe:"segredo-cafe", "42":"segredo-42", rm:"segredo-rm" };
   const triggerEgg = (kind) => {
     unlockAchievement("segredo");
+    if (HIDDEN_EGG_ACHIEVEMENTS[kind]) unlockAchievement(HIDDEN_EGG_ACHIEVEMENTS[kind]);
+    checkAllEggsFound();
     const msgs = {
       sanduiche: ["🥪 Ei! Achou a migalha escondida... aqui está seu lanchinho imaginário. Bora continuar codando!", 6000],
       cafe:      ["☕ Aaah, muito obrigado pelo café! Bora codar com tudo agora!", 6000],
@@ -4311,6 +4429,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     playSound("achievement");
     persist({ treasureFound: true, nyxPoints: np });
     unlockAchievement("tesouro");
+    checkAllEggsFound();
     checkPointsAchievements(np);
     setRobotState("ok");
     setRobotMsg("🏴‍☠️ VOCÊ ACHOU O TESOURO ESCONDIDO! +200 pontos do Nyx! Muito bem, caçador(a)!");
@@ -4318,8 +4437,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   };
 
   // segredos do Terminal que reagem na tela do aluno (os outros só mostram texto no próprio terminal)
+  const TERMINAL_EGG_ACHIEVEMENTS = { moo:"segredo-vaca", dance:"segredo-danca", matrix:"segredo-matrix", piada:"segredo-piada", piratahat:"segredo-pirata" };
   const handleEasterEgg = (egg) => {
     unlockAchievement("segredo");
+    if (TERMINAL_EGG_ACHIEVEMENTS[egg]) unlockAchievement(TERMINAL_EGG_ACHIEVEMENTS[egg]);
+    checkAllEggsFound();
     if (egg === "dance") { setRobotState("ok"); setRobotMsg("💃 Você achou meu passo de dança secreto! Não conta pra ninguém... ou conta, vai ser divertido."); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
     if (egg === "piratahat") {
       if (!nyxOwned.includes("chapeuPirata")) {
@@ -4341,9 +4463,22 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     if (newGear.head === "chapeuPirata" && !wasPirateHat) {
       setRobotState("ok");
       setRobotMsg("🏴‍☠️ Argh! Olhem só, um chapéu de pirata!\n\n\"Quer o meu tesouro? Procure-o... nele há tudo o que essa plataforma pode oferecer.\"");
-      setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 9000);
+      setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 10000);
     }
   };
+
+  // 🥚 os segredos escondidos ficam espalhados por TODA a área do aluno (programar, resumo,
+  // atividade, tela de "concluído") — não só a tela de código — sempre com position:fixed pra
+  // existirem em qualquer uma dessas telas sem nunca atrapalhar o que está em primeiro plano
+  const renderHiddenEggs = () => (
+    <>
+      <span onClick={()=>triggerEgg("sanduiche")} title="" style={{ position:"fixed", bottom:8, left:8, fontSize:17, opacity:0.16, zIndex:3, cursor:"default", userSelect:"none" }}>🥪</span>
+      <span onClick={()=>triggerEgg("cafe")} title="" style={{ position:"fixed", right:8, top:"50%", transform:"translateY(-50%)", fontSize:17, opacity:0.15, zIndex:3, cursor:"default", userSelect:"none" }}>☕</span>
+      <span onClick={()=>triggerEgg("42")} title="" style={{ position:"fixed", bottom:8, right:8, fontSize:17, opacity:0.16, zIndex:3, cursor:"default", userSelect:"none" }}>🌌</span>
+      <span onClick={()=>triggerEgg("rm")} title="" style={{ position:"fixed", left:8, top:"50%", transform:"translateY(-50%)", fontSize:17, opacity:0.15, zIndex:3, cursor:"default", userSelect:"none" }}>🗑️</span>
+      <span onClick={findTreasure} title="" style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:16, height:16, lineHeight:"16px", textAlign:"center", fontSize:12, opacity:0.07, zIndex:3, cursor:"default", userSelect:"none" }}>🏴‍☠️</span>
+    </>
+  );
 
   // compra um item na Loja do Nyx: gasta os pontos (nyxSpent), entra pro inventário e já equipa
   // lê/escreve via stateRef (não os closures de nyxOwned/nyxSpent/nyxGear) pra dois cliques bem
@@ -4391,14 +4526,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   // todo o código do projeto do aluno, em TODOS os arquivos (não só a aba aberta)
   const allCodeToday = () => (files||[]).filter(f=>(f.code||"").trim()).map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n");
 
-  // só o que foi escrito HOJE: compara o código atual com a "foto" tirada no primeiro acesso do dia
-  const codeWrittenToday = () => {
-    const snapFiles = daySnapshotRef.current?.files || [];
-    const oldByName = Object.fromEntries(snapFiles.map(f => [f.name, f.code || ""]));
+  // compara o código atual com uma "foto" anterior (do início do dia, ou do último resumo gerado)
+  // e devolve só as linhas que ainda não estavam lá — usado tanto pro resumo do dia quanto pra
+  // saber o que é realmente NOVO se o aluno salvar de novo depois do professor passar mais código
+  const codeWrittenSince = (snapshotFiles) => {
+    const oldByName = Object.fromEntries((snapshotFiles || []).map(f => [f.name, f.code || ""]));
     return (files || [])
       .map(f => {
         const oldCode = oldByName[f.name];
-        if (oldCode == null || !oldCode.trim()) return { name: f.name, code: f.code || "" }; // arquivo novo (ou vazio ontem): tudo é de hoje
+        if (oldCode == null || !oldCode.trim()) return { name: f.name, code: f.code || "" }; // arquivo novo (ou vazio antes): tudo é novo
         const oldLines = new Set(oldCode.split("\n").map(l => l.trim()).filter(Boolean));
         const newLines = (f.code || "").split("\n").filter(l => l.trim() && !oldLines.has(l.trim()));
         return { name: f.name, code: newLines.join("\n") };
@@ -4407,6 +4543,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       .map(f => `// ===== ${f.name} =====\n${f.code}`)
       .join("\n\n");
   };
+  // só o que foi escrito HOJE: compara o código atual com a "foto" tirada no primeiro acesso do dia
+  const codeWrittenToday = () => codeWrittenSince(daySnapshotRef.current?.files);
+  // só o que foi escrito DEPOIS do último resumo gerado hoje (pra continuação do resumo)
+  const codeWrittenSinceLastSummary = () => codeWrittenSince(summarySnapshotRef.current?.files);
 
   const handleSave = async () => {
     const fullCode = allCodeToday();
@@ -4420,7 +4560,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       setGeneratingMsg("📚 Criando o resumo e a atividade da sua aula...");
       const todayCode = codeWrittenToday();
       const hasTodayDiff = todayCode.trim().length >= 10 && todayCode.trim() !== fullCode.trim();
-      const simpleReq = buildSummaryRequest("simples", hasTodayDiff, todayCode, fullCode);
+      // se já existe um resumo de hoje (o aluno salvou antes e o professor passou mais código
+      // depois), o próximo resumo é uma CONTINUAÇÃO — só as seções novas, sem repetir o que já tinha
+      const existingSummary = summaryHistory[todayKey()];
+      const isContinuation = existingSummary && typeof existingSummary === "object" && Array.isArray(existingSummary.secoes) && existingSummary.secoes.length > 0;
+      const novoCode = isContinuation ? codeWrittenSinceLastSummary() : "";
+      const simpleReq = isContinuation
+        ? buildContinuationSummaryRequest(existingSummary, novoCode.trim() ? novoCode : todayCode, fullCode)
+        : buildSummaryRequest("simples", hasTodayDiff, todayCode, fullCode);
       const difficultyHint = recentDifficultyHint(scoreHistory);
       // resumo e atividade são pedidos ao Nyx AO MESMO TEMPO (não um depois do outro) para não somar o tempo de espera dos dois
       const [summaryResult, activityResult] = await Promise.all([
@@ -4433,14 +4580,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       let summaryData;
       try { summaryData = extractJson(summaryResult); }
       catch { summaryData = { raw: summaryResult }; }
-      setDynamicSummary(summaryData);
+      const finalSummary = isContinuation && typeof summaryData === "object" && !summaryData.raw
+        ? mergeSummaryContinuation(existingSummary, summaryData)
+        : (isContinuation ? existingSummary : summaryData); // se a continuação falhar, mantém o resumo que já existia (nunca perde o que já tinha)
+      setDynamicSummary(finalSummary);
       const parsed = extractJson(activityResult);
       const questions = shuffleQuestions(parsed.questions);
       setDynamicActivity(questions);
-      // guarda o resumo de hoje no caderno (para o aluno rever depois)
-      const newSummaryHistory = { ...summaryHistory, [todayKey()]: summaryData };
+      // guarda o resumo de hoje no caderno (para o aluno rever depois) e a "foto" do código
+      // usada da próxima vez pra saber o que é realmente novo, se o professor passar mais coisa
+      const newSummaryHistory = { ...summaryHistory, [todayKey()]: finalSummary };
       setSummaryHistory(newSummaryHistory);
-      await persist({ phase:"summary", dynamicActivity:questions, dynamicSummary:summaryData, summaryHistory: newSummaryHistory });
+      summarySnapshotRef.current = { date: todayKey(), files: (files||[]).map(f => ({ name:f.name, code:f.code||"" })) };
+      await persist({ phase:"summary", dynamicActivity:questions, dynamicSummary:finalSummary, summaryHistory: newSummaryHistory, summarySnapshot: summarySnapshotRef.current });
       setPhase("summary");
     } catch {
       setGeneratingMsg("❌ Erro ao gerar. Tente novamente.");
@@ -4816,6 +4968,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     return (
       <div className={supportClass} style={styles.container}>
       {routineBar}
+      {renderHiddenEggs()}
         <div style={styles.header}><span>📚 Resumo da Aula — {studentName}</span></div>
         <div style={{ maxWidth:740, margin:"0 auto", padding:`${scalePx(22)}px ${scalePx(16)}px ${scalePx(36)}px` }}>
           {/* topo em destaque */}
@@ -4883,7 +5036,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             ) : (
               <>
                 <p style={{ color:"#96a0cc", marginBottom:12 }}>Quando terminar de anotar, vá para a atividade! ✍️</p>
-                <button style={{ ...styles.btn("#7c83ff"), padding:"12px 26px", fontSize:16 }} onClick={handleStartActivity}>Fazer Atividade →</button>
+                <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
+                  <button style={{ ...styles.btn("#2a3154"), padding:"12px 22px", fontSize:15 }} onClick={async()=>{ setPhase("coding"); await persist({ phase:"coding" }); }}>← Voltar para o código</button>
+                  <button style={{ ...styles.btn("#7c83ff"), padding:"12px 26px", fontSize:16 }} onClick={handleStartActivity}>Fazer Atividade →</button>
+                </div>
               </>
             )}
           </div>
@@ -4901,6 +5057,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     return (
       <div className={supportClass} style={styles.container}>
       {routineBar}
+      {renderHiddenEggs()}
         <AchievementToast achievement={newAchievement} />
         {goalParty && !calmMode && <ConfettiParty level={goalParty} />}
         <div style={styles.header}><span>📝 Atividade — {studentName}</span></div>
@@ -4945,6 +5102,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     return (
       <div className={supportClass} style={styles.container}>
       {routineBar}
+      {renderHiddenEggs()}
         <AchievementToast achievement={newAchievement} />
         {goalParty && !calmMode && <ConfettiParty level={goalParty} />}
         {showFeedbackModal && (
@@ -5084,13 +5242,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   return (
     <div className={supportClass} style={styles.container}>
       {routineBar}
-      {/* 🥚 segredos escondidos na área do aluno — quase invisíveis, esperando quem explorar e clicar.
-          position:fixed pra existirem em qualquer aba, sem nunca ocupar espaço nem atrapalhar o editor. */}
-      <span onClick={()=>triggerEgg("sanduiche")} title="" style={{ position:"fixed", bottom:6, left:6, fontSize:14, opacity:0.09, zIndex:3, cursor:"default", userSelect:"none" }}>🥪</span>
-      <span onClick={()=>triggerEgg("cafe")} title="" style={{ position:"fixed", right:6, top:"50%", transform:"translateY(-50%)", fontSize:14, opacity:0.08, zIndex:3, cursor:"default", userSelect:"none" }}>☕</span>
-      <span onClick={()=>triggerEgg("42")} title="" style={{ position:"fixed", bottom:6, right:6, fontSize:14, opacity:0.09, zIndex:3, cursor:"default", userSelect:"none" }}>🌌</span>
-      <span onClick={()=>triggerEgg("rm")} title="" style={{ position:"fixed", left:6, top:"50%", transform:"translateY(-50%)", fontSize:14, opacity:0.08, zIndex:3, cursor:"default", userSelect:"none" }}>🗑️</span>
-      <span onClick={findTreasure} title="" style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:14, height:14, lineHeight:"14px", textAlign:"center", fontSize:11, opacity:0.045, zIndex:3, cursor:"default", userSelect:"none" }}>🏴‍☠️</span>
+      {renderHiddenEggs()}
       {/* apresentação do Nyx no primeiro acesso */}
       {showIntro && (
         <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
@@ -5513,7 +5665,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       {showNotebook && <NotebookModal history={summaryHistory} detailedHistory={detailedSummaryHistory} onClose={()=>setShowNotebook(false)} />}
       {showVoicePicker && <VoicePickerModal onClose={()=>setShowVoicePicker(false)} />}
       {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
-      {showKeyboard && <KeyboardTutorialModal onClose={()=>setShowKeyboard(false)} onFinish={finishKeyboardTutorial} speak={speak} stopSpeech={stopSpeech} accessMode={accessMode} />}
+      {showKeyboard && <KeyboardTutorialModal onClose={()=>setShowKeyboard(false)} onFinish={finishKeyboardTutorial} speak={speak} stopSpeech={stopSpeech} accessMode={accessMode} onEggFound={triggerEgg} />}
       {showJustify && <JustifyModal absences={pendingAbsences} onSubmit={submitJustification} onClose={()=>setShowJustify(false)} />}
       {showHallOfFame && <HallOfFameModal entries={hallEntries} onClose={()=>setShowHallOfFame(false)} />}
       {showPerformance && <PerformanceModal studentName={studentName} scoreHistory={scoreHistory} achievements={achievements} duelWins={duelWins} typingBest={typingBest} streakCount={streakCount} onClose={()=>setShowPerformance(false)} />}
@@ -6391,8 +6543,9 @@ function TeacherView({ onLogout, teacherAuth }) {
     let explain = null, aiOffline = false;
     try {
       explain = await askClaudeJson(
-        `Este é o código C# que o professor ensinou HOJE para a turma ${shiftMeta(shift).label} (pode ter vários arquivos):\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie uma explicação COMPLETA e didática desse código, para um aluno que FALTOU hoje e vai estudar esse material sozinho em casa. Percorra o código NA ORDEM em que ele aparece.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 a 2 frases dizendo o que foi ensinado hoje como um todo",\n  "secoes": [ { "titulo": "nome curto do conceito/parte", "explicacao": "explicação clara de 2 a 4 frases, em português simples", "exemplo": "trecho C# bem curto ilustrando (opcional — use \\n pra quebrar linha)" } ],\n  "dica": "1 frase final encorajando o aluno a estudar em casa e perguntar na próxima aula se tiver dúvida"\n}\n\nFaça uma seção para cada parte ou conceito importante (entre 2 e 8 seções). Garanta JSON válido.`,
-        "Você é um professor de C# escrevendo, com carinho, um resumo por escrito para um aluno que faltou não ficar pra trás. Português correto e simples. Responda APENAS JSON puro válido."
+        `Este é o código C# que o professor ensinou HOJE para a turma ${shiftMeta(shift).label} (pode ter vários arquivos):\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie uma explicação COMPLETA e didática desse código, para um aluno que FALTOU hoje e vai estudar esse material sozinho em casa. Percorra o código NA ORDEM em que ele aparece, cobrindo TODOS os conceitos importantes do dia — não pode faltar nenhum.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 a 2 frases dizendo o que foi ensinado hoje como um todo",\n  "secoes": [ { "titulo": "nome curto do conceito/parte", "explicacao": "explicação clara de 2 a 4 frases, em português simples", "exemplo": "trecho C# bem curto ilustrando (opcional — use \\n pra quebrar linha)" } ],\n  "dica": "1 frase final encorajando o aluno a estudar em casa e perguntar na próxima aula se tiver dúvida"\n}\n\nFaça uma seção para CADA parte ou conceito importante do código (pode passar de 8 se o dia teve bastante conteúdo — não corte nada pra economizar espaço). Garanta JSON válido.`,
+        "Você é um professor de C# escrevendo, com carinho, um resumo por escrito para um aluno que faltou não ficar pra trás. Português correto e simples. Responda APENAS JSON puro válido.",
+        { max_tokens: 4000 }
       );
     } catch { aiOffline = true; }
 
