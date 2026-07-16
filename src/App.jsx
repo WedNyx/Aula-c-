@@ -5071,10 +5071,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   // dois botões, um por modelo de IA — o aluno escolhe qual pedir pro Nyx usar nesta análise
   const analyzeButtons = (
     <>
-      <button style={{ ...styles.btn("#7c83ff"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode("nvidia")} disabled={analyzing||activeCode.trim().length<12}>
+      <button title={activeCode.trim().length<12 ? "Escreva um pouco mais de código neste arquivo antes de pedir a análise" : ""} style={{ ...styles.btn("#7c83ff"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode("nvidia")} disabled={analyzing||activeCode.trim().length<12}>
         {analyzingProvider==="nvidia" ? "🔍 Analisando..." : "✨ Nemotron"}
       </button>
-      <button style={{ ...styles.btn("#22d3ee"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode("laguna")} disabled={analyzing||activeCode.trim().length<12}>
+      <button title={activeCode.trim().length<12 ? "Escreva um pouco mais de código neste arquivo antes de pedir a análise" : ""} style={{ ...styles.btn("#22d3ee"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode("laguna")} disabled={analyzing||activeCode.trim().length<12}>
         {analyzingProvider==="laguna" ? "🔍 Analisando..." : "🌊 Laguna"}
       </button>
     </>
@@ -5372,7 +5372,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               )}
 
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:16, flexWrap:"wrap", gap:8 }}>
-                <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:scaleSize(12) }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
+                <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:scaleSize(12) }}>{saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {analyzeButtons}
                   <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
@@ -5400,7 +5400,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               </div>
 
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
-                <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing?"🔍 Verificando...":"✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
+                <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {analyzeButtons}
                   <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
