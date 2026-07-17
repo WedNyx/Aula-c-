@@ -3582,6 +3582,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [generatingMsg, setGeneratingMsg] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [connected, setConnected] = useState(null);
+  const [justReconnected, setJustReconnected] = useState(false);
+  const prevConnectedRef = useRef(null);
   const [finalFeedback, setFinalFeedback] = useState("");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -3849,6 +3851,26 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     return ok;
   }, [studentName, shift]);
 
+  // 📶 resiliência de internet: quando a conexão VOLTA depois de cair, re-salva na hora (sem
+  // esperar o próximo tick) e mostra rapidinho o "tudo salvo"; os eventos do navegador aceleram
+  // a detecção da queda/volta pra não depender só do heartbeat de 3s
+  useEffect(() => {
+    const was = prevConnectedRef.current;
+    prevConnectedRef.current = connected;
+    if (was === false && connected === true) {
+      setJustReconnected(true);
+      const t = setTimeout(() => setJustReconnected(false), 6000);
+      return () => clearTimeout(t);
+    }
+  }, [connected]);
+  useEffect(() => {
+    const onOffline = () => setConnected(false);
+    const onOnline = () => { persist(); };
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
+    return () => { window.removeEventListener("offline", onOffline); window.removeEventListener("online", onOnline); };
+  }, [persist]);
+
   // ── anti-cola: durante a prova ativa, cada saída da aba é contada (e desconta 10 pts no fim) ──
   const examActive = examInfo.status === 'active' && !examDone;
   useEffect(() => {
@@ -4027,7 +4049,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         // conexão bem na hora de salvar deve ter perdido esse trecho — restaura e resalva pra reconciliar
         try {
           const backup = loadCodeBackupLocal(shift, studentName);
-          const backupIsRecent = backup && (Date.now() - backup.at) < 60 * 60 * 1000;
+          // janela de 24h: cobre até "a internet caiu no fim da aula e ele só voltou no dia seguinte"
+          // (a comparação de tamanho logo abaixo continua impedindo sobrescrever progresso mais novo)
+          const backupIsRecent = backup && (Date.now() - backup.at) < 24 * 60 * 60 * 1000;
           if (alive && backupIsRecent && Array.isArray(backup.files) && backup.files.length) {
             const serverFiles = (prev && Array.isArray(prev.files) && prev.files.length) ? prev.files : [];
             const backupLen = backup.files.reduce((n,f) => n + (f.code||"").length, 0);
@@ -5548,6 +5572,25 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {breakEndMsg && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
           <div style={{ background:"#22d3ee18", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#a5f3fc", fontWeight:700 }}>{breakEndMsg}</div>
+        </div>
+      )}
+
+      {/* 📶 internet caiu: tranquiliza o aluno — o trabalho está guardado neste computador e
+          o próprio heartbeat re-salva tudo sozinho assim que a conexão voltar */}
+      {connected === false && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div style={{ background:"#fbbf2418", border:"1px solid #fbbf24", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:20 }}>📶</span>
+            <span style={{ flex:1, color:"#fde68a", lineHeight:1.6 }}><b style={{ color:"#fbbf24" }}>A internet caiu — mas pode continuar programando!</b> Seu código está guardado neste computador e vai ser salvo sozinho assim que a conexão voltar. Não precisa fazer nada.</span>
+          </div>
+        </div>
+      )}
+      {justReconnected && connected && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div className="pop" style={{ background:"#34d39918", border:"1px solid #34d399", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:20 }}>✅</span>
+            <span style={{ flex:1, color:"#c7f5df", fontWeight:700 }}>Conexão de volta — todo o seu trabalho foi salvo!</span>
+          </div>
         </div>
       )}
 
