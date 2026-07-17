@@ -3597,6 +3597,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [spartanIntroShown, setSpartanIntroShown] = useState(false);
   // tour guiado do Nyx
   const [tourStep, setTourStep] = useState(-1);
+  // 🔥 aquecimento do dia: 3 perguntinhas de revisão sobre a aula ANTERIOR, logo que o aluno entra
+  const [warmup, setWarmup] = useState(null);           // { questions:[{pergunta, alternativas, correta, explicacao}] }
+  const [warmupOpen, setWarmupOpen] = useState(false);
+  const [warmupStep, setWarmupStep] = useState(0);
+  const [warmupPicked, setWarmupPicked] = useState(null);
+  const [warmupCorrect, setWarmupCorrect] = useState(0);
+  const [warmupDay, setWarmupDay] = useState(null);     // último dia em que o aquecimento foi concluído (persistido)
+  const warmupRequestedRef = useRef(false);
   // explicações do Nyx sobre os erros da atividade (passo a passo, num modal)
   const [errorSections, setErrorSections] = useState([]);
   const [errorEncouragement, setErrorEncouragement] = useState("");
@@ -3754,7 +3762,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -3827,6 +3835,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       themeBeforeSpartan: s.themeBeforeSpartan || null,
       treasureFound: s.treasureFound || false,
       spartanIntroShown: s.spartanIntroShown || false,
+      warmupDay: s.warmupDay || null,
       nyxPoints: s.nyxPoints || 0,
       nyxSpent: s.nyxSpent || 0,
       nyxOwned: s.nyxOwned || [],
@@ -3870,6 +3879,62 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     window.addEventListener("online", onOnline);
     return () => { window.removeEventListener("offline", onOffline); window.removeEventListener("online", onOnline); };
   }, [persist]);
+
+  // 🔥 aquecimento do dia (revisão espaçada): assim que o aluno entra — depois do onboarding e do
+  // tour — o Nyx monta 3 perguntinhas rápidas sobre o resumo da aula ANTERIOR. Concluiu, ganha
+  // pontos e não aparece de novo no dia; "Agora não" também silencia pelo resto do dia.
+  useEffect(() => {
+    if (!loaded || accessMode || phase !== "coding") return;
+    if (showNyxPrefs || showIntro || tourStep >= 0) return;
+    if (warmupRequestedRef.current) return;
+    const tk = todayKey();
+    if (warmupDay === tk) return;
+    try { if (localStorage.getItem(`nyx_warmup_skip_${tk}_${shift}_${studentName}`) === "1") return; } catch {}
+    // resumo mais recente ANTERIOR a hoje (quem nunca teve aula ainda não tem aquecimento)
+    const days = Object.keys(summaryHistory || {}).filter(d => d < tk).sort();
+    const lastDay = days[days.length - 1];
+    if (!lastDay) return;
+    const sum = (detailedSummaryHistory || {})[lastDay] || summaryHistory[lastDay];
+    if (!sum || !Array.isArray(sum.secoes) || !sum.secoes.length) return;
+    warmupRequestedRef.current = true;
+    (async () => {
+      try {
+        const conceitos = sum.secoes.map(sec => `- ${sec.titulo}: ${sec.explicacao || ""}`).join("\n");
+        const data = await askClaudeJson(
+          `Este foi o resumo da última aula de C# de um aluno iniciante:\n${sum.intro || ""}\n${conceitos}\n\nCrie um "aquecimento" de revisão com EXATAMENTE 3 perguntas de múltipla escolha BEM RÁPIDAS e diretas sobre esses conceitos (nível fácil — o objetivo é relembrar, não pegar ninguém). Cada pergunta com 4 alternativas curtas.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{ "perguntas": [ { "pergunta": "texto curto", "alternativas": ["a","b","c","d"], "correta": 0, "explicacao": "1 frase simples relembrando o porquê" } ] }`,
+          "Você é o Nyx, robô-tutor de C# para adolescentes iniciantes. Português simples e correto. Responda APENAS JSON puro válido."
+        );
+        const qs = Array.isArray(data?.perguntas) ? data.perguntas.filter(q => q && q.pergunta && Array.isArray(q.alternativas) && q.alternativas.length >= 2 && q.alternativas[q.correta] != null) : [];
+        if (!qs.length) return;
+        // embaralha as alternativas de cada pergunta (guardando onde a certa foi parar)
+        const shuffled = qs.slice(0, 3).map(q => {
+          const idx = q.alternativas.map((_, i) => i).sort(() => Math.random() - 0.5);
+          return { pergunta: q.pergunta, alternativas: idx.map(i => q.alternativas[i]), correta: idx.indexOf(q.correta), explicacao: q.explicacao || "" };
+        });
+        setWarmup({ questions: shuffled });
+        setWarmupStep(0); setWarmupPicked(null); setWarmupCorrect(0);
+        setWarmupOpen(true);
+      } catch { /* Nyx offline: hoje fica sem aquecimento, sem drama */ }
+    })();
+  }, [loaded, accessMode, phase, showNyxPrefs, showIntro, tourStep, warmupDay, summaryHistory, detailedSummaryHistory, shift, studentName]);
+
+  const finishWarmup = async () => {
+    const earned = warmupCorrect; // 1 ponto por acerto
+    const newPoints = (stateRef.current.nyxPoints || 0) + earned;
+    setWarmupOpen(false);
+    setWarmupDay(todayKey());
+    if (earned > 0) {
+      setNyxPoints(newPoints);
+      checkPointsAchievements(newPoints);
+      await persist({ warmupDay: todayKey(), nyxPoints: newPoints });
+    } else {
+      await persist({ warmupDay: todayKey() });
+    }
+  };
+  const skipWarmup = () => {
+    try { localStorage.setItem(`nyx_warmup_skip_${todayKey()}_${shift}_${studentName}`, "1"); } catch {}
+    setWarmupOpen(false);
+  };
 
   // ── anti-cola: durante a prova ativa, cada saída da aba é contada (e desconta 10 pts no fim) ──
   const examActive = examInfo.status === 'active' && !examDone;
@@ -4013,6 +4078,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.themeBeforeSpartan) setThemeBeforeSpartan(prev.themeBeforeSpartan);
           if (prev.treasureFound) setTreasureFound(true);
           if (prev.spartanIntroShown) setSpartanIntroShown(true);
+          if (prev.warmupDay) setWarmupDay(prev.warmupDay);
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
           if (prev.nyxSpent) setNyxSpent(prev.nyxSpent);
           if (prev.duelWins) setDuelWins(prev.duelWins);
@@ -5871,6 +5937,67 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           </div>
         </div>
       </div>
+
+      {/* 🔥 aquecimento do dia: 3 perguntinhas sobre a aula anterior, com pontos por acerto */}
+      {warmupOpen && warmup && (() => {
+        const finished = warmupStep >= warmup.questions.length;
+        const q = warmup.questions[warmupStep];
+        return (
+          <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1050, padding:16 }}>
+            <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #fb923c66", borderRadius:22, padding:"24px 24px", maxWidth:480, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 50px #fb923c22" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
+                <span style={{ fontSize:30, animation:"nyx-float 3s ease-in-out infinite" }}>🔥</span>
+                <div style={{ flex:1 }}>
+                  <h2 style={{ margin:0, fontSize:19, fontWeight:900, background:"linear-gradient(135deg,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Aquecimento do dia</h2>
+                  <div style={{ color:"#96a0cc", fontSize:12 }}>{finished ? "revisão concluída!" : `relembrando a última aula · ${warmupStep+1} de ${warmup.questions.length}`}</div>
+                </div>
+                {!finished && <button onClick={skipWarmup} title="Pular o aquecimento de hoje" style={{ background:"transparent", border:"1px solid #3b4378", borderRadius:8, color:"#96a0cc", fontSize:12, padding:"4px 10px", cursor:"pointer", flexShrink:0 }}>Agora não</button>}
+              </div>
+              {!finished && (
+                <>
+                  <p style={{ color:"#e8ebfa", fontSize:15, fontWeight:700, lineHeight:1.6, margin:"6px 0 12px" }}>{q.pergunta}</p>
+                  <div style={{ display:"grid", gap:8 }}>
+                    {q.alternativas.map((alt, i) => {
+                      const picked = warmupPicked != null;
+                      const isRight = i === q.correta;
+                      const isMine = warmupPicked === i;
+                      return (
+                        <button key={i} disabled={picked} onClick={() => { setWarmupPicked(i); if (i === q.correta) setWarmupCorrect(c => c + 1); }}
+                          style={{ textAlign:"left", background: picked ? (isRight ? "#34d39922" : isMine ? "#f8717122" : "#0d1122") : "#0d1122",
+                            border: `2px solid ${picked ? (isRight ? "#34d399" : isMine ? "#f87171" : "#241f38") : "#2a3154"}`,
+                            borderRadius:12, padding:"11px 14px", color:"#e8ebfa", fontSize:13.5, cursor: picked ? "default" : "pointer" }}>
+                          {picked && isRight ? "✅ " : picked && isMine ? "❌ " : ""}{alt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {warmupPicked != null && (
+                    <div className="pop" style={{ marginTop:12 }}>
+                      {q.explicacao && <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, margin:"0 0 10px" }}>💡 {q.explicacao}</p>}
+                      <button onClick={() => { setWarmupStep(s => s + 1); setWarmupPicked(null); }} style={{ ...styles.btn("#fb923c"), width:"100%", padding:"11px 0", fontSize:14 }}>
+                        {warmupStep + 1 >= warmup.questions.length ? "Ver resultado →" : "Próxima →"}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+              {finished && (
+                <div style={{ textAlign:"center" }}>
+                  <div style={{ fontSize:46, lineHeight:1 }}>{warmupCorrect === warmup.questions.length ? "🏆" : warmupCorrect > 0 ? "💪" : "🌱"}</div>
+                  <p style={{ color:"#e8ebfa", fontSize:16, fontWeight:800, margin:"10px 0 4px" }}>
+                    {warmupCorrect} de {warmup.questions.length} na revisão!
+                  </p>
+                  <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, margin:"0 0 6px" }}>
+                    {warmupCorrect === warmup.questions.length ? "Memória de elefante! O conteúdo de ontem está fresquinho." : warmupCorrect > 0 ? "Boa! Revisar assim é o que faz o conteúdo ficar de vez na cabeça." : "Tudo bem! Relembrar é exatamente pra isso — agora ficou mais fresco."}
+                  </p>
+                  {warmupCorrect > 0 && <p style={{ color:"#fbbf24", fontSize:14, fontWeight:900, margin:"0 0 12px" }}>+{warmupCorrect} ponto{warmupCorrect>1?"s":""} do Nyx! 💰</p>}
+                  <button onClick={finishWarmup} style={{ ...styles.btn("#fb923c"), width:"100%", padding:"12px 0", fontSize:14.5 }}>Bora programar! 🚀</button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {tourStep >= 0 && tourStep < TOUR_STEPS.length && (
         <TourOverlay step={tourStep} onNext={()=>setTourStep(s => (s+1 >= TOUR_STEPS.length ? -1 : s+1))} />
