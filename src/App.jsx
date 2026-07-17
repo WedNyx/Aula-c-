@@ -1790,6 +1790,58 @@ function ErrorWalkthroughCard({ errors, step, onNext, onPrev, onVerify, onClose,
   );
 }
 
+// balão flutuante com a explicação do erro, ancorado na ALTURA da linha sublinhada no editor (à
+// direita dele) — em vez de um card fixo na barra lateral, o balão "segue" a linha certa conforme
+// o aluno navega entre os erros ou rola o editor. Nunca fica em cima do código (fica ao lado).
+function FloatingErrorBubble({ errors, step, activeCode, onNext, onPrev, onVerify, onClose, verifying }) {
+  const e = errors[step];
+  const [pos, setPos] = useState(null);
+  useEffect(() => {
+    if (!e) { setPos(null); return; }
+    let raf;
+    const LINE_H = 21; // 14px * 1.5 — mesma fonte/altura de linha usada no VSEditor
+    const PAD_TOP = 12;
+    const update = () => {
+      const wrap = document.querySelector('[data-tour="editor"]');
+      const ta = wrap?.querySelector('textarea');
+      if (wrap && ta) {
+        const li = findLineIndex(activeCode, e.trecho);
+        const wrapRect = wrap.getBoundingClientRect();
+        const lineTop = wrapRect.top + PAD_TOP + (li >= 0 ? li : 0) * LINE_H - ta.scrollTop;
+        setPos(prev => (prev && prev.top===lineTop && prev.right===wrapRect.right && prev.wrapBottom===wrapRect.bottom)
+          ? prev : { top:lineTop, right:wrapRect.right, wrapTop:wrapRect.top, wrapBottom:wrapRect.bottom });
+      }
+      raf = requestAnimationFrame(update);
+    };
+    raf = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(raf);
+  }, [e, step, activeCode]);
+  if (!e || !pos) return null;
+  const clampedTop = Math.min(Math.max(pos.top, pos.wrapTop), Math.max(pos.wrapTop, pos.wrapBottom - 60));
+  return (
+    <div className="pop" key={step} style={{ position:"fixed", top:clampedTop, left:pos.right + 14, width:300, zIndex:995, background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #f8717166", borderRadius:14, padding:"12px 14px", boxShadow:"0 10px 28px rgba(0,0,0,.45)" }}>
+      {/* setinha apontando pra linha do editor */}
+      <div style={{ position:"absolute", left:-7, top:16, width:12, height:12, background:"#181d38", borderLeft:"1px solid #f8717166", borderBottom:"1px solid #f8717166", transform:"rotate(45deg)" }} />
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+        <span style={{ color:"#f87171", fontSize:11.5, fontWeight:800, letterSpacing:0.5 }}>⚠ Erro {step+1} de {errors.length}</span>
+        <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:17, cursor:"pointer", lineHeight:1 }}>✕</button>
+      </div>
+      <div style={{ background:"#0d1122", border:"1px solid #2c3358", borderRadius:8, padding:"5px 9px", fontFamily:"'Courier New',monospace", fontSize:12, color:"#f87171", overflowX:"auto", whiteSpace:"pre", marginBottom:8 }}>{e.trecho}</div>
+      <p style={{ color:"#c7cfee", fontSize:12.5, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
+      {e.exemplo && <div style={{ marginTop:8 }}><CodeBlock code={e.exemplo} /></div>}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:10, gap:6, flexWrap:"wrap" }}>
+        <div style={{ display:"flex", gap:5 }}>
+          {step > 0 && <button onClick={onPrev} style={{ background:"#2a3154", border:"none", borderRadius:9, color:"#e8ebfa", fontWeight:700, padding:"6px 10px", cursor:"pointer", fontSize:11.5 }}>← Ant.</button>}
+          {step < errors.length-1 && <button onClick={onNext} style={{ background:"#2a3154", border:"none", borderRadius:9, color:"#e8ebfa", fontWeight:700, padding:"6px 10px", cursor:"pointer", fontSize:11.5 }}>Próx. →</button>}
+        </div>
+        <button onClick={onVerify} disabled={verifying} style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", border:"none", borderRadius:9, color:"#fff", fontWeight:800, padding:"7px 12px", cursor:verifying?"default":"pointer", fontSize:11.5, opacity:verifying?0.6:1 }}>
+          {verifying ? "🔍 Verificando..." : "✅ Corrigi, verificar!"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 //  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
 // ════════════════════════════════════════════════════════════════════════════
@@ -3450,6 +3502,7 @@ function quickCheck(code){
 //  ALUNO
 // ════════════════════════════════════════════════════════════════════════════
 function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
+  const vw = useViewportWidth();
   const [showIntro, setShowIntro] = useState(!!isNew);
   const [files, setFiles] = useState([{ name:"Program.cs", code:"" }]);
   const [active, setActive] = useState(0);
@@ -3575,6 +3628,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const [nyxOwned, setNyxOwned] = useState([]);
   const [nyxGear, setNyxGear] = useState(DEFAULT_NYX_GEAR);
   const [showNyxShop, setShowNyxShop] = useState(false);
+  // anti-cola geral: true quando o professor está escrevendo em "Meu código" AGORA (não faz muito tempo)
+  const [teacherWriting, setTeacherWriting] = useState(false);
   const [duelWins, setDuelWins] = useState(0);
   // conquistas, ranking, meta da turma, curiosidade do dia, duelo, sons
   const [achievements, setAchievements] = useState([]);
@@ -4075,6 +4130,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         setMyClassDays(currentClassDays);
         setMyContentNames(m.contentNames || {});
       } catch {}
+      // o professor está escrevendo AGORA em "Meu código"? (salva a cada 1s enquanto ele digita —
+      // "escrevendo agora" = salvou nos últimos 6s) usado pro anti-cola: se o aluno estiver
+      // distraído em vez de copiando enquanto o professor passa o código, o Nyx traz ele de volta
+      try {
+        const tc = await getTeacherCode(shift);
+        setTeacherWriting(!!(tc && tc.at && Date.now() - tc.at < 6000));
+      } catch {}
       // ⌨️ o professor "empurrou" a abertura do tutorial de teclado pra este aluno
       try {
         const launchedAt = await getKeyboardLaunch(shift, studentName);
@@ -4309,6 +4371,29 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCode, pendingAutoVerify]);
+
+  // auto-análise silenciosa: se o aluno ficar 1 minuto inteiro sem digitar nada, o Nyx confere
+  // o código sozinho — sem avisar antes que vai analisar, só reagenda o timer a cada tecla
+  useEffect(() => {
+    if (analyzing || activeCode.trim().length < 12) return;
+    const t = setTimeout(() => { analyzeCode(); }, 60000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCode, analyzing]);
+
+  // anti-cola geral: o professor está passando código pra copiar (escrevendo em "Meu código" agora)
+  // e este aluno está distraído (loja, teclado ou duelo) em vez de copiar — depois de 10s parado
+  // nessa distração, o Nyx traz ele de volta sozinho pro editor, sem avisar nada antes
+  useEffect(() => {
+    const distracted = showNyxShop || showKeyboard || showDuel;
+    if (!teacherWriting || !distracted) return;
+    const t = setTimeout(() => {
+      setShowNyxShop(false);
+      setShowKeyboard(false);
+      setShowDuel(false);
+    }, 10000);
+    return () => clearTimeout(t);
+  }, [teacherWriting, showNyxShop, showKeyboard, showDuel]);
 
   // arquivos
   const updateActiveCode = (newCode) => setFiles(fs => fs.map((f,i)=> i===active ? { ...f, code:newCode } : f));
@@ -5567,15 +5652,28 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
         {/* Robô + atalhos */}
         <div className="side-col" style={{ width:250, flex:"0 0 250px" }}>
           {showErrorWalkthrough && codeErrors.length > 0 && (
-            <ErrorWalkthroughCard
-              errors={codeErrors}
-              step={Math.min(errorWalkStep, codeErrors.length-1)}
-              verifying={analyzing}
-              onPrev={()=>setErrorWalkStep(s=>Math.max(0,s-1))}
-              onNext={()=>setErrorWalkStep(s=>Math.min(codeErrors.length-1,s+1))}
-              onVerify={analyzeCode}
-              onClose={()=>setShowErrorWalkthrough(false)}
-            />
+            vw >= 900 ? (
+              <FloatingErrorBubble
+                errors={codeErrors}
+                step={Math.min(errorWalkStep, codeErrors.length-1)}
+                activeCode={activeCode}
+                verifying={analyzing}
+                onPrev={()=>setErrorWalkStep(s=>Math.max(0,s-1))}
+                onNext={()=>setErrorWalkStep(s=>Math.min(codeErrors.length-1,s+1))}
+                onVerify={analyzeCode}
+                onClose={()=>setShowErrorWalkthrough(false)}
+              />
+            ) : (
+              <ErrorWalkthroughCard
+                errors={codeErrors}
+                step={Math.min(errorWalkStep, codeErrors.length-1)}
+                verifying={analyzing}
+                onPrev={()=>setErrorWalkStep(s=>Math.max(0,s-1))}
+                onNext={()=>setErrorWalkStep(s=>Math.min(codeErrors.length-1,s+1))}
+                onVerify={analyzeCode}
+                onClose={()=>setShowErrorWalkthrough(false)}
+              />
+            )
           )}
           <div data-tour="nyx" className="cardfx" style={styles.card}>
             <NyxRobot state={robotState} size={88} gear={nyxGear} />
@@ -5702,7 +5800,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  CODE LAB  (editor + terminal + robô, reutilizável — usado pelo professor)
 // ════════════════════════════════════════════════════════════════════════════
-function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }], onChange = ()=>{}, strugglingStudents = [], terminalMaxHeight }) {
+function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }], onChange = ()=>{}, terminalMaxHeight, gear = DEFAULT_NYX_GEAR, onEquip = ()=>{} }) {
   const setFiles = (updater) => onChange(typeof updater === "function" ? updater(files) : updater);
   const [active, setActive] = useState(0);
   const [renaming, setRenaming] = useState(null);
@@ -5711,6 +5809,7 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
   const [robotMsg, setRobotMsg] = useState("");
   const [keysToShow, setKeysToShow] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
+  const [showShop, setShowShop] = useState(false);
   const activeCode = files[active]?.code || "";
 
   const updateActiveCode = (newCode) => setFiles(fs => fs.map((f,i)=> i===active ? { ...f, code:newCode } : f));
@@ -5799,19 +5898,13 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
 
       <div className="side-col" style={{ width:250, flex:"0 0 250px" }}>
         <div style={card}>
-          <NyxRobot state={robotState} size={88} context="teacher" />
+          <NyxRobot state={robotState} size={88} context="teacher" gear={gear} />
+          <button style={{ background:"transparent", border:"1px solid #7c83ff", color:"#7c83ff", borderRadius:8, width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5, cursor:"pointer", fontWeight:700 }} onClick={()=>setShowShop(true)}>🎁 Personalizar o Nyx</button>
           {robotMsg && (<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>{robotMsg}</div>)}
           {keysToShow.length>0 && (<div style={{ marginTop:10 }}><p style={{ color:accent, fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
         </div>
-        {strugglingStudents.length > 0 && (
-          <div style={{ ...card, borderColor:"#f87171", background:"linear-gradient(180deg,#2a1620,#1a1023)" }}>
-            <p style={{ color:"#f87171", fontWeight:800, marginBottom:6, fontSize:13 }}>⚠️ Nyx avisa: precisam de ajuda</p>
-            <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-              {strugglingStudents.map(s => (
-                <span key={s.name} style={{ color:"#fecaca", fontSize:12.5 }}>• <b>{s.name}</b></span>
-              ))}
-            </div>
-          </div>
+        {showShop && (
+          <NyxShop wallet={9999} owned={NYX_ITEMS.map(i=>i.id)} gear={gear} onEquip={onEquip} onBuy={()=>{}} isTestShift={true} onClose={()=>setShowShop(false)} />
         )}
         <div style={{ ...card, fontSize:12, color:"#5d679c", lineHeight:1.8 }}>
           <p style={{ color:accent, fontWeight:600, marginBottom:6 }}>👩‍🏫 O exemplo da aula</p>
@@ -5909,6 +6002,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [renameVal, setRenameVal] = useState("");
   const [scoreVal, setScoreVal] = useState("");
   const [mgmtMsg, setMgmtMsg] = useState("");
+  const [struggleNotice, setStruggleNotice] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [selAccessMode, setSelAccessMode] = useState(false);
   // perfis de apoio (educação inclusiva) do aluno selecionado + mapa geral pros tiles
@@ -6140,6 +6234,8 @@ function TeacherView({ onLogout, teacherAuth }) {
   }, [proFilesByShift, proLoaded]);
 
   const saveCity = async () => { const nm = { ...metaRef.current, city:cityInput.trim() }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
+  // personalização do Nyx do professor (acessórios cosméticos, sem custo — é só o professor mesmo)
+  const saveTeacherGear = async (newGear) => { const nm = { ...metaRef.current, nyxGear:newGear }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
   // 🏆 encerra a cidade atual: guarda uma placa no Hall da Fama com quem mais se destacou, pra
   // os alunos da PRÓXIMA cidade verem — não apaga nem reseta nada, é só um retrato do fechamento
   const doCloseCity = async () => {
@@ -6824,6 +6920,37 @@ function TeacherView({ onLogout, teacherAuth }) {
   // filtro por turno
   const shown = shiftFilter==="all" ? students : students.filter(s => (s.shift||"sem-turno")===shiftFilter);
   const sorted = [...shown].sort((a,b)=>(a.name||"").localeCompare(b.name||"","pt-BR"));
+  // erros mais comuns HOJE na turma: olha a última análise de cada aluno (feedback), categoriza
+  // pelo texto do erro e junta por categoria — ajuda o professor a saber o que reforçar no fechamento
+  const commonErrorsToday = (() => {
+    const CATS = [
+      { label:"Maiúscula/minúscula (Console.WriteLine etc.)", match:(t)=>/maiúscul|minúscul/i.test(t) },
+      { label:"Ponto e vírgula faltando",                     match:(t)=>/ponto.e.v[íi]rgula/i.test(t) },
+      { label:"Chaves, parênteses ou colchetes",               match:(t)=>/chave|parêntes|colchete/i.test(t) },
+      { label:"Aspas",                                         match:(t)=>/aspas/i.test(t) },
+      { label:"Variável usada sem declarar",                   match:(t)=>/declarar|não.declarad/i.test(t) },
+      { label:"Palavra-chave ou tipo errado",                  match:(t)=>/palavra-chave|tipo errado|min[úu]sculo/i.test(t) },
+      { label:"Comparação com = em vez de ==",                 match:(t)=>/==|comparação/i.test(t) },
+    ];
+    const tally = {};
+    shown.forEach(s => {
+      if (!s.hasError || !s.feedback) return;
+      const texts = Array.isArray(s.feedback.errors) && s.feedback.errors.length
+        ? s.feedback.errors.map(e => e.explicacao || "")
+        : [s.feedback.message || ""];
+      const seenCatsForStudent = new Set();
+      texts.forEach(t => {
+        const cat = CATS.find(c => c.match(t));
+        const label = cat ? cat.label : "Outros erros";
+        if (seenCatsForStudent.has(label)) return; // conta 1 aluno por categoria, não 1 por erro
+        seenCatsForStudent.add(label);
+        if (!tally[label]) tally[label] = { label, count:0, names:[] };
+        tally[label].count++;
+        tally[label].names.push(s.name);
+      });
+    });
+    return Object.values(tally).sort((a,b)=>b.count-a.count);
+  })();
   const sel = selected ? students.find(s=>s.name===selected) : null;
   useEffect(() => {
     let alive = true;
@@ -6917,6 +7044,22 @@ function TeacherView({ onLogout, teacherAuth }) {
   const present = shown.filter(isOnline).length;
   const goingWell = sorted.filter(s => difficultyOf(s).level==="bem");
   const needHelp  = sorted.filter(s => difficultyOf(s).level==="dif");
+  // notificação DE VERDADE na tela do professor (não só um aviso escondido dentro de "Meu código"):
+  // toca sempre que um aluno NOVO passa a precisar de ajuda, em qualquer aba que o professor esteja
+  const needHelpNames = needHelp.map(s=>s.name).sort().join("|");
+  const prevNeedHelpRef = useRef("");
+  const mountedNeedHelpRef = useRef(false);
+  useEffect(() => {
+    const prevNames = new Set(prevNeedHelpRef.current ? prevNeedHelpRef.current.split("|") : []);
+    const newOnes = needHelp.filter(s => !prevNames.has(s.name));
+    if (mountedNeedHelpRef.current && newOnes.length > 0) {
+      setStruggleNotice(newOnes.map(s=>s.name).join(", "));
+      setTimeout(() => setStruggleNotice(null), 7000);
+    }
+    mountedNeedHelpRef.current = true;
+    prevNeedHelpRef.current = needHelpNames;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needHelpNames]);
   const feedbacks = sorted
     .filter(s => s.classFeedback && (s.classFeedback.rating || (s.classFeedback.text||"").trim()))
     .sort((a,b) => (b.classFeedback.at||0) - (a.classFeedback.at||0));
@@ -7001,6 +7144,15 @@ function TeacherView({ onLogout, teacherAuth }) {
 
   return (
     <div style={styles.container}>
+      {struggleNotice && (
+        <div style={{ position:"fixed", top:12, right:12, zIndex:1300, background:"linear-gradient(135deg,#f87171,#dc2626)", color:"#fff", borderRadius:14, padding:"12px 16px", boxShadow:"0 14px 40px rgba(0,0,0,.45)", display:"flex", alignItems:"center", gap:10, maxWidth:320 }}>
+          <span style={{ fontSize:22 }}>⚠️</span>
+          <div>
+            <div style={{ fontWeight:900, fontSize:13 }}>Precisando de ajuda</div>
+            <div style={{ fontSize:12, marginTop:2, lineHeight:1.4 }}>{struggleNotice}</div>
+          </div>
+        </div>
+      )}
       {aiDown && (
         <div style={{ position:"fixed", top:12, left:12, zIndex:1200, background:"#181d38", border:"1px solid #fbbf24", borderRadius:10, padding:"7px 12px", display:"flex", alignItems:"center", gap:8, boxShadow:"0 8px 24px rgba(0,0,0,.4)" }}>
           <span style={{ display:"inline-block", width:9, height:9, borderRadius:"50%", background:"#fbbf24", animation:"nyx-antenna 1s ease-in-out infinite" }} />
@@ -7363,6 +7515,21 @@ function TeacherView({ onLogout, teacherAuth }) {
               <button style={{ ...styles.btn("#7c83ff"), padding:"6px 12px", fontSize:13, marginTop:8, width:"100%", opacity:genName?0.6:1 }} onClick={generateContentNameFiltered} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo"}</button>
               {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12, marginTop:8, lineHeight:1.5 }}>{nameMsg}</p>}
             </div>
+
+            {commonErrorsToday.length > 0 && (
+              <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
+                <h4 style={{ color:"#f87171", fontSize:13, marginBottom:6 }}>🩹 Erros mais comuns agora</h4>
+                <p style={{ color:"#5d679c", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Baseado na última verificação do Nyx em cada aluno — bom pra saber o que reforçar no fechamento da aula.</p>
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {commonErrorsToday.slice(0, 6).map(c => (
+                    <div key={c.label} title={c.names.join(", ")} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"6px 10px" }}>
+                      <span style={{ color:"#e8ebfa", fontSize:12 }}>{c.label}</span>
+                      <span style={{ background:"#f8717122", border:"1px solid #f87171", color:"#f87171", borderRadius:20, padding:"1px 9px", fontSize:11, fontWeight:800 }}>{c.count} aluno{c.count>1?"s":""}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* direita */}
@@ -7673,11 +7840,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {/* ─────────── MEU CÓDIGO (exemplo da aula, do professor) — layout expandido tipo "tela cheia" ─────────── */}
-      {tab==="code" && (() => {
-        const strugglingNow = students
-          .filter(s => (s.shift||"sem-turno")===codeShift && (s.shift||"sem-turno")!==TEST_SHIFT.id)
-          .filter(s => difficultyOf(s).level==="dif");
-        return (
+      {tab==="code" && (
           <div style={{ padding:"8px 14px 14px" }}>
             <div className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, flexWrap:"wrap" }}>
@@ -7698,10 +7861,9 @@ function TeacherView({ onLogout, teacherAuth }) {
               {contentFor(codeShift) && <p style={{ color:"#34d399", fontSize:13, fontWeight:600, margin:"8px 0 0" }}>📖 Conteúdo de hoje ({shiftMeta(codeShift).label}): {contentFor(codeShift)}</p>}
               {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12.5, margin:"8px 0 0", lineHeight:1.5 }}>{nameMsg}</p>}
             </div>
-            <CodeLab key={codeShift} accent="#fbbf24" files={proFiles} onChange={setProFiles} strugglingStudents={strugglingNow} terminalMaxHeight={420} />
+            <CodeLab key={codeShift} accent="#fbbf24" files={proFiles} onChange={setProFiles} terminalMaxHeight={420} gear={meta.nyxGear||DEFAULT_NYX_GEAR} onEquip={saveTeacherGear} />
           </div>
-        );
-      })()}
+      )}
 
       {/* ─────────── CALENDÁRIO ─────────── */}
       {tab==="calendar" && (
