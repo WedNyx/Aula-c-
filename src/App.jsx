@@ -6027,6 +6027,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // 🏆 hall da fama: encerra a cidade atual e guarda uma placa com quem se destacou
   const [hallMsg, setHallMsg] = useState("");
   const [confirmCloseCity, setConfirmCloseCity] = useState(false);
+  const [farewellBusy, setFarewellBusy] = useState(false);
   const [showTripOverview, setShowTripOverview] = useState(false);
   const [tripHallEntries, setTripHallEntries] = useState([]);
   const [shiftFilter, setShiftFilter] = useState("all");
@@ -6236,8 +6237,119 @@ function TeacherView({ onLogout, teacherAuth }) {
   const saveCity = async () => { const nm = { ...metaRef.current, city:cityInput.trim() }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
   // personalização do Nyx do professor (acessórios cosméticos, sem custo — é só o professor mesmo)
   const saveTeacherGear = async (newGear) => { const nm = { ...metaRef.current, nyxGear:newGear }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
+  // 📄 relatório de despedida: um PDF-lembrança da cidade que está sendo encerrada, com o
+  // retrato da turma inteira (pódio, conquistas, médias) e uma mensagem de despedida do Nyx
+  const generateFarewellPDF = async ({ city, active, podio, totalClasses, avgScore, periodStart, periodEnd }) => {
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 48;
+    const maxW = pageW - margin * 2;
+    let y = margin;
+    const hexRgb = (hex) => {
+      const h = hex.replace("#", "");
+      const n = parseInt(h.length === 3 ? h.split("").map(c=>c+c).join("") : h, 16);
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    };
+    const clean = (t) => String(t || "").replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}️]/gu, "").replace(/\s+/g, " ").trim();
+    const ensureSpace = (needed) => { if (y + needed > pageH - margin - 16) { doc.addPage(); y = margin; } };
+    const writeParagraph = (text, opts = {}) => {
+      const { size = 10.5, font = "helvetica", style = "normal", color = "#2a2f45", lineGap = 4.5, x = margin, width = maxW, align = "left" } = opts;
+      doc.setFont(font, style); doc.setFontSize(size); doc.setTextColor(...hexRgb(color));
+      doc.splitTextToSize(String(text || " "), width).forEach(line => {
+        ensureSpace(size + lineGap);
+        doc.text(line, align === "center" ? x + width / 2 : x, y, align === "center" ? { align: "center" } : undefined);
+        y += size + lineGap;
+      });
+    };
+    const statBox = (x, w, label, value, accent) => {
+      doc.setFillColor(...hexRgb("#f2f4fc")); doc.setDrawColor(...hexRgb(accent));
+      doc.roundedRect(x, y, w, 60, 7, 7, "FD");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(...hexRgb(accent));
+      doc.text(String(value), x + w/2, y + 30, { align:"center" });
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...hexRgb("#5b6084"));
+      doc.text(clean(label), x + w/2, y + 46, { align:"center" });
+    };
+
+    // ── CAPA ──
+    doc.setFillColor(...hexRgb("#12162e")); doc.rect(0, 0, pageW, pageH, "F");
+    doc.setFillColor(...hexRgb("#1b2144"));
+    doc.circle(pageW - 60, 90, 130, "F");
+    doc.circle(40, pageH - 80, 100, "F");
+    doc.setFillColor(...hexRgb("#fbbf24")); doc.roundedRect(margin, 210, 64, 7, 3, 3, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(30); doc.setTextColor(255, 255, 255);
+    doc.text("Relatório de Despedida", margin, 262);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(...hexRgb("#fbbf24"));
+    doc.text(clean(city), margin, 292);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(13); doc.setTextColor(...hexRgb("#aeb6e8"));
+    doc.text(clean(`Aula de C#  •  ${periodStart} a ${periodEnd}`), margin, 316);
+    doc.setFont("courier", "normal"); doc.setFontSize(10); doc.setTextColor(...hexRgb("#4a5388"));
+    doc.text('Console.WriteLine("Foi uma honra ensinar aqui!");', margin, pageH - 70);
+
+    // ── NÚMEROS DA TURMA ──
+    doc.addPage(); y = margin;
+    doc.setFillColor(...hexRgb("#fbbf24")); doc.roundedRect(margin, y - 6, maxW, 40, 8, 8, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(255,255,255);
+    doc.text("A TURMA EM NÚMEROS", margin + 16, y + 19);
+    y += 58;
+    const boxW = (maxW - 16) / 3;
+    statBox(margin, boxW, "alunos atendidos", active.length, "#7c83ff");
+    statBox(margin + boxW + 8, boxW, "aulas dadas", totalClasses, "#34d399");
+    statBox(margin + (boxW + 8) * 2, boxW, "nota média da turma", avgScore || "-", "#fbbf24");
+    y += 84;
+
+    // ── PÓDIO ──
+    writeParagraph("Quem mais se destacou", { size: 14, style: "bold", color: "#1f2547" });
+    y += 4;
+    if (podio.length) {
+      const medals = ["1º lugar", "2º lugar", "3º lugar"];
+      podio.forEach((p, i) => {
+        ensureSpace(34);
+        doc.setFillColor(...hexRgb(i===0?"#fbbf24":i===1?"#c7cbe8":"#d99a5b"));
+        doc.roundedRect(margin, y - 12, 26, 26, 6, 6, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(255,255,255);
+        doc.text(String(i+1), margin + 13, y + 4, { align:"center" });
+        writeParagraph(`${clean(p.name)} — ${clean(p.highlight)}`, { size: 11, x: margin + 34, width: maxW - 34 });
+      });
+    } else {
+      writeParagraph("Nenhum destaque com nota ou pontos registrados nesta cidade.", { size: 10.5, style:"italic", color:"#8a8fa8" });
+    }
+    y += 14;
+
+    // ── CONQUISTAS DA TURMA ──
+    writeParagraph("Conquistas da turma", { size: 14, style: "bold", color: "#1f2547" });
+    y += 2;
+    const totalAch = active.reduce((sum,s) => sum + (s.achievements||[]).length, 0);
+    const allEggsFinders = active.filter(s => (s.achievements||[]).includes("todos-segredos")).length;
+    writeParagraph(clean(`No total, a turma desbloqueou ${totalAch} conquistas. ${allEggsFinders > 0 ? `${allEggsFinders} aluno(s) encontraram TODOS os segredos escondidos do Nyx! 🏆` : ""}`), { size: 10.5 });
+    y += 10;
+
+    // ── MENSAGEM DE DESPEDIDA ──
+    ensureSpace(90);
+    doc.setFillColor(...hexRgb("#fff7e0")); doc.setDrawColor(...hexRgb("#f0d896"));
+    const farewellText = clean(`Foi uma honra fazer parte da jornada de vocês em ${city}! Cada linha de código escrita, cada erro corrigido e cada conquista desbloqueada mostra o quanto essa turma cresceu. Continuem curiosos, continuem programando — o Nyx torce por vocês, onde quer que a carreta vá agora. Até a próxima!`);
+    const flLines = doc.splitTextToSize(farewellText, maxW - 24);
+    const fh = flLines.length * 14 + 20;
+    doc.roundedRect(margin, y - 4, maxW, fh, 8, 8, "FD");
+    doc.setFont("helvetica", "italic"); doc.setFontSize(10.5); doc.setTextColor(...hexRgb("#8a6d1a"));
+    flLines.forEach((ln, j) => doc.text(ln, margin + 12, y + 14 + j * 14));
+    y += fh + 10;
+
+    // ── rodapé (pula a capa) ──
+    const total = doc.getNumberOfPages();
+    for (let p = 2; p <= total; p++) {
+      doc.setPage(p);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...hexRgb("#9aa1c2"));
+      doc.text("Aula de C#  •  relatório de despedida", margin, pageH - 24);
+      doc.text(`${p - 1} / ${total - 1}`, pageW - margin, pageH - 24, { align: "right" });
+    }
+    doc.save(`despedida-${(city||"cidade").toLowerCase().replace(/[^a-z0-9]+/g,"-")}-${todayKey()}.pdf`);
+  };
+
   // 🏆 encerra a cidade atual: guarda uma placa no Hall da Fama com quem mais se destacou, pra
-  // os alunos da PRÓXIMA cidade verem — não apaga nem reseta nada, é só um retrato do fechamento
+  // os alunos da PRÓXIMA cidade verem — não apaga nem reseta nada, é só um retrato do fechamento,
+  // e também gera um PDF de despedida pro professor guardar/imprimir
   const doCloseCity = async () => {
     setConfirmCloseCity(false);
     if (!meta.city) { setHallMsg("❌ Defina o nome da cidade antes de encerrar."); setTimeout(()=>setHallMsg(""), 5000); return; }
@@ -6264,7 +6376,19 @@ function TeacherView({ onLogout, teacherAuth }) {
     const totalClasses = Math.max(0, cumulativeClassDays - previousCumulative);
     const next = [...entries, { city: meta.city, students: podio, closedAt: Date.now(), totalStudents: active.length, totalClasses, avgScore, classDaysSnapshot: cumulativeClassDays }];
     await saveHallOfFame(next, teacherAuth);
-    setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama! Os alunos da próxima cidade já vão poder ver.`);
+    setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama! Gerando o relatório de despedida em PDF...`);
+    setFarewellBusy(true);
+    try {
+      const daysThisCity = [...(meta.classDays||[])].sort().slice(-Math.max(totalClasses,1));
+      const fmt = (k) => { try { const [y,m,d] = String(k).split("-"); return `${d}/${m}/${y}`; } catch { return k; } };
+      const periodStart = daysThisCity.length ? fmt(daysThisCity[0]) : fmt(todayKey());
+      const periodEnd = daysThisCity.length ? fmt(daysThisCity[daysThisCity.length-1]) : fmt(todayKey());
+      await generateFarewellPDF({ city: meta.city, active, podio, totalClasses, avgScore, periodStart, periodEnd });
+      setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama e o relatório de despedida foi baixado!`);
+    } catch {
+      setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama! (Não consegui gerar o PDF de despedida agora — tente de novo se quiser.)`);
+    }
+    setFarewellBusy(false);
     setTimeout(()=>setHallMsg(""), 8000);
   };
   const saveSchedule = async () => {
@@ -7891,14 +8015,14 @@ function TeacherView({ onLogout, teacherAuth }) {
             <p style={{ color:"#96a0cc", fontSize:13 }}>Total de dias de aula registrados: <b style={{ color:"#e8ebfa" }}>{(meta.classDays||[]).length}</b></p>
             <hr style={{ borderColor:"#2a3154", margin:"14px 0" }}/>
             <p style={{ color:"#fbbf24", fontWeight:700, fontSize:13, marginBottom:6 }}>🏆 Hall da Fama</p>
-            <p style={{ color:"#96a0cc", fontSize:12.5, lineHeight:1.6, margin:"0 0 10px" }}>Quando a carreta for mudar de cidade, encerre aqui: guarda uma placa com quem mais se destacou, pros alunos da próxima cidade verem. Não apaga nada da turma atual.</p>
+            <p style={{ color:"#96a0cc", fontSize:12.5, lineHeight:1.6, margin:"0 0 10px" }}>Quando a carreta for mudar de cidade, encerre aqui: guarda uma placa com quem mais se destacou, pros alunos da próxima cidade verem, e baixa um relatório de despedida em PDF pra você guardar. Não apaga nada da turma atual.</p>
             {confirmCloseCity ? (
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                <button style={{ ...styles.btn("#fbbf24") }} onClick={doCloseCity}>Sim, encerrar {meta.city || "a cidade"}</button>
-                <button style={styles.btn("#2a3154")} onClick={()=>setConfirmCloseCity(false)}>Cancelar</button>
+                <button style={{ ...styles.btn("#fbbf24"), opacity:farewellBusy?0.6:1 }} onClick={doCloseCity} disabled={farewellBusy}>{farewellBusy ? "Gerando relatório..." : `Sim, encerrar ${meta.city || "a cidade"}`}</button>
+                <button style={styles.btn("#2a3154")} onClick={()=>setConfirmCloseCity(false)} disabled={farewellBusy}>Cancelar</button>
               </div>
             ) : (
-              <button style={{ ...styles.btn("#fbbf24"), width:"100%" }} onClick={()=>setConfirmCloseCity(true)}>🏆 Encerrar cidade e gerar placa</button>
+              <button style={{ ...styles.btn("#fbbf24"), width:"100%" }} onClick={()=>setConfirmCloseCity(true)}>🏆 Encerrar cidade e gerar placa + relatório</button>
             )}
             {hallMsg && <p style={{ color: hallMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:8, lineHeight:1.5 }}>{hallMsg}</p>}
             <button style={{ ...styles.btn("#06b6d4"), width:"100%", marginTop:10 }} onClick={()=>{ getHallOfFame().then(setTripHallEntries); setShowTripOverview(true); }}>📊 Visão da Viagem</button>
