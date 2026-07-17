@@ -3515,12 +3515,18 @@ function quickCheck(code){
 // ════════════════════════════════════════════════════════════════════════════
 //  ALUNO
 // ════════════════════════════════════════════════════════════════════════════
-function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
+function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initialBirthDate, initialCpf }) {
   const vw = useViewportWidth();
   // 🎛️ preferência de como o Nyx interage/explica — perguntada só pra perfil novo, antes até da
   // apresentação do Nyx e do tour, porque cada aluno (mais novo ou mais velho) prefere de um jeito
   const [showNyxPrefs, setShowNyxPrefs] = useState(!!isNew);
   const [nyxPrefs, setNyxPrefs] = useState({ tom:"divertido", estilo:"detalhada" });
+  // 🎓 dado sensível pro certificado (data de nascimento/CPF) — só pego uma vez, na criação do perfil,
+  // NUNCA exibido em nenhuma tela do aluno depois disso; só o professor vê isso, e só na planilha.
+  // Pra quem já tinha perfil (isNew=false), é recarregado do servidor (ver profile-load effect) —
+  // sem isso, salvar de novo apagaria o dado já cadastrado.
+  const [birthDate, setBirthDate] = useState(isNew ? (initialBirthDate || "") : "");
+  const [cpf, setCpf] = useState(isNew ? (initialCpf || "") : "");
   const [showIntro, setShowIntro] = useState(!!isNew);
   const [files, setFiles] = useState([{ name:"Program.cs", code:"" }]);
   const [active, setActive] = useState(0);
@@ -3716,7 +3722,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -3792,6 +3798,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
       nyxOwned: s.nyxOwned || [],
       nyxGear: s.nyxGear || DEFAULT_NYX_GEAR,
       nyxPrefs: s.nyxPrefs || { tom:"divertido", estilo:"detalhada" },
+      birthDate: s.birthDate || "",
+      cpf: s.cpf || "",
       achievements: s.achievements || [],
       duelWins: s.duelWins || 0,
       doneAt: s.doneAt || null,
@@ -3962,6 +3970,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             setNyxGear(loadedGear);
           }
           if (prev.nyxPrefs) setNyxPrefs(prev.nyxPrefs);
+          if (prev.birthDate) setBirthDate(prev.birthDate);
+          if (prev.cpf) setCpf(prev.cpf);
           // inventário: migra quem já usava itens antes da loja cobrar — o que está equipado vira comprado (de graça)
           {
             const equipped = Object.values(prev.nyxGear || {}).filter(Boolean);
@@ -6437,6 +6447,10 @@ function TeacherView({ onLogout, teacherAuth }) {
     const totalClasses = Math.max(0, cumulativeClassDays - previousCumulative);
     const next = [...entries, { city: meta.city, students: podio, closedAt: Date.now(), totalStudents: active.length, totalClasses, avgScore, classDaysSnapshot: cumulativeClassDays }];
     await saveHallOfFame(next, teacherAuth);
+    // 🔒 fim da turma nesta cidade: os responsáveis já sabiam que isso aconteceria — apaga data de
+    // nascimento e CPF de todo mundo (dado sensível só existia pra gerar certificado enquanto durou
+    // a turma). Depois disso ninguém mais tem acesso, nem o professor — some da planilha também.
+    await Promise.all(active.filter(s => s.birthDate || s.cpf).map(s => patchStudent(s.shift, s.name, { birthDate:"", cpf:"" })));
     setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama! Gerando o relatório de despedida em PDF...`);
     setFarewellBusy(true);
     try {
@@ -6445,12 +6459,12 @@ function TeacherView({ onLogout, teacherAuth }) {
       const periodStart = daysThisCity.length ? fmt(daysThisCity[0]) : fmt(todayKey());
       const periodEnd = daysThisCity.length ? fmt(daysThisCity[daysThisCity.length-1]) : fmt(todayKey());
       await generateFarewellPDF({ city: meta.city, active, podio, totalClasses, avgScore, periodStart, periodEnd });
-      setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama e o relatório de despedida foi baixado!`);
+      setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama, o relatório de despedida foi baixado, e a data de nascimento/CPF da turma foi apagada.`);
     } catch {
-      setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama! (Não consegui gerar o PDF de despedida agora — tente de novo se quiser.)`);
+      setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama e a data de nascimento/CPF da turma foi apagada! (Não consegui gerar o PDF de despedida agora — tente de novo se quiser.)`);
     }
     setFarewellBusy(false);
-    setTimeout(()=>setHallMsg(""), 8000);
+    setTimeout(()=>setHallMsg(""), 9000);
   };
   const saveSchedule = async () => {
     const nm = { ...metaRef.current, schedule };
@@ -6573,7 +6587,10 @@ function TeacherView({ onLogout, teacherAuth }) {
       return { v:"✗", st:"absent" };
     };
 
-    const totalCols = 5 + classDays.length; // ALUNO + dias + DIAS PRESENTES + MAIOR NOTA + SITUAÇÃO + DESTAQUE
+    // NASCIMENTO e CPF só entram na planilha (nunca no perfil do aluno) — dados sensíveis pro professor
+    // usar no certificado; a formatação de data e o "não sei" do CPF acontecem no cadastro do aluno
+    const fmtBirth = (b) => { if (!b) return "—"; const [y,m,d] = String(b).split("-"); return (y&&m&&d) ? `${d}/${m}/${y}` : "—"; };
+    const totalCols = 7 + classDays.length; // ALUNO + dias + DIAS PRESENTES + MAIOR NOTA + SITUAÇÃO + DESTAQUE + NASCIMENTO + CPF
     const xlsRows = [];
     const merges = [];
     const wide = (st) => Array.from({ length: totalCols }, () => ({ v: "", st })); // linha inteira com o mesmo estilo (pra faixa colorida cobrir a planilha toda)
@@ -6597,7 +6614,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       xlsRows.push({ cells, ht: 22 }); mergeRow();
 
       const dayHeaders = classDays.map(d => { const [, m, dd] = d.split("-"); return `${dd}/${m}`; });
-      xlsRows.push({ cells: ["ALUNO", ...dayHeaders, "DIAS PRESENTES","MAIOR NOTA","SITUAÇÃO","DESTAQUE"].map((h,i)=>({
+      xlsRows.push({ cells: ["ALUNO", ...dayHeaders, "DIAS PRESENTES","MAIOR NOTA","SITUAÇÃO","DESTAQUE","NASCIMENTO","CPF"].map((h,i)=>({
         v: h, st: { b:1, sz: i>0&&i<=classDays.length?9:11, color:"FFFFFF", fill:"303869", border:1, align: i>0 ? "center" : "left" },
       })) });
 
@@ -6623,6 +6640,8 @@ function TeacherView({ onLogout, teacherAuth }) {
           { v: maiorNota ?? "—", st:{ b:1, sz:12, color:"303869", fill, border:1, align:"center" } },
           situacao,
           { v: isDestaque ? "🌟 Aluno destaque da turma" : "", st:{ color:"8A6D1A", fill, border:1, align:"center" } },
+          { v: fmtBirth(s.birthDate), st:{ color:"5A6183", fill, border:1, align:"center" } },
+          { v: s.cpf || "—", st:{ color:"5A6183", fill, border:1, align:"center" } },
         ] });
       });
 
@@ -6634,7 +6653,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       xlsRows.push({ cells: [] });
     });
 
-    const colWidths = [34, ...classDays.map(()=>6), 16, 12, 18, 28];
+    const colWidths = [34, ...classDays.map(()=>6), 16, 12, 18, 28, 14, 18];
     const blob = xlsxBlob({ sheetName:"Turma", colWidths, rows:xlsRows, merges });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -8076,7 +8095,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             <p style={{ color:"#96a0cc", fontSize:13 }}>Total de dias de aula registrados: <b style={{ color:"#e8ebfa" }}>{(meta.classDays||[]).length}</b></p>
             <hr style={{ borderColor:"#2a3154", margin:"14px 0" }}/>
             <p style={{ color:"#fbbf24", fontWeight:700, fontSize:13, marginBottom:6 }}>🏆 Hall da Fama</p>
-            <p style={{ color:"#96a0cc", fontSize:12.5, lineHeight:1.6, margin:"0 0 10px" }}>Quando a carreta for mudar de cidade, encerre aqui: guarda uma placa com quem mais se destacou, pros alunos da próxima cidade verem, e baixa um relatório de despedida em PDF pra você guardar. Não apaga nada da turma atual.</p>
+            <p style={{ color:"#96a0cc", fontSize:12.5, lineHeight:1.6, margin:"0 0 10px" }}>Quando a carreta for mudar de cidade, encerre aqui: guarda uma placa com quem mais se destacou, pros alunos da próxima cidade verem, e baixa um relatório de despedida em PDF pra você guardar. Não apaga nada da turma atual — exceto a data de nascimento e o CPF de todos, que somem pra sempre (nem você mais tem acesso).</p>
             {confirmCloseCity ? (
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 <button style={{ ...styles.btn("#fbbf24"), opacity:farewellBusy?0.6:1 }} onClick={doCloseCity} disabled={farewellBusy}>{farewellBusy ? "Gerando relatório..." : `Sim, encerrar ${meta.city || "a cidade"}`}</button>
@@ -8386,6 +8405,11 @@ function Login({ onJoin }) {
   const vw = useViewportWidth();
   const isNarrow = vw < 720; // abaixo disso, a personalização do avatar empilha em vez de ficar em 2 colunas
   const [name, setName] = useState("");
+  // 🎓 data de nascimento + CPF — só pedidos na CRIAÇÃO do perfil, nunca aparecem de novo pro aluno depois
+  // (ficam escondidos do próprio perfil; o professor só vê isso ao gerar a planilha, pra usar no certificado)
+  const [birthDate, setBirthDate] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [cpfUnknown, setCpfUnknown] = useState(false);
   const [role, setRole] = useState(null);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -8413,10 +8437,10 @@ function Login({ onJoin }) {
   }, []);
   useEffect(() => { if (role==="student") loadProfiles(); }, [role, loadProfiles]);
 
-  const enterStudent = (studentName, avatarCfg, shiftId, isNew) => { goFullscreen(); onJoin("student", studentName, avatarCfg, shiftId || "matutino", isNew, null); };
+  const enterStudent = (studentName, avatarCfg, shiftId, isNew, regData) => { goFullscreen(); onJoin("student", studentName, avatarCfg, shiftId || "matutino", isNew, null, regData); };
   const handleNewStudent = () => {
     if(!name.trim()){ setError("Digite seu nome!"); return; }
-    enterStudent(name.trim(), avatar, shift, true);
+    enterStudent(name.trim(), avatar, shift, true, { birthDate: birthDate || "", cpf: cpfUnknown ? "" : (cpf || "") });
   };
   const openProfile = (p) => enterStudent(p.name, p.avatar, p.shift, false);
   // a senha do professor é validada no SERVIDOR (variável TEACHER_PASSWORD no Vercel) — nunca fica no código do site
@@ -8531,6 +8555,25 @@ function Login({ onJoin }) {
                 </div>
 
                 <input style={styles.input} placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} />
+                <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
+                  <div style={{ flex:"1 1 150px" }}>
+                    <label style={{ fontSize:11, color:"#96a0cc" }}>Data de nascimento
+                      <input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)}
+                        style={{ width:"100%", background:"#0d1122", border:"2px solid #2a3154", borderRadius:8, padding:"8px 10px", color:"#e8ebfa", fontSize:13, marginTop:3, boxSizing:"border-box" }} />
+                    </label>
+                  </div>
+                  <div style={{ flex:"1 1 150px" }}>
+                    <label style={{ fontSize:11, color:"#96a0cc" }}>CPF (opcional)
+                      <input value={cpf} disabled={cpfUnknown} placeholder="000.000.000-00" onChange={e=>setCpf(e.target.value)}
+                        style={{ width:"100%", background:"#0d1122", border:"2px solid #2a3154", borderRadius:8, padding:"8px 10px", color:"#e8ebfa", fontSize:13, marginTop:3, boxSizing:"border-box", opacity:cpfUnknown?0.5:1 }} />
+                    </label>
+                  </div>
+                </div>
+                <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, fontSize:11.5, color:"#96a0cc", cursor:"pointer" }}>
+                  <input type="checkbox" checked={cpfUnknown} onChange={e=>{ setCpfUnknown(e.target.checked); if (e.target.checked) setCpf(""); }} />
+                  Não sei o CPF
+                </label>
+                <p style={{ color:"#5d679c", fontSize:10.5, margin:"4px 0 0", lineHeight:1.5 }}>Só o professor vê isso, e só na hora de gerar a planilha pra fazer certificado — nunca aparece no seu perfil.</p>
                 <p style={{ color:"#96a0cc", fontSize:13, margin:"14px 0 8px", textAlign:"center" }}>🎨 Seu boneco:</p>
                 <AvatarPreview value={avatar} onChange={setAvatar} />
                 <AvatarControls value={avatar} onChange={setAvatar} part="basic" />
@@ -8573,7 +8616,7 @@ function Login({ onJoin }) {
 // ════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [session, setSession] = useState(null);
-  if (!session) return <Login onJoin={(role,name,avatar,shift,isNew,teacherAuth)=>setSession({role,name,avatar,shift,isNew,teacherAuth})} />;
+  if (!session) return <Login onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} />;
   if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} />;
-  return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} onLogout={()=>setSession(null)} />;
+  return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} />;
 }
