@@ -6433,6 +6433,9 @@ function TeacherView({ onLogout, teacherAuth }) {
   // estar necessariamente atualizado com o que foi passado hoje
   const [dailyPdfBusy, setDailyPdfBusy] = useState(false);
   const [dailyPdfMsg, setDailyPdfMsg] = useState("");
+  // 💌 boletim pros responsáveis (PDF com uma página por aluno do turno)
+  const [boletimBusy, setBoletimBusy] = useState(false);
+  const [boletimMsg, setBoletimMsg] = useState("");
   const [dailyPdfModal, setDailyPdfModal] = useState(null); // { shift, studentName } | null
   const [dailyPdfCode, setDailyPdfCode] = useState("");
   // biblioteca de aulas (as SUAS aulas salvas + modelos de exemplo) + backup completo
@@ -7258,6 +7261,119 @@ function TeacherView({ onLogout, teacherAuth }) {
     setDailyPdfBusy(false);
   };
 
+  // ── 💌 boletim pros responsáveis: UM PDF com uma página por aluno do turno, em linguagem
+  // simples pra família — presenças, o que aprendeu (sem termo técnico), conquistas e recado do Nyx ──
+  const exportBoletins = async (sh) => {
+    setBoletimBusy(true); setBoletimMsg("");
+    const turma = students.filter(s => (s.shift||"") === sh && (s.name||"").trim())
+      .sort((a,b)=>(a.name||"").localeCompare(b.name||"","pt-BR"));
+    if (!turma.length) { setBoletimMsg("⚠ Nenhum aluno nessa turma ainda."); setBoletimBusy(false); return; }
+    const classDays = [...new Set(meta.classDays || [])].sort();
+    const conteudos = [...new Set(Object.values(meta.contentNames || {}).map(v => contentNameFor(v, sh)).filter(Boolean))];
+
+    // UMA chamada de IA por turma: traduz o conteúdo do mês pra linguagem de responsável (leigo)
+    setBoletimMsg("🧠 O Nyx está escrevendo a parte 'o que seu filho aprendeu'...");
+    let aprendeu = null;
+    if (conteudos.length) {
+      try {
+        const r = await askClaudeJson(
+          `Numa carreta-escola itinerante, adolescentes tiveram aulas de programação C# este mês. Os conteúdos foram:\n${conteudos.map(c=>`- ${c}`).join("\n")}\n\nEscreva de 3 a 5 frases curtas explicando O QUE os alunos aprenderam, para os PAIS/RESPONSÁVEIS lerem — pessoas que não sabem nada de programação. Zero termo técnico sem explicar; foco no que o aluno agora sabe FAZER e por que isso é valioso.\n\nResponda APENAS JSON puro: { "frases": ["...", "..."] }`,
+          "Você escreve boletins escolares carinhosos e claros para famílias. Português simples e correto. Responda APENAS JSON puro válido."
+        );
+        if (Array.isArray(r?.frases) && r.frases.length) aprendeu = r.frases.map(f => String(f));
+      } catch {}
+    }
+    if (!aprendeu) aprendeu = conteudos.length ? conteudos.map(c => `Estudou: ${c}.`) : ["Participou das aulas de introdução à programação em C#, dando os primeiros passos no mundo da tecnologia."];
+
+    setBoletimMsg("📄 Montando os boletins...");
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 48;
+      const maxW = pageW - margin * 2;
+      const hexRgb = (hex) => { const h = hex.replace("#",""); const n = parseInt(h.length===3?h.split("").map(c=>c+c).join(""):h,16); return [(n>>16)&255,(n>>8)&255,n&255]; };
+      const clean = (t) => String(t || "").replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}️]/gu, "").replace(/\s+/g, " ").trim();
+      const accent = sh === "matutino" ? "#f59e0b" : "#7c83ff";
+      const mesBr = new Date().toLocaleDateString("pt-BR", { month:"long", year:"numeric" });
+
+      turma.forEach((s, idx) => {
+        if (idx > 0) doc.addPage();
+        let y = margin;
+        // cabeçalho
+        doc.setFillColor(...hexRgb(accent)); doc.roundedRect(margin, y - 8, maxW, 64, 10, 10, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(255,255,255);
+        doc.text("Boletim da Aula de C#", margin + 16, y + 16);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+        doc.text(clean(`${s.name}  •  ${meta.city ? meta.city + "  •  " : ""}${mesBr}`), margin + 16, y + 38);
+        y += 84;
+        const writeP = (text, opts = {}) => {
+          const { size = 11, style = "normal", color = "#2a2f45", x = margin, width = maxW, gap = 5 } = opts;
+          doc.setFont("helvetica", style); doc.setFontSize(size); doc.setTextColor(...hexRgb(color));
+          doc.splitTextToSize(String(text || " "), width).forEach(line => { doc.text(line, x, y); y += size + gap; });
+        };
+        writeP("Olá, família! Este é um resumo carinhoso do mês do seu filho (ou filha) na carreta da Aula de C#.", { size: 10.5, style:"italic", color:"#4a5170" });
+        y += 8;
+
+        // presença
+        const enrollFrom = s.createdAt ? dateKeyOf(s.createdAt) : (Object.keys(s.attendance||{}).sort()[0] || null);
+        // só dias já passados contam (o dia de HOJE só entra se o aluno já esteve presente —
+        // senão uma aula ainda em andamento viraria "falta" injusta no boletim)
+        const myDays = classDays.filter(d => (!enrollFrom || d >= enrollFrom) && (d < todayKey() || (s.attendance||{})[d] === "present"));
+        const presentes = myDays.filter(d => (s.attendance||{})[d] === "present").length;
+        const justificadas = myDays.filter(d => (s.attendance||{})[d] !== "present" && (s.justifications||{})[d]?.status === "approved").length;
+        const faltas = Math.max(0, myDays.length - presentes - justificadas);
+        writeP("Presença", { size: 13, style:"bold", color:"#1f2547" });
+        writeP(myDays.length
+          ? `Esteve presente em ${presentes} de ${myDays.length} dia${myDays.length===1?"":"s"} de aula${justificadas ? ` (${justificadas} falta${justificadas===1?"":"s"} justificada${justificadas===1?"":"s"})` : ""}${faltas ? ` e teve ${faltas} falta${faltas===1?"":"s"}` : ""}.`
+          : "As presenças deste mês ainda estão sendo registradas.");
+        y += 8;
+
+        // o que aprendeu (compartilhado da turma, escrito pra leigos)
+        writeP("O que aprendeu este mês", { size: 13, style:"bold", color:"#1f2547" });
+        aprendeu.forEach(f => {
+          doc.setFillColor(...hexRgb(accent)); doc.circle(margin + 4, y - 3.5, 2.5, "F");
+          writeP(clean(f), { x: margin + 14, width: maxW - 14 });
+        });
+        y += 8;
+
+        // conquistas e números
+        const conquistas = (s.achievements || []).map(id => achievementInfo(id)).filter(Boolean);
+        const destaque = conquistas.filter(a => !a.secret).slice(0, 3).map(a => a.label);
+        const linhas = (s.files || []).reduce((n,f) => n + (f.code ? f.code.split("\n").filter(l=>l.trim()).length : 0), 0);
+        const melhorNota = Object.values(s.scoreHistory || {}).reduce((b,v) => (v!=null && (b==null||v>b)) ? v : b, null);
+        writeP("Números do mês", { size: 13, style:"bold", color:"#1f2547" });
+        writeP(`Escreveu ${linhas} linha${linhas===1?"":"s"} de código de verdade${melhorNota!=null ? `, e a melhor nota nas atividades foi ${melhorNota}` : ""}.${conquistas.length ? ` Desbloqueou ${conquistas.length} medalha${conquistas.length===1?"":"s"} na plataforma${destaque.length ? ` — destaque pra: ${destaque.join(", ")}` : ""}.` : ""}`);
+        y += 8;
+
+        // recado do Nyx (robô-tutor) — escolhido pelos números, sem depender de IA
+        const recado =
+          presentes >= 5 && melhorNota != null && melhorNota >= 70 ? "Que mês! Presença firme e notas ótimas. Programar já está virando coisa natural — continuem incentivando em casa, porque tem futuro aqui." :
+          linhas >= 100 ? "Esse aluno escreveu MUITO código este mês. A prática é o que forma programadores de verdade — estou orgulhoso!" :
+          presentes >= 3 ? "Foi uma alegria ter esse aluno na carreta. Cada aula foi um passo — e os passos já estão virando caminhada. Até a próxima!" :
+          "Todo começo é um mundo novo, e o primeiro passo já foi dado. Espero ver essa evolução continuar — as portas da programação estão abertas!";
+        doc.setFillColor(...hexRgb("#f2f4fc")); doc.setDrawColor(...hexRgb("#d8dcf0"));
+        const recadoLines = doc.splitTextToSize(`Recado do Nyx (o robô-tutor da turma):  ${recado}`, maxW - 24);
+        const rh = recadoLines.length * 15 + 16;
+        doc.roundedRect(margin, y - 4, maxW, rh, 8, 8, "FD");
+        doc.setFont("helvetica", "italic"); doc.setFontSize(10.5); doc.setTextColor(...hexRgb("#4a5170"));
+        recadoLines.forEach((ln, j) => doc.text(ln, margin + 12, y + 13 + j * 15));
+        y += rh + 12;
+
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...hexRgb("#9aa1c2"));
+        doc.text("Aula de C#  •  boletim para a família", margin, pageH - 24);
+        doc.text(`${idx + 1} / ${turma.length}`, pageW - margin, pageH - 24, { align:"right" });
+      });
+
+      doc.save(`boletins-${sh}-${todayKey()}.pdf`);
+      setBoletimMsg(`✅ Boletins gerados (${turma.length} aluno${turma.length===1?"":"s"}, uma página cada).`);
+    } catch {
+      setBoletimMsg("❌ Não consegui gerar os boletins agora. Tente de novo.");
+    }
+    setBoletimBusy(false);
+  };
+
   // ── gestão de alunos: renomear, mover de turno, corrigir nota, excluir ──
   const flashMgmt = (msg) => { setMgmtMsg(msg); setTimeout(()=>setMgmtMsg(""), 6000); };
 
@@ -8053,6 +8169,18 @@ function TeacherView({ onLogout, teacherAuth }) {
               <p style={{ color:"#5d679c", fontSize:11.5, lineHeight:1.5, margin:"8px 0 0" }}>Programe o exemplo na aba <b>Meu código</b> e gere um nome automático. (Se ainda não programou, uso o código dos alunos.)</p>
               <button style={{ ...styles.btn("#7c83ff"), padding:"6px 12px", fontSize:13, marginTop:8, width:"100%", opacity:genName?0.6:1 }} onClick={generateContentNameFiltered} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo"}</button>
               {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12, marginTop:8, lineHeight:1.5 }}>{nameMsg}</p>}
+            </div>
+
+            <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
+              <h4 style={{ color:"#f9a8d4", fontSize:13, marginBottom:6 }}>💌 Boletim pros responsáveis</h4>
+              <p style={{ color:"#5d679c", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Um PDF com uma página por aluno, em linguagem simples pra família: presenças, o que aprendeu, medalhas e um recado do Nyx. Bom pra mandar pra casa no fim do mês.</p>
+              {SHIFTS.map(sh => (
+                <button key={sh.id} onClick={()=>exportBoletins(sh.id)} disabled={boletimBusy}
+                  style={{ ...styles.btn("#ec4899"), padding:"6px 12px", fontSize:12.5, width:"100%", marginTop:6, opacity: boletimBusy ? 0.6 : 1 }}>
+                  {boletimBusy ? "Gerando..." : `💌 Gerar boletins da turma ${sh.label}`}
+                </button>
+              ))}
+              {boletimMsg && <p style={{ color: boletimMsg.startsWith("✅") ? "#34d399" : boletimMsg.startsWith("❌") ? "#f87171" : "#fbbf24", fontSize:12, marginTop:8, lineHeight:1.5 }}>{boletimMsg}</p>}
             </div>
 
             <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
