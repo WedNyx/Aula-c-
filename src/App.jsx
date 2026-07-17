@@ -1674,9 +1674,14 @@ const TOUR_STEPS = [
   { sel:'[data-tour="arquivos"]', emoji:"📄", title:"Seus arquivos",         text:"Crie quantos arquivos .cs quiser. Eles fazem parte do mesmo projeto e funcionam juntos, como no VS Code!" },
   { sel:'[data-tour="nyx"]',      emoji:"🤖", title:"Eu fico aqui!",          text:"Enquanto você escreve, eu confiro seu código. Se algo estiver errado, mostro onde está, como corrigir e até as teclas para apertar." },
   { sel:'[data-tour="loja"]',     emoji:"🎁", title:"Loja do Nyx",            text:"Cada resposta certa nas atividades e provas vira pontos! Use-os aqui para desbloquear e equipar acessórios em mim: chapéu, fone, espada e muito mais." },
+  { sel:'[data-tour="teclado"]',  emoji:"⌨️", title:"Tutorial de teclado",   text:"Ainda não decorou onde fica cada tecla? Aqui tem um tutorial completo, no seu ritmo, sempre que quiser treinar." },
+  { sel:'[data-tour="ajuda"]',    emoji:"✋", title:"Precisa de ajuda?",      text:"Travou em alguma coisa? Clique aqui: seu nome acende na tela do professor e ele vem te ajudar." },
+  { sel:'[data-tour="hall"]',     emoji:"🏆", title:"Hall da Fama",          text:"Veja quem se destacou nas cidades por onde a carreta já passou antes de chegar aqui!" },
   { sel:'[data-tour="terminal"]', emoji:"⌨️", title:"Terminal como o do VS Code", text:"Digite dotnet run e aperte Enter para executar seu programa! Também tem dotnet build, dir, cls e ajuda. Quando o programa pedir algo, é só digitar." },
   { sel:'[data-tour="salvar"]',   emoji:"💾", title:"Salvar e finalizar",    text:"Quando terminar o código do dia, clique aqui: eu crio um resumo da aula e uma atividade feita só para você." },
+  { sel:'[data-tour="turma"]',    emoji:"🏆", title:"Turma & Você",           text:"Aqui você acompanha o ranking da turma, suas conquistas, o caderno de resumos, seu desempenho, duelos contra colegas e a corrida de digitação!" },
   { sel:'[data-tour="tema"]',     emoji:"🎨", title:"Tema do fundo",         text:"Prefere claro ou escuro? Troque aqui. Quer outra cor? É só me pedir no chat que eu mudo para você!" },
+  { sel:'[data-tour="acessibilidade"]', emoji:"♿", title:"Deixe do seu jeito", text:"Letras maiores, eu lendo tudo em voz alta com a voz que você escolher, ou tela cheia — esses botões deixam a plataforma mais confortável pra você." },
   { sel:'[data-tour="chat"]',     emoji:"💬", title:"Fale comigo!",          text:"Qualquer dúvida de C#, abre este botão e conversa comigo. Estou sempre por aqui. Bora programar? 🚀" },
 ];
 
@@ -5380,7 +5385,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             </button>
           )}
           <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={toggleMuted} title={muted?"Ativar sons":"Silenciar sons"}>{muted?"🔇":"🔊"}</button>
-          <button style={{ ...styles.btn(largeUiMode?"#06b6d4":"#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>{ setLargeUiMode(!largeUiMode); try { localStorage.setItem("nyx_large_ui", !largeUiMode?"1":"0"); } catch {} }} title={largeUiMode?"Desativar modo acessível":"Ativar modo acessível (letras maiores)"}>♿</button>
+          <button data-tour="acessibilidade" style={{ ...styles.btn(largeUiMode?"#06b6d4":"#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>{ setLargeUiMode(!largeUiMode); try { localStorage.setItem("nyx_large_ui", !largeUiMode?"1":"0"); } catch {} }} title={largeUiMode?"Desativar modo acessível":"Ativar modo acessível (letras maiores)"}>♿</button>
           {ttsSupported && <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>setShowVoicePicker(true)} title="Escolher a voz do Nyx (leitura em voz alta)">🗣️</button>}
           <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={tryFullscreen}>⛶ Tela cheia</button>
           <button style={{ ...styles.btn("#f87171"), padding:"6px 12px", fontSize:12 }} onClick={onLogout}>Sair</button>
@@ -5683,15 +5688,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
             </div>)}
             {keysToShow.length>0&&(<div style={{ marginTop:10 }}><p style={{ color:"#fbbf24", fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
             {helpAt
-              ? <button onClick={cancelHelp} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="O professor já foi avisado — clique pra cancelar o pedido">✋ Professor avisado! (cancelar)</button>
-              : <button onClick={askHelp} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Acende seu nome no painel do professor pra ele vir te ajudar">✋ Pedir ajuda do professor</button>}
+              ? <button data-tour="ajuda" onClick={cancelHelp} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="O professor já foi avisado — clique pra cancelar o pedido">✋ Professor avisado! (cancelar)</button>
+              : <button data-tour="ajuda" onClick={askHelp} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Acende seu nome no painel do professor pra ele vir te ajudar">✋ Pedir ajuda do professor</button>}
             {!focusMode && <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
               🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
             </button>}
-            <button onClick={()=>setShowKeyboard(true)} style={{ ...styles.btn("#22d3ee"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Aprenda onde fica cada tecla, no seu ritmo — pode treinar quando quiser">
+            <button data-tour="teclado" onClick={()=>setShowKeyboard(true)} style={{ ...styles.btn("#22d3ee"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Aprenda onde fica cada tecla, no seu ritmo — pode treinar quando quiser">
               ⌨️ Tutorial de Teclado
             </button>
-            <button onClick={()=>{ setShowHallOfFame(true); getHallOfFame().then(setHallEntries); }} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja quem se destacou nas cidades por onde a carreta já passou">
+            <button data-tour="hall" onClick={()=>{ setShowHallOfFame(true); getHallOfFame().then(setHallEntries); }} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja quem se destacou nas cidades por onde a carreta já passou">
               🏆 Hall da Fama
             </button>
             {pendingAbsences.length>0 && (
@@ -5700,7 +5705,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew }) {
               </button>
             )}
           </div>
-          <div className="cardfx" style={styles.card}>
+          <div data-tour="turma" className="cardfx" style={styles.card}>
             <p style={{ color:"#fbbf24", fontWeight:700, marginBottom:8, fontSize:13 }}>🏆 Turma & Você</p>
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               {!focusMode && <button onClick={()=>setShowRanking(true)} style={{ ...styles.btn("#22d3ee"), fontSize:12, padding:"7px 0" }}>📊 Ranking da turma</button>}
