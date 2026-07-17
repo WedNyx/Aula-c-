@@ -124,6 +124,25 @@ export async function clearBoss(auth) {
   try { await kvCall({ action: 'delete', key: BOSS_KEY, auth }) } catch {}
 }
 
+// 🏟️ torneio da turma (chaveamento no telão): só o professor escreve; os alunos leem no tick
+// e respondem gravando a pontuação no PRÓPRIO perfil (tourneyAnswer), que o telão apura
+const TOURNEY_KEY = 'tourney:config'
+export async function getTourney() {
+  try {
+    const r = await kvCall({ action: 'get', key: TOURNEY_KEY })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
+export async function setTourney(state, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: TOURNEY_KEY, value: JSON.stringify(state), auth })
+    return r.ok === true
+  } catch { return false }
+}
+export async function clearTourney(auth) {
+  try { await kvCall({ action: 'delete', key: TOURNEY_KEY, auth }) } catch {}
+}
+
 // backup completo: baixa TODAS as chaves do banco (menos as técnicas) num JSON —
 // seguro contra acidente e histórico permanente antes de resetar a turma de uma cidade
 export async function exportAllData() {

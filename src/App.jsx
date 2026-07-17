@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 
 // ── tema ──
@@ -299,6 +299,7 @@ const ACHIEVEMENTS = [
   { id:"segredo-rm",         emoji:"🗑️", label:"Nada Se Perde",    desc:"Achou a lixeira escondida na tela", secret:true },
   // meta: só quem achar TODOS os segredos acima
   { id:"todos-segredos",     emoji:"🏆", label:"Caçador Lendário", desc:"Encontrou TODOS os segredos escondidos da plataforma", secret:true },
+  { id:"campeao-torneio",    emoji:"🏟️", label:"Campeão do Torneio", desc:"Venceu o torneio da turma no telão" },
 ];
 // ids de todo Easter Egg individual que conta pra conquista "Caçador Lendário"
 const ALL_EGG_ACHIEVEMENT_IDS = ["segredo-vaca","segredo-danca","segredo-matrix","segredo-piada","segredo-pirata","segredo-sanduiche","segredo-cafe","segredo-42","segredo-rm","tesouro","espartano"];
@@ -2201,6 +2202,17 @@ function ClassGoalBar({ sum }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  TELÃO DA TURMA — tela cheia só de visualização, pra projetar durante a aula
 // ════════════════════════════════════════════════════════════════════════════
+// 🏟️ torneio: perguntas reservas usadas quando o Nyx (IA) está offline — básicas de propósito
+const TOURNEY_FALLBACK_QUESTIONS = [
+  { pergunta:"O que o Console.WriteLine faz?", alternativas:["Escreve algo na tela","Apaga a tela","Cria uma variável","Fecha o programa"], correta:0 },
+  { pergunta:"Qual tipo guarda números inteiros?", alternativas:["int","string","bool","char"], correta:0 },
+  { pergunta:"Qual tipo guarda textos?", alternativas:["string","int","double","bool"], correta:0 },
+  { pergunta:"Como termina uma instrução em C#?", alternativas:["Com ;","Com .","Com !","Com ,"], correta:0 },
+  { pergunta:"O que guarda apenas verdadeiro ou falso?", alternativas:["bool","int","string","double"], correta:0 },
+  { pergunta:"O que o Console.ReadLine faz?", alternativas:["Lê o que a pessoa digitou","Escreve na tela","Soma dois números","Toca um som"], correta:0 },
+  { pergunta:"Qual símbolo compara se dois valores são iguais?", alternativas:["==","=","!=",">="], correta:0 },
+  { pergunta:"Qual tipo aceita números com vírgula?", alternativas:["double","int","bool","char"], correta:0 },
+];
 const BOSS_PRESETS = [
   { name: "Bugzilla", emoji: "👾" },
   { name: "Null Pointer", emoji: "🐉" },
@@ -2237,6 +2249,85 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
     setBossState(b);
   };
   const endBoss = async () => { await clearBoss(teacherAuth); setBossState(null); };
+
+  // 🏟️ torneio da turma: chaveamento eliminatório iniciado AQUI pelo professor — cada dupla
+  // responde o mesmo mini-quiz na própria tela, e o telão apura os placares e avança as rodadas
+  const [tourney, setTourneyState] = useState(null);
+  const [tourneyBusy, setTourneyBusy] = useState(false);
+  const [tourneyMsg, setTourneyMsg] = useState("");
+  useEffect(() => {
+    let alive = true;
+    const load = async () => { const t = await getTourney(); if (alive) setTourneyState(t); };
+    load();
+    const iv = setInterval(load, 4000);
+    return () => { alive = false; clearInterval(iv); };
+  }, []);
+  const genTourneyQuestions = async () => {
+    try {
+      const data = await askClaudeJson(
+        `Crie EXATAMENTE 5 perguntas de múltipla escolha bem rápidas sobre C# básico para um torneio entre alunos iniciantes (Console.WriteLine, variáveis, tipos, ponto e vírgula, comparações). Cada uma com 4 alternativas curtas.\nResponda APENAS JSON puro: { "perguntas": [ { "pergunta": "...", "alternativas": ["a","b","c","d"], "correta": 0 } ] }`,
+        "Você cria quizzes de C# para iniciantes. Português simples. Responda APENAS JSON puro válido.",
+        { temperature: 1 }
+      );
+      const qs = Array.isArray(data?.perguntas) ? data.perguntas.filter(q => q && q.pergunta && Array.isArray(q.alternativas) && q.alternativas.length >= 2 && q.alternativas[q.correta] != null).slice(0, 5) : [];
+      if (qs.length >= 3) return qs;
+    } catch {}
+    return [...TOURNEY_FALLBACK_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 5);
+  };
+  const startTourney = async () => {
+    setTourneyBusy(true); setTourneyMsg("");
+    const elegiveis = mine.filter(s => Date.now() - (s.lastSeen || 0) < 2 * 60 * 1000).map(s => s.name);
+    if (elegiveis.length < 2) {
+      setTourneyMsg("⚠ Precisa de pelo menos 2 alunos online nesse turno.");
+      setTourneyBusy(false);
+      return;
+    }
+    const ordem = [...elegiveis].sort(() => Math.random() - 0.5);
+    const matches = [];
+    for (let i = 0; i < ordem.length; i += 2) matches.push({ round: 1, a: ordem[i], b: ordem[i + 1] ?? null });
+    const questions = await genTourneyQuestions();
+    const t = { status: "active", shift: telaoShift, id: Date.now(), round: 1, questions: { 1: questions }, matches };
+    await setTourney(t, teacherAuth);
+    setTourneyState(t);
+    setTourneyBusy(false);
+  };
+  const tourneyAnswerOf = (name) => {
+    if (!tourney) return null;
+    const s = (students || []).find(x => x.name === name && (x.shift || "") === tourney.shift);
+    const a = s && s.tourneyAnswer;
+    return (a && a.id === tourney.id && a.round === tourney.round) ? a : null;
+  };
+  const currentMatches = tourney ? (tourney.matches || []).filter(m => m.round === tourney.round) : [];
+  const matchWinner = (m) => {
+    if (m.winner) return m.winner;
+    if (!m.b) return m.a; // sem par: passa direto
+    const aa = tourneyAnswerOf(m.a), bb = tourneyAnswerOf(m.b);
+    if (!aa || !bb) return null;
+    if (aa.score !== bb.score) return aa.score > bb.score ? m.a : m.b;
+    return (aa.at || 0) <= (bb.at || 0) ? m.a : m.b; // empate: quem terminou primeiro
+  };
+  const allResolved = currentMatches.length > 0 && currentMatches.every(m => matchWinner(m));
+  const advanceTourney = async () => {
+    if (!tourney || !allResolved) return;
+    setTourneyBusy(true);
+    const winners = currentMatches.map(m => matchWinner(m));
+    const resolvedMatches = (tourney.matches || []).map(m => m.round === tourney.round ? { ...m, winner: matchWinner(m) } : m);
+    let t2;
+    if (winners.length === 1) {
+      t2 = { ...tourney, matches: resolvedMatches, status: "done", champion: winners[0] };
+    } else {
+      const nextRound = tourney.round + 1;
+      const newMatches = [];
+      for (let i = 0; i < winners.length; i += 2) newMatches.push({ round: nextRound, a: winners[i], b: winners[i + 1] ?? null });
+      const qs = await genTourneyQuestions();
+      t2 = { ...tourney, matches: [...resolvedMatches, ...newMatches], round: nextRound, questions: { ...tourney.questions, [nextRound]: qs } };
+    }
+    await setTourney(t2, teacherAuth);
+    setTourneyState(t2);
+    setTourneyBusy(false);
+  };
+  const endTourney = async () => { await clearTourney(teacherAuth); setTourneyState(null); };
+
   const [telaoNow, setTelaoNow] = useState(() => Date.now());
   useEffect(() => { const iv = setInterval(() => setTelaoNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
   const bossStudying = boss && boss.studyUntil && telaoNow < boss.studyUntil;
@@ -2311,6 +2402,55 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
           {[["Fácil", 30], ["Médio", 60], ["Épico", 120]].map(([label, hp]) => (
             <button key={hp} onClick={()=>summonBoss(hp)} style={{ background:"#3b0764", color:"#e9d5ff", border:"1px solid #a855f7", borderRadius:12, padding:"8px 16px", fontSize:13, fontWeight:800, cursor:"pointer" }}>{label} · {hp} HP</button>
           ))}
+        </div>
+      )}
+
+      {/* 🏟️ torneio da turma: chaveamento eliminatório de mini-quizzes */}
+      {tourney && tourney.status === "done" ? (
+        <div className="telao-card" style={{ position:"relative", background:"linear-gradient(135deg,#713f12,#b45309)", border:"2px solid #fbbf24", borderRadius:24, padding:"24px 28px", marginBottom:24, textAlign:"center" }}>
+          <ConfettiParty level={1} />
+          <div style={{ fontSize:"clamp(44px, 9vw, 72px)" }}>🏆</div>
+          <h2 style={{ margin:"4px 0", fontSize:"clamp(22px, 5vw, 34px)", color:"#fff" }}>{tourney.champion} é o CAMPEÃO do torneio!</h2>
+          <p style={{ color:"#fde68a", fontSize:"clamp(13px, 3vw, 16px)", margin:"0 0 14px" }}>Palmas pra ele — e pra todo mundo que batalhou! 👏</p>
+          <button onClick={endTourney} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:12, padding:"10px 18px", fontSize:14, cursor:"pointer", fontWeight:800 }}>🏁 Encerrar torneio</button>
+        </div>
+      ) : tourney && tourney.status === "active" ? (
+        <div className="telao-card" style={{ background:"linear-gradient(135deg,#111c3b,#131730)", border:"2px solid #22d3ee", borderRadius:24, padding:"22px 28px", marginBottom:24 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10, marginBottom:14 }}>
+            <h2 style={{ margin:0, fontSize:"clamp(18px, 4.5vw, 26px)", color:"#a5f3fc" }}>🏟️ TORNEIO DA TURMA — Rodada {tourney.round}</h2>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={advanceTourney} disabled={!allResolved || tourneyBusy} style={{ background: allResolved ? "#22d3ee" : "#1b2144", color: allResolved ? "#062a30" : "#5d679c", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor: allResolved ? "pointer" : "default", fontWeight:800, opacity: tourneyBusy ? 0.6 : 1 }}>
+                {tourneyBusy ? "..." : currentMatches.filter(m=>matchWinner(m)).length === 1 && currentMatches.length === 1 ? "👑 Coroar campeão" : "➡️ Avançar rodada"}
+              </button>
+              <button onClick={endTourney} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:800 }}>✕ Cancelar</button>
+            </div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:12 }}>
+            {currentMatches.map((m, i) => {
+              const aa = tourneyAnswerOf(m.a), bb = m.b ? tourneyAnswerOf(m.b) : null;
+              const w = matchWinner(m);
+              return (
+                <div key={i} style={{ background:"#0d1122", border:`2px solid ${w ? "#34d399" : "#2a3154"}`, borderRadius:16, padding:"12px 16px" }}>
+                  {!m.b ? (
+                    <p style={{ margin:0, color:"#e8ebfa", fontSize:"clamp(13px, 3vw, 16px)", fontWeight:800 }}>🎟️ {m.a} <span style={{ color:"#5d679c", fontWeight:600 }}>passa direto dessa rodada</span></p>
+                  ) : (
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, fontSize:"clamp(13px, 3vw, 16px)" }}>
+                      <span style={{ fontWeight: w===m.a ? 900 : 600, color: w===m.a ? "#34d399" : "#e8ebfa", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{w===m.a ? "👑 " : ""}{m.a}</span>
+                      <span style={{ color:"#fbbf24", fontWeight:900, whiteSpace:"nowrap" }}>{aa ? aa.score : "…"} × {bb ? bb.score : "…"}</span>
+                      <span style={{ fontWeight: w===m.b ? 900 : 600, color: w===m.b ? "#34d399" : "#e8ebfa", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textAlign:"right" }}>{w===m.b ? "👑 " : ""}{m.b}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p style={{ margin:"12px 0 0", color:"#5d679c", fontSize:"clamp(11px, 2.5vw, 13px)" }}>Cada dupla responde o mesmo mini-quiz na própria tela. Quando todos os placares saírem, avance a rodada. Empate: vence quem terminou primeiro.</p>
+        </div>
+      ) : (
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20, flexWrap:"wrap" }}>
+          <span style={{ color:"#96a0cc", fontSize:14, fontWeight:800 }}>🏟️ Torneio da turma (chaveamento de mini-quizzes entre os alunos online):</span>
+          <button onClick={startTourney} disabled={tourneyBusy} style={{ background:"#0e7490", color:"#cffafe", border:"1px solid #22d3ee", borderRadius:12, padding:"8px 16px", fontSize:13, fontWeight:800, cursor:"pointer", opacity: tourneyBusy ? 0.6 : 1 }}>{tourneyBusy ? "Montando..." : `Iniciar torneio (${SHIFTS.find(sh=>sh.id===telaoShift)?.label || telaoShift})`}</button>
+          {tourneyMsg && <span style={{ color:"#fbbf24", fontSize:13, fontWeight:700 }}>{tourneyMsg}</span>}
         </div>
       )}
 
@@ -3657,6 +3797,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [retroActive, setRetroActive] = useState(null); // id/data da liberação atual do professor (ou null)
   const [retroSeen, setRetroSeen] = useState(null);     // id da última retrospectiva que ESTE aluno já viu (persistido)
   const [showRetro, setShowRetro] = useState(false);
+  // 🏟️ torneio da turma (iniciado pelo professor no telão): o aluno responde o quiz da rodada aqui
+  const [tourneyInfo, setTourneyInfo] = useState(null);   // estado do torneio lido do servidor
+  const [tourneyQuiz, setTourneyQuiz] = useState(null);   // { id, round, opponent, questions[] } do quiz aberto
+  const [tourneyStep, setTourneyStep] = useState(0);
+  const [tourneyPicked, setTourneyPicked] = useState(null);
+  const [tourneyCorrect, setTourneyCorrect] = useState(0);
+  const [tourneyAnswer, setTourneyAnswer] = useState(null);   // { id, round, score, at } (persistido — o telão apura)
+  const [tourneyClaimed, setTourneyClaimed] = useState(null); // id do torneio cujo prêmio de campeão já foi recebido
   // explicações do Nyx sobre os erros da atividade (passo a passo, num modal)
   const [errorSections, setErrorSections] = useState([]);
   const [errorEncouragement, setErrorEncouragement] = useState("");
@@ -3814,7 +3962,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -3889,6 +4037,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       spartanIntroShown: s.spartanIntroShown || false,
       warmupDay: s.warmupDay || null,
       retroSeen: s.retroSeen || null,
+      tourneyAnswer: s.tourneyAnswer || null,
+      tourneyClaimed: s.tourneyClaimed || null,
       nyxPoints: s.nyxPoints || 0,
       nyxSpent: s.nyxSpent || 0,
       nyxOwned: s.nyxOwned || [],
@@ -3987,6 +4137,40 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const skipWarmup = () => {
     try { localStorage.setItem(`nyx_warmup_skip_${todayKey()}_${shift}_${studentName}`, "1"); } catch {}
     setWarmupOpen(false);
+  };
+
+  // 🏟️ torneio: se estou numa partida da rodada atual e ainda não respondi o quiz DESTA rodada,
+  // ele abre sozinho (o professor iniciou pelo telão — é o evento da turma naquele momento)
+  useEffect(() => {
+    if (!loaded || !tourneyInfo || tourneyInfo.status !== "active") { if (!tourneyInfo) setTourneyQuiz(null); return; }
+    const m = (tourneyInfo.matches || []).find(x => x.round === tourneyInfo.round && !x.winner && x.b && (x.a === studentName || x.b === studentName));
+    if (!m) { setTourneyQuiz(null); return; }
+    const already = tourneyAnswer && tourneyAnswer.id === tourneyInfo.id && tourneyAnswer.round === tourneyInfo.round;
+    if (already) return;
+    if (tourneyQuiz && tourneyQuiz.id === tourneyInfo.id && tourneyQuiz.round === tourneyInfo.round) return; // já está aberto
+    const qs = (tourneyInfo.questions || {})[tourneyInfo.round];
+    if (!Array.isArray(qs) || !qs.length) return;
+    // embaralha as alternativas localmente (guardando onde a certa foi parar)
+    const shuffled = qs.map(q => {
+      const idx = q.alternativas.map((_, i) => i).sort(() => Math.random() - 0.5);
+      return { pergunta: q.pergunta, alternativas: idx.map(i => q.alternativas[i]), correta: idx.indexOf(q.correta) };
+    });
+    setTourneyQuiz({ id: tourneyInfo.id, round: tourneyInfo.round, opponent: m.a === studentName ? m.b : m.a, questions: shuffled });
+    setTourneyStep(0); setTourneyPicked(null); setTourneyCorrect(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, tourneyInfo, tourneyAnswer, studentName]);
+  const submitTourneyQuiz = async () => {
+    if (!tourneyQuiz) return;
+    const score = tourneyCorrect;
+    const ans = { id: tourneyQuiz.id, round: tourneyQuiz.round, score, at: Date.now() };
+    const newPts = (stateRef.current.nyxPoints || 0) + score; // 1 ponto do Nyx por acerto, como nos duelos
+    setTourneyAnswer(ans);
+    setTourneyQuiz(null);
+    if (score > 0) { setNyxPoints(newPts); checkPointsAchievements(newPts); }
+    setRobotState("ok");
+    setRobotMsg(`🏟️ Respostas enviadas! Você fez ${score} ponto${score===1?"":"s"} — olha no telão quem venceu a rodada!`);
+    setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 8000);
+    await persist(score > 0 ? { tourneyAnswer: ans, nyxPoints: newPts } : { tourneyAnswer: ans });
   };
 
   // 🎁 retrospectiva: abre sozinha quando o professor libera e este aluno ainda não viu ESTA liberação
@@ -4146,6 +4330,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.spartanIntroShown) setSpartanIntroShown(true);
           if (prev.warmupDay) setWarmupDay(prev.warmupDay);
           if (prev.retroSeen) setRetroSeen(prev.retroSeen);
+          if (prev.tourneyAnswer) setTourneyAnswer(prev.tourneyAnswer);
+          if (prev.tourneyClaimed) setTourneyClaimed(prev.tourneyClaimed);
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
           if (prev.nyxSpent) setNyxSpent(prev.nyxSpent);
           if (prev.duelWins) setDuelWins(prev.duelWins);
@@ -4339,6 +4525,24 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       try {
         const b = await getBoss();
         setBossInfo(b && b.status === "active" ? b : null);
+      } catch {}
+      // 🏟️ torneio da turma (evento do telão): guarda o estado e, se EU sou o campeão e ainda
+      // não recebi o prêmio, celebra e dá o bônus uma única vez
+      try {
+        const t = await getTourney();
+        setTourneyInfo(t && t.shift === shift && (t.status === "active" || t.status === "done") ? t : null);
+        if (t && t.status === "done" && t.shift === shift && t.champion === studentName && stateRef.current.tourneyClaimed !== t.id) {
+          const bonus = 5;
+          const newPts = (stateRef.current.nyxPoints || 0) + bonus;
+          setTourneyClaimed(t.id);
+          setNyxPoints(newPts);
+          unlockAchievement("campeao-torneio");
+          checkPointsAchievements(newPts);
+          setRobotState("ok");
+          setRobotMsg(`🏆 CAMPEÃO DO TORNEIO!! Você venceu a turma toda! +${bonus} pontos de prêmio — que orgulho!`);
+          setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 10000);
+          await persist({ tourneyClaimed: t.id, nyxPoints: newPts });
+        }
       } catch {}
       // 🕐 horário automático da turma + 🔍 vistoria (libera este aluno específico fora do horário)
       try {
@@ -6015,6 +6219,58 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         const eggs = ALL_EGG_ACHIEVEMENT_IDS.filter(id => (achievements || []).includes(id)).length;
         const stats = { totalLines, presencas, best, conquistas: (achievements || []).length, eggs, pontos: (nyxPoints || 0) + (nyxSpent || 0), duelWins: duelWins || 0 };
         return <RetroOverlay name={studentName} stats={stats} gear={nyxGear} onClose={closeRetro} />;
+      })()}
+
+      {/* 🏟️ quiz do torneio: abre quando o professor inicia o torneio no telão e eu tenho partida */}
+      {tourneyQuiz && (() => {
+        const finished = tourneyStep >= tourneyQuiz.questions.length;
+        const q = tourneyQuiz.questions[tourneyStep];
+        return (
+          <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.88)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1060, padding:16 }}>
+            <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #22d3ee66", borderRadius:22, padding:"24px 24px", maxWidth:480, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 50px #22d3ee22" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
+                <span style={{ fontSize:30 }}>🏟️</span>
+                <div style={{ flex:1 }}>
+                  <h2 style={{ margin:0, fontSize:19, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Torneio da Turma — Rodada {tourneyQuiz.round}</h2>
+                  <div style={{ color:"#96a0cc", fontSize:12 }}>{finished ? "quiz concluído!" : `você × ${tourneyQuiz.opponent} · pergunta ${tourneyStep+1} de ${tourneyQuiz.questions.length}`}</div>
+                </div>
+              </div>
+              {!finished && (
+                <>
+                  <p style={{ color:"#e8ebfa", fontSize:15, fontWeight:700, lineHeight:1.6, margin:"6px 0 12px" }}>{q.pergunta}</p>
+                  <div style={{ display:"grid", gap:8 }}>
+                    {q.alternativas.map((alt, i) => {
+                      const picked = tourneyPicked != null;
+                      const isRight = i === q.correta;
+                      const isMine = tourneyPicked === i;
+                      return (
+                        <button key={i} disabled={picked} onClick={() => { setTourneyPicked(i); if (i === q.correta) setTourneyCorrect(c => c + 1); }}
+                          style={{ textAlign:"left", background: picked ? (isRight ? "#34d39922" : isMine ? "#f8717122" : "#0d1122") : "#0d1122",
+                            border: `2px solid ${picked ? (isRight ? "#34d399" : isMine ? "#f87171" : "#241f38") : "#2a3154"}`,
+                            borderRadius:12, padding:"11px 14px", color:"#e8ebfa", fontSize:13.5, cursor: picked ? "default" : "pointer" }}>
+                          {picked && isRight ? "✅ " : picked && isMine ? "❌ " : ""}{alt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {tourneyPicked != null && (
+                    <button onClick={() => { setTourneyStep(s => s + 1); setTourneyPicked(null); }} style={{ ...styles.btn("#22d3ee"), width:"100%", padding:"11px 0", fontSize:14, marginTop:12 }}>
+                      {tourneyStep + 1 >= tourneyQuiz.questions.length ? "Finalizar →" : "Próxima →"}
+                    </button>
+                  )}
+                </>
+              )}
+              {finished && (
+                <div style={{ textAlign:"center" }}>
+                  <div style={{ fontSize:46, lineHeight:1 }}>{tourneyCorrect >= 4 ? "🔥" : tourneyCorrect >= 2 ? "💪" : "🍀"}</div>
+                  <p style={{ color:"#e8ebfa", fontSize:16, fontWeight:800, margin:"10px 0 4px" }}>{tourneyCorrect} de {tourneyQuiz.questions.length} certas!</p>
+                  <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, margin:"0 0 12px" }}>Agora é torcer: o placar da sua partida aparece no telão. Boa sorte! 🤞</p>
+                  <button onClick={submitTourneyQuiz} style={{ ...styles.btn("#22d3ee"), width:"100%", padding:"12px 0", fontSize:14.5 }}>Enviar respostas 🏟️</button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
       })()}
 
       {/* 🔥 aquecimento do dia: 3 perguntinhas sobre a aula anterior, com pontos por acerto */}
