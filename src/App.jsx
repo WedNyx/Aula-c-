@@ -1953,6 +1953,54 @@ function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onClose }) 
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  🎁 RETROSPECTIVA DO MÊS  (estilo "Wrapped": slides animados com os números do aluno)
+// ════════════════════════════════════════════════════════════════════════════
+function RetroOverlay({ name, stats, gear, onClose }) {
+  const [step, setStep] = useState(0);
+  const first = String(name || "").split(" ")[0];
+  const finalPhrase =
+    stats.totalLines >= 100 ? `Mais de ${stats.totalLines} linhas de código?! ${first}, você não aprendeu a programar — você VIROU programador(a). Foi uma honra!` :
+    stats.best && stats.best.v >= 70 ? `${first}, ver você chegar na nota ${stats.best.v} foi um orgulho enorme. Continue assim que o mundo é seu!` :
+    stats.presencas >= 5 ? `${first}, aparecer ${stats.presencas} dias pra aprender já é uma vitória gigante. O resto vem com o tempo — e você já começou!` :
+    `${first}, todo programador começou exatamente onde você está. O primeiro passo você já deu — nunca pare!`;
+  const slides = [
+    { bg:"linear-gradient(135deg,#1e1b4b,#3b0764)", icon:"🎬", title:`${first}, o seu mês na Aula de C#...`, sub:"foi assim 👇 (toque pra ver)", big:null },
+    { bg:"linear-gradient(135deg,#052e2b,#065f46)", icon:"📝", title:"Você escreveu", big:`${stats.totalLines}`, sub:stats.totalLines === 1 ? "linha de código de verdade" : "linhas de código de verdade" },
+    { bg:"linear-gradient(135deg,#1e3a5f,#0e7490)", icon:"📅", title:"Você esteve aqui em", big:`${stats.presencas}`, sub:stats.presencas === 1 ? "dia de aula" : "dias de aula" },
+    ...(stats.best ? [{ bg:"linear-gradient(135deg,#4c1d95,#7c3aed)", icon:"🏆", title:"Sua melhor nota foi", big:`${stats.best.v}`, sub:`na atividade do dia ${String(stats.best.d).split("-").reverse().slice(0,2).join("/")}` }] : []),
+    { bg:"linear-gradient(135deg,#713f12,#b45309)", icon:"🎖️", title:"Você desbloqueou", big:`${stats.conquistas}`, sub:`conquista${stats.conquistas===1?"":"s"}${stats.eggs > 0 ? ` — e achou ${stats.eggs} segredo${stats.eggs===1?"":"s"} escondido${stats.eggs===1?"":"s"} 🥚` : ""}` },
+    { bg:"linear-gradient(135deg,#7f1d1d,#be123c)", icon:"💰", title:"Você ganhou", big:`${stats.pontos}`, sub:`ponto${stats.pontos===1?"":"s"} do Nyx${stats.duelWins > 0 ? ` — e venceu ${stats.duelWins} duelo${stats.duelWins===1?"":"s"} ⚔️` : ""}` },
+    { bg:"linear-gradient(135deg,#0f172a,#1e1b4b)", icon:"💜", title:"Recado do Nyx", big:null, sub:finalPhrase, last:true },
+  ];
+  const s = slides[Math.min(step, slides.length - 1)];
+  const advance = () => { if (!s.last) setStep(v => v + 1); };
+  return (
+    <div onClick={advance} style={{ position:"fixed", inset:0, background:s.bg, transition:"background .6s ease", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1200, padding:20, cursor: s.last ? "default" : "pointer", overflow:"hidden" }}>
+      <div key={step} className="pop" style={{ textAlign:"center", maxWidth:520, width:"100%" }}>
+        <div style={{ animation:"nyx-float 3s ease-in-out infinite", display:"inline-block" }}>
+          <NyxRobot state="ok" size={s.last ? 110 : 76} showName={false} gear={gear} />
+        </div>
+        <div style={{ fontSize:44, lineHeight:1, margin:"8px 0" }}>{s.icon}</div>
+        <h2 style={{ color:"#fff", fontSize:22, fontWeight:900, margin:"0 0 6px", textShadow:"0 2px 14px rgba(0,0,0,.4)" }}>{s.title}</h2>
+        {s.big != null && (
+          <div className="shine" style={{ fontSize:84, fontWeight:900, lineHeight:1.1, background:"linear-gradient(120deg,#fff,#fde68a,#fff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>{s.big}</div>
+        )}
+        <p style={{ color:"rgba(255,255,255,.85)", fontSize:s.last ? 16 : 14.5, lineHeight:1.7, margin:"6px auto 0", maxWidth:420, fontWeight:600 }}>{s.sub}</p>
+        {!s.last && (
+          <div style={{ marginTop:22, color:"rgba(255,255,255,.55)", fontSize:12.5 }}>
+            {slides.map((_, i) => <span key={i} style={{ display:"inline-block", width:8, height:8, borderRadius:4, margin:"0 3px", background: i <= step ? "#fff" : "rgba(255,255,255,.25)" }} />)}
+            <div style={{ marginTop:8 }}>toque pra continuar →</div>
+          </div>
+        )}
+        {s.last && (
+          <button onClick={(e)=>{ e.stopPropagation(); onClose(); }} style={{ background:"linear-gradient(135deg,#7c83ff,#5a61e8)", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", fontWeight:800, boxShadow:"0 4px 18px rgba(124,131,255,.45)", marginTop:22, padding:"13px 28px", fontSize:15 }}>Guardar no coração 💜</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  FEEDBACK ANIMADO DO NYX  (aparece quando o aluno termina a atividade)
 // ════════════════════════════════════════════════════════════════════════════
 function NyxFeedbackModal({ score, loading, feedback, onClose }) {
@@ -3605,6 +3653,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [warmupCorrect, setWarmupCorrect] = useState(0);
   const [warmupDay, setWarmupDay] = useState(null);     // último dia em que o aquecimento foi concluído (persistido)
   const warmupRequestedRef = useRef(false);
+  // 🎁 retrospectiva do mês (estilo "Wrapped"): o professor libera por turno; cada aluno vê a sua uma vez
+  const [retroActive, setRetroActive] = useState(null); // id/data da liberação atual do professor (ou null)
+  const [retroSeen, setRetroSeen] = useState(null);     // id da última retrospectiva que ESTE aluno já viu (persistido)
+  const [showRetro, setShowRetro] = useState(false);
   // explicações do Nyx sobre os erros da atividade (passo a passo, num modal)
   const [errorSections, setErrorSections] = useState([]);
   const [errorEncouragement, setErrorEncouragement] = useState("");
@@ -3762,7 +3814,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -3836,6 +3888,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       treasureFound: s.treasureFound || false,
       spartanIntroShown: s.spartanIntroShown || false,
       warmupDay: s.warmupDay || null,
+      retroSeen: s.retroSeen || null,
       nyxPoints: s.nyxPoints || 0,
       nyxSpent: s.nyxSpent || 0,
       nyxOwned: s.nyxOwned || [],
@@ -3934,6 +3987,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const skipWarmup = () => {
     try { localStorage.setItem(`nyx_warmup_skip_${todayKey()}_${shift}_${studentName}`, "1"); } catch {}
     setWarmupOpen(false);
+  };
+
+  // 🎁 retrospectiva: abre sozinha quando o professor libera e este aluno ainda não viu ESTA liberação
+  useEffect(() => {
+    if (!loaded || !retroActive) return;
+    if (retroSeen === retroActive) return;
+    if (showNyxPrefs || showIntro || tourStep >= 0 || warmupOpen) return;
+    setShowRetro(true);
+  }, [loaded, retroActive, retroSeen, showNyxPrefs, showIntro, tourStep, warmupOpen]);
+  const closeRetro = async () => {
+    setShowRetro(false);
+    setRetroSeen(retroActive);
+    await persist({ retroSeen: retroActive });
   };
 
   // ── anti-cola: durante a prova ativa, cada saída da aba é contada (e desconta 10 pts no fim) ──
@@ -4079,6 +4145,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.treasureFound) setTreasureFound(true);
           if (prev.spartanIntroShown) setSpartanIntroShown(true);
           if (prev.warmupDay) setWarmupDay(prev.warmupDay);
+          if (prev.retroSeen) setRetroSeen(prev.retroSeen);
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
           if (prev.nyxSpent) setNyxSpent(prev.nyxSpent);
           if (prev.duelWins) setDuelWins(prev.duelWins);
@@ -4281,6 +4348,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         currentClassDays = m.classDays || [];
         setMyClassDays(currentClassDays);
         setMyContentNames(m.contentNames || {});
+        // 🎁 retrospectiva do mês liberada pelo professor pra este turno?
+        setRetroActive((m.retro || {})[shift] || null);
       } catch {}
       // o professor está escrevendo AGORA em "Meu código"? (salva a cada 1s enquanto ele digita —
       // "escrevendo agora" = salvou nos últimos 6s) usado pro anti-cola: se o aluno estiver
@@ -5938,6 +6007,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         </div>
       </div>
 
+      {/* 🎁 retrospectiva do mês: liberada pelo professor, os números vêm do próprio perfil */}
+      {showRetro && (() => {
+        const totalLines = (files || []).reduce((n, f) => n + (f.code ? f.code.split("\n").filter(l => l.trim()).length : 0), 0);
+        const presencas = Object.values(attendanceRef.current || {}).filter(v => v === "present").length;
+        const best = Object.entries(scoreHistory || {}).reduce((b, [d, v]) => (v != null && (b == null || v > b.v)) ? { d, v } : b, null);
+        const eggs = ALL_EGG_ACHIEVEMENT_IDS.filter(id => (achievements || []).includes(id)).length;
+        const stats = { totalLines, presencas, best, conquistas: (achievements || []).length, eggs, pontos: (nyxPoints || 0) + (nyxSpent || 0), duelWins: duelWins || 0 };
+        return <RetroOverlay name={studentName} stats={stats} gear={nyxGear} onClose={closeRetro} />;
+      })()}
+
       {/* 🔥 aquecimento do dia: 3 perguntinhas sobre a aula anterior, com pontos por acerto */}
       {warmupOpen && warmup && (() => {
         const finished = warmupStep >= warmup.questions.length;
@@ -7219,6 +7298,15 @@ function TeacherView({ onLogout, teacherAuth }) {
     load();
   };
 
+  // 🎁 retrospectiva do mês: liga/desliga por turno (fica no teachermeta, que os alunos já leem)
+  const toggleRetro = async (sh) => {
+    const cur = metaRef.current.retro || {};
+    const next = { ...cur, [sh]: cur[sh] ? null : todayKey() };
+    const nm = { ...metaRef.current, retro: next };
+    metaRef.current = nm; setMeta(nm);
+    await saveTeacherMeta(nm, teacherAuth);
+  };
+
   const doSetScore = async (s) => {
     const v = parseInt(scoreVal, 10);
     if (!s || isNaN(v)) return;
@@ -7965,6 +8053,20 @@ function TeacherView({ onLogout, teacherAuth }) {
               <p style={{ color:"#5d679c", fontSize:11.5, lineHeight:1.5, margin:"8px 0 0" }}>Programe o exemplo na aba <b>Meu código</b> e gere um nome automático. (Se ainda não programou, uso o código dos alunos.)</p>
               <button style={{ ...styles.btn("#7c83ff"), padding:"6px 12px", fontSize:13, marginTop:8, width:"100%", opacity:genName?0.6:1 }} onClick={generateContentNameFiltered} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo"}</button>
               {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12, marginTop:8, lineHeight:1.5 }}>{nameMsg}</p>}
+            </div>
+
+            <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
+              <h4 style={{ color:"#c4b5fd", fontSize:13, marginBottom:6 }}>🎁 Retrospectiva do mês</h4>
+              <p style={{ color:"#5d679c", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Libere no fim do mês: cada aluno vê uma tela especial com os números dele (linhas de código, presenças, conquistas...). Cada um vê a sua uma vez só.</p>
+              {SHIFTS.map(sh => {
+                const on = !!(meta.retro || {})[sh.id];
+                return (
+                  <button key={sh.id} onClick={()=>toggleRetro(sh.id)}
+                    style={{ ...styles.btn(on ? "#34d399" : "#7c83ff"), padding:"6px 12px", fontSize:12.5, width:"100%", marginTop:6 }}>
+                    {on ? `✅ Liberada pra turma ${sh.label} — clique pra recolher` : `🎁 Liberar pra turma ${sh.label}`}
+                  </button>
+                );
+              })}
             </div>
 
             {commonErrorsToday.length > 0 && (
