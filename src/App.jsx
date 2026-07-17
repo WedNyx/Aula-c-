@@ -3781,7 +3781,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     // presença do dia: "present" se já fez algo de verdade hoje, senão "idle" (entrou mas parado)
     const tk = todayKey();
     const didWork = (s.code && s.code.trim().length >= 10) || (s.phase && s.phase !== "coding") || (s.score != null) || (s.answers && Object.keys(s.answers).length > 0);
-    attendanceRef.current = { ...attendanceRef.current, [tk]: didWork ? "present" : "idle" };
+    // "present" nunca é rebaixado pra "idle" — protege a presença marcada na mão pelo professor
+    // (dia de filme etc.) caso o aluno chegue a logar sem fazer nada
+    attendanceRef.current = { ...attendanceRef.current, [tk]: (didWork || attendanceRef.current[tk] === "present") ? "present" : "idle" };
     // guarda o horário do PRIMEIRO acesso de hoje (uma vez só) — usado pra marcar "atrasado" na chamada
     if (!attendanceFirstRef.current[tk]) attendanceFirstRef.current = { ...attendanceFirstRef.current, [tk]: Date.now() };
     const ok = await saveStudent(shift, studentName, {
@@ -7031,6 +7033,22 @@ function TeacherView({ onLogout, teacherAuth }) {
     load();
   };
 
+  // ✅ presença manual: pra dia sem computador (filme, passeio...) — o professor marca a presença
+  // de hoje na mão. Vira "present" normal na chamada e na planilha, e NUNCA conta como atrasado
+  // (o atraso só é calculado pelo 1º acesso do aluno, que nem existe quando ele não loga).
+  const markPresentToday = async (s) => {
+    const ok = await patchStudent(s.shift, s.name, { attendance: { ...(s.attendance||{}), [tk]: "present" } });
+    flashMgmt(ok ? `✅ Presença de hoje marcada pra ${s.name}.` : "❌ Não consegui marcar agora. Tente de novo.");
+    load();
+  };
+  const unmarkPresentToday = async (s) => {
+    const att = { ...(s.attendance||{}) };
+    delete att[tk];
+    const ok = await patchStudent(s.shift, s.name, { attendance: att });
+    flashMgmt(ok ? `↩️ Presença manual de ${s.name} desfeita.` : "❌ Não consegui desfazer agora. Tente de novo.");
+    load();
+  };
+
   const doSetScore = async (s) => {
     const v = parseInt(scoreVal, 10);
     if (!s || isNaN(v)) return;
@@ -7627,6 +7645,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <button onClick={async ()=>{ await Promise.all(shown.map(s=>setKeyboardLaunch(s.shift, s.name, teacherAuth))); flashMgmt(`⌨️ Tutorial de teclado aberto pra ${shown.length} aluno(s).`); }} style={{ ...styles.btn("#22d3ee"), padding:"5px 10px", fontSize:12 }} title="Abre o tutorial de teclado na tela de todos os alunos filtrados">⌨️ Abrir teclado pra todos</button>
                 </div>
               </div>
+              {mgmtMsg && <p style={{ color: mgmtMsg.startsWith("❌") ? "#f87171" : "#34d399", fontSize:13, margin:"0 0 10px" }}>{mgmtMsg}</p>}
               {shown.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno na chamada ainda.</p> : (
                 chamadaGroups.map((g, gi) => (
                   <div key={g.shift.id} style={{ marginTop: gi>0 ? 18 : 0, paddingTop: gi>0 ? 16 : 0, borderTop: gi>0 ? "1px solid #2a3154" : "none" }}>
@@ -7660,6 +7679,12 @@ function TeacherView({ onLogout, teacherAuth }) {
                                     nudged[s.name]
                                       ? <span style={{ color:"#34d399", fontSize:11, fontWeight:600 }}>aviso enviado ✓</span>
                                       : <button onClick={()=>nudgeStudent(s)} style={{ background:"transparent", color:"#fbbf24", border:"1px solid #fbbf24", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>👀 Enviar aviso</button>
+                                  )}
+                                  {st!=="present" && (
+                                    <button onClick={()=>markPresentToday(s)} title="Marca a presença de hoje na mão (dia de filme, passeio, atividade sem computador...) — conta como presente normal, sem atraso" style={{ background:"transparent", color:"#34d399", border:"1px solid #34d399", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>✅ Marcar presente</button>
+                                  )}
+                                  {st==="present" && !isSameDayTs(s.lastSeen) && (
+                                    <button onClick={()=>unmarkPresentToday(s)} title="Este aluno foi marcado presente na mão (ele não entrou hoje) — clique pra desfazer" style={{ background:"transparent", color:"#96a0cc", border:"1px solid #3b4378", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>↩️ Desfazer</button>
                                   )}
                                 </div>
                               </div>
