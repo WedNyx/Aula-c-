@@ -172,6 +172,9 @@ input:focus, textarea:focus { border-color: #7c83ff !important; box-shadow: 0 0 
 @keyframes nyx-cape-flutter { 0%,100% { transform: skewX(-2deg); } 50% { transform: skewX(3deg); } }
 .nyx-cape { transform-origin: 60px 66px; animation: nyx-cape-flutter 2.4s ease-in-out infinite; }
 
+/* ── 🏴‍☠️ chapéu pirata: Nyx balança como se estivesse no convés de um navio ── */
+@keyframes nyx-pirate-sway { 0%,100% { transform: rotate(-5deg) translateY(0); } 25% { transform: rotate(2deg) translateY(-3px); } 50% { transform: rotate(5deg) translateY(0); } 75% { transform: rotate(-2deg) translateY(-3px); } }
+
 /* ── animações gerais ── */
 @keyframes rise      { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pop       { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }

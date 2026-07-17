@@ -1860,6 +1860,27 @@ function FloatingErrorBubble({ errors, step, activeCode, onNext, onPrev, onVerif
 //  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
 // ════════════════════════════════════════════════════════════════════════════
 function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onClose }) {
+  // 🥚 o Nyx da loja também entra no personagem: na hora que o chapéu pirata é vestido ou o combo
+  // espartano (espada+escudo) se forma, ele fala a frase do Easter Egg com uma animação própria
+  const [eggTalk, setEggTalk] = useState(null); // { kind:"pirata"|"espartano", msg, color }
+  const prevGearRef = useRef(gear);
+  useEffect(() => {
+    const prev = prevGearRef.current || {};
+    prevGearRef.current = gear;
+    const wasSpartan = prev.hand === "espada" && prev.shield === "escudo";
+    const isSpartanNow = gear.hand === "espada" && gear.shield === "escudo";
+    let talk = null;
+    if (isSpartanNow && !wasSpartan) {
+      talk = { kind:"espartano", color:"#f87171", msg:"🛡️ ISTO... É... C#!! Nenhum erro de compilação assusta um guerreiro Espartano. Vamos à batalha pelo código perfeito!" };
+    } else if (gear.head === "chapeuPirata" && prev.head !== "chapeuPirata") {
+      talk = { kind:"pirata", color:"#fbbf24", msg:"🏴‍☠️ Argh! Olhem só, um chapéu de pirata!\n\n\"Quer o meu tesouro? Procure-o... nele há tudo o que essa plataforma pode oferecer.\"" };
+    }
+    if (talk) {
+      setEggTalk(talk);
+      const t = setTimeout(() => setEggTalk(null), 10000);
+      return () => clearTimeout(t);
+    }
+  }, [gear]);
   const click = (item) => {
     const has = isTestShift || owned.includes(item.id);
     if (has) {
@@ -1880,12 +1901,21 @@ function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onClose }) 
           {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa vira 1 ponto. Comprar um item GASTA os pontos — mas o item é seu para sempre! (Seu lugar no ranking não muda: ele conta os pontos que você já ganhou.)"}
         </p>
 
-        <div style={{ display:"flex", alignItems:"center", gap:16, background:"#0d1122", border:"1px solid #2a3154", borderRadius:16, padding:16, marginBottom:16 }}>
-          <NyxRobot state="ok" size={72} showName={false} gear={gear} />
-          <div>
-            <div style={{ color:"#fbbf24", fontWeight:900, fontSize:22 }}>💰 {wallet} pts</div>
-            <div style={{ color:"#5d679c", fontSize:12 }}>para gastar · itens comprados: toque para vestir ou tirar</div>
+        <div style={{ display:"flex", alignItems:"center", gap:16, background:"#0d1122", border:`1px solid ${eggTalk ? eggTalk.color+"88" : "#2a3154"}`, borderRadius:16, padding:16, marginBottom:16, transition:"border-color .3s" }}>
+          <div style={{ flexShrink:0, animation: eggTalk ? (eggTalk.kind === "pirata" ? "nyx-pirate-sway 2.2s ease-in-out infinite" : "nyx-spartan-idle 2.6s ease-in-out infinite") : "none" }}>
+            <NyxRobot state="ok" size={72} showName={false} gear={gear} />
           </div>
+          {eggTalk ? (
+            <div className="pop" style={{ position:"relative", background:"#141936", border:`1.5px solid ${eggTalk.color}66`, borderRadius:12, padding:"10px 14px", color:"#e8ebfa", fontSize:13, lineHeight:1.55, fontWeight:600, whiteSpace:"pre-wrap" }}>
+              <span style={{ position:"absolute", left:-8, top:"50%", transform:"translateY(-50%)", width:0, height:0, borderTop:"8px solid transparent", borderBottom:"8px solid transparent", borderRight:`8px solid ${eggTalk.color}66` }} />
+              {eggTalk.msg}
+            </div>
+          ) : (
+            <div>
+              <div style={{ color:"#fbbf24", fontWeight:900, fontSize:22 }}>💰 {wallet} pts</div>
+              <div style={{ color:"#5d679c", fontSize:12 }}>para gastar · itens comprados: toque para vestir ou tirar</div>
+            </div>
+          )}
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
@@ -6937,7 +6967,29 @@ function TeacherView({ onLogout, teacherAuth }) {
       y += 6;
       writeParagraph("Código completo de hoje", { size: 13, style: "bold", color: "#1f2547" });
       y += 4;
-      writeCodeBlock(String(code).replace(/\r/g, ""));
+      // separa o código por arquivo (marcadores "// ===== Nome.cs =====" do pré-preenchimento)
+      // pra escrever o nome de cada arquivo numa faixa própria acima do bloco dele
+      const fileParts = [];
+      let curPart = null;
+      String(code).replace(/\r/g, "").split("\n").forEach(line => {
+        const m = line.match(/^\/\/\s*=====\s*(.+?)\s*=====\s*$/);
+        if (m) { curPart = { name: m[1], lines: [] }; fileParts.push(curPart); }
+        else { if (!curPart) { curPart = { name: null, lines: [] }; fileParts.push(curPart); } curPart.lines.push(line); }
+      });
+      fileParts.forEach(fp => {
+        const codeText = fp.lines.join("\n").replace(/^\n+|\n+$/g, "");
+        if (!codeText.trim()) return;
+        if (fp.name) {
+          ensureSpace(34);
+          doc.setFillColor(...hexRgb("#1f2547"));
+          doc.roundedRect(margin, y - 4, maxW, 22, 5, 5, "F");
+          doc.setFont("courier", "bold"); doc.setFontSize(9.5); doc.setTextColor(255, 255, 255);
+          doc.text(clean(fp.name), margin + 12, y + 10);
+          y += 26;
+        }
+        writeCodeBlock(codeText);
+        y += 4;
+      });
 
       const total = doc.getNumberOfPages();
       for (let p = 1; p <= total; p++) {
