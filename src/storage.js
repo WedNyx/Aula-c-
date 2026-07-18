@@ -468,6 +468,39 @@ export async function clearCodeSend(shift, name) {
   try { await kvCall({ action: 'delete', key: codeSendKeyFor(shift, name) }) } catch {}
 }
 
+// ── 🤝 parceiro de código: pareamento de ajuda sugerido/aprovado pelo professor — o aluno com
+// dificuldade vira "ajudado", um colega livre vira "ajudante" e pode ver o código dele (só leitura)
+// até marcar como resolvido; os dois ganham pontos. Chave por ALUNO AJUDADO (só uma parceria ativa
+// por vez pra ele); sem proteção de senha porque o próprio ajudante precisa poder marcar como
+// resolvido de dentro da sessão dele, igual ao duelo (duel:) ──
+const PARTNER_PREFIX = 'partner:'
+function partnerKeyFor(shift, helpedName) {
+  return `${PARTNER_PREFIX}${shift || 'sem-turno'}:${safeName(helpedName)}`
+}
+export async function setPartner(shift, helpedName, data) {
+  try {
+    const r = await kvCall({ action: 'set', key: partnerKeyFor(shift, helpedName), value: JSON.stringify(data) })
+    return r.ok === true
+  } catch { return false }
+}
+export async function getPartner(shift, helpedName) {
+  try {
+    const r = await kvCall({ action: 'get', key: partnerKeyFor(shift, helpedName) })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
+export async function clearPartner(shift, helpedName) {
+  try { await kvCall({ action: 'delete', key: partnerKeyFor(shift, helpedName) }) } catch {}
+}
+export async function listPartners(shift) {
+  try {
+    const r = await kvCall({ action: 'list_with_values', prefix: `${PARTNER_PREFIX}${shift || 'sem-turno'}:` })
+    return (r.items || [])
+      .map(item => { try { return JSON.parse(item.value) } catch { return null } })
+      .filter(Boolean)
+  } catch { return [] }
+}
+
 export async function getExamState() {
   try {
     const r = await kvCall({ action: 'get', key: 'exam:config' })

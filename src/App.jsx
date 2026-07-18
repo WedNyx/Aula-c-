@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 
 // ── tema ──
@@ -3575,6 +3575,8 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
 // modelos que o botão de análise tenta, nesta ordem de preferência — se o primeiro falhar
 // (chave não configurada, instabilidade etc.), o segundo é tentado sozinho, sem avisar o aluno
 const ANALYZE_PROVIDERS = ["nvidia", "laguna"];
+// pontos que ajudante E ajudado ganham quando uma parceria de código é resolvida
+const PARTNER_REWARD = 15;
 async function askClaude(prompt, system, opts = {}){
   try {
     const resp = await fetch("/api/claude", {
@@ -3863,6 +3865,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [examAppeal, setExamAppeal] = useState(null);
   // ✋ pedir ajuda: acende o tile do aluno no monitoramento do professor
   const [helpAt, setHelpAt] = useState(null);
+  // 🤝 parceiro de código: pareamento sugerido/aprovado pelo professor entre um aluno com dificuldade
+  // (ajudado) e um colega livre (ajudante). partnerHelped = registro em que EU sou o ajudado;
+  // partnerHelping = registro em que EU fui escalado pra ajudar um colega (vejo o código dele, só leitura)
+  const [partnerHelped, setPartnerHelped] = useState(null);
+  const [partnerHelping, setPartnerHelping] = useState(null);
+  const [partnerToast, setPartnerToast] = useState("");
+  const [showPartnerHelp, setShowPartnerHelp] = useState(false);
+  const [partnerPeerCode, setPartnerPeerCode] = useState(null);
+  const [partnerViewActive, setPartnerViewActive] = useState(0);
+  const partnerResolvedSeenRef = useRef(false);
   // 👾 chefão da turma ativo (evento do telão) — aqui só aparece o aviso motivador
   const [bossInfo, setBossInfo] = useState(null);
   // 🕐 horário automático de aula (do turno) + vistoria (libera este aluno específico fora do horário)
@@ -4111,6 +4123,68 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     window.addEventListener("online", onOnline);
     return () => { window.removeEventListener("offline", onOffline); window.removeEventListener("online", onOnline); };
   }, [persist]);
+
+  // 🤝 parceiro de código: fica de olho se o professor me pareou com alguém (como ajudado OU como
+  // ajudante). Quando o ajudante marca como resolvido, o AJUDADO detecta na próxima verificação,
+  // ganha os pontos e limpa o registro (o ajudante já ganhou os dele na hora de marcar) — mesmo
+  // padrão de "self-report" usado no resto do app (torneio, chefão etc.)
+  useEffect(() => {
+    let active = true;
+    const check = async () => {
+      const list = await listPartners(shift);
+      if (!active) return;
+      const mineHelping = list.find(p => p.helper === studentName && p.status === "active");
+      setPartnerHelping(mineHelping || null);
+      const mineHelped = list.find(p => p.helped === studentName);
+      if (mineHelped && mineHelped.status === "resolved") {
+        if (!partnerResolvedSeenRef.current) {
+          partnerResolvedSeenRef.current = true;
+          const np = (stateRef.current.nyxPoints || 0) + PARTNER_REWARD;
+          setNyxPoints(np);
+          await persist({ nyxPoints: np });
+          setPartnerToast(`🎉 ${mineHelped.helper} te ajudou! +${PARTNER_REWARD} pontos.`);
+          setTimeout(() => setPartnerToast(""), 8000);
+          await clearPartner(shift, studentName);
+        }
+        setPartnerHelped(null);
+        return;
+      }
+      partnerResolvedSeenRef.current = false;
+      setPartnerHelped(mineHelped && mineHelped.status === "active" ? mineHelped : null);
+    };
+    check();
+    const iv = setInterval(check, 5000);
+    return () => { active = false; clearInterval(iv); };
+  }, [shift, studentName, persist]);
+
+  // enquanto o ajudante está com a janela de "ver código do colega" aberta, atualiza o código dele
+  // periodicamente (só leitura) — fecha sozinho se a parceria acabar nesse meio tempo
+  useEffect(() => {
+    if (!showPartnerHelp || !partnerHelping) return;
+    let active = true;
+    const loadPeer = async () => {
+      const st = await getStudent(shift, partnerHelping.helped);
+      if (!active) return;
+      if (!st) { setShowPartnerHelp(false); return; }
+      setPartnerPeerCode({ name: st.name, files: (st.files && st.files.length) ? st.files : [{ name:"Program.cs", code: st.code||"" }] });
+    };
+    loadPeer();
+    const iv = setInterval(loadPeer, 4000);
+    return () => { active = false; clearInterval(iv); };
+  }, [showPartnerHelp, partnerHelping, shift]);
+
+  const resolvePartner = async () => {
+    if (!partnerHelping) return;
+    await setPartner(shift, partnerHelping.helped, { ...partnerHelping, status: "resolved", resolvedAt: Date.now() });
+    const np = (stateRef.current.nyxPoints || 0) + PARTNER_REWARD;
+    setNyxPoints(np);
+    await persist({ nyxPoints: np });
+    setShowPartnerHelp(false);
+    setPartnerPeerCode(null);
+    setPartnerToast(`🎉 Você ajudou ${partnerHelping.helped}! +${PARTNER_REWARD} pontos.`);
+    setTimeout(() => setPartnerToast(""), 8000);
+    setPartnerHelping(null);
+  };
 
   // 🔥 aquecimento do dia (revisão espaçada): assim que o aluno entra — depois do onboarding e do
   // tour — o Nyx monta 3 perguntinhas rápidas sobre o resumo da aula ANTERIOR. Concluiu, ganha
@@ -5987,6 +6061,20 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <div style={{ background:"#22d3ee18", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#a5f3fc", fontWeight:700 }}>{breakEndMsg}</div>
         </div>
       )}
+      {/* 🤝 parceiro de código: alguém foi designado pra me ajudar */}
+      {partnerHelped && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div style={{ background:"#22d3ee18", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:20 }}>🤝</span>
+            <span style={{ flex:1, color:"#a5f3fc" }}><b style={{ color:"#22d3ee" }}>{partnerHelped.helper}</b> vai te ajudar agora! Ele(a) pode ver seu código pra te dar uma força.</span>
+          </div>
+        </div>
+      )}
+      {partnerToast && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div className="pop" style={{ background:"#34d39918", border:"1px solid #34d399", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#c7f5df", fontWeight:700 }}>{partnerToast}</div>
+        </div>
+      )}
 
       {/* 📶 internet caiu: tranquiliza o aluno — o trabalho está guardado neste computador e
           o próprio heartbeat re-salva tudo sozinho assim que a conexão voltar */}
@@ -6243,6 +6331,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             {helpAt
               ? <button data-tour="ajuda" onClick={cancelHelp} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="O professor já foi avisado — clique pra cancelar o pedido">✋ Professor avisado! (cancelar)</button>
               : <button data-tour="ajuda" onClick={askHelp} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Acende seu nome no painel do professor pra ele vir te ajudar">✋ Pedir ajuda do professor</button>}
+            {partnerHelping && (
+              <button onClick={()=>{ setPartnerViewActive(0); setShowPartnerHelp(true); }} style={{ ...styles.btn("#22d3ee"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja o código dele(a) (só leitura) e marque como resolvido quando ajudar">
+                🤝 Ajudar {partnerHelping.helped} · ver código
+              </button>
+            )}
             {!focusMode && <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#c084fc"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
               🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
             </button>}
@@ -6441,6 +6534,37 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
       {showAchievements && <AchievementsModal unlocked={achievements} onClose={()=>setShowAchievements(false)} />}
       {showRanking && <RankingModal shift={shift} myName={studentName} onClose={()=>setShowRanking(false)} />}
+      {showPartnerHelp && partnerHelping && (
+        <div style={{ position:"fixed", inset:0, background:"#000000aa", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:14 }} onClick={()=>setShowPartnerHelp(false)}>
+          <div className="cardfx" style={{ ...styles.card, width:"min(720px, 96vw)", maxHeight:"90vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+              <h3 style={{ color:"#22d3ee", margin:0 }}>🤝 Ajudando {partnerHelping.helped}</h3>
+              <button onClick={()=>setShowPartnerHelp(false)} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:20, cursor:"pointer" }}>✕</button>
+            </div>
+            <p style={{ color:"#776798", fontSize:12.5, marginBottom:10 }}>Só leitura — você não pode editar o código dele(a), só ver e ajudar por perto. Quando o problema estiver resolvido, marque abaixo e os dois ganham +{PARTNER_REWARD} pontos.</p>
+            {!partnerPeerCode ? (
+              <p style={{ color:"#776798", fontSize:13 }}>Carregando código...</p>
+            ) : (
+              <>
+                {partnerPeerCode.files.length > 1 && (
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
+                    {partnerPeerCode.files.map((f,i) => (
+                      <button key={f.name} onClick={()=>setPartnerViewActive(i)} style={{ ...styles.btn(partnerViewActive===i?"#22d3ee":"#3b2a58"), padding:"4px 10px", fontSize:11.5 }}>{f.name}</button>
+                    ))}
+                  </div>
+                )}
+                <VSEditor
+                  value={partnerPeerCode.files[partnerViewActive]?.code ?? partnerPeerCode.files[0]?.code ?? ""}
+                  onChange={()=>{}}
+                  filename={partnerPeerCode.files[partnerViewActive]?.name ?? partnerPeerCode.files[0]?.name}
+                  locked={true}
+                />
+              </>
+            )}
+            <button onClick={resolvePartner} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:14, padding:"9px 0", fontSize:13.5, fontWeight:800 }}>✅ Marcar como resolvido (+{PARTNER_REWARD} pts pros dois)</button>
+          </div>
+        </div>
+      )}
       {showNotebook && <NotebookModal history={summaryHistory} detailedHistory={detailedSummaryHistory} onClose={()=>setShowNotebook(false)} />}
       {showVoicePicker && <VoicePickerModal onClose={()=>setShowVoicePicker(false)} />}
       {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
@@ -6906,6 +7030,18 @@ function TeacherView({ onLogout, teacherAuth }) {
     };
     check();
     const iv = setInterval(check, 4000);
+    return () => { active = false; clearInterval(iv); };
+  }, []);
+  // 🤝 parceiros de código ativos (dos dois turnos) — pra saber quem já está pareado e não sugerir de novo
+  const [partners, setPartners] = useState([]);
+  useEffect(() => {
+    let active = true;
+    const load2 = async () => {
+      const lists = await Promise.all(SHIFTS.map(sh => listPartners(sh.id)));
+      if (active) setPartners(lists.flat());
+    };
+    load2();
+    const iv = setInterval(load2, 3000);
     return () => { active = false; clearInterval(iv); };
   }, []);
   useEffect(() => { getTeacherMeta().then(m => { metaRef.current = m; setMeta(m); setCityInput(m.city||""); setSchedule(m.schedule||{}); }); }, []);
@@ -7997,6 +8133,18 @@ function TeacherView({ onLogout, teacherAuth }) {
     setExamMsg(accept ? `✅ Pontos da prova devolvidos pra ${s.name}.` : `Desconto mantido pra ${s.name}.`);
     setTimeout(() => setExamMsg(""), 6000);
   };
+  // 🤝 parceiro de código: pareia um colega livre (ajudante) com um aluno em dificuldade (ajudado)
+  const doPairPartner = async (helped, helperName) => {
+    const rec = { helper: helperName, helped: helped.name, shift: helped.shift, status: "active", startedAt: Date.now() };
+    await setPartner(helped.shift, helped.name, rec);
+    setPartners(prev => [...prev.filter(p => !(p.helped===helped.name && p.shift===helped.shift)), rec]);
+    flashMgmt(`🤝 ${helperName} vai ajudar ${helped.name}!`);
+  };
+  const doUnpairPartner = async (helped) => {
+    await clearPartner(helped.shift, helped.name);
+    setPartners(prev => prev.filter(p => !(p.helped===helped.name && p.shift===helped.shift)));
+    flashMgmt(`Parceria de ${helped.name} desfeita.`);
+  };
   // 📚 aulas salvas pelo professor (o código DELE vira a biblioteca)
   useEffect(() => { getTeacherLessons().then(ls => setMyLessons(Array.isArray(ls) ? ls : [])); }, []);
   const saveCurrentLesson = async () => {
@@ -8698,6 +8846,47 @@ function TeacherView({ onLogout, teacherAuth }) {
                     {sel.score!=null && <span style={styles.badge("#34d399")}>🏆 {sel.score} pts</span>}
                     {(() => { const d=difficultyOf(sel); return <span style={styles.badge(d.level==="dif"?"#f87171":"#34d399")}>{d.level==="dif"?"⚠ "+d.text:"✅ "+d.text}</span>; })()}
                   </div>
+                </div>
+
+                {/* 🤝 Parceiro de código: pareia um colega livre com quem está em dificuldade */}
+                <div className="cardfx" style={{ ...styles.card, borderColor:"#22d3ee" }}>
+                  <h4 style={{ color:"#22d3ee", marginBottom:12 }}>🤝 Parceiro de código</h4>
+                  {(() => {
+                    const selShift = sel.shift || "sem-turno";
+                    const selPartner = partners.find(p => p.helped===sel.name && (p.shift||"sem-turno")===selShift && p.status==="active");
+                    const selHelping = partners.find(p => p.helper===sel.name && p.status==="active");
+                    if (selPartner) {
+                      return (
+                        <div>
+                          <p style={{ color:"#d6c9ec", fontSize:13, marginBottom:10 }}>
+                            🤝 <b>{selPartner.helper}</b> está ajudando <b>{sel.name}</b> desde {new Date(selPartner.startedAt).toLocaleTimeString("pt-BR")}.
+                          </p>
+                          <button onClick={()=>doUnpairPartner(sel)} style={{ ...styles.btn("#f87171"), padding:"6px 14px", fontSize:12.5 }}>Desfazer parceria</button>
+                        </div>
+                      );
+                    }
+                    if (selHelping) {
+                      return <p style={{ color:"#776798", fontSize:13 }}>{sel.name} já está ajudando <b>{selHelping.helped}</b> agora — espere terminar antes de parear de novo.</p>;
+                    }
+                    const candidates = students
+                      .filter(s => s.name!==sel.name && (s.shift||"sem-turno")===selShift && (s.shift||"")!==TEST_SHIFT.id
+                        && !partners.some(p => p.status==="active" && (p.helper===s.name || p.helped===s.name)))
+                      .sort((a,b) => { const rank = l=>l==="bem"?0:l==="neutro"?1:2; return rank(difficultyOf(a).level)-rank(difficultyOf(b).level); });
+                    if (candidates.length===0) return <p style={{ color:"#776798", fontSize:13 }}>Nenhum colega livre no turno agora pra parear.</p>;
+                    return (
+                      <div>
+                        <p style={{ color:"#776798", fontSize:11.5, marginBottom:8 }}>Escolha um colega livre pra ajudar {sel.name} — ele vê o código (só leitura) e os dois ganham pontos quando marcar como resolvido.</p>
+                        <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:180, overflowY:"auto" }}>
+                          {candidates.map(c => (
+                            <div key={c.name} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"6px 10px" }}>
+                              <span style={{ fontSize:12.5 }}>{c.name} {difficultyOf(c).level==="bem" && <span style={{color:"#34d399"}}>· livre</span>}</span>
+                              <button onClick={()=>doPairPartner(sel, c.name)} style={{ ...styles.btn("#22d3ee"), padding:"4px 10px", fontSize:11.5 }}>Parear</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Gerenciar aluno: renomear, mover de turno, corrigir nota, excluir */}
