@@ -3052,11 +3052,18 @@ function HallOfFameModal({ entries, onClose }) {
 }
 
 // ── 📊 Visão da Viagem: soma tudo que a carreta já fez, cidade por cidade (só pro professor) ──
-function TripOverviewModal({ entries, onClose }) {
+function TripOverviewModal({ entries, currentCity, onClose }) {
   const cities = entries.filter(e => e.totalStudents != null || e.avgScore != null || e.totalClasses != null);
   const totalCidades = entries.length;
   const totalAlunos = cities.reduce((n, e) => n + (e.totalStudents || 0), 0);
   const totalAulas = cities.reduce((n, e) => n + (e.totalClasses || 0), 0);
+  // 🗺️ mapa da jornada: cidades encerradas que batem com uma região conhecida do DF, na ordem
+  // em que a carreta passou por elas (a ordem de "entries" já é cronológica — ver saveHallOfFame)
+  const mapped = entries
+    .map((e, i) => ({ ...e, order: i + 1, region: matchDfRegion(e.city) }))
+    .filter(e => e.region);
+  const unmapped = entries.filter(e => !matchDfRegion(e.city));
+  const currentRegion = currentCity ? matchDfRegion(currentCity) : null;
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
       <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:680, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
@@ -3079,6 +3086,50 @@ function TripOverviewModal({ entries, onClose }) {
             <div style={{ color:"#f0e9fb", fontWeight:900, fontSize:26 }}>{totalAulas}</div>
           </div>
         </div>
+
+        {/* 🗺️ mapa da jornada: o caminho que a carreta já fez pelas regiões do DF */}
+        <div className="cardfx" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:14, padding:14, marginBottom:16 }}>
+          <p style={{ color:"#c084fc", fontWeight:700, fontSize:13, margin:"0 0 4px" }}>🗺️ Mapa da jornada pelo DF</p>
+          <p style={{ color:"#776798", fontSize:11, margin:"0 0 10px", lineHeight:1.5 }}>Mapa esquemático (não é preciso por GPS) — só pra mostrar mais ou menos o caminho que a carreta já fez. Passe o mouse num ponto pra ver os detalhes.</p>
+          <div style={{ position:"relative", width:"100%", paddingTop:"78%", background:"radial-gradient(120% 100% at 50% 0%, #241839, #140d22)", border:"1px solid #3b2a58", borderRadius:12, overflow:"hidden" }}>
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%" }}>
+              {DF_CITIES.map(region => {
+                const c = DF_REGION_COORDS[region];
+                return <circle key={region} cx={c.x} cy={c.y} r={0.9} fill="#3b2a58" />;
+              })}
+              {mapped.length > 1 && (
+                <polyline
+                  points={mapped.map(e => `${DF_REGION_COORDS[e.region].x},${DF_REGION_COORDS[e.region].y}`).join(" ")}
+                  fill="none" stroke="#c084fc" strokeWidth={0.7} strokeDasharray="2.2,1.6" opacity={0.75}
+                />
+              )}
+            </svg>
+            {mapped.map(e => (
+              <div key={e.order}
+                title={`${e.order}. ${e.city} — ${e.totalStudents || 0} aluno(s), nota média ${e.avgScore || 0}, ${e.totalClasses || 0} aula(s)${e.closedAt ? ` · encerrada em ${new Date(e.closedAt).toLocaleDateString("pt-BR")}` : ""}`}
+                style={{ position:"absolute", left:`${DF_REGION_COORDS[e.region].x}%`, top:`${DF_REGION_COORDS[e.region].y}%`, transform:"translate(-50%,-50%)",
+                  width:20, height:20, borderRadius:"50%", background:"linear-gradient(135deg,#fbbf24,#fb923c)", border:"2px solid #1a1029",
+                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:900, color:"#1a1029",
+                  cursor:"default", boxShadow:"0 2px 8px rgba(0,0,0,.5)" }}>
+                {e.order}
+              </div>
+            ))}
+            {currentRegion && (
+              <div title={`🚌 Você está aqui agora: ${currentCity}`}
+                style={{ position:"absolute", left:`${DF_REGION_COORDS[currentRegion].x}%`, top:`${DF_REGION_COORDS[currentRegion].y}%`, transform:"translate(-50%,-50%)",
+                  width:16, height:16, borderRadius:"50%", background:"#34d399", border:"2px solid #1a1029",
+                  boxShadow:"0 0 0 6px #34d39933", animation:"pulse-dot 1.4s ease-in-out infinite" }} />
+            )}
+          </div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginTop:10, fontSize:11.5 }}>
+            <span style={{ color:"#a99ac9", display:"flex", alignItems:"center", gap:5 }}><span style={{ width:12, height:12, borderRadius:"50%", background:"linear-gradient(135deg,#fbbf24,#fb923c)", display:"inline-block" }} /> cidade já encerrada (ordem da visita)</span>
+            {currentRegion && <span style={{ color:"#a99ac9", display:"flex", alignItems:"center", gap:5 }}><span style={{ width:10, height:10, borderRadius:"50%", background:"#34d399", display:"inline-block" }} /> você está aqui agora</span>}
+          </div>
+          {unmapped.length > 0 && (
+            <p style={{ color:"#776798", fontSize:11, marginTop:8 }}>Não reconheci a região de {unmapped.map(e=>`"${e.city||"?"}"`).join(", ")} pra colocar no mapa, mas conta na jornada mesmo assim.</p>
+          )}
+        </div>
+
         {cities.length === 0 ? (
           <p style={{ color:"#776798", fontSize:13, textAlign:"center", padding:"20px 0" }}>Ainda não tem estatísticas de cidade aqui — elas passam a aparecer a partir da próxima cidade encerrada.</p>
         ) : (
@@ -6828,6 +6879,59 @@ function Calendar({ classDays, contentNames = {}, onToggle }) {
 // ════════════════════════════════════════════════════════════════════════════
 const DF_CITIES = ["Plano Piloto (Brasília)","Gama","Taguatinga","Brazlândia","Sobradinho","Planaltina","Paranoá","Núcleo Bandeirante","Ceilândia","Guará","Cruzeiro","Samambaia","Santa Maria","São Sebastião","Recanto das Emas","Lago Sul","Riacho Fundo","Lago Norte","Candangolândia","Águas Claras","Riacho Fundo II","Sudoeste/Octogonal","Varjão","Park Way","SCIA/Estrutural","Sobradinho II","Jardim Botânico","Itapoã","SIA","Vicente Pires","Fercal","Sol Nascente/Pôr do Sol","Arniqueira"];
 
+// ── 🗺️ mapa da jornada: posição ESQUEMÁTICA (não é GPS de verdade) de cada região administrativa
+// do DF num grid de 0 a 100, só pra dar noção de mais ou menos onde cada uma fica em relação às
+// outras — Plano Piloto no centro, satélites espalhadas ao redor, seguindo o formato real do DF ──
+const DF_REGION_COORDS = {
+  "Plano Piloto (Brasília)": { x:60, y:42 },
+  "Lago Sul": { x:70, y:50 },
+  "Lago Norte": { x:66, y:32 },
+  "Paranoá": { x:80, y:40 },
+  "Itapoã": { x:77, y:36 },
+  "Jardim Botânico": { x:78, y:48 },
+  "Varjão": { x:63, y:30 },
+  "Sudoeste/Octogonal": { x:54, y:48 },
+  "Cruzeiro": { x:50, y:46 },
+  "SIA": { x:46, y:46 },
+  "Guará": { x:44, y:50 },
+  "Núcleo Bandeirante": { x:47, y:56 },
+  "Candangolândia": { x:49, y:55 },
+  "Park Way": { x:45, y:62 },
+  "Riacho Fundo": { x:41, y:62 },
+  "Riacho Fundo II": { x:39, y:67 },
+  "Vicente Pires": { x:41, y:48 },
+  "Águas Claras": { x:37, y:53 },
+  "Arniqueira": { x:35, y:57 },
+  "Taguatinga": { x:30, y:51 },
+  "SCIA/Estrutural": { x:39, y:45 },
+  "Ceilândia": { x:18, y:47 },
+  "Sol Nascente/Pôr do Sol": { x:14, y:49 },
+  "Samambaia": { x:21, y:59 },
+  "Brazlândia": { x:9, y:24 },
+  "Santa Maria": { x:37, y:74 },
+  "Gama": { x:35, y:81 },
+  "Recanto das Emas": { x:27, y:69 },
+  "São Sebastião": { x:74, y:67 },
+  "Fercal": { x:54, y:9 },
+  "Sobradinho": { x:59, y:17 },
+  "Sobradinho II": { x:56, y:21 },
+  "Planaltina": { x:84, y:11 },
+};
+function normalizeCityName(s) {
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+}
+// acha a região do DF que bate com o texto livre que o professor digitou (pode não ter acento,
+// pode ser só "Brasília" em vez de "Plano Piloto (Brasília)" etc.) — null se não reconhecer nenhuma
+function matchDfRegion(cityName) {
+  const norm = normalizeCityName(cityName);
+  if (!norm) return null;
+  for (const region of DF_CITIES) {
+    const rn = normalizeCityName(region);
+    if (rn === norm || rn.includes(norm) || norm.includes(rn)) return region;
+  }
+  return null;
+}
+
 function difficultyOf(s) {
   if (s.phase==="done") {
     if ((s.score||0) >= 70) return { level:"bem", text:`Concluiu a aula com nota ${s.score}.` };
@@ -8443,7 +8547,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {showTelao && <TelaoModal students={students} shift={shiftFilter} onClose={()=>setShowTelao(false)} teacherAuth={teacherAuth} />}
-      {showTripOverview && <TripOverviewModal entries={tripHallEntries} onClose={()=>setShowTripOverview(false)} />}
+      {showTripOverview && <TripOverviewModal entries={tripHallEntries} currentCity={meta.city} onClose={()=>setShowTripOverview(false)} />}
 
       {dailyPdfModal && (
         <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
