@@ -3577,6 +3577,17 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
 const ANALYZE_PROVIDERS = ["nvidia", "laguna"];
 // pontos que ajudante E ajudado ganham quando uma parceria de código é resolvida
 const PARTNER_REWARD = 15;
+
+// ── modo offline total: a carreta às vezes fica sem NENHUMA internet por um período inteiro de
+// aula (não só uma queda rápida) — em vez de deixar o Nyx tentar e mostrar um erro técnico
+// assustador, essas duas funções detectam a falta de rede de verdade e permitem uma mensagem
+// tranquilizadora + retentativa automática assim que a conexão voltar (ver "online" listeners) ──
+function isOffline() {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+function isNetworkError(e) {
+  return isOffline() || (e && e.name === "TypeError" && /fetch/i.test(e.message || ""));
+}
 async function askClaude(prompt, system, opts = {}){
   try {
     const resp = await fetch("/api/claude", {
@@ -3792,6 +3803,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [score, setScore] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const lastProviderRef = useRef("nvidia"); // lembra o último modelo escolhido, pra reverificação automática usar o mesmo
+  // 🔌 modo offline total: quando a análise ou o "Salvar e Finalizar" não rolam por falta de
+  // internet (não uma simples instabilidade), fica marcado aqui pra tentar de novo sozinho assim
+  // que a conexão voltar — o aluno não precisa ficar clicando até funcionar
+  const pendingAnalyzeRef = useRef(false);
+  const pendingSaveRef = useRef(false);
   // erros da última análise (linha sublinhada de vermelho até corrigir) + tour do Nyx explicando cada um
   const [codeErrors, setCodeErrors] = useState([]);
   const [showErrorWalkthrough, setShowErrorWalkthrough] = useState(false);
@@ -4846,6 +4862,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       setAnalyzing(false);
       return;
     }
+    // 🔌 sem internet nenhuma agora: nem tenta chamar a IA (ia falhar de qualquer jeito) — avisa
+    // com carinho e marca pra verificar sozinho assim que a conexão voltar
+    if (isOffline()) {
+      setRobotState("error");
+      setRobotMsg("📡 Sem internet agora — seu código já está salvo neste computador. Assim que a conexão voltar, eu verifico automaticamente!");
+      pendingAnalyzeRef.current = true;
+      setAnalyzing(false);
+      return;
+    }
     const order = [lastProviderRef.current, ANALYZE_PROVIDERS.find(p => p !== lastProviderRef.current)];
     let lastErr = null;
     for (const provider of order) {
@@ -4876,6 +4901,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       if (lastErr.message === 'ROBOTKEY_MISSING') {
         setRobotState("error");
         setRobotMsg(lastErr.userMsg || "🔑 Nyx está offline: o professor precisa configurar a chave da IA no painel do Vercel. A verificação básica do código continua funcionando!");
+      } else if (isNetworkError(lastErr)) {
+        setRobotState("error");
+        setRobotMsg("📡 A internet caiu bem na hora de verificar — mas seu código está salvo! Assim que a conexão voltar, eu verifico automaticamente.");
+        pendingAnalyzeRef.current = true;
       } else {
         setRobotState("error");
         setRobotMsg(`😵 Nyx tentou analisar com os dois modelos disponíveis e nenhum respondeu agora. Tente de novo em instantes.\n\n🔧 Detalhe técnico (pra mostrar ao Vegapunk): ${lastErr.message || lastErr}`);
@@ -5177,6 +5206,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const handleSave = async () => {
     const fullCode = allCodeToday();
     if (fullCode.trim().length < 10) { setSaveWarn("✏️ Escreva algum código antes de salvar!"); setTimeout(()=>setSaveWarn(""), 4000); return; }
+    // 🔌 sem internet nenhuma: nem entra na tela de "gerando" (que ia travar esperando uma resposta
+    // que nunca chega) — avisa que o código está salvo e tenta de novo sozinho quando a conexão voltar
+    if (isOffline()) {
+      pendingSaveRef.current = true;
+      setSaveWarn("📡 Sem internet agora — seu código já está salvo! Assim que a conexão voltar, gero o resumo e a atividade automaticamente.");
+      setTimeout(()=>setSaveWarn(""), 7000);
+      return;
+    }
     setAnswers({});
     setDetailedSummary(""); setSummaryView("simples"); setDetailFailMsg(""); // aula nova: zera a versão detalhada da aula anterior
     setPhase("generating");
@@ -5228,11 +5265,27 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       summarySnapshotRef.current = { date: todayKey(), files: (files||[]).map(f => ({ name:f.name, code:f.code||"" })) };
       await persist({ phase:"summary", dynamicActivity:questions, dynamicSummary:finalSummary, summaryHistory: newSummaryHistory, summarySnapshot: summarySnapshotRef.current });
       setPhase("summary");
-    } catch {
-      setGeneratingMsg("❌ Erro ao gerar. Tente novamente.");
+    } catch (e) {
+      if (isNetworkError(e)) {
+        pendingSaveRef.current = true;
+        setGeneratingMsg("📡 A internet caiu bem nessa hora — seu código está salvo! Vou gerar o resumo e a atividade sozinho assim que a conexão voltar.");
+      } else {
+        setGeneratingMsg("❌ Erro ao gerar. Tente novamente.");
+      }
       setTimeout(() => { setPhase("coding"); persist({ phase:"coding" }); }, 2500);
     }
   };
+
+  // 🔌 modo offline total: assim que a internet voltar, tenta sozinho de novo o que ficou pendente
+  // (análise ou salvar/gerar atividade) — o aluno não precisa perceber que caiu e clicar de novo
+  useEffect(() => {
+    const onBackOnline = () => {
+      if (pendingAnalyzeRef.current) { pendingAnalyzeRef.current = false; analyzeCode(); }
+      if (pendingSaveRef.current) { pendingSaveRef.current = false; handleSave(); }
+    };
+    window.addEventListener("online", onBackOnline);
+    return () => window.removeEventListener("online", onBackOnline);
+  }, [analyzeCode, handleSave]);
 
   // versão detalhada do resumo, pedida sob demanda (só quando o aluno clica) — gerada uma vez e guardada
   const fetchDetailedSummary = async () => {
