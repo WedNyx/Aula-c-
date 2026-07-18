@@ -3561,6 +3561,9 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  IA + util
 // ════════════════════════════════════════════════════════════════════════════
+// modelos que o botão de análise tenta, nesta ordem de preferência — se o primeiro falhar
+// (chave não configurada, instabilidade etc.), o segundo é tentado sozinho, sem avisar o aluno
+const ANALYZE_PROVIDERS = ["nvidia", "laguna"];
 async function askClaude(prompt, system, opts = {}){
   try {
     const resp = await fetch("/api/claude", {
@@ -3764,7 +3767,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [answers, setAnswers] = useState({});
   const [score, setScore] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [analyzingProvider, setAnalyzingProvider] = useState(null);
   const lastProviderRef = useRef("nvidia"); // lembra o último modelo escolhido, pra reverificação automática usar o mesmo
   // erros da última análise (linha sublinhada de vermelho até corrigir) + tour do Nyx explicando cada um
   const [codeErrors, setCodeErrors] = useState([]);
@@ -4732,46 +4734,58 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     setGuidedLessonLoading(false);
   };
 
-  const analyzeCode = async (provider = lastProviderRef.current) => {
+  // analisa o código tentando os modelos disponíveis em sequência — se o primeiro falhar por
+  // qualquer motivo (chave não configurada, instabilidade, etc.), tenta o outro automaticamente
+  // e SEM avisar o aluno no meio do caminho; só mostra erro se os dois falharem
+  const analyzeCode = async () => {
     const trimmed = activeCode.trim();
     if (trimmed.length < 12 || analyzing) return;
-    lastProviderRef.current = provider;
-    setRobotState("thinking"); setAnalyzing(true); setAnalyzingProvider(provider);
+    setRobotState("thinking"); setAnalyzing(true);
     const quick = quickCheck(activeCode);
     if (quick) {
       const fb = { ok:false, message:quick.message, missingChars:quick.missing||[] };
       setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setFeedback(fb);
       setCodeErrors([]); setShowErrorWalkthrough(false);
       await persist({ feedback:fb, hasError:true });
-      setAnalyzing(false); setAnalyzingProvider(null);
+      setAnalyzing(false);
       return;
     }
-    try {
-      const parsed = await askClaudeJson(
-        `Revise o código C# de um aluno iniciante como um COMPILADOR faria, linha por linha.\n\n${otherFilesCtx(files, active)}Arquivo em edição — é ESTE e SÓ ESTE que você deve revisar (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nO que verificar (nesta ordem):\n1. Maiúsculas/minúsculas: Console.WriteLine, Console.ReadLine, Convert.ToInt32, int.Parse — "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS.\n2. Tipos em minúsculo (regra da turma): string, int, double, bool, char — se usou String/Int32/Double/Boolean, avise para trocar pela forma minúscula.\n3. Ponto e vírgula ; faltando no fim de instruções (declarações, chamadas, atribuições).\n4. Chaves { }, parênteses ( ) e aspas " — conte os pares no arquivo INTEIRO antes de acusar falta.\n5. Palavras-chave erradas (publik, voi, whille, pritn, statics, clas).\n6. Variáveis usadas sem declarar (confira TODAS as linhas anteriores antes de acusar) e comparação com = em vez de ==.\n7. Console.ReadLine lido direto para int/double sem Convert/Parse.\n\nLembretes IMPORTANTES:\n- Os "Outros arquivos" (se houver) são SÓ contexto de compilação, pra você saber que classes/métodos de lá existem e podem ser usados no arquivo em edição — NUNCA os revise, NUNCA aponte erro neles, e NUNCA copie um "trecho" retirado deles. Cada "trecho" de erro tem que ser uma linha que existe literalmente no arquivo em edição.\n- Top-level statements (código sem class/Main) e ausência de using System são VÁLIDOS — não são erro.\n- Não aponte classe/método "inexistente" se estiver definido em outro arquivo do projeto.\n- NÃO invente erro em código correto. Na dúvida real, prefira ok=true.\n\nResponda APENAS em JSON puro, sem markdown, com os campos NESTA ordem:\n{"analise": "sua verificação rápida linha a linha, citando o que conferiu (máx 3 frases — o aluno não vê isto)", "ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: onde está (linha/trecho) e como corrigir mostrando a forma certa, em 1 a 3 frases gentis", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se nenhum"], "errors": ["se ok for false: uma lista com CADA erro encontrado no arquivo em edição (pode ter mais de um). Cada item é um objeto {\\"trecho\\": a linha EXATA e completa como aparece no ARQUIVO EM EDIÇÃO (nunca nos outros arquivos), copiada literalmente, sem espaços extras no início; \\"explicacao\\": por que está errado e como corrigir, 1 a 2 frases bem simples e gentis; \\"exemplo\\": a mesma linha já corrigida}. Lista vazia se ok for true."]}`,
-        CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown." + nyxPrefsInstruction(nyxPrefs),
-        { temperature: 0, provider }
-      );
-      setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
-      await persist({ feedback:parsed, hasError:!parsed.ok });
-      if (parsed.ok) {
-        unlockAchievement("codigo-limpo");
-        setCodeErrors([]); setShowErrorWalkthrough(false);
-      } else {
-        const errs = (Array.isArray(parsed.errors) ? parsed.errors : []).filter(e => e && e.trecho && findLineIndex(activeCode, e.trecho) >= 0);
-        setCodeErrors(errs);
-        if (errs.length > 0) { setErrorWalkStep(0); setShowErrorWalkthrough(true); }
-      }
-    } catch(e) {
-      if (e.message === 'ROBOTKEY_MISSING') {
-        setRobotState("error");
-        setRobotMsg(e.userMsg || "🔑 Nyx está offline: o professor precisa configurar a chave da IA no painel do Vercel. A verificação básica do código continua funcionando!");
-      } else {
-        setRobotState("error");
-        setRobotMsg(`😵 Nyx não conseguiu analisar agora com ${provider === "laguna" ? "Laguna" : "Nemotron"}. Tente de novo, ou experimente o outro botão.\n\n🔧 Detalhe técnico (pra mostrar ao Vegapunk): ${e.message || e}`);
+    const order = [lastProviderRef.current, ANALYZE_PROVIDERS.find(p => p !== lastProviderRef.current)];
+    let lastErr = null;
+    for (const provider of order) {
+      try {
+        const parsed = await askClaudeJson(
+          `Revise o código C# de um aluno iniciante como um COMPILADOR faria, linha por linha.\n\n${otherFilesCtx(files, active)}Arquivo em edição — é ESTE e SÓ ESTE que você deve revisar (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nO que verificar (nesta ordem):\n1. Maiúsculas/minúsculas: Console.WriteLine, Console.ReadLine, Convert.ToInt32, int.Parse — "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS.\n2. Tipos em minúsculo (regra da turma): string, int, double, bool, char — se usou String/Int32/Double/Boolean, avise para trocar pela forma minúscula.\n3. Ponto e vírgula ; faltando no fim de instruções (declarações, chamadas, atribuições).\n4. Chaves { }, parênteses ( ) e aspas " — conte os pares no arquivo INTEIRO antes de acusar falta.\n5. Palavras-chave erradas (publik, voi, whille, pritn, statics, clas).\n6. Variáveis usadas sem declarar (confira TODAS as linhas anteriores antes de acusar) e comparação com = em vez de ==.\n7. Console.ReadLine lido direto para int/double sem Convert/Parse.\n\nLembretes IMPORTANTES:\n- Os "Outros arquivos" (se houver) são SÓ contexto de compilação, pra você saber que classes/métodos de lá existem e podem ser usados no arquivo em edição — NUNCA os revise, NUNCA aponte erro neles, e NUNCA copie um "trecho" retirado deles. Cada "trecho" de erro tem que ser uma linha que existe literalmente no arquivo em edição.\n- Top-level statements (código sem class/Main) e ausência de using System são VÁLIDOS — não são erro.\n- Não aponte classe/método "inexistente" se estiver definido em outro arquivo do projeto.\n- NÃO invente erro em código correto. Na dúvida real, prefira ok=true.\n\nResponda APENAS em JSON puro, sem markdown, com os campos NESTA ordem:\n{"analise": "sua verificação rápida linha a linha, citando o que conferiu (máx 3 frases — o aluno não vê isto)", "ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: onde está (linha/trecho) e como corrigir mostrando a forma certa, em 1 a 3 frases gentis", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se nenhum"], "errors": ["se ok for false: uma lista com CADA erro encontrado no arquivo em edição (pode ter mais de um). Cada item é um objeto {\\"trecho\\": a linha EXATA e completa como aparece no ARQUIVO EM EDIÇÃO (nunca nos outros arquivos), copiada literalmente, sem espaços extras no início; \\"explicacao\\": por que está errado e como corrigir, 1 a 2 frases bem simples e gentis; \\"exemplo\\": a mesma linha já corrigida}. Lista vazia se ok for true."]}`,
+          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown." + nyxPrefsInstruction(nyxPrefs),
+          { temperature: 0, provider }
+        );
+        lastProviderRef.current = provider; // o modelo que funcionou vira o preferido pras próximas análises (inclusive as silenciosas)
+        setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
+        await persist({ feedback:parsed, hasError:!parsed.ok });
+        if (parsed.ok) {
+          unlockAchievement("codigo-limpo");
+          setCodeErrors([]); setShowErrorWalkthrough(false);
+        } else {
+          const errs = (Array.isArray(parsed.errors) ? parsed.errors : []).filter(e => e && e.trecho && findLineIndex(activeCode, e.trecho) >= 0);
+          setCodeErrors(errs);
+          if (errs.length > 0) { setErrorWalkStep(0); setShowErrorWalkthrough(true); }
+        }
+        lastErr = null;
+        break; // deu certo — não precisa tentar o outro modelo
+      } catch (e) {
+        lastErr = e; // guarda e tenta o próximo modelo da lista, sem avisar o aluno ainda
       }
     }
-    setAnalyzing(false); setAnalyzingProvider(null);
+    if (lastErr) {
+      if (lastErr.message === 'ROBOTKEY_MISSING') {
+        setRobotState("error");
+        setRobotMsg(lastErr.userMsg || "🔑 Nyx está offline: o professor precisa configurar a chave da IA no painel do Vercel. A verificação básica do código continua funcionando!");
+      } else {
+        setRobotState("error");
+        setRobotMsg(`😵 Nyx tentou analisar com os dois modelos disponíveis e nenhum respondeu agora. Tente de novo em instantes.\n\n🔧 Detalhe técnico (pra mostrar ao Vegapunk): ${lastErr.message || lastErr}`);
+      }
+    }
+    setAnalyzing(false);
   };
 
   // enquanto houver erros sinalizados, sublinha em vermelho a linha correspondente no editor — some sozinho
@@ -5741,16 +5755,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     );
   }
 
-  // dois botões, um por modelo de IA — o aluno escolhe qual pedir pro Nyx usar nesta análise
+  // um único botão — o Nyx tenta o primeiro modelo e, se falhar por qualquer motivo, tenta o
+  // outro sozinho por trás dos panos, sem o aluno precisar escolher nem clicar de novo
   const analyzeButtons = (
-    <>
-      <button title={activeCode.trim().length<12 ? "Escreva um pouco mais de código neste arquivo antes de pedir a análise" : ""} style={{ ...styles.btn("#c084fc"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode("nvidia")} disabled={analyzing||activeCode.trim().length<12}>
-        {analyzingProvider==="nvidia" ? "🔍 Analisando..." : "✨ Nemotron"}
-      </button>
-      <button title={activeCode.trim().length<12 ? "Escreva um pouco mais de código neste arquivo antes de pedir a análise" : ""} style={{ ...styles.btn("#22d3ee"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode("laguna")} disabled={analyzing||activeCode.trim().length<12}>
-        {analyzingProvider==="laguna" ? "🔍 Analisando..." : "🌊 Laguna"}
-      </button>
-    </>
+    <button title={activeCode.trim().length<12 ? "Escreva um pouco mais de código neste arquivo antes de pedir a análise" : ""} style={{ ...styles.btn("#c084fc"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode()} disabled={analyzing||activeCode.trim().length<12}>
+      {analyzing ? "🔍 Analisando..." : "✨ Analisar código"}
+    </button>
   );
 
   // ── CODING ──
