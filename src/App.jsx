@@ -7,14 +7,14 @@ import { xlsxBlob, colLetter } from "./xlsx.js";
 // ── tema ──
 const FONT = "'Nunito','Segoe UI',system-ui,sans-serif";
 // além dos brilhos, um "grid de pontos" bem sutil (26px) dá cara de bancada de programador
-const PAGE_BG = "radial-gradient(1100px 700px at 85% -10%, rgba(124,131,255,.18), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.11), transparent 55%), radial-gradient(760px 520px at 50% 115%, rgba(236,72,153,.05), transparent 60%), radial-gradient(rgba(124,131,255,.05) 1px, transparent 1.6px) 0 0 / 26px 26px, linear-gradient(180deg,#0a0c18 0%,#0c0f20 100%)";
+const PAGE_BG = "radial-gradient(1100px 700px at 85% -10%, rgba(124,131,255,.18), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.11), transparent 55%), radial-gradient(760px 520px at 50% 115%, rgba(236,72,153,.05), transparent 60%), radial-gradient(rgba(124,131,255,.05) 1px, transparent 1.6px) 0 0 / 26px 26px, linear-gradient(180deg,#120b1e 0%,#0c0f20 100%)";
 const LIGHT_BG = "radial-gradient(1000px 620px at 85% -10%, rgba(124,131,255,.20), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(34,211,238,.14), transparent 55%), linear-gradient(180deg,#eef1fb 0%,#dde4f5 100%)";
 // tema exclusivo desbloqueado quando o aluno equipa espada + escudo juntos e o Nyx vira um Espartano
 const SPARTAN_BG = "radial-gradient(1100px 700px at 85% -10%, rgba(217,119,6,.24), transparent 60%), radial-gradient(900px 600px at -10% 110%, rgba(153,27,27,.20), transparent 55%), radial-gradient(760px 520px at 50% 115%, rgba(120,53,15,.14), transparent 60%), linear-gradient(180deg,#2b1408 0%,#160a04 100%)";
 function customBg(spec) {
   const colors = String(spec).split(",").map(c=>c.trim()).filter(c=>/^#/.test(c)).slice(0,3);
   if (colors.length <= 1) {
-    const hex = colors[0] || "#7c83ff";
+    const hex = colors[0] || "#c084fc";
     return `radial-gradient(1000px 620px at 85% -10%, ${shade(hex,0.15)}, transparent 65%), linear-gradient(180deg, ${shade(hex,-0.55)} 0%, ${shade(hex,-0.72)} 100%)`;
   }
   const stops = colors.map(c => shade(c, -0.32)).join(", ");
@@ -179,25 +179,25 @@ function VoicePickerModal({ onClose }) {
   };
   const isNatural = (v) => /natural|neural|online/i.test(v.name);
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🗣️ Voz do Nyx</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#c084fc,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🗣️ Voz do Nyx</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Teste as vozes em português que existem neste aparelho e escolha a que você prefere pra leitura em voz alta.</p>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Teste as vozes em português que existem neste aparelho e escolha a que você prefere pra leitura em voz alta.</p>
         {voices.length === 0 ? (
-          <p style={{ color:"#5d679c", fontSize:13 }}>Não encontrei vozes em português neste aparelho. A leitura vai usar a voz padrão do sistema.</p>
+          <p style={{ color:"#776798", fontSize:13 }}>Não encontrei vozes em português neste aparelho. A leitura vai usar a voz padrão do sistema.</p>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
             {voices.map(v => (
-              <div key={v.name} style={{ display:"flex", alignItems:"center", gap:8, background: saved===v.name ? "#7c83ff22" : "#0d1122", border:`1px solid ${saved===v.name ? "#7c83ff" : "#2a3154"}`, borderRadius:12, padding:"8px 12px", flexWrap:"wrap" }}>
-                <span style={{ flex:1, minWidth:140, fontSize:13, fontWeight:700, color:"#e8ebfa" }}>
+              <div key={v.name} style={{ display:"flex", alignItems:"center", gap:8, background: saved===v.name ? "#c084fc22" : "#171026", border:`1px solid ${saved===v.name ? "#c084fc" : "#3b2a58"}`, borderRadius:12, padding:"8px 12px", flexWrap:"wrap" }}>
+                <span style={{ flex:1, minWidth:140, fontSize:13, fontWeight:700, color:"#f0e9fb" }}>
                   {v.name}
                   {isNatural(v) && <span style={{ marginLeft:6, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:8, padding:"1px 7px", fontSize:10.5, fontWeight:800 }}>✨ Natural</span>}
                 </span>
                 <button onClick={()=>testVoice(v)} style={{ background:"transparent", border:"1px solid #22d3ee", color:"#22d3ee", borderRadius:8, padding:"4px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>🔊 Testar</button>
-                <button onClick={()=>chooseVoice(v)} style={{ background: saved===v.name ? "#7c83ff" : "transparent", border:"1px solid #7c83ff", color: saved===v.name ? "#fff" : "#7c83ff", borderRadius:8, padding:"4px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>{saved===v.name ? "✓ Escolhida" : "Usar esta"}</button>
+                <button onClick={()=>chooseVoice(v)} style={{ background: saved===v.name ? "#c084fc" : "transparent", border:"1px solid #c084fc", color: saved===v.name ? "#fff" : "#c084fc", borderRadius:8, padding:"4px 10px", fontSize:12, fontWeight:700, cursor:"pointer" }}>{saved===v.name ? "✓ Escolhida" : "Usar esta"}</button>
               </div>
             ))}
           </div>
@@ -695,7 +695,7 @@ function KeyVisual({ char }) {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:10, margin:"6px 0" }}>
       <div style={{ background:"linear-gradient(180deg,#f5f5f5,#d0d0d0)", border:"2px solid #888", borderRadius:6, boxShadow:"0 3px 0 #555", padding:"4px 10px", fontFamily:"monospace", fontWeight:700, fontSize:15, color:"#222", minWidth:40, textAlign:"center", userSelect:"none" }}>{info.label}</div>
-      <span style={{ color:"#96a0cc", fontSize:13 }}>{info.desc}</span>
+      <span style={{ color:"#a99ac9", fontSize:13 }}>{info.desc}</span>
     </div>
   );
 }
@@ -777,7 +777,7 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
   if (idRef.current === null) idRef.current = ++__nyxSeq;
   const uid = "nyx" + idRef.current;
   const MAP = {
-    idle:     { main:"#7c83ff", dark:"#575ee0", eye:"#a5f0ff", label:"Pronto para ajudar",  anim:"nyx-float 3.4s ease-in-out infinite" },
+    idle:     { main:"#c084fc", dark:"#575ee0", eye:"#a5f0ff", label:"Pronto para ajudar",  anim:"nyx-float 3.4s ease-in-out infinite" },
     thinking: { main:"#fbbf24", dark:"#d99b0d", eye:"#fff3c4", label:"Analisando...",        anim:"nyx-float 1.5s ease-in-out infinite" },
     ok:       { main:"#34d399", dark:"#0da879", eye:"#d1fae5", label:"Tudo certo!",          anim:"nyx-bounce 1.1s ease" },
     error:    { main:"#f87171", dark:"#dc4848", eye:"#ffe1e1", label:"Encontrei algo!",      anim:"nyx-shake .55s ease" },
@@ -1049,7 +1049,7 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
       {showName && (
         <>
           <div style={{ fontWeight:900, fontSize:15, letterSpacing:3, color:P.main, marginTop:2 }}>NYX</div>
-          <div style={{ fontSize:11.5, color:"#96a0cc", marginTop:1 }}>{P.label}</div>
+          <div style={{ fontSize:11.5, color:"#a99ac9", marginTop:1 }}>{P.label}</div>
         </>
       )}
     </div>
@@ -1065,7 +1065,7 @@ function shade(hex,pct){ const [r,g,b]=hexToRgb(hex); const t=pct<0?0:255,p=Math
 function isLight(hex){ const [r,g,b]=hexToRgb(hex); return (0.299*r+0.587*g+0.114*b)>165; }
 
 const AVATAR_OPTS = {
-  bg:   ["#7c83ff","#34d399","#fbbf24","#f87171","#06b6d4","#ec4899","#8b5cf6","#3b82f6","#14b8a6","#0ea5e9","#f43f5e","#64748b"],
+  bg:   ["#c084fc","#34d399","#fbbf24","#f87171","#06b6d4","#ec4899","#8b5cf6","#3b82f6","#14b8a6","#0ea5e9","#f43f5e","#64748b"],
   skin: ["#ffe0bd","#ffd6c0","#f1c27d","#e0ac69","#c68642","#a86b3c","#8d5524","#5c3a21"],
   hair: ["#2b2b2b","#3b2417","#6b3e26","#a0522d","#c2410c","#d9a441","#f0d58c","#cbd5e1","#ec4899","#a855f7","#3b82f6","#06b6d4","#34d399","#f87171"],
   hairV: [
@@ -1095,7 +1095,7 @@ const AVATAR_OPTS = {
     { e:"🐢", label:"Tartaruga" },
   ],
 };
-const DEFAULT_AVATAR = { bg:"#7c83ff", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"variant11", eyesV:"variant09", mouthV:"happy05", glassesV:"", earringsV:"", flores:false, freckles:false, pet:"", roupa:"" };
+const DEFAULT_AVATAR = { bg:"#c084fc", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"variant11", eyesV:"variant09", mouthV:"happy05", glassesV:"", earringsV:"", flores:false, freckles:false, pet:"", roupa:"" };
 
 // ── roupas e acessórios do avatar (escolhidos na criação do perfil) ──
 const ROUPA_ITEMS = [
@@ -1252,10 +1252,10 @@ function AvatarPreview({ value, onChange }) {
   };
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
-      <div style={{ background:"radial-gradient(circle at 50% 28%, #1d2344, #0d1122)", borderRadius:18, padding:12, border:"1px solid #2c3358", animation:"glow-ring 3s ease-in-out infinite" }}>
+      <div style={{ background:"radial-gradient(circle at 50% 28%, #1d2344, #171026)", borderRadius:18, padding:12, border:"1px solid #3e2d5e", animation:"glow-ring 3s ease-in-out infinite" }}>
         <Avatar cfg={v} size={104} />
       </div>
-      <button type="button" onClick={randomize} style={{ background:"#2a3154", color:"#e8ebfa", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:12, fontWeight:700 }}>🎲 Surpresa</button>
+      <button type="button" onClick={randomize} style={{ background:"#3b2a58", color:"#f0e9fb", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:12, fontWeight:700 }}>🎲 Surpresa</button>
     </div>
   );
 }
@@ -1269,7 +1269,7 @@ function AvatarControls({ value, onChange, part = "all" }) {
     <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
       {AVATAR_OPTS[k].map(col => (
         <button key={col} type="button" onClick={()=>set(k,col)}
-          style={{ width:26, height:26, borderRadius:"50%", background:col, border:v[k]===col?"3px solid #fff":"2px solid #5d679c", boxShadow:v[k]===col?"0 0 0 2px #7c83ff":"none", cursor:"pointer", padding:0 }} />
+          style={{ width:26, height:26, borderRadius:"50%", background:col, border:v[k]===col?"3px solid #fff":"2px solid #776798", boxShadow:v[k]===col?"0 0 0 2px #c084fc":"none", cursor:"pointer", padding:0 }} />
       ))}
     </div>
   );
@@ -1277,7 +1277,7 @@ function AvatarControls({ value, onChange, part = "all" }) {
     <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
       {AVATAR_OPTS[k].map(([opt,label]) => (
         <button key={opt||"nenhum"} type="button" onClick={()=>set(field,opt)} title={label}
-          style={{ background:v[field]===opt?"#7c83ff33":"#0d1122", border:`2px solid ${v[field]===opt?"#7c83ff":"#2a3154"}`, borderRadius:12, padding:3, cursor:"pointer", lineHeight:0 }}>
+          style={{ background:v[field]===opt?"#c084fc33":"#171026", border:`2px solid ${v[field]===opt?"#c084fc":"#3b2a58"}`, borderRadius:12, padding:3, cursor:"pointer", lineHeight:0 }}>
           <Avatar cfg={{ ...v, pet:"", [field]:opt }} size={46} />
         </button>
       ))}
@@ -1285,13 +1285,13 @@ function AvatarControls({ value, onChange, part = "all" }) {
   );
   const Toggle = ({ field, label }) => (
     <button type="button" onClick={()=>set(field, !v[field])}
-      style={{ padding:"5px 12px", borderRadius:10, background:v[field]?"#7c83ff":"#0d1122", color:"#e8ebfa", border:`1px solid ${v[field]?"#7c83ff":"#2a3154"}`, cursor:"pointer", fontSize:12, fontWeight:700 }}>
+      style={{ padding:"5px 12px", borderRadius:10, background:v[field]?"#c084fc":"#171026", color:"#f0e9fb", border:`1px solid ${v[field]?"#c084fc":"#3b2a58"}`, cursor:"pointer", fontSize:12, fontWeight:700 }}>
       {v[field] ? "✓ " : ""}{label}
     </button>
   );
   const Row = ({ label, children }) => (
     <div style={{ marginBottom:10, breakInside:"avoid" }}>
-      <p style={{ color:"#96a0cc", fontSize:12, marginBottom:4 }}>{label}</p>
+      <p style={{ color:"#a99ac9", fontSize:12, marginBottom:4 }}>{label}</p>
       {children}
     </div>
   );
@@ -1299,7 +1299,7 @@ function AvatarControls({ value, onChange, part = "all" }) {
     <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
       {AVATAR_OPTS.pet.map(o=>(
         <button key={o.label} type="button" onClick={()=>set("pet", o.e)} title={o.label}
-          style={{ padding:"4px 9px", borderRadius:8, background:v.pet===o.e?"#7c83ff":"#0d1122", color:"#e8ebfa", border:`1px solid ${v.pet===o.e?"#7c83ff":"#2a3154"}`, cursor:"pointer", fontSize:14 }}>
+          style={{ padding:"4px 9px", borderRadius:8, background:v.pet===o.e?"#c084fc":"#171026", color:"#f0e9fb", border:`1px solid ${v.pet===o.e?"#c084fc":"#3b2a58"}`, cursor:"pointer", fontSize:14 }}>
           {o.e ? o.e+" " : ""}{o.label}
         </button>
       ))}
@@ -1309,7 +1309,7 @@ function AvatarControls({ value, onChange, part = "all" }) {
     <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
       {items.map(it => (
         <button key={it.id||"nenhum"} type="button" onClick={()=>set(field, it.id)} title={it.label}
-          style={{ background:v[field]===it.id?"#7c83ff33":"#0d1122", border:`2px solid ${v[field]===it.id?"#7c83ff":"#2a3154"}`, borderRadius:12, padding:3, cursor:"pointer", lineHeight:0 }}>
+          style={{ background:v[field]===it.id?"#c084fc33":"#171026", border:`2px solid ${v[field]===it.id?"#c084fc":"#3b2a58"}`, borderRadius:12, padding:3, cursor:"pointer", lineHeight:0 }}>
           <Avatar cfg={{ ...v, pet:"", [field]:it.id }} size={46} />
         </button>
       ))}
@@ -1572,7 +1572,7 @@ function Terminal({ files, dataTour, maxHeight = 260, onEasterEgg = null }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  CHAT COM O NYX  (botão flutuante — aluno e professor)
 // ════════════════════════════════════════════════════════════════════════════
-function NyxChat({ who = "student", context, onTheme, onCommand, accent = "#7c83ff", dataTour, gear, accessMode = false, speak = null, nyxPrefs = null }) {
+function NyxChat({ who = "student", context, onTheme, onCommand, accent = "#c084fc", dataTour, gear, accessMode = false, speak = null, nyxPrefs = null }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
@@ -1639,17 +1639,17 @@ Se o professor perguntar como chamar a atenção da turma ou controlar os duelos
         {!open && <span style={{ position:"absolute", top:-4, right:-2, background:"#34d399", borderRadius:10, fontSize:9, fontWeight:900, color:"#03301f", padding:"2px 6px" }}>NYX</span>}
       </button>
       {open && (
-        <div className="pop" style={{ position:"fixed", right:18, bottom:88, zIndex:900, width:"min(370px, calc(100vw - 36px))", height:"min(460px, calc(100vh - 120px))", background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:18, boxShadow:"0 24px 60px rgba(0,0,0,.55)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
-          <div style={{ padding:"8px 14px", borderBottom:"1px solid #272e52", display:"flex", alignItems:"center", gap:10, background:"#0d1122" }}>
+        <div className="pop" style={{ position:"fixed", right:18, bottom:88, zIndex:900, width:"min(370px, calc(100vw - 36px))", height:"min(460px, calc(100vh - 120px))", background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:18, boxShadow:"0 24px 60px rgba(0,0,0,.55)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+          <div style={{ padding:"8px 14px", borderBottom:"1px solid #3a2a55", display:"flex", alignItems:"center", gap:10, background:"#171026" }}>
             <NyxRobot state="idle" size={30} showName={false} gear={gear} />
             <div>
               <div style={{ fontWeight:900, letterSpacing:2, fontSize:13, color:accent }}>NYX</div>
-              <div style={{ fontSize:11, color:"#96a0cc" }}>{who==="student" ? "seu ajudante de C#" : "assistente do professor"}</div>
+              <div style={{ fontSize:11, color:"#a99ac9" }}>{who==="student" ? "seu ajudante de C#" : "assistente do professor"}</div>
             </div>
           </div>
           <div ref={listRef} style={{ flex:1, overflowY:"auto", padding:12 }}>
             {msgs.length === 0 && (
-              <div style={{ background:"#0d1122", border:"1px solid #272e52", borderRadius:"12px 12px 12px 4px", padding:"10px 12px", fontSize:13, color:"#c7cfee", lineHeight:1.6, maxWidth:"88%" }}>
+              <div style={{ background:"#171026", border:"1px solid #3a2a55", borderRadius:"12px 12px 12px 4px", padding:"10px 12px", fontSize:13, color:"#d6c9ec", lineHeight:1.6, maxWidth:"88%" }}>
                 {who === "student"
                   ? "Oi! Pode me perguntar qualquer coisa de C#, pedir uma dica… ou até pedir para mudar a cor do fundo! 🎨"
                   : "Olá, professor! Pergunte sobre a turma, peça sugestões de exercícios ou o que precisar. 👨‍🏫"}
@@ -1657,17 +1657,17 @@ Se o professor perguntar como chamar a atenção da turma ou controlar os duelos
             )}
             {msgs.map((m,i)=>(
               <div key={i} style={{ display:"flex", justifyContent:m.from==="user"?"flex-end":"flex-start", marginTop:8, alignItems:"flex-end", gap:5 }}>
-                <div style={{ background:m.from==="user"?accent+"2e":"#0d1122", border:`1px solid ${m.from==="user"?accent+"66":"#272e52"}`, borderRadius:m.from==="user"?"12px 12px 4px 12px":"12px 12px 12px 4px", padding:"9px 12px", fontSize:13, color:"#e8ebfa", lineHeight:1.6, maxWidth:"88%", whiteSpace:"pre-wrap" }}>{m.text}</div>
+                <div style={{ background:m.from==="user"?accent+"2e":"#171026", border:`1px solid ${m.from==="user"?accent+"66":"#3a2a55"}`, borderRadius:m.from==="user"?"12px 12px 4px 12px":"12px 12px 12px 4px", padding:"9px 12px", fontSize:13, color:"#f0e9fb", lineHeight:1.6, maxWidth:"88%", whiteSpace:"pre-wrap" }}>{m.text}</div>
                 {m.from!=="user" && speak && (
                   <button onClick={()=>speak(m.text)} title="Ouvir esta resposta" style={{ background:"transparent", border:`1px solid ${accent}55`, color:accent, borderRadius:8, padding:"3px 7px", fontSize:11, cursor:"pointer", flexShrink:0 }}>🔊</button>
                 )}
               </div>
             ))}
-            {busy && <div style={{ color:"#96a0cc", fontSize:12, marginTop:8 }}>Nyx está digitando…</div>}
+            {busy && <div style={{ color:"#a99ac9", fontSize:12, marginTop:8 }}>Nyx está digitando…</div>}
           </div>
-          <div style={{ display:"flex", gap:8, padding:10, borderTop:"1px solid #272e52", background:"#0d1122" }}>
+          <div style={{ display:"flex", gap:8, padding:10, borderTop:"1px solid #3a2a55", background:"#171026" }}>
             <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if (e.key==="Enter") send(); }} placeholder="Escreva para o Nyx..."
-              style={{ flex:1, background:"#131730", border:"1px solid #2a3154", borderRadius:10, padding:"9px 12px", color:"#e8ebfa", fontSize:13, outline:"none" }} />
+              style={{ flex:1, background:"#1a1029", border:"1px solid #3b2a58", borderRadius:10, padding:"9px 12px", color:"#f0e9fb", fontSize:13, outline:"none" }} />
             <button onClick={send} disabled={busy} style={{ background:`linear-gradient(135deg, ${accent}, ${shade(accent,-0.25)})`, border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"0 16px", cursor:"pointer", opacity:busy?0.6:1 }}>➤</button>
           </div>
         </div>
@@ -1728,20 +1728,20 @@ function TourOverlay({ step, onNext }) {
   return (
     <div style={{ position:"fixed", inset:0, zIndex:990 }}>
       {rect
-        ? <div style={{ position:"fixed", top:rect.top-6, left:rect.left-6, width:rect.width+12, height:rect.height+12, borderRadius:14, border:"3px solid #7c83ff", boxShadow:"0 0 0 9999px rgba(5,7,18,.78), 0 0 24px #7c83ff88", transition: smooth ? "all .3s ease" : "none", pointerEvents:"none" }} />
-        : <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.78)" }} />}
-      <div className="pop" key={step} style={{ position:"fixed", top:tipTop, left:tipLeft, width:340, maxWidth:"calc(100vw - 24px)", background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #7c83ff66", borderRadius:16, padding:"14px 16px", boxShadow:"0 18px 50px rgba(0,0,0,.6)" }}>
+        ? <div style={{ position:"fixed", top:rect.top-6, left:rect.left-6, width:rect.width+12, height:rect.height+12, borderRadius:14, border:"3px solid #c084fc", boxShadow:"0 0 0 9999px rgba(11,6,20,.78), 0 0 24px #c084fc88", transition: smooth ? "all .3s ease" : "none", pointerEvents:"none" }} />
+        : <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.78)" }} />}
+      <div className="pop" key={step} style={{ position:"fixed", top:tipTop, left:tipLeft, width:340, maxWidth:"calc(100vw - 24px)", background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #c084fc66", borderRadius:16, padding:"14px 16px", boxShadow:"0 18px 50px rgba(0,0,0,.6)" }}>
         <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
           <div style={{ flexShrink:0, marginTop:-6 }}><NyxRobot state="idle" size={46} showName={false} /></div>
           <div>
-            <div style={{ fontWeight:800, color:"#e8ebfa", fontSize:14.5 }}>{s.emoji} {s.title}</div>
-            <p style={{ color:"#c7cfee", fontSize:13, lineHeight:1.6, margin:"6px 0 0" }}>{s.text}</p>
+            <div style={{ fontWeight:800, color:"#f0e9fb", fontSize:14.5 }}>{s.emoji} {s.title}</div>
+            <p style={{ color:"#d6c9ec", fontSize:13, lineHeight:1.6, margin:"6px 0 0" }}>{s.text}</p>
           </div>
         </div>
         {/* sem botão de pular: aluno novo conhece a sala inteira, passo a passo */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12 }}>
-          <span style={{ color:"#5d679c", fontSize:12 }}>{step+1}/{TOUR_STEPS.length}</span>
-          <button onClick={onNext} style={{ background:"linear-gradient(135deg,#7c83ff,#5a61e8)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"7px 16px", cursor:"pointer", fontSize:13 }}>{step === TOUR_STEPS.length-1 ? "Entendi! 🚀" : "Próximo →"}</button>
+          <span style={{ color:"#776798", fontSize:12 }}>{step+1}/{TOUR_STEPS.length}</span>
+          <button onClick={onNext} style={{ background:"linear-gradient(135deg,#c084fc,#9333ea)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"7px 16px", cursor:"pointer", fontSize:13 }}>{step === TOUR_STEPS.length-1 ? "Entendi! 🚀" : "Próximo →"}</button>
         </div>
       </div>
     </div>
@@ -1784,18 +1784,18 @@ function ErrorWalkthroughCard({ errors, step, onNext, onPrev, onVerify, onClose,
   const e = errors[step];
   if (!e) return null;
   return (
-    <div className="pop" key={step} style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #f8717166", borderRadius:16, padding:"14px 16px", boxShadow:"0 10px 28px rgba(0,0,0,.4)", marginBottom:14 }}>
+    <div className="pop" key={step} style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #f8717166", borderRadius:16, padding:"14px 16px", boxShadow:"0 10px 28px rgba(0,0,0,.4)", marginBottom:14 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
         <span style={{ color:"#f87171", fontSize:12, fontWeight:800, letterSpacing:0.5 }}>⚠ Erro {step+1} de {errors.length}</span>
-        <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:18, cursor:"pointer", lineHeight:1 }}>✕</button>
+        <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:18, cursor:"pointer", lineHeight:1 }}>✕</button>
       </div>
-      <div style={{ background:"#0d1122", border:"1px solid #2c3358", borderRadius:8, padding:"6px 10px", fontFamily:"'Courier New',monospace", fontSize:12.5, color:"#f87171", overflowX:"auto", whiteSpace:"pre", marginBottom:8 }}>{e.trecho}</div>
-      <p style={{ color:"#c7cfee", fontSize:13, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
+      <div style={{ background:"#171026", border:"1px solid #3e2d5e", borderRadius:8, padding:"6px 10px", fontFamily:"'Courier New',monospace", fontSize:12.5, color:"#f87171", overflowX:"auto", whiteSpace:"pre", marginBottom:8 }}>{e.trecho}</div>
+      <p style={{ color:"#d6c9ec", fontSize:13, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
       {e.exemplo && <div style={{ marginTop:8 }}><CodeBlock code={e.exemplo} /></div>}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12, gap:8, flexWrap:"wrap" }}>
         <div style={{ display:"flex", gap:6 }}>
-          {step > 0 && <button onClick={onPrev} style={{ background:"#2a3154", border:"none", borderRadius:10, color:"#e8ebfa", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>← Anterior</button>}
-          {step < errors.length-1 && <button onClick={onNext} style={{ background:"#2a3154", border:"none", borderRadius:10, color:"#e8ebfa", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>Próximo →</button>}
+          {step > 0 && <button onClick={onPrev} style={{ background:"#3b2a58", border:"none", borderRadius:10, color:"#f0e9fb", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>← Anterior</button>}
+          {step < errors.length-1 && <button onClick={onNext} style={{ background:"#3b2a58", border:"none", borderRadius:10, color:"#f0e9fb", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>Próximo →</button>}
         </div>
         <button onClick={onVerify} disabled={verifying} style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"8px 14px", cursor:verifying?"default":"pointer", fontSize:12.5, opacity:verifying?0.6:1 }}>
           {verifying ? "🔍 Verificando..." : "✅ Já corrigi, verificar!"}
@@ -1834,20 +1834,20 @@ function FloatingErrorBubble({ errors, step, activeCode, onNext, onPrev, onVerif
   if (!e || !pos) return null;
   const clampedTop = Math.min(Math.max(pos.top, pos.wrapTop), Math.max(pos.wrapTop, pos.wrapBottom - 60));
   return (
-    <div className="pop" key={step} style={{ position:"fixed", top:clampedTop, left:pos.right + 14, width:300, zIndex:995, background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #f8717166", borderRadius:14, padding:"12px 14px", boxShadow:"0 10px 28px rgba(0,0,0,.45)" }}>
+    <div className="pop" key={step} style={{ position:"fixed", top:clampedTop, left:pos.right + 14, width:300, zIndex:995, background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #f8717166", borderRadius:14, padding:"12px 14px", boxShadow:"0 10px 28px rgba(0,0,0,.45)" }}>
       {/* setinha apontando pra linha do editor */}
-      <div style={{ position:"absolute", left:-7, top:16, width:12, height:12, background:"#181d38", borderLeft:"1px solid #f8717166", borderBottom:"1px solid #f8717166", transform:"rotate(45deg)" }} />
+      <div style={{ position:"absolute", left:-7, top:16, width:12, height:12, background:"#231636", borderLeft:"1px solid #f8717166", borderBottom:"1px solid #f8717166", transform:"rotate(45deg)" }} />
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
         <span style={{ color:"#f87171", fontSize:11.5, fontWeight:800, letterSpacing:0.5 }}>⚠ Erro {step+1} de {errors.length}</span>
-        <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:17, cursor:"pointer", lineHeight:1 }}>✕</button>
+        <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:17, cursor:"pointer", lineHeight:1 }}>✕</button>
       </div>
-      <div style={{ background:"#0d1122", border:"1px solid #2c3358", borderRadius:8, padding:"5px 9px", fontFamily:"'Courier New',monospace", fontSize:12, color:"#f87171", overflowX:"auto", whiteSpace:"pre", marginBottom:8 }}>{e.trecho}</div>
-      <p style={{ color:"#c7cfee", fontSize:12.5, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
+      <div style={{ background:"#171026", border:"1px solid #3e2d5e", borderRadius:8, padding:"5px 9px", fontFamily:"'Courier New',monospace", fontSize:12, color:"#f87171", overflowX:"auto", whiteSpace:"pre", marginBottom:8 }}>{e.trecho}</div>
+      <p style={{ color:"#d6c9ec", fontSize:12.5, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
       {e.exemplo && <div style={{ marginTop:8 }}><CodeBlock code={e.exemplo} /></div>}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:10, gap:6, flexWrap:"wrap" }}>
         <div style={{ display:"flex", gap:5 }}>
-          {step > 0 && <button onClick={onPrev} style={{ background:"#2a3154", border:"none", borderRadius:9, color:"#e8ebfa", fontWeight:700, padding:"6px 10px", cursor:"pointer", fontSize:11.5 }}>← Ant.</button>}
-          {step < errors.length-1 && <button onClick={onNext} style={{ background:"#2a3154", border:"none", borderRadius:9, color:"#e8ebfa", fontWeight:700, padding:"6px 10px", cursor:"pointer", fontSize:11.5 }}>Próx. →</button>}
+          {step > 0 && <button onClick={onPrev} style={{ background:"#3b2a58", border:"none", borderRadius:9, color:"#f0e9fb", fontWeight:700, padding:"6px 10px", cursor:"pointer", fontSize:11.5 }}>← Ant.</button>}
+          {step < errors.length-1 && <button onClick={onNext} style={{ background:"#3b2a58", border:"none", borderRadius:9, color:"#f0e9fb", fontWeight:700, padding:"6px 10px", cursor:"pointer", fontSize:11.5 }}>Próx. →</button>}
         </div>
         <button onClick={onVerify} disabled={verifying} style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", border:"none", borderRadius:9, color:"#fff", fontWeight:800, padding:"7px 12px", cursor:verifying?"default":"pointer", fontSize:11.5, opacity:verifying?0.6:1 }}>
           {verifying ? "🔍 Verificando..." : "✅ Corrigi, verificar!"}
@@ -1892,29 +1892,29 @@ function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onClose }) 
     }
   };
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:560, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:560, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎁 Loja do Nyx</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#c084fc,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎁 Loja do Nyx</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>
           {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa vira 1 ponto. Comprar um item GASTA os pontos — mas o item é seu para sempre! (Seu lugar no ranking não muda: ele conta os pontos que você já ganhou.)"}
         </p>
 
-        <div style={{ display:"flex", alignItems:"center", gap:16, background:"#0d1122", border:`1px solid ${eggTalk ? eggTalk.color+"88" : "#2a3154"}`, borderRadius:16, padding:16, marginBottom:16, transition:"border-color .3s" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:16, background:"#171026", border:`1px solid ${eggTalk ? eggTalk.color+"88" : "#3b2a58"}`, borderRadius:16, padding:16, marginBottom:16, transition:"border-color .3s" }}>
           <div style={{ flexShrink:0, animation: eggTalk ? (eggTalk.kind === "pirata" ? "nyx-pirate-sway 2.2s ease-in-out infinite" : "nyx-spartan-idle 2.6s ease-in-out infinite") : "none" }}>
             <NyxRobot state="ok" size={72} showName={false} gear={gear} />
           </div>
           {eggTalk ? (
-            <div className="pop" style={{ position:"relative", background:"#141936", border:`1.5px solid ${eggTalk.color}66`, borderRadius:12, padding:"10px 14px", color:"#e8ebfa", fontSize:13, lineHeight:1.55, fontWeight:600, whiteSpace:"pre-wrap" }}>
+            <div className="pop" style={{ position:"relative", background:"#1e1430", border:`1.5px solid ${eggTalk.color}66`, borderRadius:12, padding:"10px 14px", color:"#f0e9fb", fontSize:13, lineHeight:1.55, fontWeight:600, whiteSpace:"pre-wrap" }}>
               <span style={{ position:"absolute", left:-8, top:"50%", transform:"translateY(-50%)", width:0, height:0, borderTop:"8px solid transparent", borderBottom:"8px solid transparent", borderRight:`8px solid ${eggTalk.color}66` }} />
               {eggTalk.msg}
             </div>
           ) : (
             <div>
               <div style={{ color:"#fbbf24", fontWeight:900, fontSize:22 }}>💰 {wallet} pts</div>
-              <div style={{ color:"#5d679c", fontSize:12 }}>para gastar · itens comprados: toque para vestir ou tirar</div>
+              <div style={{ color:"#776798", fontSize:12 }}>para gastar · itens comprados: toque para vestir ou tirar</div>
             </div>
           )}
         </div>
@@ -1928,21 +1928,21 @@ function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onClose }) 
             return (
               <button key={item.id} data-item={item.id} onClick={()=>click(item)} disabled={!clickable}
                 style={{
-                  background: equipped ? "#7c83ff26" : "#0d1122",
-                  border: `2px solid ${equipped ? "#7c83ff" : has ? "#34d39966" : canBuy ? "#fbbf2466" : "#241f38"}`,
+                  background: equipped ? "#c084fc26" : "#171026",
+                  border: `2px solid ${equipped ? "#c084fc" : has ? "#34d39966" : canBuy ? "#fbbf2466" : "#241f38"}`,
                   borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: clickable?"pointer":"default",
                   opacity: clickable ? 1 : 0.55, position:"relative",
                 }}>
                 <div style={{ fontSize:30, filter: clickable?"none":"grayscale(1)" }}>{item.emoji}</div>
-                <div style={{ color:"#e8ebfa", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
+                <div style={{ color:"#f0e9fb", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
                 {has ? (
                   equipped
-                    ? <div style={{ color:"#7c83ff", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
+                    ? <div style={{ color:"#c084fc", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
                     : <div style={{ color:"#34d399", fontSize:11, fontWeight:700, marginTop:4 }}>✓ Seu · toque para vestir</div>
                 ) : canBuy ? (
                   <div style={{ color:"#fbbf24", fontSize:11, fontWeight:800, marginTop:4 }}>🛒 Comprar · {item.cost} pts</div>
                 ) : (
-                  <div style={{ color:"#5d679c", fontSize:11, marginTop:4 }}>🔒 {wallet}/{item.cost} pts</div>
+                  <div style={{ color:"#776798", fontSize:11, marginTop:4 }}>🔒 {wallet}/{item.cost} pts</div>
                 )}
               </button>
             );
@@ -1994,7 +1994,7 @@ function RetroOverlay({ name, stats, gear, onClose }) {
           </div>
         )}
         {s.last && (
-          <button onClick={(e)=>{ e.stopPropagation(); onClose(); }} style={{ background:"linear-gradient(135deg,#7c83ff,#5a61e8)", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", fontWeight:800, boxShadow:"0 4px 18px rgba(124,131,255,.45)", marginTop:22, padding:"13px 28px", fontSize:15 }}>Guardar no coração 💜</button>
+          <button onClick={(e)=>{ e.stopPropagation(); onClose(); }} style={{ background:"linear-gradient(135deg,#c084fc,#9333ea)", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", fontWeight:800, boxShadow:"0 4px 18px rgba(124,131,255,.45)", marginTop:22, padding:"13px 28px", fontSize:15 }}>Guardar no coração 💜</button>
         )}
       </div>
     </div>
@@ -2011,18 +2011,18 @@ function NyxFeedbackModal({ score, loading, feedback, onClose }) {
   const structured = feedback && typeof feedback === "object" && Array.isArray(feedback.secoes);
   const feedbackText = structured ? feedback.intro : (typeof feedback === "string" ? feedback : "");
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:`1px solid ${g.color}55`, borderRadius:22, padding:"28px 24px", maxWidth:440, width:"100%", textAlign:"center", boxShadow:`0 24px 70px rgba(0,0,0,.55), 0 0 50px ${g.color}22` }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:`1px solid ${g.color}55`, borderRadius:22, padding:"28px 24px", maxWidth:440, width:"100%", textAlign:"center", boxShadow:`0 24px 70px rgba(0,0,0,.55), 0 0 50px ${g.color}22` }}>
         <div style={{ animation:"nyx-float 3s ease-in-out infinite" }}>
           <NyxRobot state={robotState} size={110} showName={false} />
         </div>
         <div style={{ fontSize:44, marginTop:6, lineHeight:1 }}>{g.emoji}</div>
         <h2 style={{ color:g.color, fontSize:26, margin:"4px 0 2px", fontWeight:900 }}>{g.label}!</h2>
-        <div style={{ color:"#96a0cc", fontSize:14, marginBottom:14 }}>Você fez {score} pontos na atividade</div>
-        <div style={{ background:"#0d1122", border:"1px solid #2c3358", borderRadius:16, padding:"16px 18px", textAlign:"left" }}>
+        <div style={{ color:"#a99ac9", fontSize:14, marginBottom:14 }}>Você fez {score} pontos na atividade</div>
+        <div style={{ background:"#171026", border:"1px solid #3e2d5e", borderRadius:16, padding:"16px 18px", textAlign:"left" }}>
           {loading
-            ? <p style={{ color:"#96a0cc", fontSize:14, margin:0 }}>Nyx está analisando seu desempenho...</p>
-            : <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", margin:0 }}>{feedbackText || "Parabéns por concluir a aula de hoje!"}</p>}
+            ? <p style={{ color:"#a99ac9", fontSize:14, margin:0 }}>Nyx está analisando seu desempenho...</p>
+            : <p style={{ color:"#d6c9ec", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", margin:0 }}>{feedbackText || "Parabéns por concluir a aula de hoje!"}</p>}
           {!loading && dica && <p style={{ color:"#fbbf24", fontSize:12.5, lineHeight:1.6, marginTop:10, marginBottom:0 }}>{dica}</p>}
         </div>
         <button onClick={onClose} disabled={loading}
@@ -2042,16 +2042,16 @@ function ErrorExplainModal({ sections, encouragement, onClose }) {
   const total = sections.length;
   const onFinal = step >= total;
   const s = sections[step];
-  const ACCENTS = ["#7c83ff","#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6","#f87171"];
+  const ACCENTS = ["#c084fc","#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6","#f87171"];
   const c = ACCENTS[step % ACCENTS.length];
   const accent = onFinal ? "#34d399" : c;
 
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:`1px solid ${accent}55`, borderRadius:22, padding:"26px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:`0 24px 70px rgba(0,0,0,.55), 0 0 50px ${accent}22` }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:`1px solid ${accent}55`, borderRadius:22, padding:"26px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:`0 24px 70px rgba(0,0,0,.55), 0 0 50px ${accent}22` }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-          <span style={{ color:"#5d679c", fontSize:12, fontWeight:700, letterSpacing:0.5 }}>{onFinal ? "Pronto!" : `Questão ${step+1} de ${total}`}</span>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:20, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <span style={{ color:"#776798", fontSize:12, fontWeight:700, letterSpacing:0.5 }}>{onFinal ? "Pronto!" : `Questão ${step+1} de ${total}`}</span>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:20, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
 
         <div style={{ textAlign:"center" }}>
@@ -2063,22 +2063,22 @@ function ErrorExplainModal({ sections, encouragement, onClose }) {
         {onFinal ? (
           <div style={{ textAlign:"center", marginTop:6 }}>
             <div style={{ fontSize:40 }}>🎉</div>
-            <p style={{ color:"#c7cfee", fontSize:16, lineHeight:1.7, margin:"8px 0 0" }}>{encouragement}</p>
+            <p style={{ color:"#d6c9ec", fontSize:16, lineHeight:1.7, margin:"8px 0 0" }}>{encouragement}</p>
           </div>
         ) : (
-          <div style={{ marginTop:12, background:"#151a31", borderRadius:14, padding:18, border:"1px solid #2a3154", borderLeft:`5px solid ${c}` }}>
+          <div style={{ marginTop:12, background:"#1e1430", borderRadius:14, padding:18, border:"1px solid #3b2a58", borderLeft:`5px solid ${c}` }}>
             <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
               <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:40, height:40, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{s.emoji || "📌"}</span>
-              <h3 style={{ color:"#e8ebfa", fontSize:16, margin:0 }}>{s.titulo}</h3>
+              <h3 style={{ color:"#f0e9fb", fontSize:16, margin:0 }}>{s.titulo}</h3>
             </div>
-            {s.explicacao && <p style={{ color:"#c7cfee", fontSize:14.5, lineHeight:1.75, margin:"0 0 4px" }}>{s.explicacao}</p>}
+            {s.explicacao && <p style={{ color:"#d6c9ec", fontSize:14.5, lineHeight:1.75, margin:"0 0 4px" }}>{s.explicacao}</p>}
             {s.exemplo && <CodeBlock code={s.exemplo} />}
           </div>
         )}
 
         <div style={{ display:"flex", gap:8, marginTop:18 }}>
           {step > 0 && !onFinal && (
-            <button onClick={()=>setStep(v=>v-1)} style={{ background:"#2a3154", color:"#e8ebfa", border:"none", borderRadius:10, padding:"10px 16px", cursor:"pointer", fontWeight:700, fontSize:13.5 }}>← Voltar</button>
+            <button onClick={()=>setStep(v=>v-1)} style={{ background:"#3b2a58", color:"#f0e9fb", border:"none", borderRadius:10, padding:"10px 16px", cursor:"pointer", fontWeight:700, fontSize:13.5 }}>← Voltar</button>
           )}
           <button onClick={()=> onFinal ? onClose() : setStep(v=>v+1)}
             style={{ flex:1, background:`linear-gradient(135deg, ${accent}, ${shade(accent,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:"10px 16px", cursor:"pointer", fontWeight:800, fontSize:14 }}>
@@ -2089,7 +2089,7 @@ function ErrorExplainModal({ sections, encouragement, onClose }) {
         {!onFinal && total > 1 && (
           <div style={{ display:"flex", gap:5, justifyContent:"center", marginTop:14 }}>
             {sections.map((_,i)=>(
-              <div key={i} style={{ width:7, height:7, borderRadius:"50%", background: i===step ? c : "#2a3154" }} />
+              <div key={i} style={{ width:7, height:7, borderRadius:"50%", background: i===step ? c : "#3b2a58" }} />
             ))}
           </div>
         )}
@@ -2117,22 +2117,22 @@ function AchievementToast({ achievement }) {
 
 function AchievementsModal({ unlocked, onClose }) {
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#fbbf24,#f59e0b)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎖️ Conquistas</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>{unlocked.length} de {ACHIEVEMENTS.length} desbloqueadas</p>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>{unlocked.length} de {ACHIEVEMENTS.length} desbloqueadas</p>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))", gap:10 }}>
           {ACHIEVEMENTS.map(a => {
             const got = unlocked.includes(a.id);
             return (
-              <div key={a.id} style={{ background:got?"#fbbf2418":"#0d1122", border:`1px solid ${got?"#fbbf24":"#241f38"}`, borderRadius:14, padding:"12px 14px", display:"flex", gap:10, alignItems:"center", opacity:got?1:0.55 }}>
+              <div key={a.id} style={{ background:got?"#fbbf2418":"#171026", border:`1px solid ${got?"#fbbf24":"#241f38"}`, borderRadius:14, padding:"12px 14px", display:"flex", gap:10, alignItems:"center", opacity:got?1:0.55 }}>
                 <div style={{ fontSize:26, filter:got?"none":"grayscale(1)" }}>{a.secret && !got ? "❓" : a.emoji}</div>
                 <div>
-                  <div style={{ color:"#e8ebfa", fontWeight:800, fontSize:13 }}>{a.secret && !got ? "???" : a.label}</div>
-                  <div style={{ color:"#5d679c", fontSize:11.5 }}>{a.secret && !got ? "Um segredo espera por quem explora o terminal..." : a.desc}</div>
+                  <div style={{ color:"#f0e9fb", fontWeight:800, fontSize:13 }}>{a.secret && !got ? "???" : a.label}</div>
+                  <div style={{ color:"#776798", fontSize:11.5 }}>{a.secret && !got ? "Um segredo espera por quem explora o terminal..." : a.desc}</div>
                 </div>
               </div>
             );
@@ -2158,22 +2158,22 @@ function RankingModal({ shift, myName, onClose }) {
   }, [shift]);
   const medals = ["🥇","🥈","🥉","🏅","🏅"];
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:440, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:440, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📊 Ranking da Turma</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📊 Ranking da Turma</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Os 5 com mais pontos do Nyx na sua turma</p>
-        {loading ? <p style={{ color:"#5d679c", fontSize:13 }}>Carregando...</p> : top.length === 0 ? (
-          <p style={{ color:"#5d679c", fontSize:13 }}>Ninguém tem pontos ainda — seja o primeiro!</p>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Os 5 com mais pontos do Nyx na sua turma</p>
+        {loading ? <p style={{ color:"#776798", fontSize:13 }}>Carregando...</p> : top.length === 0 ? (
+          <p style={{ color:"#776798", fontSize:13 }}>Ninguém tem pontos ainda — seja o primeiro!</p>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
             {top.map((s, i) => (
-              <div key={s.name} style={{ display:"flex", alignItems:"center", gap:10, background: s.name===myName ? "#7c83ff22" : "#0d1122", border:`1px solid ${s.name===myName?"#7c83ff":"#2a3154"}`, borderRadius:12, padding:"8px 12px" }}>
+              <div key={s.name} style={{ display:"flex", alignItems:"center", gap:10, background: s.name===myName ? "#c084fc22" : "#171026", border:`1px solid ${s.name===myName?"#c084fc":"#3b2a58"}`, borderRadius:12, padding:"8px 12px" }}>
                 <span style={{ fontSize:20, width:28, textAlign:"center" }}>{medals[i]}</span>
                 <Avatar cfg={s.avatar} size={32} />
-                <span style={{ flex:1, fontWeight:700, fontSize:13.5, color: s.name===myName ? "#c7d2fe" : "#e8ebfa" }}>{s.name}{s.name===myName?" (você)":""}</span>
+                <span style={{ flex:1, fontWeight:700, fontSize:13.5, color: s.name===myName ? "#c7d2fe" : "#f0e9fb" }}>{s.name}{s.name===myName?" (você)":""}</span>
                 <span style={{ color:"#fbbf24", fontWeight:900, fontSize:14 }}>{s.nyxPoints||0} pts</span>
               </div>
             ))}
@@ -2188,12 +2188,12 @@ function ClassGoalBar({ sum }) {
   const g = classGoalProgress(sum);
   return (
     <div style={{ marginTop:10 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#96a0cc", marginBottom:4 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#a99ac9", marginBottom:4 }}>
         <span>🎯 Meta da turma · nível {g.level}</span>
         <span>{sum}{g.next ? `/${g.next}` : ""} pts</span>
       </div>
-      <div className="bar-glow" style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:20, height:10, overflow:"hidden" }}>
-        <div style={{ width:`${g.pct}%`, height:"100%", background:"linear-gradient(90deg,#7c83ff,#22d3ee)", transition:"width .5s ease" }} />
+      <div className="bar-glow" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:20, height:10, overflow:"hidden" }}>
+        <div style={{ width:`${g.pct}%`, height:"100%", background:"linear-gradient(90deg,#c084fc,#22d3ee)", transition:"width .5s ease" }} />
       </div>
     </div>
   );
@@ -2349,14 +2349,14 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
   const combo5 = mine.filter(s => (s.achievements||[]).includes("combo-5") && !combo8.includes(s));
   const medals = ["🥇","🥈","🥉","🏅","🏅","🏅","🏅","🏅"];
   return (
-    <div data-testid="telao-modal" className="telao-wrap" style={{ position:"fixed", inset:0, background:"#05070f", zIndex:2000, display:"flex", flexDirection:"column", padding:"36px 48px", overflowY:"auto" }}>
+    <div data-testid="telao-modal" className="telao-wrap" style={{ position:"fixed", inset:0, background:"#0b0614", zIndex:2000, display:"flex", flexDirection:"column", padding:"36px 48px", overflowY:"auto" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:28, flexWrap:"wrap", gap:14 }}>
         <span className="shine" style={{ fontSize:"clamp(22px, 5vw, 32px)", fontWeight:900, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🖥️ Telão da Turma</span>
         <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
           {SHIFTS.map(sh => (
-            <button key={sh.id} onClick={()=>setTelaoShift(sh.id)} style={{ background: telaoShift===sh.id ? "#fbbf24" : "#181d38", color: telaoShift===sh.id ? "#1c1400" : "#96a0cc", border:`2px solid ${telaoShift===sh.id?"#fbbf24":"#2a3154"}`, borderRadius:12, padding:"10px 20px", fontSize:16, fontWeight:800, cursor:"pointer" }}>{sh.emoji} {sh.label}</button>
+            <button key={sh.id} onClick={()=>setTelaoShift(sh.id)} style={{ background: telaoShift===sh.id ? "#fbbf24" : "#231636", color: telaoShift===sh.id ? "#1c1400" : "#a99ac9", border:`2px solid ${telaoShift===sh.id?"#fbbf24":"#3b2a58"}`, borderRadius:12, padding:"10px 20px", fontSize:16, fontWeight:800, cursor:"pointer" }}>{sh.emoji} {sh.label}</button>
           ))}
-          <button onClick={onClose} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:12, padding:"10px 18px", fontSize:16, cursor:"pointer", fontWeight:800 }}>✕ Sair (Esc)</button>
+          <button onClick={onClose} style={{ background:"#3b2a58", color:"#fff", border:"none", borderRadius:12, padding:"10px 18px", fontSize:16, cursor:"pointer", fontWeight:800 }}>✕ Sair (Esc)</button>
         </div>
       </div>
       {/* 👾 chefão da turma */}
@@ -2372,7 +2372,7 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
             </div>
             <div style={{ display:"flex", gap:8 }}>
               <button onClick={skipStudy} style={{ background:"#3b0764", color:"#e9d5ff", border:"1px solid #a855f7", borderRadius:12, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:800 }}>⏭ Pular estudo</button>
-              <button onClick={endBoss} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:800 }}>✕ Dispensar chefão</button>
+              <button onClick={endBoss} style={{ background:"#3b2a58", color:"#fff", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:800 }}>✕ Dispensar chefão</button>
             </div>
           </div>
         </div>
@@ -2388,17 +2388,17 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
               <p style={{ margin:"4px 0 10px", color: bossDefeated ? "#86efac" : "#c4b5fd", fontSize:"clamp(12px, 3vw, 14px)" }}>
                 {bossDefeated ? "A turma venceu junta — parabéns, guerreiros do código!" : "Cada resposta certa da turma tira vida dele. Ao ataque!"}
               </p>
-              <div className="bar-glow" style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:20, height:24, overflow:"hidden" }}>
+              <div className="bar-glow" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:20, height:24, overflow:"hidden" }}>
                 <div style={{ width:`${boss.maxHp ? (bossHp / boss.maxHp) * 100 : 0}%`, height:"100%", background: bossDefeated ? "#14532d" : "linear-gradient(90deg,#ef4444,#a855f7)", transition:"width .8s ease" }} />
               </div>
-              <p style={{ margin:"6px 0 0", color:"#e8ebfa", fontWeight:900, fontSize:"clamp(13px, 3.5vw, 16px)" }}>❤️ {bossHp}/{boss.maxHp} · dano da turma: {Math.min(bossDamage, boss.maxHp)}</p>
+              <p style={{ margin:"6px 0 0", color:"#f0e9fb", fontWeight:900, fontSize:"clamp(13px, 3.5vw, 16px)" }}>❤️ {bossHp}/{boss.maxHp} · dano da turma: {Math.min(bossDamage, boss.maxHp)}</p>
             </div>
-            <button onClick={endBoss} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:800 }}>{bossDefeated ? "🏁 Encerrar festa" : "✕ Dispensar chefão"}</button>
+            <button onClick={endBoss} style={{ background:"#3b2a58", color:"#fff", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:800 }}>{bossDefeated ? "🏁 Encerrar festa" : "✕ Dispensar chefão"}</button>
           </div>
         </div>
       ) : (
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20, flexWrap:"wrap" }}>
-          <span style={{ color:"#96a0cc", fontSize:14, fontWeight:800 }}>👾 Invocar chefão (a turma derrota ganhando pontos):</span>
+          <span style={{ color:"#a99ac9", fontSize:14, fontWeight:800 }}>👾 Invocar chefão (a turma derrota ganhando pontos):</span>
           {[["Fácil", 30], ["Médio", 60], ["Épico", 120]].map(([label, hp]) => (
             <button key={hp} onClick={()=>summonBoss(hp)} style={{ background:"#3b0764", color:"#e9d5ff", border:"1px solid #a855f7", borderRadius:12, padding:"8px 16px", fontSize:13, fontWeight:800, cursor:"pointer" }}>{label} · {hp} HP</button>
           ))}
@@ -2412,17 +2412,17 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
           <div style={{ fontSize:"clamp(44px, 9vw, 72px)" }}>🏆</div>
           <h2 style={{ margin:"4px 0", fontSize:"clamp(22px, 5vw, 34px)", color:"#fff" }}>{tourney.champion} é o CAMPEÃO do torneio!</h2>
           <p style={{ color:"#fde68a", fontSize:"clamp(13px, 3vw, 16px)", margin:"0 0 14px" }}>Palmas pra ele — e pra todo mundo que batalhou! 👏</p>
-          <button onClick={endTourney} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:12, padding:"10px 18px", fontSize:14, cursor:"pointer", fontWeight:800 }}>🏁 Encerrar torneio</button>
+          <button onClick={endTourney} style={{ background:"#3b2a58", color:"#fff", border:"none", borderRadius:12, padding:"10px 18px", fontSize:14, cursor:"pointer", fontWeight:800 }}>🏁 Encerrar torneio</button>
         </div>
       ) : tourney && tourney.status === "active" ? (
-        <div className="telao-card" style={{ background:"linear-gradient(135deg,#111c3b,#131730)", border:"2px solid #22d3ee", borderRadius:24, padding:"22px 28px", marginBottom:24 }}>
+        <div className="telao-card" style={{ background:"linear-gradient(135deg,#1d1436,#1a1029)", border:"2px solid #22d3ee", borderRadius:24, padding:"22px 28px", marginBottom:24 }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10, marginBottom:14 }}>
             <h2 style={{ margin:0, fontSize:"clamp(18px, 4.5vw, 26px)", color:"#a5f3fc" }}>🏟️ TORNEIO DA TURMA — Rodada {tourney.round}</h2>
             <div style={{ display:"flex", gap:8 }}>
-              <button onClick={advanceTourney} disabled={!allResolved || tourneyBusy} style={{ background: allResolved ? "#22d3ee" : "#1b2144", color: allResolved ? "#062a30" : "#5d679c", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor: allResolved ? "pointer" : "default", fontWeight:800, opacity: tourneyBusy ? 0.6 : 1 }}>
+              <button onClick={advanceTourney} disabled={!allResolved || tourneyBusy} style={{ background: allResolved ? "#22d3ee" : "#2a1a42", color: allResolved ? "#062a30" : "#776798", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor: allResolved ? "pointer" : "default", fontWeight:800, opacity: tourneyBusy ? 0.6 : 1 }}>
                 {tourneyBusy ? "..." : currentMatches.filter(m=>matchWinner(m)).length === 1 && currentMatches.length === 1 ? "👑 Coroar campeão" : "➡️ Avançar rodada"}
               </button>
-              <button onClick={endTourney} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:800 }}>✕ Cancelar</button>
+              <button onClick={endTourney} style={{ background:"#3b2a58", color:"#fff", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:800 }}>✕ Cancelar</button>
             </div>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:12 }}>
@@ -2430,40 +2430,40 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
               const aa = tourneyAnswerOf(m.a), bb = m.b ? tourneyAnswerOf(m.b) : null;
               const w = matchWinner(m);
               return (
-                <div key={i} style={{ background:"#0d1122", border:`2px solid ${w ? "#34d399" : "#2a3154"}`, borderRadius:16, padding:"12px 16px" }}>
+                <div key={i} style={{ background:"#171026", border:`2px solid ${w ? "#34d399" : "#3b2a58"}`, borderRadius:16, padding:"12px 16px" }}>
                   {!m.b ? (
-                    <p style={{ margin:0, color:"#e8ebfa", fontSize:"clamp(13px, 3vw, 16px)", fontWeight:800 }}>🎟️ {m.a} <span style={{ color:"#5d679c", fontWeight:600 }}>passa direto dessa rodada</span></p>
+                    <p style={{ margin:0, color:"#f0e9fb", fontSize:"clamp(13px, 3vw, 16px)", fontWeight:800 }}>🎟️ {m.a} <span style={{ color:"#776798", fontWeight:600 }}>passa direto dessa rodada</span></p>
                   ) : (
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, fontSize:"clamp(13px, 3vw, 16px)" }}>
-                      <span style={{ fontWeight: w===m.a ? 900 : 600, color: w===m.a ? "#34d399" : "#e8ebfa", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{w===m.a ? "👑 " : ""}{m.a}</span>
+                      <span style={{ fontWeight: w===m.a ? 900 : 600, color: w===m.a ? "#34d399" : "#f0e9fb", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{w===m.a ? "👑 " : ""}{m.a}</span>
                       <span style={{ color:"#fbbf24", fontWeight:900, whiteSpace:"nowrap" }}>{aa ? aa.score : "…"} × {bb ? bb.score : "…"}</span>
-                      <span style={{ fontWeight: w===m.b ? 900 : 600, color: w===m.b ? "#34d399" : "#e8ebfa", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textAlign:"right" }}>{w===m.b ? "👑 " : ""}{m.b}</span>
+                      <span style={{ fontWeight: w===m.b ? 900 : 600, color: w===m.b ? "#34d399" : "#f0e9fb", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textAlign:"right" }}>{w===m.b ? "👑 " : ""}{m.b}</span>
                     </div>
                   )}
                 </div>
               );
             })}
           </div>
-          <p style={{ margin:"12px 0 0", color:"#5d679c", fontSize:"clamp(11px, 2.5vw, 13px)" }}>Cada dupla responde o mesmo mini-quiz na própria tela. Quando todos os placares saírem, avance a rodada. Empate: vence quem terminou primeiro.</p>
+          <p style={{ margin:"12px 0 0", color:"#776798", fontSize:"clamp(11px, 2.5vw, 13px)" }}>Cada dupla responde o mesmo mini-quiz na própria tela. Quando todos os placares saírem, avance a rodada. Empate: vence quem terminou primeiro.</p>
         </div>
       ) : (
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20, flexWrap:"wrap" }}>
-          <span style={{ color:"#96a0cc", fontSize:14, fontWeight:800 }}>🏟️ Torneio da turma (chaveamento de mini-quizzes entre os alunos online):</span>
+          <span style={{ color:"#a99ac9", fontSize:14, fontWeight:800 }}>🏟️ Torneio da turma (chaveamento de mini-quizzes entre os alunos online):</span>
           <button onClick={startTourney} disabled={tourneyBusy} style={{ background:"#0e7490", color:"#cffafe", border:"1px solid #22d3ee", borderRadius:12, padding:"8px 16px", fontSize:13, fontWeight:800, cursor:"pointer", opacity: tourneyBusy ? 0.6 : 1 }}>{tourneyBusy ? "Montando..." : `Iniciar torneio (${SHIFTS.find(sh=>sh.id===telaoShift)?.label || telaoShift})`}</button>
           {tourneyMsg && <span style={{ color:"#fbbf24", fontSize:13, fontWeight:700 }}>{tourneyMsg}</span>}
         </div>
       )}
 
       <div className="telao-grid" style={{ display:"grid", gridTemplateColumns: "1.3fr 1fr", gap:28, flex:1 }}>
-        <div className="telao-card" style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32 }}>
+        <div className="telao-card" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:24, border:"1px solid #3e2d5e", padding:32 }}>
           <h2 style={{ margin:"0 0 20px", fontSize:"clamp(20px, 4.5vw, 26px)", color:"#22d3ee" }}>📊 Ranking ao vivo</h2>
-          {ranking.length===0 ? <p style={{ color:"#5d679c", fontSize:18 }}>Ninguém pontuou ainda nessa turma.</p> : (
+          {ranking.length===0 ? <p style={{ color:"#776798", fontSize:18 }}>Ninguém pontuou ainda nessa turma.</p> : (
             <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
               {ranking.map((s,i)=>(
-                <div key={s.name} style={{ display:"flex", alignItems:"center", gap:16, background:"#0d1122", border:"1px solid #2a3154", borderRadius:16, padding:"14px 20px" }}>
+                <div key={s.name} style={{ display:"flex", alignItems:"center", gap:16, background:"#171026", border:"1px solid #3b2a58", borderRadius:16, padding:"14px 20px" }}>
                   <span style={{ fontSize:30, width:44, textAlign:"center" }}>{medals[i]}</span>
                   <Avatar cfg={s.avatar} size={48} />
-                  <span style={{ flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontWeight:800, fontSize:"clamp(15px, 3.5vw, 22px)", color:"#e8ebfa" }}>{s.name}</span>
+                  <span style={{ flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontWeight:800, fontSize:"clamp(15px, 3.5vw, 22px)", color:"#f0e9fb" }}>{s.name}</span>
                   <span style={{ color:"#fbbf24", fontWeight:900, fontSize:"clamp(16px, 4vw, 24px)", whiteSpace:"nowrap" }}>{s.nyxPoints||0} pts</span>
                 </div>
               ))}
@@ -2471,28 +2471,28 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
           )}
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:28 }}>
-          <div className="telao-card" style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32 }}>
-            <h2 style={{ margin:"0 0 16px", fontSize:"clamp(19px, 4.5vw, 24px)", color:"#7c83ff" }}>🎯 Meta da turma</h2>
-            <div style={{ display:"flex", justifyContent:"space-between", fontSize:16, color:"#c7cfee", marginBottom:8 }}>
+          <div className="telao-card" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:24, border:"1px solid #3e2d5e", padding:32 }}>
+            <h2 style={{ margin:"0 0 16px", fontSize:"clamp(19px, 4.5vw, 24px)", color:"#c084fc" }}>🎯 Meta da turma</h2>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:16, color:"#d6c9ec", marginBottom:8 }}>
               <span>Nível {g.level}</span>
               <span>{sum}{g.next?`/${g.next}`:""} pts</span>
             </div>
-            <div className="bar-glow" style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:20, height:22, overflow:"hidden" }}>
-              <div style={{ width:`${g.pct}%`, height:"100%", background:"linear-gradient(90deg,#7c83ff,#22d3ee)", transition:"width .6s ease" }} />
+            <div className="bar-glow" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:20, height:22, overflow:"hidden" }}>
+              <div style={{ width:`${g.pct}%`, height:"100%", background:"linear-gradient(90deg,#c084fc,#22d3ee)", transition:"width .6s ease" }} />
             </div>
           </div>
-          <div className="telao-card" style={{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:24, border:"1px solid #2c3358", padding:32, flex:1 }}>
+          <div className="telao-card" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:24, border:"1px solid #3e2d5e", padding:32, flex:1 }}>
             <h2 style={{ margin:"0 0 16px", fontSize:"clamp(19px, 4.5vw, 24px)", color:"#fbbf24" }}>⚡ Combos da turma</h2>
-            {combo5.length===0 && combo8.length===0 ? <p style={{ color:"#5d679c", fontSize:16 }}>Ninguém acertou uma sequência de questões ainda.</p> : (
+            {combo5.length===0 && combo8.length===0 ? <p style={{ color:"#776798", fontSize:16 }}>Ninguém acertou uma sequência de questões ainda.</p> : (
               <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 {combo8.map(s => (
                   <div key={"c8-"+s.name} style={{ display:"flex", alignItems:"center", gap:10, fontSize:"clamp(14px, 3.5vw, 18px)", flexWrap:"wrap" }}>
-                    <span style={{ fontSize:22 }}>🚀</span><b style={{ color:"#e8ebfa" }}>{s.name}</b><span style={{ color:"#96a0cc" }}>— Combo Insano (8 seguidas)</span>
+                    <span style={{ fontSize:22 }}>🚀</span><b style={{ color:"#f0e9fb" }}>{s.name}</b><span style={{ color:"#a99ac9" }}>— Combo Insano (8 seguidas)</span>
                   </div>
                 ))}
                 {combo5.map(s => (
                   <div key={"c5-"+s.name} style={{ display:"flex", alignItems:"center", gap:10, fontSize:"clamp(14px, 3.5vw, 18px)", flexWrap:"wrap" }}>
-                    <span style={{ fontSize:22 }}>⚡</span><b style={{ color:"#e8ebfa" }}>{s.name}</b><span style={{ color:"#96a0cc" }}>— Combo Elétrico (5 seguidas)</span>
+                    <span style={{ fontSize:22 }}>⚡</span><b style={{ color:"#f0e9fb" }}>{s.name}</b><span style={{ color:"#a99ac9" }}>— Combo Elétrico (5 seguidas)</span>
                   </div>
                 ))}
               </div>
@@ -2510,20 +2510,20 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
 // renderização bonita de um resumo salvo (mesmo estilo da tela de resumo da aula)
 function SummaryPretty({ sum }) {
   const structured = sum && typeof sum === "object" && Array.isArray(sum.secoes) && sum.secoes.length > 0;
-  const ACCENTS = ["#7c83ff","#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6","#f87171"];
-  if (!structured) return <pre style={{ whiteSpace:"pre-wrap", fontFamily:"inherit", fontSize:14, lineHeight:1.9, color:"#c7cfee", margin:0 }}>{typeof sum==="string" ? sum : (sum && sum.raw) || "(resumo indisponível)"}</pre>;
+  const ACCENTS = ["#c084fc","#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6","#f87171"];
+  if (!structured) return <pre style={{ whiteSpace:"pre-wrap", fontFamily:"inherit", fontSize:14, lineHeight:1.9, color:"#d6c9ec", margin:0 }}>{typeof sum==="string" ? sum : (sum && sum.raw) || "(resumo indisponível)"}</pre>;
   return (
     <div>
-      {sum.intro && <p style={{ color:"#c7cfee", fontSize:14.5, lineHeight:1.7, margin:"0 0 14px" }}>{sum.intro}</p>}
+      {sum.intro && <p style={{ color:"#d6c9ec", fontSize:14.5, lineHeight:1.7, margin:"0 0 14px" }}>{sum.intro}</p>}
       {sum.secoes.map((s,i)=>{
         const c = ACCENTS[i % ACCENTS.length];
         return (
-          <div key={i} style={{ background:"#151a31", borderRadius:14, padding:16, margin:"0 0 12px", border:"1px solid #2a3154", borderLeft:`5px solid ${c}` }}>
+          <div key={i} style={{ background:"#1e1430", borderRadius:14, padding:16, margin:"0 0 12px", border:"1px solid #3b2a58", borderLeft:`5px solid ${c}` }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
               <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:38, height:38, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>{s.emoji || "📌"}</span>
-              <h3 style={{ color:"#e8ebfa", fontSize:15.5, margin:0 }}>{s.titulo}</h3>
+              <h3 style={{ color:"#f0e9fb", fontSize:15.5, margin:0 }}>{s.titulo}</h3>
             </div>
-            {s.explicacao && <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, margin:"0 0 4px" }}>{s.explicacao}</p>}
+            {s.explicacao && <p style={{ color:"#d6c9ec", fontSize:14, lineHeight:1.7, margin:"0 0 4px" }}>{s.explicacao}</p>}
             {s.exemplo && <CodeBlock code={s.exemplo} />}
           </div>
         );
@@ -2547,7 +2547,7 @@ function BossStudyModal({ studyUntil, clockNow, files, summaryHistory, detailedS
   const dates = Object.keys(summaryHistory || {}).sort((a, b) => b.localeCompare(a));
   const codedFiles = (files || []).filter(f => (f.code || "").trim());
   return (
-    <div style={{ position:"fixed", inset:0, background:"#05070f", zIndex:1500, overflowY:"auto", padding:"32px 20px 60px" }}>
+    <div style={{ position:"fixed", inset:0, background:"#0b0614", zIndex:1500, overflowY:"auto", padding:"32px 20px 60px" }}>
       <div style={{ maxWidth:820, margin:"0 auto" }}>
         <div style={{ textAlign:"center", marginBottom:26 }}>
           <div style={{ fontSize:52, animation:"nyx-shake 2.2s ease-in-out infinite" }}>🧠</div>
@@ -2560,21 +2560,21 @@ function BossStudyModal({ studyUntil, clockNow, files, summaryHistory, detailedS
             <span style={{ color:"#e9d5ff", fontWeight:900, fontSize:20, fontVariantNumeric:"tabular-nums" }}>{String(mm).padStart(2,"0")}:{String(ss).padStart(2,"0")}</span>
           </div>
         </div>
-        <div className="cardfx" style={{ background:"#131730", border:"1px solid #2c3358", borderRadius:16, padding:18, marginBottom:16 }}>
+        <div className="cardfx" style={{ background:"#1a1029", border:"1px solid #3e2d5e", borderRadius:16, padding:18, marginBottom:16 }}>
           <h3 style={{ color:"#22d3ee", margin:"0 0 10px", fontSize:15 }}>💻 Seu código até agora</h3>
           {codedFiles.length === 0 ? (
-            <p style={{ color:"#5d679c", fontSize:13 }}>Você ainda não escreveu nenhum código.</p>
+            <p style={{ color:"#776798", fontSize:13 }}>Você ainda não escreveu nenhum código.</p>
           ) : codedFiles.map((f, i) => (
             <div key={i} style={{ marginBottom:10 }}>
-              <p style={{ color:"#96a0cc", fontSize:12, fontWeight:700, margin:"0 0 4px" }}>📄 {f.name}</p>
-              <pre style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:10, padding:12, color:"#a5f3fc", fontFamily:"'Courier New',monospace", fontSize:13, overflowX:"auto", whiteSpace:"pre-wrap", margin:0 }}>{f.code}</pre>
+              <p style={{ color:"#a99ac9", fontSize:12, fontWeight:700, margin:"0 0 4px" }}>📄 {f.name}</p>
+              <pre style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:10, padding:12, color:"#a5f3fc", fontFamily:"'Courier New',monospace", fontSize:13, overflowX:"auto", whiteSpace:"pre-wrap", margin:0 }}>{f.code}</pre>
             </div>
           ))}
         </div>
-        <div className="cardfx" style={{ background:"#131730", border:"1px solid #2c3358", borderRadius:16, padding:18 }}>
+        <div className="cardfx" style={{ background:"#1a1029", border:"1px solid #3e2d5e", borderRadius:16, padding:18 }}>
           <h3 style={{ color:"#22d3ee", margin:"0 0 10px", fontSize:15 }}>📚 O que você já aprendeu</h3>
           {dates.length === 0 ? (
-            <p style={{ color:"#5d679c", fontSize:13 }}>Ainda não tem resumo de aula guardado — estude pelo código acima mesmo!</p>
+            <p style={{ color:"#776798", fontSize:13 }}>Ainda não tem resumo de aula guardado — estude pelo código acima mesmo!</p>
           ) : dates.map(d => {
             const [, m, dd] = d.split("-");
             const sum = (detailedSummaryHistory && detailedSummaryHistory[d]) || summaryHistory[d];
@@ -2759,8 +2759,8 @@ function MiniKeyboard({ highlight, zoom = 1 }) {
   };
   const keyStyle = (active, w, h) => ({
     position:"relative", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minWidth: w, height: h || 34, padding:"0 4px", boxSizing:"border-box",
-    background: active ? "linear-gradient(180deg,#fbbf24,#f59310)" : "linear-gradient(180deg,#2a3154,#1c2140)",
-    border:`1px solid ${active?"#fbbf24":"#3a4270"}`, borderRadius:6, color: active?"#1c1400":"#c7cfee",
+    background: active ? "linear-gradient(180deg,#fbbf24,#f59310)" : "linear-gradient(180deg,#3b2a58,#1c2140)",
+    border:`1px solid ${active?"#fbbf24":"#3a4270"}`, borderRadius:6, color: active?"#1c1400":"#d6c9ec",
     fontWeight:800, fontSize:12, fontFamily:"monospace", lineHeight:1.1, boxShadow: active ? "0 0 14px #fbbf2488" : "0 2px 0 #10142866",
     animation: active ? "nyx-shake 0.9s ease-in-out infinite" : "none", transition:"background .15s",
   });
@@ -2774,7 +2774,7 @@ function MiniKeyboard({ highlight, zoom = 1 }) {
     return (
       <div key={k.id} style={keyStyle(active, k.w, h)} title={k.shiftSym ? `Shift + ${k.label} = ${k.shiftSym}` : k.id === "Space" ? "barra de espaço" : undefined}>
         {k.shiftSym && <span style={{ position:"absolute", top:2, left:5, fontSize:8.5, color: active ? "#1c1400aa" : "#7d87b8" }}>{k.shiftSym}</span>}
-        {k.altSym && <span style={{ position:"absolute", bottom:2, right:4, fontSize:7.5, color: active ? "#1c1400aa" : "#5d679c" }}>{k.altSym}</span>}
+        {k.altSym && <span style={{ position:"absolute", bottom:2, right:4, fontSize:7.5, color: active ? "#1c1400aa" : "#776798" }}>{k.altSym}</span>}
         {k.shiftSym
           ? <span style={{ position:"absolute", bottom:2, left:5, fontSize:12 }}>{k.label}</span>
           : lines.length > 1
@@ -2905,47 +2905,47 @@ function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech, accessMod
   const doneTargets = levels.slice(0, levelIdx).reduce((n, l) => n + (l.targets ? l.targets.length : 0), 0) + targetIdx;
 
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.88)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1200, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:980, width:"100%", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.88)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1200, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:980, width:"100%", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>⌨️ Tutorial de Teclado</h2>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>⌨️ Tutorial de Teclado</h2>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
             {onEggFound && <span onClick={()=>onEggFound("sanduiche")} title="" style={{ fontSize:15, opacity:0.16, cursor:"default", userSelect:"none" }}>🥪</span>}
-            <button onClick={()=>{ stopSpeech?.(); onClose(); }} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+            <button onClick={()=>{ stopSpeech?.(); onClose(); }} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
           </div>
         </div>
         {accessMode && !done && <p style={{ color:"#a5f3fc", fontSize:12, margin:"0 0 10px", fontWeight:700 }}>🧩 Treino do Modo Guiado — só o essencial, e recomeça sozinho pra treinar à vontade.</p>}
         {done ? (
           <div className="pop" style={{ textAlign:"center", padding:"20px 0" }}>
             <div style={{ fontSize:44 }}>🎹</div>
-            <p style={{ color:"#e8ebfa", fontWeight:900, fontSize:20, margin:"8px 0 4px" }}>Você é um Mestre do Teclado!</p>
-            <p style={{ color:"#96a0cc", fontSize:13 }}>Treine de novo sempre que quiser — o botão continua aqui.</p>
+            <p style={{ color:"#f0e9fb", fontWeight:900, fontSize:20, margin:"8px 0 4px" }}>Você é um Mestre do Teclado!</p>
+            <p style={{ color:"#a99ac9", fontSize:13 }}>Treine de novo sempre que quiser — o botão continua aqui.</p>
             <button onClick={onClose} style={{ marginTop:14, background:"linear-gradient(135deg,#34d399,#059669)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"9px 22px", cursor:"pointer", fontSize:14 }}>Fechar</button>
           </div>
         ) : (
           <>
             <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
               {levels.map((l, i) => (
-                <span key={l.id} style={{ background: i<levelIdx?"#34d39922":i===levelIdx?"#fbbf2422":"#0d1122", color: i<levelIdx?"#34d399":i===levelIdx?"#fbbf24":"#5d679c", border:`1px solid ${i<levelIdx?"#34d399":i===levelIdx?"#fbbf24":"#2a3154"}`, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:800 }}>
+                <span key={l.id} style={{ background: i<levelIdx?"#34d39922":i===levelIdx?"#fbbf2422":"#171026", color: i<levelIdx?"#34d399":i===levelIdx?"#fbbf24":"#776798", border:`1px solid ${i<levelIdx?"#34d399":i===levelIdx?"#fbbf24":"#3b2a58"}`, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:800 }}>
                   {i<levelIdx?"✓ ":""}{l.title}
                 </span>
               ))}
             </div>
             {level.line ? (
               <>
-                <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 10px" }}>Última etapa! Digite essa linha de código inteira, prestando atenção em cada tecla — sem colar. 💪</p>
+                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 10px" }}>Última etapa! Digite essa linha de código inteira, prestando atenção em cada tecla — sem colar. 💪</p>
                 <pre style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:10, padding:"12px 14px", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{level.line}</pre>
                 <textarea autoFocus value={finalTyped} onChange={e=>onFinalType(e.target.value)} onPaste={e=>e.preventDefault()} spellCheck={false} autoCorrect="off" autoCapitalize="off"
-                  style={{ width:"100%", minHeight:70, marginTop:8, background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:"10px 12px", color:"#e8ebfa", fontFamily:"'Courier New',monospace", fontSize:14, outline:"none" }} />
+                  style={{ width:"100%", minHeight:70, marginTop:8, background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"10px 12px", color:"#f0e9fb", fontFamily:"'Courier New',monospace", fontSize:14, outline:"none" }} />
               </>
             ) : target && (
               <>
-                <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 4px" }}>{targetIdx}/{level.targets.length} teclas neste nível · <b style={{ color:"#fbbf24" }}>{level.title}</b> ({doneTargets}/{totalTargets} no total)</p>
-                <div className="pop" style={{ background: wrongFlash ? "#f8717122" : "#0d1122", border:`1px solid ${wrongFlash?"#f87171":"#2a3154"}`, borderRadius:14, padding:"16px", textAlign:"center", transition:"background .15s" }}>
+                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 4px" }}>{targetIdx}/{level.targets.length} teclas neste nível · <b style={{ color:"#fbbf24" }}>{level.title}</b> ({doneTargets}/{totalTargets} no total)</p>
+                <div className="pop" style={{ background: wrongFlash ? "#f8717122" : "#171026", border:`1px solid ${wrongFlash?"#f87171":"#3b2a58"}`, borderRadius:14, padding:"16px", textAlign:"center", transition:"background .15s" }}>
                   <div style={{ fontSize:38, fontWeight:900, fontFamily:"monospace", color: wrongFlash?"#f87171":"#22d3ee" }}>
                     {target.special || target.accent ? (target.display || target.char) : target.symbol ? target.char : target.ctrl ? `Ctrl + ${target.char.toUpperCase()}` : target.shift ? target.char : target.char.toUpperCase()}
                   </div>
-                  <p style={{ color:"#c7cfee", fontSize:13, margin:"6px 0 0" }}>
+                  <p style={{ color:"#d6c9ec", fontSize:13, margin:"6px 0 0" }}>
                     {target.hint ? target.hint : target.symbol ? `${comboLabel(target.char)} — isso escreve ${keyName(target.char)}` : target.ctrl ? `Segure Ctrl e aperte ${target.char.toUpperCase()} ao mesmo tempo — ${target.label}` : target.shift ? `Segure Shift e aperte ${target.char} ao mesmo tempo` : `Aperte essa tecla`}
                   </p>
                 </div>
@@ -2974,31 +2974,31 @@ function JustifyModal({ absences, onSubmit, onClose }) {
     setSent(s => ({ ...s, [d]: true }));
   };
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#f87171,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>😔 Justificar falta</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Escreva o motivo — o professor vai ver e pode aprovar, virando "justificado" na chamada.</p>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Escreva o motivo — o professor vai ver e pode aprovar, virando "justificado" na chamada.</p>
         {frozenAbsences.slice(0, 5).map(d => {
           const [y, m, dd] = d.split("-");
           return (
-            <div key={d} style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 12px", marginBottom:10 }}>
-              <p style={{ color:"#e8ebfa", fontWeight:800, fontSize:13, margin:"0 0 6px" }}>📅 {dd}/{m}/{y}</p>
+            <div key={d} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"10px 12px", marginBottom:10 }}>
+              <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:13, margin:"0 0 6px" }}>📅 {dd}/{m}/{y}</p>
               {sent[d] ? (
                 <p style={{ color:"#34d399", fontSize:12.5, margin:0 }}>✅ Justificativa enviada — aguardando o professor.</p>
               ) : (
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                   <input value={texts[d]||""} onChange={e=>setTexts(t=>({ ...t, [d]: e.target.value }))} onKeyDown={e=>e.key==="Enter"&&send(d)}
-                    placeholder="Ex: fui ao médico" style={{ flex:"1 1 180px", background:"#131730", border:"1px solid #2a3154", borderRadius:8, padding:"7px 10px", color:"#e8ebfa", fontSize:13, outline:"none" }} />
+                    placeholder="Ex: fui ao médico" style={{ flex:"1 1 180px", background:"#1a1029", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 10px", color:"#f0e9fb", fontSize:13, outline:"none" }} />
                   <button onClick={()=>send(d)} disabled={!(texts[d]||"").trim()} style={{ background:"linear-gradient(135deg,#f87171,#dc2626)", border:"none", borderRadius:8, color:"#fff", fontWeight:800, padding:"7px 14px", fontSize:12.5, cursor:"pointer", opacity:(texts[d]||"").trim()?1:0.5 }}>Enviar</button>
                 </div>
               )}
             </div>
           );
         })}
-        {frozenAbsences.length > 5 && <p style={{ color:"#5d679c", fontSize:12 }}>+{frozenAbsences.length - 5} outra(s) falta(s) — justifique essas primeiro e depois abra de novo.</p>}
+        {frozenAbsences.length > 5 && <p style={{ color:"#776798", fontSize:12 }}>+{frozenAbsences.length - 5} outra(s) falta(s) — justifique essas primeiro e depois abra de novo.</p>}
       </div>
     </div>
   );
@@ -3007,15 +3007,15 @@ function JustifyModal({ absences, onSubmit, onClose }) {
 // ── 🏆 hall da fama: mural com uma placa por cidade encerrada ──
 function HallOfFameModal({ entries, onClose }) {
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:600, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:600, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#fbbf24,#fb923c)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🏆 Hall da Fama</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Quem se destacou nas cidades por onde a carreta já passou. 🚌✨</p>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Quem se destacou nas cidades por onde a carreta já passou. 🚌✨</p>
         {entries.length === 0 ? (
-          <p style={{ color:"#5d679c", fontSize:13, textAlign:"center", padding:"20px 0" }}>Ainda não tem nenhuma placa aqui — a próxima cidade encerrada entra pra esse mural!</p>
+          <p style={{ color:"#776798", fontSize:13, textAlign:"center", padding:"20px 0" }}>Ainda não tem nenhuma placa aqui — a próxima cidade encerrada entra pra esse mural!</p>
         ) : (
           [...entries].reverse().map((e, i) => (
             <div key={i} className="pop" style={{ background:"linear-gradient(135deg,#fbbf2414,#fb923c10)", border:"1px solid #fbbf2455", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
@@ -3023,8 +3023,8 @@ function HallOfFameModal({ entries, onClose }) {
               {(e.students||[]).map((s, j) => (
                 <div key={j} style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, marginBottom:4 }}>
                   <span>{["🥇","🥈","🥉"][j] || "🏅"}</span>
-                  <span style={{ flex:1, color:"#e8ebfa", fontWeight:700 }}>{s.name}</span>
-                  <span style={{ color:"#96a0cc", fontSize:12 }}>{s.highlight}</span>
+                  <span style={{ flex:1, color:"#f0e9fb", fontWeight:700 }}>{s.name}</span>
+                  <span style={{ color:"#a99ac9", fontSize:12 }}>{s.highlight}</span>
                 </div>
               ))}
             </div>
@@ -3042,33 +3042,33 @@ function TripOverviewModal({ entries, onClose }) {
   const totalAlunos = cities.reduce((n, e) => n + (e.totalStudents || 0), 0);
   const totalAulas = cities.reduce((n, e) => n + (e.totalClasses || 0), 0);
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:680, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:680, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#06b6d4,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📊 Visão da Viagem</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#06b6d4,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📊 Visão da Viagem</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>O que a carreta já fez somando todas as cidades encerradas. 🚌</p>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>O que a carreta já fez somando todas as cidades encerradas. 🚌</p>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:16 }}>
-          <div style={{ flex:"1 1 140px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
-            <div style={{ color:"#96a0cc", fontSize:11.5 }}>Cidades encerradas</div>
-            <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:26 }}>{totalCidades}</div>
+          <div style={{ flex:"1 1 140px", background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
+            <div style={{ color:"#a99ac9", fontSize:11.5 }}>Cidades encerradas</div>
+            <div style={{ color:"#f0e9fb", fontWeight:900, fontSize:26 }}>{totalCidades}</div>
           </div>
-          <div style={{ flex:"1 1 140px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
-            <div style={{ color:"#96a0cc", fontSize:11.5 }}>Alunos que passaram</div>
-            <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:26 }}>{totalAlunos}</div>
+          <div style={{ flex:"1 1 140px", background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
+            <div style={{ color:"#a99ac9", fontSize:11.5 }}>Alunos que passaram</div>
+            <div style={{ color:"#f0e9fb", fontWeight:900, fontSize:26 }}>{totalAlunos}</div>
           </div>
-          <div style={{ flex:"1 1 140px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
-            <div style={{ color:"#96a0cc", fontSize:11.5 }}>Aulas dadas</div>
-            <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:26 }}>{totalAulas}</div>
+          <div style={{ flex:"1 1 140px", background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
+            <div style={{ color:"#a99ac9", fontSize:11.5 }}>Aulas dadas</div>
+            <div style={{ color:"#f0e9fb", fontWeight:900, fontSize:26 }}>{totalAulas}</div>
           </div>
         </div>
         {cities.length === 0 ? (
-          <p style={{ color:"#5d679c", fontSize:13, textAlign:"center", padding:"20px 0" }}>Ainda não tem estatísticas de cidade aqui — elas passam a aparecer a partir da próxima cidade encerrada.</p>
+          <p style={{ color:"#776798", fontSize:13, textAlign:"center", padding:"20px 0" }}>Ainda não tem estatísticas de cidade aqui — elas passam a aparecer a partir da próxima cidade encerrada.</p>
         ) : (
-          <div className="cardfx" style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:14, padding:14 }}>
-            <p style={{ color:"#7c83ff", fontWeight:700, fontSize:13, margin:"0 0 10px" }}>📈 Nota média por cidade</p>
-            <div style={{ display:"flex", alignItems:"flex-end", gap:10, height:120, overflowX:"auto", paddingBottom:4, borderBottom:"1px solid #2a3154" }}>
+          <div className="cardfx" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:14, padding:14 }}>
+            <p style={{ color:"#c084fc", fontWeight:700, fontSize:13, margin:"0 0 10px" }}>📈 Nota média por cidade</p>
+            <div style={{ display:"flex", alignItems:"flex-end", gap:10, height:120, overflowX:"auto", paddingBottom:4, borderBottom:"1px solid #3b2a58" }}>
               {cities.map((e, i) => {
                 const g = gradeInfo(e.avgScore || 0);
                 return (
@@ -3081,7 +3081,7 @@ function TripOverviewModal({ entries, onClose }) {
             </div>
             <div style={{ display:"flex", gap:10, marginTop:6 }}>
               {cities.map((e, i) => (
-                <span key={i} style={{ color:"#5d679c", fontSize:10, minWidth:52, textAlign:"center", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }} title={e.city}>{e.city || "?"}</span>
+                <span key={i} style={{ color:"#776798", fontSize:10, minWidth:52, textAlign:"center", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }} title={e.city}>{e.city || "?"}</span>
               ))}
             </div>
           </div>
@@ -3125,26 +3125,26 @@ function TypingRaceModal({ onClose, onFinish }) {
   const hasError = typed.length > okLen;
   const medals = ["🥇", "🥈", "🥉"];
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:600, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:600, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#f87171,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🏁 Corrida de Digitação</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 12px" }}>Digite o código abaixo EXATAMENTE igual, o mais rápido que conseguir. O relógio começa na primeira tecla — e colar não vale! 😉</p>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 12px" }}>Digite o código abaixo EXATAMENTE igual, o mais rápido que conseguir. O relógio começa na primeira tecla — e colar não vale! 😉</p>
 
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
           <span style={{ color:"#fbbf24", fontWeight:900, fontSize:22, fontVariantNumeric:"tabular-nums" }}>⏱ {elapsed.toFixed(1)}s</span>
           <span style={{ color: hasError ? "#f87171" : "#34d399", fontSize:12.5, fontWeight:800 }}>{result ? "🏁 Chegada!" : hasError ? "✗ tem uma letra errada aí!" : `${okLen}/${target.length} caracteres`}</span>
         </div>
-        <div className="bar-glow" style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:20, height:10, overflow:"hidden", marginBottom:12 }}>
+        <div className="bar-glow" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:20, height:10, overflow:"hidden", marginBottom:12 }}>
           <div style={{ width:`${(okLen / target.length) * 100}%`, height:"100%", background: hasError ? "#f87171" : "linear-gradient(90deg,#f87171,#fbbf24,#34d399)", transition:"width .15s ease" }} />
         </div>
 
         <pre style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:10, padding:"12px 14px", fontFamily:"'Courier New',monospace", fontSize:15, lineHeight:1.7, margin:"0 0 10px", whiteSpace:"pre-wrap", wordBreak:"break-all" }}>
           {target.split("").map((ch, i) => (
             <span key={i} style={{
-              color: i < okLen ? "#34d399" : (i < typed.length ? "#0d1122" : "#d4d4d4"),
+              color: i < okLen ? "#34d399" : (i < typed.length ? "#171026" : "#d4d4d4"),
               background: i < okLen ? "transparent" : (i < typed.length ? "#f87171" : "transparent"),
               borderRadius: 2,
             }}>{ch}</span>
@@ -3154,25 +3154,25 @@ function TypingRaceModal({ onClose, onFinish }) {
         {!result ? (
           <textarea autoFocus value={typed} onChange={e => onType(e.target.value)} onPaste={e => e.preventDefault()} spellCheck={false} autoCorrect="off" autoCapitalize="off"
             placeholder="Digite aqui... o tempo começa na primeira tecla!"
-            style={{ width:"100%", minHeight:90, background:"#0d1122", border:`2px solid ${hasError ? "#f87171" : "#2a3154"}`, borderRadius:12, padding:"10px 12px", color:"#e8ebfa", fontFamily:"'Courier New',monospace", fontSize:15, lineHeight:1.7, outline:"none", resize:"vertical" }} />
+            style={{ width:"100%", minHeight:90, background:"#171026", border:`2px solid ${hasError ? "#f87171" : "#3b2a58"}`, borderRadius:12, padding:"10px 12px", color:"#f0e9fb", fontFamily:"'Courier New',monospace", fontSize:15, lineHeight:1.7, outline:"none", resize:"vertical" }} />
         ) : (
           <div className="pop" style={{ background:"linear-gradient(135deg,#34d39922,#22d3ee22)", border:"1px solid #34d399", borderRadius:14, padding:"16px 18px", textAlign:"center" }}>
             <div style={{ fontSize:38 }}>🏁</div>
-            <p style={{ color:"#e8ebfa", fontWeight:900, fontSize:20, margin:"6px 0 2px" }}>{(result.ms / 1000).toFixed(1)} segundos!</p>
+            <p style={{ color:"#f0e9fb", fontWeight:900, fontSize:20, margin:"6px 0 2px" }}>{(result.ms / 1000).toFixed(1)} segundos!</p>
             {result.newRecord && <p style={{ color:"#fbbf24", fontWeight:800, fontSize:14, margin:"2px 0" }}>🌟 NOVO RECORDE PESSOAL!</p>}
-            <p style={{ color:"#96a0cc", fontSize:13, margin:"4px 0 0" }}>{result.reward > 0 ? `+${result.reward} ponto${result.reward>1?"s":""} do Nyx pra você!` : "Pontos da corrida já garantidos hoje — mas o recorde continua valendo!"}</p>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"4px 0 0" }}>{result.reward > 0 ? `+${result.reward} ponto${result.reward>1?"s":""} do Nyx pra você!` : "Pontos da corrida já garantidos hoje — mas o recorde continua valendo!"}</p>
             <button onClick={onClose} style={{ marginTop:12, background:"linear-gradient(135deg,#34d399,#059669)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"9px 22px", cursor:"pointer", fontSize:14 }}>Fechar</button>
           </div>
         )}
 
-        <div style={{ marginTop:14, borderTop:"1px solid #2a3154", paddingTop:10 }}>
+        <div style={{ marginTop:14, borderTop:"1px solid #3b2a58", paddingTop:10 }}>
           <p style={{ color:"#fbbf24", fontSize:12.5, fontWeight:800, margin:"0 0 8px" }}>🏆 Pilotos mais rápidos da turma</p>
-          {top === null ? <p style={{ color:"#5d679c", fontSize:12 }}>Carregando pódio...</p>
-            : top.length === 0 ? <p style={{ color:"#5d679c", fontSize:12 }}>Ninguém correu ainda — seja o primeiro do pódio!</p>
+          {top === null ? <p style={{ color:"#776798", fontSize:12 }}>Carregando pódio...</p>
+            : top.length === 0 ? <p style={{ color:"#776798", fontSize:12 }}>Ninguém correu ainda — seja o primeiro do pódio!</p>
             : top.map((s, i) => (
               <div key={s.name} style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, marginBottom:4 }}>
                 <span>{medals[i]}</span>
-                <span style={{ flex:1, color:"#e8ebfa", fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</span>
+                <span style={{ flex:1, color:"#f0e9fb", fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</span>
                 <span style={{ color:"#34d399", fontWeight:800, fontVariantNumeric:"tabular-nums" }}>{(s.typingBest.ms / 1000).toFixed(1)}s</span>
               </div>
             ))}
@@ -3189,29 +3189,29 @@ function NotebookModal({ history, detailedHistory, onClose }) {
   const fmt = (d) => { const [y,m,dd] = d.split("-"); return `${dd}/${m}/${y}`; };
   const hasDetailed = sel && detailedHistory && detailedHistory[sel];
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📒 Caderno de resumos</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Todos os resumos das suas aulas, guardados por dia. Ótimo para revisar antes da prova!</p>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Todos os resumos das suas aulas, guardados por dia. Ótimo para revisar antes da prova!</p>
         {dates.length === 0 ? (
-          <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum resumo guardado ainda — eles aparecem aqui quando você salva e finaliza uma aula.</p>
+          <p style={{ color:"#776798", fontSize:13 }}>Nenhum resumo guardado ainda — eles aparecem aqui quando você salva e finaliza uma aula.</p>
         ) : (
           <>
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:14 }}>
               {dates.map(d => (
                 <button key={d} onClick={()=>{ setSel(d); setView("simples"); }}
-                  style={{ background: sel===d ? "#34d399" : "#0d1122", color: sel===d ? "#03301f" : "#96a0cc", border:`1px solid ${sel===d?"#34d399":"#2a3154"}`, borderRadius:10, padding:"6px 12px", cursor:"pointer", fontWeight:800, fontSize:12.5 }}>
+                  style={{ background: sel===d ? "#34d399" : "#171026", color: sel===d ? "#03301f" : "#a99ac9", border:`1px solid ${sel===d?"#34d399":"#3b2a58"}`, borderRadius:10, padding:"6px 12px", cursor:"pointer", fontWeight:800, fontSize:12.5 }}>
                   📅 {fmt(d)}
                 </button>
               ))}
             </div>
             {hasDetailed && (
               <div style={{ display:"flex", gap:6, marginBottom:14 }}>
-                <button onClick={()=>setView("simples")} style={{ background: view==="simples" ? "#7c83ff" : "#0d1122", color: view==="simples" ? "#fff" : "#96a0cc", border:`1px solid ${view==="simples"?"#7c83ff":"#2a3154"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:11.5 }}>🌱 Simples</button>
-                <button onClick={()=>setView("detalhado")} style={{ background: view==="detalhado" ? "#7c83ff" : "#0d1122", color: view==="detalhado" ? "#fff" : "#96a0cc", border:`1px solid ${view==="detalhado"?"#7c83ff":"#2a3154"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:11.5 }}>📖 Detalhado</button>
+                <button onClick={()=>setView("simples")} style={{ background: view==="simples" ? "#c084fc" : "#171026", color: view==="simples" ? "#fff" : "#a99ac9", border:`1px solid ${view==="simples"?"#c084fc":"#3b2a58"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:11.5 }}>🌱 Simples</button>
+                <button onClick={()=>setView("detalhado")} style={{ background: view==="detalhado" ? "#c084fc" : "#171026", color: view==="detalhado" ? "#fff" : "#a99ac9", border:`1px solid ${view==="detalhado"?"#c084fc":"#3b2a58"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:11.5 }}>📖 Detalhado</button>
               </div>
             )}
             {sel && <SummaryPretty sum={(view==="detalhado" && hasDetailed) ? detailedHistory[sel] : history[sel]} />}
@@ -3248,36 +3248,36 @@ function PerformanceModal({ studentName, scoreHistory, achievements, duelWins, t
     ? `No dia ${fmt(worst[0])} você teve mais dificuldade (nota ${worst[1]}) — que tal pedir uma revisão desse conteúdo pro Nyx?`
     : null;
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#06b6d4,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📊 Meu Desempenho</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#06b6d4,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📊 Meu Desempenho</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap", margin:"10px 0 16px" }}>
-          <div style={{ flex:"1 1 100px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 12px", textAlign:"center" }}>
-            <div style={{ color:"#96a0cc", fontSize:11 }}>Média geral</div>
-            <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:20 }}>{avg ?? "—"}</div>
+          <div style={{ flex:"1 1 100px", background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"10px 12px", textAlign:"center" }}>
+            <div style={{ color:"#a99ac9", fontSize:11 }}>Média geral</div>
+            <div style={{ color:"#f0e9fb", fontWeight:900, fontSize:20 }}>{avg ?? "—"}</div>
           </div>
-          <div style={{ flex:"1 1 100px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 12px", textAlign:"center" }}>
-            <div style={{ color:"#96a0cc", fontSize:11 }}>Atividades feitas</div>
-            <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:20 }}>{entries.length}</div>
+          <div style={{ flex:"1 1 100px", background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"10px 12px", textAlign:"center" }}>
+            <div style={{ color:"#a99ac9", fontSize:11 }}>Atividades feitas</div>
+            <div style={{ color:"#f0e9fb", fontWeight:900, fontSize:20 }}>{entries.length}</div>
           </div>
-          <div style={{ flex:"1 1 100px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 12px", textAlign:"center" }}>
-            <div style={{ color:"#96a0cc", fontSize:11 }}>Conquistas</div>
-            <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:20 }}>{achievements?.length || 0}</div>
+          <div style={{ flex:"1 1 100px", background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"10px 12px", textAlign:"center" }}>
+            <div style={{ color:"#a99ac9", fontSize:11 }}>Conquistas</div>
+            <div style={{ color:"#f0e9fb", fontWeight:900, fontSize:20 }}>{achievements?.length || 0}</div>
           </div>
           {streakCount >= 2 && (
-            <div style={{ flex:"1 1 100px", background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 12px", textAlign:"center" }}>
-              <div style={{ color:"#96a0cc", fontSize:11 }}>Sequência 🔥</div>
-              <div style={{ color:"#e8ebfa", fontWeight:900, fontSize:20 }}>{streakCount}</div>
+            <div style={{ flex:"1 1 100px", background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"10px 12px", textAlign:"center" }}>
+              <div style={{ color:"#a99ac9", fontSize:11 }}>Sequência 🔥</div>
+              <div style={{ color:"#f0e9fb", fontWeight:900, fontSize:20 }}>{streakCount}</div>
             </div>
           )}
         </div>
         {entries.length > 0 ? (
-          <div className="cardfx" style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:14, padding:14, marginBottom:14 }}>
-            <p style={{ color:"#7c83ff", fontWeight:700, fontSize:13, margin:"0 0 10px" }}>📈 Notas ao longo do tempo</p>
-            <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:120, overflowX:"auto", paddingBottom:4, borderBottom:"1px solid #2a3154" }}>
+          <div className="cardfx" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:14, padding:14, marginBottom:14 }}>
+            <p style={{ color:"#c084fc", fontWeight:700, fontSize:13, margin:"0 0 10px" }}>📈 Notas ao longo do tempo</p>
+            <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:120, overflowX:"auto", paddingBottom:4, borderBottom:"1px solid #3b2a58" }}>
               {entries.slice(-14).map(([d, n]) => {
                 const g = gradeInfo(n);
                 return (
@@ -3290,12 +3290,12 @@ function PerformanceModal({ studentName, scoreHistory, achievements, duelWins, t
             </div>
             <div style={{ display:"flex", gap:8, marginTop:6 }}>
               {entries.slice(-14).map(([d]) => (
-                <span key={d} style={{ color:"#5d679c", fontSize:10, minWidth:38, textAlign:"center" }}>{fmt(d)}</span>
+                <span key={d} style={{ color:"#776798", fontSize:10, minWidth:38, textAlign:"center" }}>{fmt(d)}</span>
               ))}
             </div>
           </div>
         ) : (
-          <p style={{ color:"#5d679c", fontSize:13, textAlign:"center", padding:"16px 0" }}>Ainda não tem nenhuma atividade concluída — assim que você terminar a primeira, o gráfico aparece aqui!</p>
+          <p style={{ color:"#776798", fontSize:13, textAlign:"center", padding:"16px 0" }}>Ainda não tem nenhuma atividade concluída — assim que você terminar a primeira, o gráfico aparece aqui!</p>
         )}
         <div className="cardfx" style={{ background:"#34d39912", border:"1px solid #34d399", borderRadius:12, padding:"12px 14px", marginBottom:10 }}>
           <p style={{ color:"#34d399", fontWeight:800, fontSize:13, margin:"0 0 4px" }}>✨ Destaque</p>
@@ -3323,7 +3323,7 @@ function ConfettiParty({ level }) {
     delay: Math.random() * 1.6,
     dur: 2.4 + Math.random() * 2,
     size: 6 + Math.random() * 7,
-    color: ["#7c83ff","#22d3ee","#34d399","#fbbf24","#ec4899","#f87171"][i % 6],
+    color: ["#c084fc","#22d3ee","#34d399","#fbbf24","#ec4899","#f87171"][i % 6],
     rot: Math.random() * 360,
   })), []);
   return (
@@ -3332,7 +3332,7 @@ function ConfettiParty({ level }) {
       {pieces.map((p, i) => (
         <div key={i} style={{ position:"absolute", top:0, left:`${p.left}%`, width:p.size, height:p.size*0.6, background:p.color, borderRadius:2, transform:`rotate(${p.rot}deg)`, animation:`confete-cai ${p.dur}s linear ${p.delay}s both` }} />
       ))}
-      <div style={{ position:"absolute", top:"18%", left:"50%", transform:"translateX(-50%)", background:"linear-gradient(135deg,#7c83ff,#22d3ee)", color:"#fff", fontWeight:900, padding:"14px 28px", borderRadius:20, boxShadow:"0 14px 44px rgba(0,0,0,.5)", fontSize:17, textAlign:"center", animation:"rise .4s ease both" }}>
+      <div style={{ position:"absolute", top:"18%", left:"50%", transform:"translateX(-50%)", background:"linear-gradient(135deg,#c084fc,#22d3ee)", color:"#fff", fontWeight:900, padding:"14px 28px", borderRadius:20, boxShadow:"0 14px 44px rgba(0,0,0,.5)", fontSize:17, textAlign:"center", animation:"rise .4s ease both" }}>
         🎉 A TURMA SUBIU DE NÍVEL! 🎉<br/>
         <span style={{ fontSize:13.5, fontWeight:700, opacity:0.95 }}>Meta coletiva: nível {level} alcançado — parabéns a todos!</span>
       </div>
@@ -3459,25 +3459,25 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
   }
 
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#f87171,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>⚔️ Duelo</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
 
-        {loading && <p style={{ color:"#5d679c", fontSize:13 }}>Carregando...</p>}
+        {loading && <p style={{ color:"#776798", fontSize:13 }}>Carregando...</p>}
         {err && <div style={{ background:"#f8717111", border:"1px solid #f87171", borderRadius:10, padding:10, color:"#f87171", fontSize:13, marginBottom:10 }}>{err}</div>}
 
         {!loading && view === "list" && (
           <>
-            <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Desafie um colega online da sua turma para um mini-quiz de 5 perguntas. Quem acertar mais, ganha!</p>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Desafie um colega online da sua turma para um mini-quiz de 5 perguntas. Quem acertar mais, ganha!</p>
             {opponents.length === 0 ? (
-              <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum colega online agora. Tente de novo daqui a pouco.</p>
+              <p style={{ color:"#776798", fontSize:13 }}>Nenhum colega online agora. Tente de novo daqui a pouco.</p>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                 {opponents.map(o => (
-                  <button key={o.name} disabled={creating} onClick={()=>challenge(o)} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:"8px 12px", cursor:"pointer", color:"#e8ebfa", textAlign:"left" }}>
+                  <button key={o.name} disabled={creating} onClick={()=>challenge(o)} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"8px 12px", cursor:"pointer", color:"#f0e9fb", textAlign:"left" }}>
                     <Avatar cfg={o.avatar} size={32} />
                     <span style={{ flex:1, fontWeight:700, fontSize:13.5 }}>{o.name}</span>
                     <span style={{ color:"#f87171", fontWeight:700, fontSize:12.5 }}>{creating?"Criando...":"⚔️ Desafiar"}</span>
@@ -3491,31 +3491,31 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
         {view === "invited" && (
           <div style={{ textAlign:"center", padding:"20px 0" }}>
             <Avatar cfg={opponentAvatar} size={64} />
-            <p style={{ color:"#e8ebfa", fontSize:15, fontWeight:700, marginTop:10 }}>Esperando {opponentName} aceitar...</p>
-            <button onClick={cancelOrDecline} style={{ background:"#2a3154", color:"#e8ebfa", border:"none", borderRadius:10, padding:"8px 16px", cursor:"pointer", fontWeight:700, fontSize:13, marginTop:10 }}>Cancelar desafio</button>
+            <p style={{ color:"#f0e9fb", fontSize:15, fontWeight:700, marginTop:10 }}>Esperando {opponentName} aceitar...</p>
+            <button onClick={cancelOrDecline} style={{ background:"#3b2a58", color:"#f0e9fb", border:"none", borderRadius:10, padding:"8px 16px", cursor:"pointer", fontWeight:700, fontSize:13, marginTop:10 }}>Cancelar desafio</button>
           </div>
         )}
 
         {view === "incoming" && (
           <div style={{ textAlign:"center", padding:"20px 0" }}>
             <Avatar cfg={opponentAvatar} size={64} />
-            <p style={{ color:"#e8ebfa", fontSize:15, marginTop:10 }}><b>{opponentName}</b> te desafiou para um duelo de 5 perguntas!</p>
+            <p style={{ color:"#f0e9fb", fontSize:15, marginTop:10 }}><b>{opponentName}</b> te desafiou para um duelo de 5 perguntas!</p>
             <div style={{ display:"flex", gap:10, justifyContent:"center", marginTop:14 }}>
               <button onClick={accept} style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", color:"#fff", border:"none", borderRadius:10, padding:"10px 20px", cursor:"pointer", fontWeight:800, fontSize:14 }}>✅ Aceitar</button>
-              <button onClick={cancelOrDecline} style={{ background:"#2a3154", color:"#e8ebfa", border:"none", borderRadius:10, padding:"10px 20px", cursor:"pointer", fontWeight:700, fontSize:14 }}>Recusar</button>
+              <button onClick={cancelOrDecline} style={{ background:"#3b2a58", color:"#f0e9fb", border:"none", borderRadius:10, padding:"10px 20px", cursor:"pointer", fontWeight:700, fontSize:14 }}>Recusar</button>
             </div>
           </div>
         )}
 
         {view === "playing" && (
           <div>
-            <p style={{ color:"#96a0cc", fontSize:13, marginBottom:10 }}>Duelo contra <b style={{ color:"#e8ebfa" }}>{opponentName}</b> — responda as 5 perguntas:</p>
+            <p style={{ color:"#a99ac9", fontSize:13, marginBottom:10 }}>Duelo contra <b style={{ color:"#f0e9fb" }}>{opponentName}</b> — responda as 5 perguntas:</p>
             {(duel.questions||[]).map((q,i)=>(
-              <div key={i} style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:12, marginBottom:8 }}>
-                <p style={{ color:"#e8ebfa", fontWeight:700, fontSize:13.5, marginBottom:8 }}>{i+1}. {q.q}</p>
+              <div key={i} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:12, marginBottom:8 }}>
+                <p style={{ color:"#f0e9fb", fontWeight:700, fontSize:13.5, marginBottom:8 }}>{i+1}. {q.q}</p>
                 {q.opts.map((opt,j)=>(
                   <button key={j} onClick={()=>setMyAnswers(a=>({...a,[i]:j}))}
-                    style={{ display:"block", width:"100%", textAlign:"left", background:myAnswers[i]===j?"#7c83ff33":"#131730", border:`2px solid ${myAnswers[i]===j?"#7c83ff":"#272e52"}`, borderRadius:8, padding:"8px 12px", marginBottom:6, color:"#e8ebfa", cursor:"pointer", fontSize:13 }}>
+                    style={{ display:"block", width:"100%", textAlign:"left", background:myAnswers[i]===j?"#c084fc33":"#1a1029", border:`2px solid ${myAnswers[i]===j?"#c084fc":"#3a2a55"}`, borderRadius:8, padding:"8px 12px", marginBottom:6, color:"#f0e9fb", cursor:"pointer", fontSize:13 }}>
                     {opt}
                   </button>
                 ))}
@@ -3531,7 +3531,7 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
         {view === "waiting-result" && (
           <div style={{ textAlign:"center", padding:"20px 0" }}>
             <div style={{ fontSize:40 }}>⏳</div>
-            <p style={{ color:"#e8ebfa", fontSize:15, marginTop:10 }}>Você já respondeu! Esperando <b>{opponentName}</b> terminar...</p>
+            <p style={{ color:"#f0e9fb", fontSize:15, marginTop:10 }}>Você já respondeu! Esperando <b>{opponentName}</b> terminar...</p>
           </div>
         )}
 
@@ -3541,9 +3541,9 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
             <h3 style={{ color: myScore > oppScore ? "#34d399" : myScore === oppScore ? "#fbbf24" : "#f87171", fontSize:20, margin:"6px 0" }}>
               {myScore > oppScore ? "Você venceu!" : myScore === oppScore ? "Empate!" : "Você perdeu dessa vez"}
             </h3>
-            <p style={{ color:"#96a0cc", fontSize:14 }}>Você: {myScore}/5 · {opponentName}: {oppScore}/5</p>
+            <p style={{ color:"#a99ac9", fontSize:14 }}>Você: {myScore}/5 · {opponentName}: {oppScore}/5</p>
             <p style={{ color:"#fbbf24", fontSize:13, marginTop:6 }}>+{myScore===oppScore?2:(myScore>oppScore?3:1)} pontos do Nyx</p>
-            <button onClick={closeResult} style={{ background:"linear-gradient(135deg,#7c83ff,#5a61e8)", color:"#fff", border:"none", borderRadius:10, padding:"10px 18px", cursor:"pointer", fontWeight:800, fontSize:14, width:"100%", marginTop:14 }}>
+            <button onClick={closeResult} style={{ background:"linear-gradient(135deg,#c084fc,#9333ea)", color:"#fff", border:"none", borderRadius:10, padding:"10px 18px", cursor:"pointer", fontWeight:800, fontSize:14, width:"100%", marginTop:14 }}>
               Fechar
             </button>
           </div>
@@ -5266,31 +5266,31 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const scaleSize = (size) => Math.round(size * uiScale);
   const scalePx = (val) => Math.round(val * uiScale);
   const styles = {
-    container:{ minHeight:"100vh", background:pageBgFor(theme), color:"#e8ebfa", fontFamily:FONT, fontSize:`${scaleSize(16)}px` },
-    header:{ background:"rgba(17,21,42,.85)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", padding:`${scalePx(10)}px ${scalePx(18)}px`, display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #2a3154", boxShadow:"0 1px 0 #7c83ff33, 0 8px 24px rgba(3,5,16,.35)", position:"sticky", top:0, zIndex:40, flexWrap:"wrap", gap:8 },
-    card:{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:16, padding:scalePx(16), margin:"10px 0", border:"1px solid #272e52", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both" },
+    container:{ minHeight:"100vh", background:pageBgFor(theme), color:"#f0e9fb", fontFamily:FONT, fontSize:`${scaleSize(16)}px` },
+    header:{ background:"rgba(17,21,42,.85)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", padding:`${scalePx(10)}px ${scalePx(18)}px`, display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #3b2a58", boxShadow:"0 1px 0 #c084fc33, 0 8px 24px rgba(3,5,16,.35)", position:"sticky", top:0, zIndex:40, flexWrap:"wrap", gap:8 },
+    card:{ background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:16, padding:scalePx(16), margin:"10px 0", border:"1px solid #3a2a55", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:`${scalePx(10)}px ${scalePx(18)}px`, cursor:"pointer", fontWeight:800, fontSize:scaleSize(14), boxShadow:`0 4px 14px ${c}44` }),
-    opt:(sel)=>({ background:sel?"#7c83ff22":"#131730", border:`2px solid ${sel?"#7c83ff":"#272e52"}`, borderRadius:10, padding:`${scalePx(10)}px ${scalePx(14)}px`, marginBottom:8, cursor:"pointer", color:"#e8ebfa", textAlign:"left", width:"100%", fontSize:scaleSize(14), minHeight:scaleSize(44) }),
+    opt:(sel)=>({ background:sel?"#c084fc22":"#1a1029", border:`2px solid ${sel?"#c084fc":"#3a2a55"}`, borderRadius:10, padding:`${scalePx(10)}px ${scalePx(14)}px`, marginBottom:8, cursor:"pointer", color:"#f0e9fb", textAlign:"left", width:"100%", fontSize:scaleSize(14), minHeight:scaleSize(44) }),
   };
   const Stars = ({ value, onChange }) => (
     <div style={{ display:"flex", gap:4 }}>
       {[1,2,3,4,5].map(n=>(
-        <button key={n} type="button" onClick={()=>onChange(n)} style={{ background:"transparent", border:"none", cursor:"pointer", fontSize:26, color:n<=value?"#fbbf24":"#5d679c", padding:0 }}>★</button>
+        <button key={n} type="button" onClick={()=>onChange(n)} style={{ background:"transparent", border:"none", cursor:"pointer", fontSize:26, color:n<=value?"#fbbf24":"#776798", padding:0 }}>★</button>
       ))}
     </div>
   );
 
-  if (!loaded) return (<div style={{ ...styles.container, display:"flex", alignItems:"center", justifyContent:"center" }}><p style={{ color:"#96a0cc" }}>Carregando seu perfil...</p></div>);
+  if (!loaded) return (<div style={{ ...styles.container, display:"flex", alignItems:"center", justifyContent:"center" }}><p style={{ color:"#a99ac9" }}>Carregando seu perfil...</p></div>);
 
   // ── ZEK: o professor pediu atenção — o Nyx toma a tela inteira e bloqueia tudo até o /hiberne ──
   if (nyxLocks.zek) return (
     <div style={{ ...styles.container, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"2px solid #f87171", borderRadius:22, padding:"34px 28px", maxWidth:460, width:"100%", textAlign:"center", boxShadow:"0 24px 70px rgba(0,0,0,.6), 0 0 60px #f8717133" }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"2px solid #f87171", borderRadius:22, padding:"34px 28px", maxWidth:460, width:"100%", textAlign:"center", boxShadow:"0 24px 70px rgba(0,0,0,.6), 0 0 60px #f8717133" }}>
         <div style={{ animation:"nyx-shake .55s ease infinite" }}>
           <NyxRobot state="error" size={120} showName={false} gear={nyxGear} />
         </div>
         <h2 style={{ color:"#f87171", fontSize:24, fontWeight:900, margin:"14px 0 6px" }}>👀 Atenção na aula!</h2>
-        <p style={{ color:"#c7cfee", fontSize:15, lineHeight:1.7, margin:0 }}>
+        <p style={{ color:"#d6c9ec", fontSize:15, lineHeight:1.7, margin:0 }}>
           O professor pediu a atenção de todo mundo agora. Olhos no quadro! A tela volta ao normal quando ele liberar.
         </p>
       </div>
@@ -5300,12 +5300,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // ── HORÁRIO AUTOMÁTICO: fora do horário configurado, a sala fica fechada (a vistoria do professor libera na hora) ──
   if (classStatusNow.configured && !classStatusNow.open && !myInspection) return (
     <div style={{ ...styles.container, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"2px solid #7c83ff", borderRadius:22, padding:"34px 28px", maxWidth:460, width:"100%", textAlign:"center", boxShadow:"0 24px 70px rgba(0,0,0,.6), 0 0 60px #7c83ff22" }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"2px solid #c084fc", borderRadius:22, padding:"34px 28px", maxWidth:460, width:"100%", textAlign:"center", boxShadow:"0 24px 70px rgba(0,0,0,.6), 0 0 60px #c084fc22" }}>
         <div style={{ animation:"nyx-float 3s ease-in-out infinite" }}>
           <NyxRobot state="idle" size={110} showName={false} gear={nyxGear} />
         </div>
-        <h2 style={{ color:"#7c83ff", fontSize:23, fontWeight:900, margin:"14px 0 6px" }}>{classStatusNow.before ? "⏰ A aula ainda não começou" : "👋 A aula de hoje já encerrou"}</h2>
-        <p style={{ color:"#c7cfee", fontSize:15, lineHeight:1.7, margin:0 }}>
+        <h2 style={{ color:"#c084fc", fontSize:23, fontWeight:900, margin:"14px 0 6px" }}>{classStatusNow.before ? "⏰ A aula ainda não começou" : "👋 A aula de hoje já encerrou"}</h2>
+        <p style={{ color:"#d6c9ec", fontSize:15, lineHeight:1.7, margin:0 }}>
           {classStatusNow.before
             ? `A turma ${shiftMeta(shift).label} começa às ${mySchedule.start}. Até já!`
             : "Até a próxima aula! Seu código já está salvo, então pode ficar tranquilo(a)."}
@@ -5334,10 +5334,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     const steps = [["📝","Programar"],["💾","Salvar"],["📚","Resumo"],["🎯","Atividade"]];
     const idx = phase==="coding" ? 0 : phase==="generating" ? 1 : phase==="summary" ? 2 : phase==="activity" ? 3 : 4;
     return (
-      <div style={{ position:"fixed", bottom:10, left:"50%", transform:"translateX(-50%)", zIndex:900, background:"rgba(13,17,34,.96)", border:"1px solid #2a3154", borderRadius:20, padding:"7px 14px", display:"flex", gap:8, alignItems:"center", boxShadow:"0 8px 24px rgba(0,0,0,.45)", flexWrap:"wrap", justifyContent:"center", maxWidth:"calc(100vw - 16px)" }}>
-        <span style={{ color:"#5d679c", fontSize:11.5, fontWeight:800 }}>Minha aula:</span>
+      <div style={{ position:"fixed", bottom:10, left:"50%", transform:"translateX(-50%)", zIndex:900, background:"rgba(13,17,34,.96)", border:"1px solid #3b2a58", borderRadius:20, padding:"7px 14px", display:"flex", gap:8, alignItems:"center", boxShadow:"0 8px 24px rgba(0,0,0,.45)", flexWrap:"wrap", justifyContent:"center", maxWidth:"calc(100vw - 16px)" }}>
+        <span style={{ color:"#776798", fontSize:11.5, fontWeight:800 }}>Minha aula:</span>
         {steps.map(([emoji, label], i) => (
-          <span key={label} style={{ display:"flex", alignItems:"center", gap:5, fontSize:12.5, fontWeight:800, color: i < idx ? "#34d399" : i === idx ? "#e8ebfa" : "#5d679c", background: i === idx ? "#7c83ff33" : "transparent", border: i === idx ? "1px solid #7c83ff" : "1px solid transparent", borderRadius:14, padding:"3px 9px" }}>
+          <span key={label} style={{ display:"flex", alignItems:"center", gap:5, fontSize:12.5, fontWeight:800, color: i < idx ? "#34d399" : i === idx ? "#f0e9fb" : "#776798", background: i === idx ? "#c084fc33" : "transparent", border: i === idx ? "1px solid #c084fc" : "1px solid transparent", borderRadius:14, padding:"3px 9px" }}>
             {i < idx ? "✓" : emoji} {label}
           </span>
         ))}
@@ -5359,7 +5359,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <p style={{ color:"#d1fae5", fontSize:15 }}>pontos de {(examInfo.questions||[]).length * 10}</p>
         </div>
         {examExits > 0 && (
-          <div style={{ background:"#151a31", border:"1px solid #f87171", borderRadius:14, padding:"14px 16px", marginTop:16, textAlign:"left" }}>
+          <div style={{ background:"#1e1430", border:"1px solid #f87171", borderRadius:14, padding:"14px 16px", marginTop:16, textAlign:"left" }}>
             <p style={{ color:"#fca5a5", fontSize:13.5, lineHeight:1.7, margin:0 }}>
               ⚠ Você saiu da prova <b>{examExits}x</b> — desconto de <b>{Math.max(0, (examScoreRaw ?? examScore ?? 0) - (examScore ?? 0))} pontos</b> (nota sem desconto: {examScoreRaw ?? examScore}).
             </p>
@@ -5371,10 +5371,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             )}
             {examAppeal?.status === "pending" && <p style={{ color:"#fbbf24", fontSize:13, margin:"10px 0 0", fontWeight:700 }}>✋ Aviso enviado — o professor vai decidir se devolve os pontos.</p>}
             {examAppeal?.status === "accepted" && <p style={{ color:"#34d399", fontSize:13, margin:"10px 0 0", fontWeight:700 }}>✅ O professor aceitou sua explicação — pontos devolvidos!</p>}
-            {examAppeal?.status === "rejected" && <p style={{ color:"#96a0cc", fontSize:13, margin:"10px 0 0", fontWeight:700 }}>O professor analisou e manteve o desconto.</p>}
+            {examAppeal?.status === "rejected" && <p style={{ color:"#a99ac9", fontSize:13, margin:"10px 0 0", fontWeight:700 }}>O professor analisou e manteve o desconto.</p>}
           </div>
         )}
-        <p style={{ color:"#96a0cc", marginTop:20, fontSize:14, lineHeight:1.6 }}>Aguarde o professor encerrar a prova para ver o ranking da turma!</p>
+        <p style={{ color:"#a99ac9", marginTop:20, fontSize:14, lineHeight:1.6 }}>Aguarde o professor encerrar a prova para ver o ranking da turma!</p>
       </div>
     </div>
   );
@@ -5383,20 +5383,20 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     <div className={supportClass} style={styles.container}>
       <div style={styles.header}><span>📝 Revisão — {studentName}</span></div>
       <div style={{ maxWidth:700, margin:"0 auto", padding:"22px 16px 36px" }}>
-        <div style={{ background:"linear-gradient(135deg,#7c83ff,#8b5cf6)", borderRadius:18, padding:"24px 22px", textAlign:"center", boxShadow:"0 12px 30px #7c83ff55" }}>
+        <div style={{ background:"linear-gradient(135deg,#c084fc,#8b5cf6)", borderRadius:18, padding:"24px 22px", textAlign:"center", boxShadow:"0 12px 30px #c084fc55" }}>
           <div style={{ fontSize:44 }}>📝</div>
           <h1 style={{ color:"#fff", fontSize:24, margin:"8px 0" }}>Hora da Prova!</h1>
           <p style={{ color:"#e0e7ff", fontSize:14, lineHeight:1.6 }}>Revise o conteúdo abaixo e entre na sala quando estiver pronto.</p>
         </div>
         <div className="cardfx" style={{ ...styles.card, marginTop:14 }}>
-          <h3 style={{ color:"#7c83ff", marginBottom:10 }}>📚 Resumo de Revisão</h3>
-          <div style={{ color:"#c7cfee", fontSize:14, lineHeight:1.9, whiteSpace:"pre-wrap" }}>{examInfo.summary || "Preparando o resumo..."}</div>
+          <h3 style={{ color:"#c084fc", marginBottom:10 }}>📚 Resumo de Revisão</h3>
+          <div style={{ color:"#d6c9ec", fontSize:14, lineHeight:1.9, whiteSpace:"pre-wrap" }}>{examInfo.summary || "Preparando o resumo..."}</div>
         </div>
         {examReady ? (
           <div className="cardfx" style={{ ...styles.card, textAlign:"center", padding:24 }}>
             <div style={{ fontSize:36 }}>✅</div>
             <p style={{ color:"#34d399", fontWeight:700, fontSize:16 }}>Você está na sala!</p>
-            <p style={{ color:"#96a0cc", fontSize:13 }}>Aguardando o professor iniciar a prova...</p>
+            <p style={{ color:"#a99ac9", fontSize:13 }}>Aguardando o professor iniciar a prova...</p>
           </div>
         ) : (
           <button onClick={handleExamReady} style={{ ...styles.btn("#34d399"), width:"100%", padding:"16px 0", fontSize:16, marginTop:14 }}>
@@ -5414,7 +5414,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       <div className={supportClass} style={styles.container}>
         <div style={styles.header}>
           <span>🏆 Prova — {studentName}</span>
-          <span style={{ color:"#96a0cc", fontSize:13 }}>Questão {examCurrentQ+1} de {qs.length}</span>
+          <span style={{ color:"#a99ac9", fontSize:13 }}>Questão {examCurrentQ+1} de {qs.length}</span>
         </div>
         <div style={{ maxWidth:620, margin:"30px auto", padding:"0 16px" }}>
           {examExits > 0 && (
@@ -5422,22 +5422,22 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               ⚠ <b>Saída da prova detectada ({examExits}x).</b> Cada saída da aba desconta <b>10 pontos</b> da sua nota. Fique na prova!
             </div>
           )}
-          <div style={{ background:"#151a31", borderRadius:14, padding:22, border:"1px solid #2a3154" }}>
+          <div style={{ background:"#1e1430", borderRadius:14, padding:22, border:"1px solid #3b2a58" }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
-              <span style={{ color:"#7c83ff", fontWeight:700 }}>Questão {examCurrentQ+1}/{qs.length}</span>
+              <span style={{ color:"#c084fc", fontWeight:700 }}>Questão {examCurrentQ+1}/{qs.length}</span>
               <span style={{ color:"#fbbf24", fontWeight:700 }}>10 pts cada</span>
             </div>
-            <p style={{ color:"#e8ebfa", fontSize:16, lineHeight:1.7, marginBottom:18 }}>{q ? q.q : "Carregando..."}</p>
+            <p style={{ color:"#f0e9fb", fontSize:16, lineHeight:1.7, marginBottom:18 }}>{q ? q.q : "Carregando..."}</p>
             {q && q.opts.map((opt, oi) => (
               <button key={oi} onClick={() => handleExamAnswer(examCurrentQ, oi)}
-                style={{ display:"block", width:"100%", background:examAnswers[examCurrentQ]===oi?"#7c83ff33":"#0d1122", border:`2px solid ${examAnswers[examCurrentQ]===oi?"#7c83ff":"#2a3154"}`, borderRadius:10, padding:"12px 16px", color:"#e8ebfa", textAlign:"left", cursor:"pointer", marginBottom:8, fontSize:14 }}>
-                <span style={{ color:"#7c83ff", fontWeight:700, marginRight:8 }}>{["A","B","C","D"][oi]}.</span>{opt}
+                style={{ display:"block", width:"100%", background:examAnswers[examCurrentQ]===oi?"#c084fc33":"#171026", border:`2px solid ${examAnswers[examCurrentQ]===oi?"#c084fc":"#3b2a58"}`, borderRadius:10, padding:"12px 16px", color:"#f0e9fb", textAlign:"left", cursor:"pointer", marginBottom:8, fontSize:14 }}>
+                <span style={{ color:"#c084fc", fontWeight:700, marginRight:8 }}>{["A","B","C","D"][oi]}.</span>{opt}
               </button>
             ))}
           </div>
           <div style={{ display:"flex", gap:6, marginTop:12, flexWrap:"wrap" }}>
             {qs.map((_,i) => (
-              <div key={i} style={{ width:28, height:28, borderRadius:6, background:i===examCurrentQ?"#7c83ff":examAnswers[i]!=null?"#2a3154":"#151a31", border:`1px solid ${i===examCurrentQ?"#7c83ff":examAnswers[i]!=null?"#7c83ff":"#2a3154"}`, display:"flex", alignItems:"center", justifyContent:"center", color:examAnswers[i]!=null?"#e8ebfa":"#5d679c", fontSize:12, cursor:"pointer" }} onClick={() => setExamCurrentQ(i)}>{i+1}</div>
+              <div key={i} style={{ width:28, height:28, borderRadius:6, background:i===examCurrentQ?"#c084fc":examAnswers[i]!=null?"#3b2a58":"#1e1430", border:`1px solid ${i===examCurrentQ?"#c084fc":examAnswers[i]!=null?"#c084fc":"#3b2a58"}`, display:"flex", alignItems:"center", justifyContent:"center", color:examAnswers[i]!=null?"#f0e9fb":"#776798", fontSize:12, cursor:"pointer" }} onClick={() => setExamCurrentQ(i)}>{i+1}</div>
             ))}
           </div>
         </div>
@@ -5458,10 +5458,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       <div style={styles.header}><span>⏳ Preparando — {studentName}</span></div>
       <div className="pop" style={{ maxWidth:440, margin:"70px auto", textAlign:"center", padding:24 }}>
         <NyxRobot state="thinking" size={116} showName={false} />
-        <h2 style={{ color:"#7c83ff", margin:"14px 0 6px" }}>Nyx está preparando seu conteúdo...</h2>
-        <p style={{ color:"#96a0cc", lineHeight:1.7 }}>{generatingMsg}</p>
+        <h2 style={{ color:"#c084fc", margin:"14px 0 6px" }}>Nyx está preparando seu conteúdo...</h2>
+        <p style={{ color:"#a99ac9", lineHeight:1.7 }}>{generatingMsg}</p>
         <div style={{ marginTop:24, display:"flex", justifyContent:"center", gap:8 }}>
-          {[0,1,2].map(i=><div key={i} style={{ width:10,height:10,borderRadius:"50%",background:"#7c83ff",animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite` }}/>)}
+          {[0,1,2].map(i=><div key={i} style={{ width:10,height:10,borderRadius:"50%",background:"#c084fc",animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite` }}/>)}
         </div>
       </div>
     </div>
@@ -5470,7 +5470,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   if (phase==="summary") {
     const sum = summaryView === "detalhado" && detailedSummary ? detailedSummary : dynamicSummary;
     const structured = sum && typeof sum === "object" && Array.isArray(sum.secoes) && sum.secoes.length > 0;
-    const ACCENTS = ["#7c83ff","#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6","#f87171"];
+    const ACCENTS = ["#c084fc","#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6","#f87171"];
     const handleSpeakSummary = (text) => {
       setCurrentSpeakingFor(text === (structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. 📒 Anote no caderno!") ? "intro" : text);
       speak(text);
@@ -5482,16 +5482,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         <div style={styles.header}><span>📚 Resumo da Aula — {studentName}</span></div>
         <div style={{ maxWidth:740, margin:"0 auto", padding:`${scalePx(22)}px ${scalePx(16)}px ${scalePx(36)}px` }}>
           {/* topo em destaque */}
-          <div style={{ background:"linear-gradient(135deg,#7c83ff,#8b5cf6)", borderRadius:18, padding:`${scalePx(24)}px ${scalePx(22)}px`, textAlign:"center", boxShadow:"0 12px 30px #7c83ff55" }}>
+          <div style={{ background:"linear-gradient(135deg,#c084fc,#8b5cf6)", borderRadius:18, padding:`${scalePx(24)}px ${scalePx(22)}px`, textAlign:"center", boxShadow:"0 12px 30px #c084fc55" }}>
             <div style={{ fontSize:scaleSize(44) }}>📚</div>
             <h1 style={{ color:"#fff", fontSize:scaleSize(25), margin:`${scalePx(4)}px 0 ${scalePx(8)}px` }}>Resumo da sua aula</h1>
             <p style={{ color:"#e0e7ff", fontSize:scaleSize(15), maxWidth:560, margin:"0 auto", lineHeight:1.6, marginBottom:12 }}>
               {structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. 📒 Anote no caderno!"}
             </p>
-            {ttsSupported && <button onClick={() => handleSpeakSummary(structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. Anote no caderno!")} style={{ background:isSpeaking && currentSpeakingFor==="intro" ? "#fff" : "rgba(255,255,255,0.2)", color:isSpeaking && currentSpeakingFor==="intro" ? "#7c83ff" : "#fff", border:"none", borderRadius:8, padding:`${scalePx(10)}px ${scalePx(18)}px`, fontSize:scaleSize(13), fontWeight:700, cursor:"pointer", minHeight:scaleSize(44) }}>{isSpeaking && currentSpeakingFor==="intro" ? "⏸ Pausando" : "🔊 Ouvir intro"}</button>}
+            {ttsSupported && <button onClick={() => handleSpeakSummary(structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. Anote no caderno!")} style={{ background:isSpeaking && currentSpeakingFor==="intro" ? "#fff" : "rgba(255,255,255,0.2)", color:isSpeaking && currentSpeakingFor==="intro" ? "#c084fc" : "#fff", border:"none", borderRadius:8, padding:`${scalePx(10)}px ${scalePx(18)}px`, fontSize:scaleSize(13), fontWeight:700, cursor:"pointer", minHeight:scaleSize(44) }}>{isSpeaking && currentSpeakingFor==="intro" ? "⏸ Pausando" : "🔊 Ouvir intro"}</button>}
             <div style={{ display:"flex", justifyContent:"center", gap:8, marginTop:14 }}>
-              <button onClick={()=>setSummaryView("simples")} style={{ background: summaryView==="simples" ? "#fff" : "rgba(255,255,255,0.16)", color: summaryView==="simples" ? "#7c83ff" : "#fff", border:"none", borderRadius:20, padding:`${scalePx(8)}px ${scalePx(16)}px`, fontSize:scaleSize(12.5), fontWeight:800, cursor:"pointer" }}>🌱 Resumo simples</button>
-              <button onClick={fetchDetailedSummary} disabled={detailLoading} style={{ background: summaryView==="detalhado" ? "#fff" : "rgba(255,255,255,0.16)", color: summaryView==="detalhado" ? "#7c83ff" : "#fff", border:"none", borderRadius:20, padding:`${scalePx(8)}px ${scalePx(16)}px`, fontSize:scaleSize(12.5), fontWeight:800, cursor: detailLoading ? "wait" : "pointer", opacity: detailLoading ? 0.7 : 1 }}>{detailLoading ? "⏳ Gerando..." : "📖 Resumo detalhado"}</button>
+              <button onClick={()=>setSummaryView("simples")} style={{ background: summaryView==="simples" ? "#fff" : "rgba(255,255,255,0.16)", color: summaryView==="simples" ? "#c084fc" : "#fff", border:"none", borderRadius:20, padding:`${scalePx(8)}px ${scalePx(16)}px`, fontSize:scaleSize(12.5), fontWeight:800, cursor:"pointer" }}>🌱 Resumo simples</button>
+              <button onClick={fetchDetailedSummary} disabled={detailLoading} style={{ background: summaryView==="detalhado" ? "#fff" : "rgba(255,255,255,0.16)", color: summaryView==="detalhado" ? "#c084fc" : "#fff", border:"none", borderRadius:20, padding:`${scalePx(8)}px ${scalePx(16)}px`, fontSize:scaleSize(12.5), fontWeight:800, cursor: detailLoading ? "wait" : "pointer", opacity: detailLoading ? 0.7 : 1 }}>{detailLoading ? "⏳ Gerando..." : "📖 Resumo detalhado"}</button>
             </div>
             {detailFailMsg && <p style={{ color:"#ffd7d7", fontSize:12.5, marginTop:8 }}>{detailFailMsg}</p>}
           </div>
@@ -5502,18 +5502,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 const c = ACCENTS[i % ACCENTS.length];
                 const sectionText = `${s.titulo}. ${s.explicacao || ''}${s.exemplo ? '. Exemplo: ' + s.exemplo : ''}`;
                 return (
-                  <div key={i} style={{ background:"#151a31", borderRadius:14, padding:18, margin:"0 0 14px", border:"1px solid #2a3154", borderLeft:`5px solid ${c}` }}>
+                  <div key={i} style={{ background:"#1e1430", borderRadius:14, padding:18, margin:"0 0 14px", border:"1px solid #3b2a58", borderLeft:`5px solid ${c}` }}>
                     <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10, justifyContent:"space-between" }}>
                       <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                         <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:44, height:44, borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>{s.emoji || "📌"}</span>
                         <div>
                           <div style={{ color:c, fontSize:11, fontWeight:800, letterSpacing:1 }}>PARTE {i+1}</div>
-                          <h3 style={{ color:"#e8ebfa", fontSize:17, margin:0 }}>{s.titulo}</h3>
+                          <h3 style={{ color:"#f0e9fb", fontSize:17, margin:0 }}>{s.titulo}</h3>
                         </div>
                       </div>
                       {ttsSupported && <button onClick={() => { setCurrentSpeakingFor(`section-${i}`); speak(sectionText); }} style={{ background:isSpeaking && currentSpeakingFor===`section-${i}` ? c : c+"33", border:`1px solid ${c}`, color:c, padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`section-${i}` ? "⏸" : "🔊"}</button>}
                     </div>
-                    {s.explicacao && <p style={{ color:"#c7cfee", fontSize:15, lineHeight:1.75, margin:"0 0 4px" }}>{s.explicacao}</p>}
+                    {s.explicacao && <p style={{ color:"#d6c9ec", fontSize:15, lineHeight:1.75, margin:"0 0 4px" }}>{s.explicacao}</p>}
                     {s.exemplo && <CodeBlock code={s.exemplo} />}
                   </div>
                 );
@@ -5533,22 +5533,22 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             </div>
           ) : (
             <div className="cardfx" style={{ ...styles.card, marginTop:18 }}>
-              <pre style={{ whiteSpace:"pre-wrap", fontFamily:"inherit", fontSize:14, lineHeight:1.9, color:"#c7cfee", margin:0 }}>{typeof sum==="string" ? sum : (sum && sum.raw) || "O resumo não carregou. Volte e clique em Salvar novamente."}</pre>
+              <pre style={{ whiteSpace:"pre-wrap", fontFamily:"inherit", fontSize:14, lineHeight:1.9, color:"#d6c9ec", margin:0 }}>{typeof sum==="string" ? sum : (sum && sum.raw) || "O resumo não carregou. Volte e clique em Salvar novamente."}</pre>
             </div>
           )}
 
           <div style={{ textAlign:"center", marginTop:22 }}>
             {accessMode ? (
               <>
-                <p style={{ color:"#96a0cc", marginBottom:12 }}>Quando terminar de ouvir o resumo, volte para o código! 🎮</p>
-                <button style={{ ...styles.btn("#7c83ff"), padding:"12px 26px", fontSize:16 }} onClick={async()=>{ setPhase("coding"); await persist({ phase:"coding" }); }}>← Voltar para o código</button>
+                <p style={{ color:"#a99ac9", marginBottom:12 }}>Quando terminar de ouvir o resumo, volte para o código! 🎮</p>
+                <button style={{ ...styles.btn("#c084fc"), padding:"12px 26px", fontSize:16 }} onClick={async()=>{ setPhase("coding"); await persist({ phase:"coding" }); }}>← Voltar para o código</button>
               </>
             ) : (
               <>
-                <p style={{ color:"#96a0cc", marginBottom:12 }}>Quando terminar de anotar, vá para a atividade! ✍️</p>
+                <p style={{ color:"#a99ac9", marginBottom:12 }}>Quando terminar de anotar, vá para a atividade! ✍️</p>
                 <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
-                  <button style={{ ...styles.btn("#2a3154"), padding:"12px 22px", fontSize:15 }} onClick={async()=>{ setPhase("coding"); await persist({ phase:"coding" }); }}>← Voltar para o código</button>
-                  <button style={{ ...styles.btn("#7c83ff"), padding:"12px 26px", fontSize:16 }} onClick={handleStartActivity}>Fazer Atividade →</button>
+                  <button style={{ ...styles.btn("#3b2a58"), padding:"12px 22px", fontSize:15 }} onClick={async()=>{ setPhase("coding"); await persist({ phase:"coding" }); }}>← Voltar para o código</button>
+                  <button style={{ ...styles.btn("#c084fc"), padding:"12px 26px", fontSize:16 }} onClick={handleStartActivity}>Fazer Atividade →</button>
                 </div>
               </>
             )}
@@ -5572,14 +5572,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         {goalParty && !calmMode && <ConfettiParty level={goalParty} />}
         <div style={styles.header}><span>📝 Atividade — {studentName}</span></div>
         <div style={{ maxWidth:640, margin:"0 auto", padding:24 }}>
-          <h2 style={{ color:"#7c83ff", fontSize:scaleSize(20) }}>Atividade da Aula</h2>
-          <p style={{ color:"#96a0cc", fontSize:scaleSize(13), marginBottom:16 }}>Baseada no código que você escreveu hoje! Marque a alternativa que você acha certa — o resultado só aparece depois de enviar.</p>
+          <h2 style={{ color:"#c084fc", fontSize:scaleSize(20) }}>Atividade da Aula</h2>
+          <p style={{ color:"#a99ac9", fontSize:scaleSize(13), marginBottom:16 }}>Baseada no código que você escreveu hoje! Marque a alternativa que você acha certa — o resultado só aparece depois de enviar.</p>
           {activity.map((q,i)=>{
             return (
               <div key={i} data-q={i} className="cardfx" style={{...styles.card, padding:scalePx(18)}}>
                 <div style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:12, justifyContent:"space-between" }}>
                   <p style={{ fontWeight:600, margin:0, flex:1, fontSize:scaleSize(16) }}>{i+1}. {q.q}</p>
-                  {ttsSupported && <button onClick={() => handleSpeakQuestion(q, i)} style={{ background:isSpeaking && currentSpeakingFor===`q-${i}` ? "#7c83ff" : "#7c83ff33", border:"1px solid #7c83ff", color:"#7c83ff", padding:`${scalePx(8)}px ${scalePx(12)}px`, borderRadius:6, fontSize:scaleSize(11), fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`q-${i}` ? "⏸" : "🔊"}</button>}
+                  {ttsSupported && <button onClick={() => handleSpeakQuestion(q, i)} style={{ background:isSpeaking && currentSpeakingFor===`q-${i}` ? "#c084fc" : "#c084fc33", border:"1px solid #c084fc", color:"#c084fc", padding:`${scalePx(8)}px ${scalePx(12)}px`, borderRadius:6, fontSize:scaleSize(11), fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`q-${i}` ? "⏸" : "🔊"}</button>}
                 </div>
                 {q.opts.map((opt,j)=>{
                   const picked = answers[i]===j;
@@ -5593,7 +5593,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             );
           })}
           <div style={{ textAlign:"right" }}>
-            <button style={{...styles.btn("#7c83ff"), padding:`${scalePx(12)}px ${scalePx(26)}px`, fontSize:scaleSize(15), marginTop:scalePx(16) }} onClick={handleSubmitActivity} disabled={Object.keys(answers).length<activity.length}>Enviar Atividade →</button>
+            <button style={{...styles.btn("#c084fc"), padding:`${scalePx(12)}px ${scalePx(26)}px`, fontSize:scaleSize(15), marginTop:scalePx(16) }} onClick={handleSubmitActivity} disabled={Object.keys(answers).length<activity.length}>Enviar Atividade →</button>
           </div>
         </div>
       </div>
@@ -5627,7 +5627,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         )}
         <div style={styles.header}>
           <span>🎓 Aula Concluída — {studentName}</span>
-          <button onClick={backToHome} style={{ background:"transparent", border:"1px solid #2a3154", color:"#96a0cc", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:12.5, fontWeight:700 }}>← Voltar à tela inicial</button>
+          <button onClick={backToHome} style={{ background:"transparent", border:"1px solid #3b2a58", color:"#a99ac9", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:12.5, fontWeight:700 }}>← Voltar à tela inicial</button>
         </div>
         <div style={{ maxWidth:580, margin:"40px auto", textAlign:"center", padding:24 }}>
           <div style={{ fontSize:72 }}>{g.emoji}</div>
@@ -5638,7 +5638,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             <div className="pop" style={{ margin:"18px auto 0", maxWidth:340, background:`linear-gradient(135deg, ${giftReveal.color}22, ${giftReveal.color}0a)`, border:`2px solid ${giftReveal.color}`, borderRadius:18, padding:"18px 20px", boxShadow:`0 0 34px ${giftReveal.color}44` }}>
               <div style={{ fontSize:46 }}>{giftReveal.emoji}</div>
               <p style={{ color:giftReveal.color, fontWeight:900, fontSize:17, margin:"6px 0 2px" }}>{giftReveal.label}!</p>
-              <p style={{ color:"#e8ebfa", fontWeight:800, fontSize:15, margin:0 }}>+{giftReveal.pts} pontos do Nyx ✨</p>
+              <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:15, margin:0 }}>+{giftReveal.pts} pontos do Nyx ✨</p>
             </div>
           ) : giftLastClaim !== todayKey() ? (
             <button onClick={openGift} className="pop" title="Um presente por dia pra quem conclui a atividade!"
@@ -5650,7 +5650,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
           <div style={{ marginTop:18, textAlign:"left" }}>
             {/* topo em destaque, mesma estética do Resumo da Aula */}
-            <div style={{ background:"linear-gradient(135deg,#7c83ff,#8b5cf6)", borderRadius:18, padding:"20px 20px", textAlign:"center", boxShadow:"0 12px 30px #7c83ff55" }}>
+            <div style={{ background:"linear-gradient(135deg,#c084fc,#8b5cf6)", borderRadius:18, padding:"20px 20px", textAlign:"center", boxShadow:"0 12px 30px #c084fc55" }}>
               <div style={{ fontSize:38 }}>🤖</div>
               <h3 style={{ color:"#fff", fontSize:19, margin:"4px 0 8px" }}>Feedback do Nyx para você</h3>
               {feedbackLoading ? (
@@ -5661,7 +5661,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 </p>
               )}
               {!feedbackLoading && ttsSupported && fbSpeechText && (
-                <button onClick={() => { setCurrentSpeakingFor("feedback"); speak(fbSpeechText); }} style={{ marginTop:10, background:isSpeaking && currentSpeakingFor==="feedback" ? "#fff" : "rgba(255,255,255,0.2)", color:isSpeaking && currentSpeakingFor==="feedback" ? "#7c83ff" : "#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                <button onClick={() => { setCurrentSpeakingFor("feedback"); speak(fbSpeechText); }} style={{ marginTop:10, background:isSpeaking && currentSpeakingFor==="feedback" ? "#fff" : "rgba(255,255,255,0.2)", color:isSpeaking && currentSpeakingFor==="feedback" ? "#c084fc" : "#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer" }}>
                   {isSpeaking && currentSpeakingFor==="feedback" ? "⏸ Pausando" : "🔊 Ouvir feedback"}
                 </button>
               )}
@@ -5672,12 +5672,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 {finalFeedback.secoes.map((s,i)=>{
                   const c = FB_ACCENTS[i % FB_ACCENTS.length];
                   return (
-                    <div key={i} style={{ background:"#151a31", borderRadius:14, padding:16, margin:"0 0 12px", border:"1px solid #2a3154", borderLeft:`5px solid ${c}` }}>
+                    <div key={i} style={{ background:"#1e1430", borderRadius:14, padding:16, margin:"0 0 12px", border:"1px solid #3b2a58", borderLeft:`5px solid ${c}` }}>
                       <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
                         <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:38, height:38, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:19 }}>{s.emoji || "📌"}</span>
-                        <h4 style={{ color:"#e8ebfa", fontSize:15, margin:0 }}>{s.titulo}</h4>
+                        <h4 style={{ color:"#f0e9fb", fontSize:15, margin:0 }}>{s.titulo}</h4>
                       </div>
-                      {s.explicacao && <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, margin:0 }}>{s.explicacao}</p>}
+                      {s.explicacao && <p style={{ color:"#d6c9ec", fontSize:14, lineHeight:1.7, margin:0 }}>{s.explicacao}</p>}
                     </div>
                   );
                 })}
@@ -5695,20 +5695,20 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           </div>
 
           <div className="cardfx" style={{ ...styles.card, marginTop:14, textAlign:"left" }}>
-            <h4 style={{ color:"#7c83ff", marginBottom:10 }}>📝 Revisão da atividade</h4>
+            <h4 style={{ color:"#c084fc", marginBottom:10 }}>📝 Revisão da atividade</h4>
             {activity.map((q,i)=>(
               <div key={i} style={{ marginBottom:12 }}>
                 <b style={{ color:answers[i]===q.correct?"#34d399":"#f87171" }}>{answers[i]===q.correct?"✅":"❌"} {q.q}</b>
-                {answers[i]!==q.correct&&<div style={{ color:"#96a0cc", fontSize:13, marginTop:2 }}>Correto: {q.opts[q.correct]}</div>}
+                {answers[i]!==q.correct&&<div style={{ color:"#a99ac9", fontSize:13, marginTop:2 }}>Correto: {q.opts[q.correct]}</div>}
               </div>
             ))}
           </div>
 
           {(dynamicActivity||[]).some((q,i)=>answers[i]!==q.correct) && (
-            <div className="cardfx" style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#7c83ff" }}>
-              <h4 style={{ color:"#7c83ff", marginBottom:8 }}>🤖 Não entendeu algum erro?</h4>
-              <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, marginBottom:10 }}>O Nyx pode explicar cada questão que você errou, com calma e do seu jeito.</p>
-              <button style={{ ...styles.btn("#7c83ff"), opacity:explaining?0.6:1 }} onClick={explainErrors} disabled={explaining}>{explaining ? "Nyx está escrevendo..." : errorSections.length ? "↻ Ver explicação de novo" : "✨ Nyx, me explica meus erros!"}</button>
+            <div className="cardfx" style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#c084fc" }}>
+              <h4 style={{ color:"#c084fc", marginBottom:8 }}>🤖 Não entendeu algum erro?</h4>
+              <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, marginBottom:10 }}>O Nyx pode explicar cada questão que você errou, com calma e do seu jeito.</p>
+              <button style={{ ...styles.btn("#c084fc"), opacity:explaining?0.6:1 }} onClick={explainErrors} disabled={explaining}>{explaining ? "Nyx está escrevendo..." : errorSections.length ? "↻ Ver explicação de novo" : "✨ Nyx, me explica meus erros!"}</button>
               {explainFailMsg && <p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{explainFailMsg}</p>}
             </div>
           )}
@@ -5722,7 +5722,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               <>
                 <Stars value={classRating} onChange={setClassRating} />
                 <textarea value={classText} onChange={e=>setClassText(e.target.value)} placeholder="Escreva um recado para o professor (opcional)..."
-                  style={{ width:"100%", marginTop:10, background:"#0d1122", border:"2px solid #2a3154", borderRadius:8, color:"#e8ebfa", padding:10, fontSize:14, minHeight:70, boxSizing:"border-box", resize:"vertical" }} />
+                  style={{ width:"100%", marginTop:10, background:"#171026", border:"2px solid #3b2a58", borderRadius:8, color:"#f0e9fb", padding:10, fontSize:14, minHeight:70, boxSizing:"border-box", resize:"vertical" }} />
                 <div style={{ textAlign:"right", marginTop:8 }}>
                   <button style={styles.btn("#fbbf24")} onClick={sendClassFeedback} disabled={classRating===0}>Enviar avaliação</button>
                 </div>
@@ -5730,7 +5730,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             )}
           </div>
 
-          <button onClick={backToHome} style={{ ...styles.btn("#7c83ff"), marginTop:20 }}>← Voltar à tela inicial</button>
+          <button onClick={backToHome} style={{ ...styles.btn("#c084fc"), marginTop:20 }}>← Voltar à tela inicial</button>
         </div>
       </div>
     );
@@ -5739,7 +5739,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // dois botões, um por modelo de IA — o aluno escolhe qual pedir pro Nyx usar nesta análise
   const analyzeButtons = (
     <>
-      <button title={activeCode.trim().length<12 ? "Escreva um pouco mais de código neste arquivo antes de pedir a análise" : ""} style={{ ...styles.btn("#7c83ff"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode("nvidia")} disabled={analyzing||activeCode.trim().length<12}>
+      <button title={activeCode.trim().length<12 ? "Escreva um pouco mais de código neste arquivo antes de pedir a análise" : ""} style={{ ...styles.btn("#c084fc"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode("nvidia")} disabled={analyzing||activeCode.trim().length<12}>
         {analyzingProvider==="nvidia" ? "🔍 Analisando..." : "✨ Nemotron"}
       </button>
       <button title={activeCode.trim().length<12 ? "Escreva um pouco mais de código neste arquivo antes de pedir a análise" : ""} style={{ ...styles.btn("#22d3ee"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode("laguna")} disabled={analyzing||activeCode.trim().length<12}>
@@ -5755,39 +5755,39 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {renderHiddenEggs()}
       {/* pergunta de preferência de interação do Nyx — perfil novo, antes até da apresentação e do tour */}
       {showNyxPrefs && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1001, padding:16 }}>
-          <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"26px 24px", maxWidth:460, width:"100%", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 44px #7c83ff22" }}>
+        <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1001, padding:16 }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"26px 24px", maxWidth:460, width:"100%", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 44px #c084fc22" }}>
             <div style={{ textAlign:"center" }}>
               <NyxRobot state="idle" size={80} showName={false} />
-              <p style={{ color:"#e8ebfa", fontSize:16.5, fontWeight:800, margin:"10px 0 4px" }}>Antes de começar, {String(studentName).split(" ")[0]}...</p>
-              <p style={{ color:"#96a0cc", fontSize:13, margin:0, lineHeight:1.6 }}>Me conta como você prefere que eu converse e explique as coisas — cada pessoa gosta de um jeito!</p>
+              <p style={{ color:"#f0e9fb", fontSize:16.5, fontWeight:800, margin:"10px 0 4px" }}>Antes de começar, {String(studentName).split(" ")[0]}...</p>
+              <p style={{ color:"#a99ac9", fontSize:13, margin:0, lineHeight:1.6 }}>Me conta como você prefere que eu converse e explique as coisas — cada pessoa gosta de um jeito!</p>
             </div>
             <div style={{ marginTop:18 }}>
-              <p style={{ color:"#7c83ff", fontWeight:700, fontSize:13, marginBottom:8 }}>Meu jeito de conversar:</p>
+              <p style={{ color:"#c084fc", fontWeight:700, fontSize:13, marginBottom:8 }}>Meu jeito de conversar:</p>
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 {[["divertido","😄 Animado e brincalhão"],["serio","🎯 Sério e direto ao ponto"]].map(([v,label])=>(
                   <button key={v} onClick={()=>setNyxPrefs(p=>({...p, tom:v}))}
                     style={{ flex:"1 1 180px", padding:"10px 12px", borderRadius:10, cursor:"pointer", fontSize:13, fontWeight:700, textAlign:"center",
-                      background: nyxPrefs.tom===v ? "linear-gradient(135deg,#7c83ff,#5a61e8)" : "#0d1122",
-                      color: nyxPrefs.tom===v ? "#fff" : "#c7cfee",
-                      border: nyxPrefs.tom===v ? "2px solid #7c83ff" : "2px solid #2a3154" }}>{label}</button>
+                      background: nyxPrefs.tom===v ? "linear-gradient(135deg,#c084fc,#9333ea)" : "#171026",
+                      color: nyxPrefs.tom===v ? "#fff" : "#d6c9ec",
+                      border: nyxPrefs.tom===v ? "2px solid #c084fc" : "2px solid #3b2a58" }}>{label}</button>
                 ))}
               </div>
             </div>
             <div style={{ marginTop:16 }}>
-              <p style={{ color:"#7c83ff", fontWeight:700, fontSize:13, marginBottom:8 }}>Como eu explico as coisas:</p>
+              <p style={{ color:"#c084fc", fontWeight:700, fontSize:13, marginBottom:8 }}>Como eu explico as coisas:</p>
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 {[["detalhada","📖 Bem explicado, com detalhes"],["direta","⚡ Direto ao ponto, menos texto"]].map(([v,label])=>(
                   <button key={v} onClick={()=>setNyxPrefs(p=>({...p, estilo:v}))}
                     style={{ flex:"1 1 180px", padding:"10px 12px", borderRadius:10, cursor:"pointer", fontSize:13, fontWeight:700, textAlign:"center",
-                      background: nyxPrefs.estilo===v ? "linear-gradient(135deg,#7c83ff,#5a61e8)" : "#0d1122",
-                      color: nyxPrefs.estilo===v ? "#fff" : "#c7cfee",
-                      border: nyxPrefs.estilo===v ? "2px solid #7c83ff" : "2px solid #2a3154" }}>{label}</button>
+                      background: nyxPrefs.estilo===v ? "linear-gradient(135deg,#c084fc,#9333ea)" : "#171026",
+                      color: nyxPrefs.estilo===v ? "#fff" : "#d6c9ec",
+                      border: nyxPrefs.estilo===v ? "2px solid #c084fc" : "2px solid #3b2a58" }}>{label}</button>
                 ))}
               </div>
             </div>
-            <p style={{ color:"#5d679c", fontSize:11.5, margin:"14px 0 0", textAlign:"center" }}>Não se preocupe, dá pra mudar depois quando quiser.</p>
-            <button onClick={async ()=>{ setShowNyxPrefs(false); await persist({ nyxPrefs }); }} style={{ ...styles.btn("#7c83ff"), width:"100%", padding:"13px 0", fontSize:15, marginTop:16 }}>
+            <p style={{ color:"#776798", fontSize:11.5, margin:"14px 0 0", textAlign:"center" }}>Não se preocupe, dá pra mudar depois quando quiser.</p>
+            <button onClick={async ()=>{ setShowNyxPrefs(false); await persist({ nyxPrefs }); }} style={{ ...styles.btn("#c084fc"), width:"100%", padding:"13px 0", fontSize:15, marginTop:16 }}>
               Continuar →
             </button>
           </div>
@@ -5795,26 +5795,26 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       )}
       {/* apresentação do Nyx no primeiro acesso */}
       {!showNyxPrefs && showIntro && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-          <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"26px 24px", maxWidth:440, width:"100%", textAlign:"center", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 44px #7c83ff22" }}>
+        <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"26px 24px", maxWidth:440, width:"100%", textAlign:"center", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 44px #c084fc22" }}>
             <div style={{ animation:"nyx-float 3s ease-in-out .8s infinite" }}>
               <NyxRobot state="ok" size={112} showName={false} />
             </div>
-            <div style={{ fontWeight:900, fontSize:14, letterSpacing:3, color:"#7c83ff", marginTop:4 }}>NYX</div>
+            <div style={{ fontWeight:900, fontSize:14, letterSpacing:3, color:"#c084fc", marginTop:4 }}>NYX</div>
             {/* balão de fala */}
-            <div style={{ position:"relative", background:"#0d1122", border:"1px solid #2c3358", borderRadius:16, padding:"16px 18px", marginTop:16, textAlign:"left" }}>
-              <div style={{ position:"absolute", top:-8, left:"50%", width:14, height:14, background:"#0d1122", borderLeft:"1px solid #2c3358", borderTop:"1px solid #2c3358", transform:"translateX(-50%) rotate(45deg)" }} />
-              <p style={{ color:"#e8ebfa", fontSize:16.5, fontWeight:800, margin:0, animation:"rise .5s ease .3s both" }}>
-                Oi, {String(studentName).split(" ")[0]}! Eu sou o <span style={{color:"#7c83ff"}}>Nyx</span> 🤖
+            <div style={{ position:"relative", background:"#171026", border:"1px solid #3e2d5e", borderRadius:16, padding:"16px 18px", marginTop:16, textAlign:"left" }}>
+              <div style={{ position:"absolute", top:-8, left:"50%", width:14, height:14, background:"#171026", borderLeft:"1px solid #3e2d5e", borderTop:"1px solid #3e2d5e", transform:"translateX(-50%) rotate(45deg)" }} />
+              <p style={{ color:"#f0e9fb", fontSize:16.5, fontWeight:800, margin:0, animation:"rise .5s ease .3s both" }}>
+                Oi, {String(studentName).split(" ")[0]}! Eu sou o <span style={{color:"#c084fc"}}>Nyx</span> 🤖
               </p>
-              <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, margin:"10px 0 0", animation:"rise .5s ease 1s both" }}>
+              <p style={{ color:"#d6c9ec", fontSize:14, lineHeight:1.7, margin:"10px 0 0", animation:"rise .5s ease 1s both" }}>
                 Eu fico do lado do seu editor conferindo o código enquanto você escreve.
               </p>
-              <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.7, margin:"10px 0 0", animation:"rise .5s ease 1.7s both" }}>
+              <p style={{ color:"#d6c9ec", fontSize:14, lineHeight:1.7, margin:"10px 0 0", animation:"rise .5s ease 1.7s both" }}>
                 Se algo estiver errado, eu mostro <b style={{color:"#fbbf24"}}>onde está</b> e <b style={{color:"#34d399"}}>como corrigir</b> — até as teclas que você precisa apertar!
               </p>
             </div>
-            <button onClick={()=>{ setShowIntro(false); setTourStep(0); }} style={{ ...styles.btn("#7c83ff"), width:"100%", padding:"13px 0", fontSize:15, marginTop:16, animation:"rise .5s ease 2.4s both" }}>
+            <button onClick={()=>{ setShowIntro(false); setTourStep(0); }} style={{ ...styles.btn("#c084fc"), width:"100%", padding:"13px 0", fontSize:15, marginTop:16, animation:"rise .5s ease 2.4s both" }}>
               Conhecer minha sala! ✨
             </button>
           </div>
@@ -5825,18 +5825,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <button onClick={()=>setShowAvatarEdit(true)} title="Editar meu boneco"
             style={{ background:"transparent", border:"none", padding:0, cursor:"pointer", position:"relative", lineHeight:0 }}>
             <Avatar cfg={avatar} size={34} />
-            <span style={{ position:"absolute", right:-4, bottom:-4, background:"#7c83ff", borderRadius:"50%", width:16, height:16, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, boxShadow:"0 1px 3px rgba(0,0,0,.5)" }}>✏️</span>
+            <span style={{ position:"absolute", right:-4, bottom:-4, background:"#c084fc", borderRadius:"50%", width:16, height:16, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, boxShadow:"0 1px 3px rgba(0,0,0,.5)" }}>✏️</span>
           </button>
-          <span className="shine" style={{ fontWeight:900, fontSize:17, background:"linear-gradient(120deg,#7c83ff,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>💻 Aula C#</span>
+          <span className="shine" style={{ fontWeight:900, fontSize:17, background:"linear-gradient(120deg,#c084fc,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>💻 Aula C#</span>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
-          <span style={{ fontSize:12, color: connected===false?"#f87171":connected?"#34d399":"#96a0cc" }}>
+          <span style={{ fontSize:12, color: connected===false?"#f87171":connected?"#34d399":"#a99ac9" }}>
             {connected===null ? "● conectando..." : connected ? "● conectado" : "● sem conexão"}
           </span>
-          <span style={{ background:"#7c83ff22", padding:"4px 12px", borderRadius:20, fontSize:13 }}>👤 {studentName}</span>
-          <span style={{ background:"#0d1122", border:"1px solid #2a3154", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#96a0cc" }}>{shiftLabel(shift)}</span>
+          <span style={{ background:"#c084fc22", padding:"4px 12px", borderRadius:20, fontSize:13 }}>👤 {studentName}</span>
+          <span style={{ background:"#171026", border:"1px solid #3b2a58", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#a99ac9" }}>{shiftLabel(shift)}</span>
           {streakCount >= 2 && <span title="Dias de aula seguidos que você participou" style={{ background:"#f8717122", border:"1px solid #f87171", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#fca5a5", fontWeight:800 }}>🔥 {streakCount} dias seguidos</span>}
-          <button data-tour="tema" style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
+          <button data-tour="tema" style={{ ...styles.btn("#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
           {isSpartan && (
             <button style={{ ...styles.btn("#b45309"), padding:"6px 12px", fontSize:12 }}
               onClick={()=>setThemeAndSave(theme==="spartan" ? (themeBeforeSpartan||"dark") : "spartan")}
@@ -5844,10 +5844,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               {theme==="spartan" ? "🎨 Tema normal" : "🛡️ Tema Espartano"}
             </button>
           )}
-          <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={toggleMuted} title={muted?"Ativar sons":"Silenciar sons"}>{muted?"🔇":"🔊"}</button>
-          <button data-tour="acessibilidade" style={{ ...styles.btn(largeUiMode?"#06b6d4":"#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>{ setLargeUiMode(!largeUiMode); try { localStorage.setItem("nyx_large_ui", !largeUiMode?"1":"0"); } catch {} }} title={largeUiMode?"Desativar modo acessível":"Ativar modo acessível (letras maiores)"}>♿</button>
-          {ttsSupported && <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={()=>setShowVoicePicker(true)} title="Escolher a voz do Nyx (leitura em voz alta)">🗣️</button>}
-          <button style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12 }} onClick={tryFullscreen}>⛶ Tela cheia</button>
+          <button style={{ ...styles.btn("#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={toggleMuted} title={muted?"Ativar sons":"Silenciar sons"}>{muted?"🔇":"🔊"}</button>
+          <button data-tour="acessibilidade" style={{ ...styles.btn(largeUiMode?"#06b6d4":"#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={()=>{ setLargeUiMode(!largeUiMode); try { localStorage.setItem("nyx_large_ui", !largeUiMode?"1":"0"); } catch {} }} title={largeUiMode?"Desativar modo acessível":"Ativar modo acessível (letras maiores)"}>♿</button>
+          {ttsSupported && <button style={{ ...styles.btn("#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={()=>setShowVoicePicker(true)} title="Escolher a voz do Nyx (leitura em voz alta)">🗣️</button>}
+          <button style={{ ...styles.btn("#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={tryFullscreen}>⛶ Tela cheia</button>
           <button style={{ ...styles.btn("#f87171"), padding:"6px 12px", fontSize:12 }} onClick={onLogout}>Sair</button>
         </div>
       </div>
@@ -5870,7 +5870,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
       {idleHint && !showNudge && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
-          <div style={{ background:"#7c83ff18", border:"1px solid #7c83ff", color:"#c7d2fe", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ background:"#c084fc18", border:"1px solid #c084fc", color:"#c7d2fe", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:18 }}>👀</span>
             <span>Bora começar? Escreva seu primeiro código no editor — o Nyx te ajuda assim que você parar de digitar.</span>
           </div>
@@ -5879,7 +5879,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
       {fsMsg && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
-          <div style={{ background:"#151a31", border:"1px solid #fbbf24", color:"#fbbf24", borderRadius:10, padding:"8px 14px", fontSize:13 }}>⛶ {fsMsg}</div>
+          <div style={{ background:"#1e1430", border:"1px solid #fbbf24", color:"#fbbf24", borderRadius:10, padding:"8px 14px", fontSize:13 }}>⛶ {fsMsg}</div>
         </div>
       )}
 
@@ -5972,24 +5972,24 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <div style={{ background:"#22d3ee18", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:18 }}>💡</span>
             <span style={{ flex:1, color:"#c7f5f9" }}><b style={{ color:"#22d3ee" }}>Curiosidade do dia:</b> {curiosity}</span>
-            <button onClick={()=>setCuriosityDismissed(true)} style={{ background:"transparent", border:"none", color:"#5d679c", fontSize:16, cursor:"pointer" }}>✕</button>
+            <button onClick={()=>setCuriosityDismissed(true)} style={{ background:"transparent", border:"none", color:"#776798", fontSize:16, cursor:"pointer" }}>✕</button>
           </div>
         </div>
       )}
 
       {renaming != null && (
         <div style={{ position:"fixed", inset:0, background:"#000000aa", display:"flex", alignItems:"center", justifyContent:"center", zIndex:999, padding:16 }}>
-          <div style={{ background:"#151a31", border:"2px solid #7c83ff", borderRadius:16, padding:24, maxWidth:380, width:"100%" }}>
-            <h3 style={{ color:"#7c83ff", margin:"0 0 4px" }}>✎ Renomear arquivo</h3>
-            <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 12px" }}>Escolha um nome para o arquivo (o ".cs" é colocado sozinho).</p>
-            <div style={{ display:"flex", alignItems:"center", background:"#0d1122", border:"2px solid #2a3154", borderRadius:10, padding:"0 12px" }}>
+          <div style={{ background:"#1e1430", border:"2px solid #c084fc", borderRadius:16, padding:24, maxWidth:380, width:"100%" }}>
+            <h3 style={{ color:"#c084fc", margin:"0 0 4px" }}>✎ Renomear arquivo</h3>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 12px" }}>Escolha um nome para o arquivo (o ".cs" é colocado sozinho).</p>
+            <div style={{ display:"flex", alignItems:"center", background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"0 12px" }}>
               <input autoFocus value={renameValue} onChange={e=>setRenameValue(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") confirmRename(); if(e.key==="Escape") cancelRename(); }}
-                placeholder="ex: MeuPrograma" style={{ flex:1, background:"transparent", border:"none", outline:"none", color:"#e8ebfa", fontSize:15, padding:"11px 0" }} />
-              <span style={{ color:"#5d679c", fontSize:14 }}>.cs</span>
+                placeholder="ex: MeuPrograma" style={{ flex:1, background:"transparent", border:"none", outline:"none", color:"#f0e9fb", fontSize:15, padding:"11px 0" }} />
+              <span style={{ color:"#776798", fontSize:14 }}>.cs</span>
             </div>
             <div style={{ display:"flex", gap:10, marginTop:18 }}>
-              <button onClick={cancelRename} style={{ ...styles.btn("#2a3154"), flex:1 }}>Cancelar</button>
-              <button onClick={confirmRename} style={{ ...styles.btn("#7c83ff"), flex:1 }}>Salvar nome</button>
+              <button onClick={cancelRename} style={{ ...styles.btn("#3b2a58"), flex:1 }}>Cancelar</button>
+              <button onClick={confirmRename} style={{ ...styles.btn("#c084fc"), flex:1 }}>Salvar nome</button>
             </div>
           </div>
         </div>
@@ -6000,12 +6000,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           {accessMode ? (
             <div className="cardfx" style={{ ...styles.card, borderColor:"#22d3ee" }}>
               <h3 style={{ color:"#22d3ee", marginBottom:4, fontSize:scaleSize(19) }}>🧩 Modo Guiado — Monte seu programa!</h3>
-              <p style={{ color:"#96a0cc", fontSize:scaleSize(13), marginBottom:14 }}>Clique nos blocos abaixo para montar seu programa, um passo de cada vez! {ttsSupported && "O Nyx explica cada bloco em voz alta pra você."}</p>
+              <p style={{ color:"#a99ac9", fontSize:scaleSize(13), marginBottom:14 }}>Clique nos blocos abaixo para montar seu programa, um passo de cada vez! {ttsSupported && "O Nyx explica cada bloco em voz alta pra você."}</p>
 
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
                 {GUIDED_BLOCKS.map(block => (
                   <button key={block.id} onClick={()=> block.needsInput ? setPendingBlock({ block, value:"" }) : addGuidedBlock(block)}
-                    style={{ background:"#151a31", border:"2px solid #2a3154", borderRadius:12, padding:"14px 10px", cursor:"pointer", color:"#e8ebfa", textAlign:"center", minHeight:scalePx(92) }}>
+                    style={{ background:"#1e1430", border:"2px solid #3b2a58", borderRadius:12, padding:"14px 10px", cursor:"pointer", color:"#f0e9fb", textAlign:"center", minHeight:scalePx(92) }}>
                     <div style={{ fontSize:scaleSize(30) }}>{block.emoji}</div>
                     <div style={{ fontSize:scaleSize(12.5), fontWeight:700, marginTop:6 }}>{block.label}</div>
                   </button>
@@ -6013,14 +6013,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
 
               {pendingBlock && (
-                <div style={{ marginTop:16, background:"#0d1122", border:"2px solid #22d3ee", borderRadius:12, padding:16 }}>
+                <div style={{ marginTop:16, background:"#171026", border:"2px solid #22d3ee", borderRadius:12, padding:16 }}>
                   <p style={{ color:"#22d3ee", fontWeight:700, marginBottom:8, fontSize:scaleSize(14) }}>{pendingBlock.block.emoji} {pendingBlock.block.inputLabel}</p>
                   <input autoFocus value={pendingBlock.value} onChange={e=>setPendingBlock({ ...pendingBlock, value:e.target.value })}
                     placeholder={pendingBlock.block.placeholder}
                     onKeyDown={e=>{ if (e.key==="Enter" && pendingBlock.value.trim()) addGuidedBlock(pendingBlock.block, pendingBlock.value); }}
-                    style={{ width:"100%", background:"#151a31", border:"1px solid #2a3154", borderRadius:8, padding:`${scalePx(10)}px ${scalePx(12)}px`, color:"#e8ebfa", fontSize:scaleSize(15), boxSizing:"border-box" }} />
+                    style={{ width:"100%", background:"#1e1430", border:"1px solid #3b2a58", borderRadius:8, padding:`${scalePx(10)}px ${scalePx(12)}px`, color:"#f0e9fb", fontSize:scaleSize(15), boxSizing:"border-box" }} />
                   <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                    <button onClick={()=>setPendingBlock(null)} style={{ ...styles.btn("#2a3154"), flex:1 }}>Cancelar</button>
+                    <button onClick={()=>setPendingBlock(null)} style={{ ...styles.btn("#3b2a58"), flex:1 }}>Cancelar</button>
                     <button onClick={()=>addGuidedBlock(pendingBlock.block, pendingBlock.value)} disabled={!pendingBlock.value.trim()} style={{ ...styles.btn("#22d3ee"), flex:1, opacity:pendingBlock.value.trim()?1:0.5 }}>Adicionar ✅</button>
                   </div>
                 </div>
@@ -6028,16 +6028,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
               {/* Nyx te ensina: mini-lições de C# geradas sob demanda, sempre com exemplo de jogo — o professor mantém
                   o Modo Guiado ligado durante a aula toda, e o aluno pode pedir quantas lições quiser nesse período */}
-              <div style={{ marginTop:20, background:"linear-gradient(135deg,#7c83ff22,#8b5cf622)", border:"1px solid #7c83ff55", borderRadius:14, padding:16 }}>
+              <div style={{ marginTop:20, background:"linear-gradient(135deg,#c084fc22,#8b5cf622)", border:"1px solid #c084fc55", borderRadius:14, padding:16 }}>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                     <span style={{ fontSize:scaleSize(26) }}>🎮</span>
                     <div>
-                      <h4 style={{ color:"#c7cfee", margin:0, fontSize:scaleSize(15) }}>Nyx te ensina a programar jogos!</h4>
-                      <p style={{ color:"#96a0cc", margin:"2px 0 0", fontSize:scaleSize(12) }}>Peça quantas lições quiser — o Nyx sempre explica com exemplo de jogo.</p>
+                      <h4 style={{ color:"#d6c9ec", margin:0, fontSize:scaleSize(15) }}>Nyx te ensina a programar jogos!</h4>
+                      <p style={{ color:"#a99ac9", margin:"2px 0 0", fontSize:scaleSize(12) }}>Peça quantas lições quiser — o Nyx sempre explica com exemplo de jogo.</p>
                     </div>
                   </div>
-                  <button onClick={generateGuidedLesson} disabled={guidedLessonLoading} style={{ ...styles.btn("#7c83ff"), opacity:guidedLessonLoading?0.6:1, whiteSpace:"nowrap" }}>
+                  <button onClick={generateGuidedLesson} disabled={guidedLessonLoading} style={{ ...styles.btn("#c084fc"), opacity:guidedLessonLoading?0.6:1, whiteSpace:"nowrap" }}>
                     {guidedLessonLoading ? "🤔 Pensando..." : "✨ Me ensina um truque novo!"}
                   </button>
                 </div>
@@ -6048,16 +6048,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                       const c = LC[i % LC.length];
                       const lessonSpeech = [l.titulo, l.codigo ? `O código é: ${codeForSpeech(l.codigo)}` : null, l.oQueFaz, l.exemploJogo].filter(Boolean).join(". ");
                       return (
-                        <div key={l.id} style={{ background:"#151a31", borderRadius:12, padding:14, border:"1px solid #2a3154", borderLeft:`5px solid ${c}` }}>
+                        <div key={l.id} style={{ background:"#1e1430", borderRadius:12, padding:14, border:"1px solid #3b2a58", borderLeft:`5px solid ${c}` }}>
                           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                               <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:34, height:34, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", fontSize:17 }}>{l.emoji || "🎮"}</span>
-                              <h5 style={{ color:"#e8ebfa", margin:0, fontSize:scaleSize(14) }}>{l.titulo}</h5>
+                              <h5 style={{ color:"#f0e9fb", margin:0, fontSize:scaleSize(14) }}>{l.titulo}</h5>
                             </div>
                             {ttsSupported && <button onClick={() => { setCurrentSpeakingFor(`lesson-${l.id}`); speak(lessonSpeech); }} style={{ background:isSpeaking && currentSpeakingFor===`lesson-${l.id}` ? c : c+"33", border:`1px solid ${c}`, color:c, padding:"5px 10px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer" }}>{isSpeaking && currentSpeakingFor===`lesson-${l.id}` ? "⏸" : "🔊"}</button>}
                           </div>
                           {l.codigo && <CodeBlock code={l.codigo} />}
-                          {l.oQueFaz && <p style={{ color:"#c7cfee", fontSize:scaleSize(13), lineHeight:1.7, margin:"6px 0 0" }}>{l.oQueFaz}</p>}
+                          {l.oQueFaz && <p style={{ color:"#d6c9ec", fontSize:scaleSize(13), lineHeight:1.7, margin:"6px 0 0" }}>{l.oQueFaz}</p>}
                           {l.exemploJogo && <p style={{ color:"#a5b4fc", fontSize:scaleSize(12.5), lineHeight:1.7, margin:"4px 0 0", fontStyle:"italic" }}>🎮 {l.exemploJogo}</p>}
                         </div>
                       );
@@ -6067,17 +6067,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
 
               <div style={{ marginTop:20 }}>
-                <h4 style={{ color:"#7c83ff", marginBottom:8, fontSize:scaleSize(15) }}>📜 Seu programa (nesta ordem)</h4>
+                <h4 style={{ color:"#c084fc", marginBottom:8, fontSize:scaleSize(15) }}>📜 Seu programa (nesta ordem)</h4>
                 {guidedBlocks.length===0 ? (
-                  <p style={{ color:"#5d679c", fontSize:scaleSize(13) }}>Clique num bloco acima para começar!</p>
+                  <p style={{ color:"#776798", fontSize:scaleSize(13) }}>Clique num bloco acima para começar!</p>
                 ) : (
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                     {guidedBlocks.map((b,i)=>(
-                      <div key={b.uid} style={{ display:"flex", alignItems:"center", gap:10, background:"#151a31", border:"1px solid #2a3154", borderRadius:8, padding:"8px 12px" }}>
+                      <div key={b.uid} style={{ display:"flex", alignItems:"center", gap:10, background:"#1e1430", border:"1px solid #3b2a58", borderRadius:8, padding:"8px 12px" }}>
                         <span style={{ fontSize:scaleSize(20) }}>{b.emoji}</span>
                         <span style={{ flex:1, fontSize:scaleSize(13) }}>{i+1}. {b.label}</span>
-                        <button onClick={()=>moveGuidedBlock(i,-1)} disabled={i===0} style={{ background:"transparent", border:"none", color:"#96a0cc", cursor:"pointer", opacity:i===0?0.3:1, fontSize:scaleSize(15), minWidth:scaleSize(32) }}>⬆️</button>
-                        <button onClick={()=>moveGuidedBlock(i,1)} disabled={i===guidedBlocks.length-1} style={{ background:"transparent", border:"none", color:"#96a0cc", cursor:"pointer", opacity:i===guidedBlocks.length-1?0.3:1, fontSize:scaleSize(15), minWidth:scaleSize(32) }}>⬇️</button>
+                        <button onClick={()=>moveGuidedBlock(i,-1)} disabled={i===0} style={{ background:"transparent", border:"none", color:"#a99ac9", cursor:"pointer", opacity:i===0?0.3:1, fontSize:scaleSize(15), minWidth:scaleSize(32) }}>⬆️</button>
+                        <button onClick={()=>moveGuidedBlock(i,1)} disabled={i===guidedBlocks.length-1} style={{ background:"transparent", border:"none", color:"#a99ac9", cursor:"pointer", opacity:i===guidedBlocks.length-1?0.3:1, fontSize:scaleSize(15), minWidth:scaleSize(32) }}>⬇️</button>
                         <button onClick={()=>removeGuidedBlock(b.uid)} style={{ background:"transparent", border:"none", color:"#f87171", cursor:"pointer", fontSize:scaleSize(16), minWidth:scaleSize(32) }}>✕</button>
                       </div>
                     ))}
@@ -6087,13 +6087,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
               {activeCode.trim() && (
                 <div style={{ marginTop:16 }}>
-                  <p style={{ color:"#5d679c", fontSize:scaleSize(12), marginBottom:2 }}>👀 Assim fica o código de verdade (o Nyx e o professor conseguem ver):</p>
+                  <p style={{ color:"#776798", fontSize:scaleSize(12), marginBottom:2 }}>👀 Assim fica o código de verdade (o Nyx e o professor conseguem ver):</p>
                   <CodeBlock code={activeCode} />
                 </div>
               )}
 
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:16, flexWrap:"wrap", gap:8 }}>
-                <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:scaleSize(12) }}>{saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
+                <span style={{ color: saveWarn ? "#fbbf24" : "#776798", fontSize:scaleSize(12) }}>{saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {analyzeButtons}
                   <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
@@ -6107,13 +6107,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               {/* abas de arquivos */}
               <div data-tour="arquivos" style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8, flexWrap:"wrap" }}>
                 {files.map((f,i)=>(
-                  <div key={i} onClick={()=>setActive(i)} style={{ display:"flex", alignItems:"center", gap:6, background:i===active?"#1e1e1e":"#101425", border:`1px solid ${i===active?"#7c83ff":"#2a3154"}`, color:i===active?"#fff":"#96a0cc", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>
+                  <div key={i} onClick={()=>setActive(i)} style={{ display:"flex", alignItems:"center", gap:6, background:i===active?"#1e1e1e":"#101425", border:`1px solid ${i===active?"#c084fc":"#3b2a58"}`, color:i===active?"#fff":"#a99ac9", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>
                     <span>📄 {f.name}</span>
-                    <span onClick={(e)=>{e.stopPropagation();openRename(i);}} title="Renomear" style={{ color:"#7c83ff", fontWeight:700 }}>✎</span>
+                    <span onClick={(e)=>{e.stopPropagation();openRename(i);}} title="Renomear" style={{ color:"#c084fc", fontWeight:700 }}>✎</span>
                     {files.length>1 && <span onClick={(e)=>{e.stopPropagation();deleteFile(i);}} title="Apagar" style={{ color:"#f87171", fontWeight:700 }}>✕</span>}
                   </div>
                 ))}
-                <button onClick={addFile} style={{ background:"#0d1122", border:"1px dashed #7c83ff", color:"#7c83ff", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>＋ Novo arquivo</button>
+                <button onClick={addFile} style={{ background:"#171026", border:"1px dashed #c084fc", color:"#c084fc", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>＋ Novo arquivo</button>
               </div>
 
               <div data-tour="editor">
@@ -6121,7 +6121,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
 
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
-                <span style={{ color: saveWarn ? "#fbbf24" : "#5d679c", fontSize:12 }}>{saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
+                <span style={{ color: saveWarn ? "#fbbf24" : "#776798", fontSize:12 }}>{saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {analyzeButtons}
                   <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
@@ -6169,7 +6169,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             {helpAt
               ? <button data-tour="ajuda" onClick={cancelHelp} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="O professor já foi avisado — clique pra cancelar o pedido">✋ Professor avisado! (cancelar)</button>
               : <button data-tour="ajuda" onClick={askHelp} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Acende seu nome no painel do professor pra ele vir te ajudar">✋ Pedir ajuda do professor</button>}
-            {!focusMode && <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
+            {!focusMode && <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#c084fc"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
               🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
             </button>}
             <button data-tour="teclado" onClick={()=>setShowKeyboard(true)} style={{ ...styles.btn("#22d3ee"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Aprenda onde fica cada tecla, no seu ritmo — pode treinar quando quiser">
@@ -6200,8 +6200,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             </div>
             {!focusMode && <ClassGoalBar sum={classPointsSum} />}
           </div>
-          <div className="cardfx" style={{ ...styles.card, fontSize:12, color:"#5d679c", lineHeight:1.8 }}>
-            <p style={{ color:"#7c83ff", fontWeight:600, marginBottom:6 }}>⌨️ Atalhos do editor</p>
+          <div className="cardfx" style={{ ...styles.card, fontSize:12, color:"#776798", lineHeight:1.8 }}>
+            <p style={{ color:"#c084fc", fontWeight:600, marginBottom:6 }}>⌨️ Atalhos do editor</p>
             <div><code style={{color:"#FFD700"}}>{"{"}</code> → abre e fecha sozinho</div>
             <div><code style={{color:"#DA70D6"}}>(</code> → abre e fecha sozinho</div>
             <div><code style={{color:"#ce9178"}}>"</code> → abre e fecha sozinho</div>
@@ -6226,18 +6226,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         const finished = tourneyStep >= tourneyQuiz.questions.length;
         const q = tourneyQuiz.questions[tourneyStep];
         return (
-          <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.88)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1060, padding:16 }}>
-            <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #22d3ee66", borderRadius:22, padding:"24px 24px", maxWidth:480, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 50px #22d3ee22" }}>
+          <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.88)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1060, padding:16 }}>
+            <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #22d3ee66", borderRadius:22, padding:"24px 24px", maxWidth:480, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 50px #22d3ee22" }}>
               <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
                 <span style={{ fontSize:30 }}>🏟️</span>
                 <div style={{ flex:1 }}>
-                  <h2 style={{ margin:0, fontSize:19, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Torneio da Turma — Rodada {tourneyQuiz.round}</h2>
-                  <div style={{ color:"#96a0cc", fontSize:12 }}>{finished ? "quiz concluído!" : `você × ${tourneyQuiz.opponent} · pergunta ${tourneyStep+1} de ${tourneyQuiz.questions.length}`}</div>
+                  <h2 style={{ margin:0, fontSize:19, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Torneio da Turma — Rodada {tourneyQuiz.round}</h2>
+                  <div style={{ color:"#a99ac9", fontSize:12 }}>{finished ? "quiz concluído!" : `você × ${tourneyQuiz.opponent} · pergunta ${tourneyStep+1} de ${tourneyQuiz.questions.length}`}</div>
                 </div>
               </div>
               {!finished && (
                 <>
-                  <p style={{ color:"#e8ebfa", fontSize:15, fontWeight:700, lineHeight:1.6, margin:"6px 0 12px" }}>{q.pergunta}</p>
+                  <p style={{ color:"#f0e9fb", fontSize:15, fontWeight:700, lineHeight:1.6, margin:"6px 0 12px" }}>{q.pergunta}</p>
                   <div style={{ display:"grid", gap:8 }}>
                     {q.alternativas.map((alt, i) => {
                       const picked = tourneyPicked != null;
@@ -6245,9 +6245,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                       const isMine = tourneyPicked === i;
                       return (
                         <button key={i} disabled={picked} onClick={() => { setTourneyPicked(i); if (i === q.correta) setTourneyCorrect(c => c + 1); }}
-                          style={{ textAlign:"left", background: picked ? (isRight ? "#34d39922" : isMine ? "#f8717122" : "#0d1122") : "#0d1122",
-                            border: `2px solid ${picked ? (isRight ? "#34d399" : isMine ? "#f87171" : "#241f38") : "#2a3154"}`,
-                            borderRadius:12, padding:"11px 14px", color:"#e8ebfa", fontSize:13.5, cursor: picked ? "default" : "pointer" }}>
+                          style={{ textAlign:"left", background: picked ? (isRight ? "#34d39922" : isMine ? "#f8717122" : "#171026") : "#171026",
+                            border: `2px solid ${picked ? (isRight ? "#34d399" : isMine ? "#f87171" : "#241f38") : "#3b2a58"}`,
+                            borderRadius:12, padding:"11px 14px", color:"#f0e9fb", fontSize:13.5, cursor: picked ? "default" : "pointer" }}>
                           {picked && isRight ? "✅ " : picked && isMine ? "❌ " : ""}{alt}
                         </button>
                       );
@@ -6263,8 +6263,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               {finished && (
                 <div style={{ textAlign:"center" }}>
                   <div style={{ fontSize:46, lineHeight:1 }}>{tourneyCorrect >= 4 ? "🔥" : tourneyCorrect >= 2 ? "💪" : "🍀"}</div>
-                  <p style={{ color:"#e8ebfa", fontSize:16, fontWeight:800, margin:"10px 0 4px" }}>{tourneyCorrect} de {tourneyQuiz.questions.length} certas!</p>
-                  <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, margin:"0 0 12px" }}>Agora é torcer: o placar da sua partida aparece no telão. Boa sorte! 🤞</p>
+                  <p style={{ color:"#f0e9fb", fontSize:16, fontWeight:800, margin:"10px 0 4px" }}>{tourneyCorrect} de {tourneyQuiz.questions.length} certas!</p>
+                  <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, margin:"0 0 12px" }}>Agora é torcer: o placar da sua partida aparece no telão. Boa sorte! 🤞</p>
                   <button onClick={submitTourneyQuiz} style={{ ...styles.btn("#22d3ee"), width:"100%", padding:"12px 0", fontSize:14.5 }}>Enviar respostas 🏟️</button>
                 </div>
               )}
@@ -6278,19 +6278,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         const finished = warmupStep >= warmup.questions.length;
         const q = warmup.questions[warmupStep];
         return (
-          <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1050, padding:16 }}>
-            <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #fb923c66", borderRadius:22, padding:"24px 24px", maxWidth:480, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 50px #fb923c22" }}>
+          <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1050, padding:16 }}>
+            <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #fb923c66", borderRadius:22, padding:"24px 24px", maxWidth:480, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 50px #fb923c22" }}>
               <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
                 <span style={{ fontSize:30, animation:"nyx-float 3s ease-in-out infinite" }}>🔥</span>
                 <div style={{ flex:1 }}>
                   <h2 style={{ margin:0, fontSize:19, fontWeight:900, background:"linear-gradient(135deg,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Aquecimento do dia</h2>
-                  <div style={{ color:"#96a0cc", fontSize:12 }}>{finished ? "revisão concluída!" : `relembrando a última aula · ${warmupStep+1} de ${warmup.questions.length}`}</div>
+                  <div style={{ color:"#a99ac9", fontSize:12 }}>{finished ? "revisão concluída!" : `relembrando a última aula · ${warmupStep+1} de ${warmup.questions.length}`}</div>
                 </div>
-                {!finished && <button onClick={skipWarmup} title="Pular o aquecimento de hoje" style={{ background:"transparent", border:"1px solid #3b4378", borderRadius:8, color:"#96a0cc", fontSize:12, padding:"4px 10px", cursor:"pointer", flexShrink:0 }}>Agora não</button>}
+                {!finished && <button onClick={skipWarmup} title="Pular o aquecimento de hoje" style={{ background:"transparent", border:"1px solid #56407e", borderRadius:8, color:"#a99ac9", fontSize:12, padding:"4px 10px", cursor:"pointer", flexShrink:0 }}>Agora não</button>}
               </div>
               {!finished && (
                 <>
-                  <p style={{ color:"#e8ebfa", fontSize:15, fontWeight:700, lineHeight:1.6, margin:"6px 0 12px" }}>{q.pergunta}</p>
+                  <p style={{ color:"#f0e9fb", fontSize:15, fontWeight:700, lineHeight:1.6, margin:"6px 0 12px" }}>{q.pergunta}</p>
                   <div style={{ display:"grid", gap:8 }}>
                     {q.alternativas.map((alt, i) => {
                       const picked = warmupPicked != null;
@@ -6298,9 +6298,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                       const isMine = warmupPicked === i;
                       return (
                         <button key={i} disabled={picked} onClick={() => { setWarmupPicked(i); if (i === q.correta) setWarmupCorrect(c => c + 1); }}
-                          style={{ textAlign:"left", background: picked ? (isRight ? "#34d39922" : isMine ? "#f8717122" : "#0d1122") : "#0d1122",
-                            border: `2px solid ${picked ? (isRight ? "#34d399" : isMine ? "#f87171" : "#241f38") : "#2a3154"}`,
-                            borderRadius:12, padding:"11px 14px", color:"#e8ebfa", fontSize:13.5, cursor: picked ? "default" : "pointer" }}>
+                          style={{ textAlign:"left", background: picked ? (isRight ? "#34d39922" : isMine ? "#f8717122" : "#171026") : "#171026",
+                            border: `2px solid ${picked ? (isRight ? "#34d399" : isMine ? "#f87171" : "#241f38") : "#3b2a58"}`,
+                            borderRadius:12, padding:"11px 14px", color:"#f0e9fb", fontSize:13.5, cursor: picked ? "default" : "pointer" }}>
                           {picked && isRight ? "✅ " : picked && isMine ? "❌ " : ""}{alt}
                         </button>
                       );
@@ -6308,7 +6308,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                   </div>
                   {warmupPicked != null && (
                     <div className="pop" style={{ marginTop:12 }}>
-                      {q.explicacao && <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, margin:"0 0 10px" }}>💡 {q.explicacao}</p>}
+                      {q.explicacao && <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, margin:"0 0 10px" }}>💡 {q.explicacao}</p>}
                       <button onClick={() => { setWarmupStep(s => s + 1); setWarmupPicked(null); }} style={{ ...styles.btn("#fb923c"), width:"100%", padding:"11px 0", fontSize:14 }}>
                         {warmupStep + 1 >= warmup.questions.length ? "Ver resultado →" : "Próxima →"}
                       </button>
@@ -6319,10 +6319,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               {finished && (
                 <div style={{ textAlign:"center" }}>
                   <div style={{ fontSize:46, lineHeight:1 }}>{warmupCorrect === warmup.questions.length ? "🏆" : warmupCorrect > 0 ? "💪" : "🌱"}</div>
-                  <p style={{ color:"#e8ebfa", fontSize:16, fontWeight:800, margin:"10px 0 4px" }}>
+                  <p style={{ color:"#f0e9fb", fontSize:16, fontWeight:800, margin:"10px 0 4px" }}>
                     {warmupCorrect} de {warmup.questions.length} na revisão!
                   </p>
-                  <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, margin:"0 0 6px" }}>
+                  <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, margin:"0 0 6px" }}>
                     {warmupCorrect === warmup.questions.length ? "Memória de elefante! O conteúdo de ontem está fresquinho." : warmupCorrect > 0 ? "Boa! Revisar assim é o que faz o conteúdo ficar de vez na cabeça." : "Tudo bem! Relembrar é exatamente pra isso — agora ficou mais fresco."}
                   </p>
                   {warmupCorrect > 0 && <p style={{ color:"#fbbf24", fontSize:14, fontWeight:900, margin:"0 0 12px" }}>+{warmupCorrect} ponto{warmupCorrect>1?"s":""} do Nyx! 💰</p>}
@@ -6353,14 +6353,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       )}
 
       {showAvatarEdit && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-          <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:680, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:680, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-              <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#7c83ff,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎨 Editar meu boneco</h2>
-              <button onClick={()=>{ setShowAvatarEdit(false); persist({}); }} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+              <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#c084fc,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎨 Editar meu boneco</h2>
+              <button onClick={()=>{ setShowAvatarEdit(false); persist({}); }} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
             </div>
             <AvatarBuilder value={avatar} onChange={setAvatar} />
-            <button onClick={()=>{ setShowAvatarEdit(false); persist({}); }} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:16 }}>💾 Salvar e fechar</button>
+            <button onClick={()=>{ setShowAvatarEdit(false); persist({}); }} style={{ ...styles.btn("#c084fc"), width:"100%", marginTop:16 }}>💾 Salvar e fechar</button>
           </div>
         </div>
       )}
@@ -6462,21 +6462,21 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCode]);
 
-  const card = { background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #272e52", boxShadow:"0 8px 24px rgba(3,5,16,.35)" };
+  const card = { background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #3a2a55", boxShadow:"0 8px 24px rgba(3,5,16,.35)" };
 
   return (
     <div style={{ display:"flex", gap:14, flexWrap:"wrap" }}>
       {renaming != null && (
         <div style={{ position:"fixed", inset:0, background:"#000000aa", display:"flex", alignItems:"center", justifyContent:"center", zIndex:999, padding:16 }}>
-          <div style={{ background:"#151a31", border:`2px solid ${accent}`, borderRadius:16, padding:24, maxWidth:380, width:"100%" }}>
+          <div style={{ background:"#1e1430", border:`2px solid ${accent}`, borderRadius:16, padding:24, maxWidth:380, width:"100%" }}>
             <h3 style={{ color:accent, margin:"0 0 4px" }}>✎ Renomear arquivo</h3>
-            <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 12px" }}>Escolha um nome (o ".cs" é colocado sozinho).</p>
-            <div style={{ display:"flex", alignItems:"center", background:"#0d1122", border:"2px solid #2a3154", borderRadius:10, padding:"0 12px" }}>
-              <input autoFocus value={renameValue} onChange={e=>setRenameValue(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") confirmRename(); if(e.key==="Escape") cancelRename(); }} placeholder="ex: MeuPrograma" style={{ flex:1, background:"transparent", border:"none", outline:"none", color:"#e8ebfa", fontSize:15, padding:"11px 0" }} />
-              <span style={{ color:"#5d679c", fontSize:14 }}>.cs</span>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 12px" }}>Escolha um nome (o ".cs" é colocado sozinho).</p>
+            <div style={{ display:"flex", alignItems:"center", background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"0 12px" }}>
+              <input autoFocus value={renameValue} onChange={e=>setRenameValue(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") confirmRename(); if(e.key==="Escape") cancelRename(); }} placeholder="ex: MeuPrograma" style={{ flex:1, background:"transparent", border:"none", outline:"none", color:"#f0e9fb", fontSize:15, padding:"11px 0" }} />
+              <span style={{ color:"#776798", fontSize:14 }}>.cs</span>
             </div>
             <div style={{ display:"flex", gap:10, marginTop:18 }}>
-              <button onClick={cancelRename} style={{ background:"#2a3154", color:"#fff", border:"none", borderRadius:8, padding:"10px 0", cursor:"pointer", fontWeight:700, flex:1 }}>Cancelar</button>
+              <button onClick={cancelRename} style={{ background:"#3b2a58", color:"#fff", border:"none", borderRadius:8, padding:"10px 0", cursor:"pointer", fontWeight:700, flex:1 }}>Cancelar</button>
               <button onClick={confirmRename} style={{ background:accent, color:"#fff", border:"none", borderRadius:8, padding:"10px 0", cursor:"pointer", fontWeight:700, flex:1 }}>Salvar nome</button>
             </div>
           </div>
@@ -6486,19 +6486,19 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
       <div style={{ flex:"1 1 560px", minWidth:320 }}>
         <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8, flexWrap:"wrap" }}>
           {files.map((f,i)=>(
-            <div key={i} onClick={()=>setActive(i)} style={{ display:"flex", alignItems:"center", gap:6, background:i===active?"#1e1e1e":"#101425", border:`1px solid ${i===active?accent:"#2a3154"}`, color:i===active?"#fff":"#96a0cc", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>
+            <div key={i} onClick={()=>setActive(i)} style={{ display:"flex", alignItems:"center", gap:6, background:i===active?"#1e1e1e":"#101425", border:`1px solid ${i===active?accent:"#3b2a58"}`, color:i===active?"#fff":"#a99ac9", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>
               <span>📄 {f.name}</span>
               <span onClick={(e)=>{e.stopPropagation();openRename(i);}} title="Renomear" style={{ color:accent, fontWeight:700 }}>✎</span>
               {files.length>1 && <span onClick={(e)=>{e.stopPropagation();deleteFile(i);}} title="Apagar" style={{ color:"#f87171", fontWeight:700 }}>✕</span>}
             </div>
           ))}
-          <button onClick={addFile} style={{ background:"#0d1122", border:`1px dashed ${accent}`, color:accent, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>＋ Novo arquivo</button>
+          <button onClick={addFile} style={{ background:"#171026", border:`1px dashed ${accent}`, color:accent, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>＋ Novo arquivo</button>
         </div>
 
         <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} />
 
         <div style={{ display:"flex", justifyContent:"flex-start", alignItems:"center", marginTop:8 }}>
-          <span style={{ color:"#5d679c", fontSize:12 }}>{analyzing?"🔍 Verificando...":"✨ Nyx confere seu código 5s depois que você para de escrever"}</span>
+          <span style={{ color:"#776798", fontSize:12 }}>{analyzing?"🔍 Verificando...":"✨ Nyx confere seu código 5s depois que você para de escrever"}</span>
         </div>
 
         <Terminal files={files} maxHeight={terminalMaxHeight} />
@@ -6507,16 +6507,16 @@ function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }],
       <div className="side-col" style={{ width:250, flex:"0 0 250px" }}>
         <div style={card}>
           <NyxRobot state={robotState} size={88} context="teacher" gear={gear} />
-          <button style={{ background:"transparent", border:"1px solid #7c83ff", color:"#7c83ff", borderRadius:8, width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5, cursor:"pointer", fontWeight:700 }} onClick={()=>setShowShop(true)}>🎁 Personalizar o Nyx</button>
+          <button style={{ background:"transparent", border:"1px solid #c084fc", color:"#c084fc", borderRadius:8, width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5, cursor:"pointer", fontWeight:700 }} onClick={()=>setShowShop(true)}>🎁 Personalizar o Nyx</button>
           {robotMsg && (<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>{robotMsg}</div>)}
           {keysToShow.length>0 && (<div style={{ marginTop:10 }}><p style={{ color:accent, fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
         </div>
         {showShop && (
           <NyxShop wallet={9999} owned={NYX_ITEMS.map(i=>i.id)} gear={gear} onEquip={onEquip} onBuy={()=>{}} isTestShift={true} onClose={()=>setShowShop(false)} />
         )}
-        <div style={{ ...card, fontSize:12, color:"#5d679c", lineHeight:1.8 }}>
+        <div style={{ ...card, fontSize:12, color:"#776798", lineHeight:1.8 }}>
           <p style={{ color:accent, fontWeight:600, marginBottom:6 }}>👩‍🏫 O exemplo da aula</p>
-          <p style={{ color:"#96a0cc" }}>Programe aqui o exemplo de hoje e teste com o ▶ dotnet run. Este código <b>fica salvo</b> e é usado para gerar o nome do conteúdo do dia. Os alunos não veem esta área.</p>
+          <p style={{ color:"#a99ac9" }}>Programe aqui o exemplo de hoje e teste com o ▶ dotnet run. Este código <b>fica salvo</b> e é usado para gerar o nome do conteúdo do dia. Os alunos não veem esta área.</p>
         </div>
       </div>
     </div>
@@ -6543,12 +6543,12 @@ function Calendar({ classDays, contentNames = {}, onToggle }) {
   return (
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-        <button onClick={prev} style={{ background:"#0d1122", border:"1px solid #2a3154", color:"#e8ebfa", borderRadius:8, padding:"4px 10px", cursor:"pointer" }}>‹</button>
-        <span style={{ color:"#e8ebfa", fontWeight:700, textTransform:"capitalize" }}>{monthName}</span>
-        <button onClick={next} style={{ background:"#0d1122", border:"1px solid #2a3154", color:"#e8ebfa", borderRadius:8, padding:"4px 10px", cursor:"pointer" }}>›</button>
+        <button onClick={prev} style={{ background:"#171026", border:"1px solid #3b2a58", color:"#f0e9fb", borderRadius:8, padding:"4px 10px", cursor:"pointer" }}>‹</button>
+        <span style={{ color:"#f0e9fb", fontWeight:700, textTransform:"capitalize" }}>{monthName}</span>
+        <button onClick={next} style={{ background:"#171026", border:"1px solid #3b2a58", color:"#f0e9fb", borderRadius:8, padding:"4px 10px", cursor:"pointer" }}>›</button>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4 }}>
-        {wd.map((d,i)=><div key={"h"+i} style={{ textAlign:"center", color:"#5d679c", fontSize:12, fontWeight:700 }}>{d}</div>)}
+        {wd.map((d,i)=><div key={"h"+i} style={{ textAlign:"center", color:"#776798", fontSize:12, fontWeight:700 }}>{d}</div>)}
         {cells.map((d,i)=>{
           if (d===null) return <div key={"e"+i}/>;
           const k = keyFor(d);
@@ -6559,15 +6559,15 @@ function Calendar({ classDays, contentNames = {}, onToggle }) {
           return (
             <button key={k} onClick={()=>onToggle(k)} title={title}
               style={{ position:"relative", aspectRatio:"1", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:isToday?700:400,
-                background:isClass?"#34d399":"#0d1122", color:isClass?"#062":"#96a0cc",
-                border:isToday?"2px solid #7c83ff":"1px solid #2a3154" }}>
+                background:isClass?"#34d399":"#171026", color:isClass?"#062":"#a99ac9",
+                border:isToday?"2px solid #c084fc":"1px solid #3b2a58" }}>
               {d}
               {cname && <span style={{ position:"absolute", bottom:3, left:0, right:0, fontSize:9, lineHeight:1 }}>📖</span>}
             </button>
           );
         })}
       </div>
-      <p style={{ color:"#5d679c", fontSize:12, marginTop:10 }}><span style={{ display:"inline-block", width:12, height:12, background:"#34d399", borderRadius:3, verticalAlign:"middle", marginRight:6 }}/>dias de aula &nbsp;·&nbsp; <span style={{ display:"inline-block", width:12, height:12, border:"2px solid #7c83ff", borderRadius:3, verticalAlign:"middle", marginRight:6 }}/>hoje &nbsp;·&nbsp; 📖 tem conteúdo</p>
+      <p style={{ color:"#776798", fontSize:12, marginTop:10 }}><span style={{ display:"inline-block", width:12, height:12, background:"#34d399", borderRadius:3, verticalAlign:"middle", marginRight:6 }}/>dias de aula &nbsp;·&nbsp; <span style={{ display:"inline-block", width:12, height:12, border:"2px solid #c084fc", borderRadius:3, verticalAlign:"middle", marginRight:6 }}/>hoje &nbsp;·&nbsp; 📖 tem conteúdo</p>
     </div>
   );
 }
@@ -6884,8 +6884,8 @@ function TeacherView({ onLogout, teacherAuth }) {
     };
 
     // ── CAPA ──
-    doc.setFillColor(...hexRgb("#12162e")); doc.rect(0, 0, pageW, pageH, "F");
-    doc.setFillColor(...hexRgb("#1b2144"));
+    doc.setFillColor(...hexRgb("#1d1230")); doc.rect(0, 0, pageW, pageH, "F");
+    doc.setFillColor(...hexRgb("#2a1a42"));
     doc.circle(pageW - 60, 90, 130, "F");
     doc.circle(40, pageH - 80, 100, "F");
     doc.setFillColor(...hexRgb("#fbbf24")); doc.roundedRect(margin, 210, 64, 7, 3, 3, "F");
@@ -6893,9 +6893,9 @@ function TeacherView({ onLogout, teacherAuth }) {
     doc.text("Relatório de Despedida", margin, 262);
     doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(...hexRgb("#fbbf24"));
     doc.text(clean(city), margin, 292);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(13); doc.setTextColor(...hexRgb("#aeb6e8"));
+    doc.setFont("helvetica", "normal"); doc.setFontSize(13); doc.setTextColor(...hexRgb("#c4b2e2"));
     doc.text(clean(`Aula de C#  •  ${periodStart} a ${periodEnd}`), margin, 316);
-    doc.setFont("courier", "normal"); doc.setFontSize(10); doc.setTextColor(...hexRgb("#4a5388"));
+    doc.setFont("courier", "normal"); doc.setFontSize(10); doc.setTextColor(...hexRgb("#5e4a86"));
     doc.text('Console.WriteLine("Foi uma honra ensinar aqui!");', margin, pageH - 70);
 
     // ── NÚMEROS DA TURMA ──
@@ -6905,7 +6905,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     doc.text("A TURMA EM NÚMEROS", margin + 16, y + 19);
     y += 58;
     const boxW = (maxW - 16) / 3;
-    statBox(margin, boxW, "alunos atendidos", active.length, "#7c83ff");
+    statBox(margin, boxW, "alunos atendidos", active.length, "#c084fc");
     statBox(margin + boxW + 8, boxW, "aulas dadas", totalClasses, "#34d399");
     statBox(margin + (boxW + 8) * 2, boxW, "nota média da turma", avgScore || "-", "#fbbf24");
     y += 84;
@@ -7279,24 +7279,24 @@ function TeacherView({ onLogout, teacherAuth }) {
       };
 
       // ── CAPA ──
-      doc.setFillColor(...hexRgb("#12162e")); doc.rect(0, 0, pageW, pageH, "F");
-      doc.setFillColor(...hexRgb("#1b2144"));
+      doc.setFillColor(...hexRgb("#1d1230")); doc.rect(0, 0, pageW, pageH, "F");
+      doc.setFillColor(...hexRgb("#2a1a42"));
       doc.circle(pageW - 60, 90, 130, "F");
       doc.circle(40, pageH - 80, 100, "F");
       doc.setFillColor(...hexRgb("#fbbf24")); doc.roundedRect(margin, 240, 64, 7, 3, 3, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(38); doc.setTextColor(255, 255, 255);
       doc.text("Aula de C#", margin, 292);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(16); doc.setTextColor(...hexRgb("#aeb6e8"));
+      doc.setFont("helvetica", "normal"); doc.setFontSize(16); doc.setTextColor(...hexRgb("#c4b2e2"));
       doc.text("Códigos do curso e explicações do Nyx", margin, 318);
-      doc.setFontSize(11.5); doc.setTextColor(...hexRgb("#7c86c4"));
+      doc.setFontSize(11.5); doc.setTextColor(...hexRgb("#927fb8"));
       const dataBr = new Date().toLocaleDateString("pt-BR");
       doc.text(clean(`${meta.city ? meta.city + "  •  " : ""}Gerado em ${dataBr}`), margin, 344);
-      doc.setFont("courier", "normal"); doc.setFontSize(10); doc.setTextColor(...hexRgb("#4a5388"));
+      doc.setFont("courier", "normal"); doc.setFontSize(10); doc.setTextColor(...hexRgb("#5e4a86"));
       doc.text('Console.WriteLine("Bons estudos!");', margin, pageH - 70);
 
       // ── CONTEÚDO (um capítulo por turno) ──
       shiftsWithCode.forEach((sh, idx) => {
-        const accent = sh.id === "matutino" ? "#f59e0b" : "#7c83ff";
+        const accent = sh.id === "matutino" ? "#f59e0b" : "#c084fc";
         doc.addPage(); y = margin;
 
         // faixa do turno
@@ -7433,7 +7433,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       };
 
       // ── cabeçalho ──
-      const accent = shift === "matutino" ? "#f59e0b" : "#7c83ff";
+      const accent = shift === "matutino" ? "#f59e0b" : "#c084fc";
       doc.setFillColor(...hexRgb(accent)); doc.roundedRect(margin, y - 8, maxW, 56, 10, 10, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(255, 255, 255);
       doc.text(clean(`Resumo da aula de hoje — para ${studentName}`), margin + 16, y + 16);
@@ -7551,7 +7551,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       const maxW = pageW - margin * 2;
       const hexRgb = (hex) => { const h = hex.replace("#",""); const n = parseInt(h.length===3?h.split("").map(c=>c+c).join(""):h,16); return [(n>>16)&255,(n>>8)&255,n&255]; };
       const clean = (t) => String(t || "").replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}️]/gu, "").replace(/\s+/g, " ").trim();
-      const accent = sh === "matutino" ? "#f59e0b" : "#7c83ff";
+      const accent = sh === "matutino" ? "#f59e0b" : "#c084fc";
       const mesBr = new Date().toLocaleDateString("pt-BR", { month:"long", year:"numeric" });
 
       turma.forEach((s, idx) => {
@@ -7816,7 +7816,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // a atividade concluída "vale" até as 9h da manhã do dia seguinte, mesmo que o aluno volte à tela inicial
   const effectivePhase = s => (s.phase !== "done" && isDoneActive(s.doneAt)) ? "done" : s.phase;
   const phaseLabel = p => ({coding:"Codando",generating:"Gerando",summary:"No Resumo",activity:"Na Atividade",done:"Concluído"})[p]||"Aguardando";
-  const phaseColor = p => ({coding:"#7c83ff",generating:"#fbbf24",summary:"#fbbf24",activity:"#3b82f6",done:"#34d399"})[p]||"#96a0cc";
+  const phaseColor = p => ({coding:"#c084fc",generating:"#fbbf24",summary:"#fbbf24",activity:"#3b82f6",done:"#34d399"})[p]||"#a99ac9";
   const hhmm = t => t ? new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "—";
   const hhmmss = t => t ? new Date(t).toLocaleTimeString("pt-BR") : "—";
   const dataHora = t => t ? new Date(t).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "—";
@@ -8037,14 +8037,14 @@ function TeacherView({ onLogout, teacherAuth }) {
     });
 
   const styles = {
-    container:{ minHeight:"100vh", background:PAGE_BG, color:"#e8ebfa", fontFamily:FONT },
-    header:{ background:"rgba(17,21,42,.85)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", padding:"10px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #2a3154", boxShadow:"0 1px 0 #fbbf2433, 0 8px 24px rgba(3,5,16,.35)", position:"sticky", top:0, zIndex:40, flexWrap:"wrap", gap:8 },
-    card:{ background:"linear-gradient(180deg,#181d38,#131730)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #272e52", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both" },
+    container:{ minHeight:"100vh", background:PAGE_BG, color:"#f0e9fb", fontFamily:FONT },
+    header:{ background:"rgba(17,21,42,.85)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", padding:"10px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #3b2a58", boxShadow:"0 1px 0 #fbbf2433, 0 8px 24px rgba(3,5,16,.35)", position:"sticky", top:0, zIndex:40, flexWrap:"wrap", gap:8 },
+    card:{ background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #3a2a55", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:"8px 16px", cursor:"pointer", fontWeight:800, boxShadow:`0 4px 14px ${c}44` }),
     badge:(c)=>({ background:c+"22", color:c, padding:"2px 10px", borderRadius:12, fontSize:12, fontWeight:700 }),
-    tab:(on)=>({ background:on?"linear-gradient(135deg,#fbbf24,#f59310)":"transparent", color:on?"#1c1400":"#96a0cc", border:`1px solid ${on?"#fbbf24":"#2a3154"}`, borderRadius:10, padding:"6px 14px", cursor:"pointer", fontWeight:800, fontSize:13, boxShadow:on?"0 4px 12px #fbbf2433":"none" }),
+    tab:(on)=>({ background:on?"linear-gradient(135deg,#fbbf24,#f59310)":"transparent", color:on?"#1c1400":"#a99ac9", border:`1px solid ${on?"#fbbf24":"#3b2a58"}`, borderRadius:10, padding:"6px 14px", cursor:"pointer", fontWeight:800, fontSize:13, boxShadow:on?"0 4px 12px #fbbf2433":"none" }),
   };
-  const dot = (on) => (<span style={{ width:9, height:9, borderRadius:"50%", background:on?"#34d399":"#5d679c", display:"inline-block", marginRight:6, boxShadow:on?"0 0 6px #34d399":"none", ...(on?{animation:"live-dot 2s ease-in-out infinite"}:{}) }}/>);
+  const dot = (on) => (<span style={{ width:9, height:9, borderRadius:"50%", background:on?"#34d399":"#776798", display:"inline-block", marginRight:6, boxShadow:on?"0 0 6px #34d399":"none", ...(on?{animation:"live-dot 2s ease-in-out infinite"}:{}) }}/>);
 
   return (
     <div style={styles.container}>
@@ -8058,7 +8058,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         </div>
       )}
       {aiDown && (
-        <div style={{ position:"fixed", top:12, left:12, zIndex:1200, background:"#181d38", border:"1px solid #fbbf24", borderRadius:10, padding:"7px 12px", display:"flex", alignItems:"center", gap:8, boxShadow:"0 8px 24px rgba(0,0,0,.4)" }}>
+        <div style={{ position:"fixed", top:12, left:12, zIndex:1200, background:"#231636", border:"1px solid #fbbf24", borderRadius:10, padding:"7px 12px", display:"flex", alignItems:"center", gap:8, boxShadow:"0 8px 24px rgba(0,0,0,.4)" }}>
           <span style={{ display:"inline-block", width:9, height:9, borderRadius:"50%", background:"#fbbf24", animation:"nyx-antenna 1s ease-in-out infinite" }} />
           <span style={{ color:"#fbbf24", fontSize:12.5, fontWeight:700 }}>🔄 Reconectando Nyx...</span>
         </div>
@@ -8095,7 +8095,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         <div>
           <span className="shine" style={{ fontWeight:900, fontSize: tab==="code" ? 14 : 18, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
           {tab!=="code" && (
-            <span style={{ color:"#96a0cc", marginLeft:12, fontSize:12 }}>
+            <span style={{ color:"#a99ac9", marginLeft:12, fontSize:12 }}>
               ● ao vivo · {lastUpdate}{meta.city?` · 📍 ${meta.city}`:""}
               {(todayContentM||todayContentV) ? ` · 📖 ${[todayContentM&&`☀️ ${todayContentM}`, todayContentV&&`🌙 ${todayContentV}`].filter(Boolean).join(" · ")}` : ""}
             </span>
@@ -8109,14 +8109,14 @@ function TeacherView({ onLogout, teacherAuth }) {
           <button style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle' && tab!=="exam" ? {borderColor:"#fbbf24",color:"#fbbf24"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
           {tab!=="code" && <button style={styles.btn("#22d3ee")} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
           {tab!=="code" && <button style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
-          <button style={{ ...styles.btn("#5d679c"), fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
+          <button style={{ ...styles.btn("#776798"), fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
         </div>
       </div>
 
       {/* filtro de turno (vale para monitoramento, chamada, situação e feedback) */}
       {tab!=="code" && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-          <span style={{ color:"#96a0cc", fontSize:13 }}>Turma:</span>
+          <span style={{ color:"#a99ac9", fontSize:13 }}>Turma:</span>
           <button onClick={()=>setShiftFilter("all")} style={styles.tab(shiftFilter==="all")}>Todas ({students.length})</button>
           {SHIFTS.map(sh => (
             <button key={sh.id} onClick={()=>setShiftFilter(sh.id)} style={styles.tab(shiftFilter===sh.id)}>
@@ -8134,7 +8134,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       {/* aviso de resultado do reset */}
       {resetMsg && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
-          <div style={{ background:"#151a31", border:`1px solid ${resetMsg.startsWith("✅")?"#34d399":"#f87171"}`, color:resetMsg.startsWith("✅")?"#34d399":"#f87171", borderRadius:10, padding:"10px 14px", fontSize:14 }}>{resetMsg}</div>
+          <div style={{ background:"#1e1430", border:`1px solid ${resetMsg.startsWith("✅")?"#34d399":"#f87171"}`, color:resetMsg.startsWith("✅")?"#34d399":"#f87171", borderRadius:10, padding:"10px 14px", fontSize:14 }}>{resetMsg}</div>
         </div>
       )}
 
@@ -8142,22 +8142,22 @@ function TeacherView({ onLogout, teacherAuth }) {
       {showTripOverview && <TripOverviewModal entries={tripHallEntries} onClose={()=>setShowTripOverview(false)} />}
 
       {dailyPdfModal && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-          <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
               <h2 style={{ margin:0, fontSize:19, fontWeight:900, background:"linear-gradient(135deg,#fbbf24,#fb923c)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📄 Resumo de hoje — {dailyPdfModal.studentName}</h2>
-              <button onClick={()=>setDailyPdfModal(null)} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+              <button onClick={()=>setDailyPdfModal(null)} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
             </div>
-            <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 12px", lineHeight:1.6 }}>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 12px", lineHeight:1.6 }}>
               Confirme (ou cole por cima) o código que você passou HOJE pra turma {shiftLabel(dailyPdfModal.shift)}. O Nyx explica exatamente o que estiver aqui embaixo — só o que já estava salvo em "Meu código" veio pré-preenchido.
             </p>
             <textarea value={dailyPdfCode} onChange={e=>setDailyPdfCode(e.target.value)} disabled={dailyPdfBusy} rows={14} spellCheck={false}
-              style={{ width:"100%", background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:"10px 12px", color:"#e8ebfa", fontFamily:"'Courier New',monospace", fontSize:12.5, outline:"none", resize:"vertical", boxSizing:"border-box" }} />
+              style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"10px 12px", color:"#f0e9fb", fontFamily:"'Courier New',monospace", fontSize:12.5, outline:"none", resize:"vertical", boxSizing:"border-box" }} />
             <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
               <button onClick={()=>exportDailyPDF(dailyPdfModal.shift, dailyPdfModal.studentName, dailyPdfCode)} disabled={dailyPdfBusy || !dailyPdfCode.trim()} style={{ ...styles.btn("#fbbf24"), padding:"9px 18px", fontSize:13.5, opacity: (dailyPdfBusy || !dailyPdfCode.trim()) ? 0.6 : 1 }}>
                 {dailyPdfBusy ? "⏳ Gerando..." : "✅ Gerar PDF"}
               </button>
-              <button onClick={()=>setDailyPdfModal(null)} disabled={dailyPdfBusy} style={{ ...styles.btn("#2a3154"), padding:"9px 18px", fontSize:13.5 }}>Cancelar</button>
+              <button onClick={()=>setDailyPdfModal(null)} disabled={dailyPdfBusy} style={{ ...styles.btn("#3b2a58"), padding:"9px 18px", fontSize:13.5 }}>Cancelar</button>
             </div>
             {dailyPdfMsg && <p style={{ color: dailyPdfMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:10 }}>{dailyPdfMsg}</p>}
           </div>
@@ -8166,34 +8166,34 @@ function TeacherView({ onLogout, teacherAuth }) {
 
       {/* biblioteca de aulas: as SUAS aulas salvas (o seu código) + modelos de exemplo */}
       {showLessons && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(5,7,18,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-          <div className="pop" style={{ background:"linear-gradient(180deg,#181d38,#131730)", border:"1px solid #2c3358", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
               <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📚 Minhas aulas</h2>
-              <button onClick={()=>setShowLessons(false)} style={{ background:"transparent", border:"none", color:"#96a0cc", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+              <button onClick={()=>setShowLessons(false)} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
             </div>
-            <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 14px" }}>Sua biblioteca: salve o código que está no editor com um nome e reutilize em qualquer turma, quantas vezes quiser. Carregar uma aula <b>substitui</b> o código atual da turma {shiftMeta(codeShift).label}.</p>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Sua biblioteca: salve o código que está no editor com um nome e reutilize em qualquer turma, quantas vezes quiser. Carregar uma aula <b>substitui</b> o código atual da turma {shiftMeta(codeShift).label}.</p>
 
             {/* salvar a aula atual */}
-            <div style={{ background:"#0d1122", border:"1px dashed #34d399", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
+            <div style={{ background:"#171026", border:"1px dashed #34d399", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
               <p style={{ color:"#34d399", fontSize:12.5, fontWeight:800, margin:"0 0 8px" }}>💾 Salvar o código atual ({shiftMeta(codeShift).label}) como aula</p>
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 <input value={lessonName} onChange={e=>setLessonName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveCurrentLesson()} placeholder={`Nome da aula (ex: Variáveis e ReadLine)`}
-                  style={{ flex:"1 1 220px", background:"#131730", border:"1px solid #2a3154", borderRadius:10, padding:"8px 12px", color:"#e8ebfa", fontSize:13, outline:"none" }} />
+                  style={{ flex:"1 1 220px", background:"#1a1029", border:"1px solid #3b2a58", borderRadius:10, padding:"8px 12px", color:"#f0e9fb", fontSize:13, outline:"none" }} />
                 <button onClick={saveCurrentLesson} style={{ ...styles.btn("#34d399"), padding:"8px 14px", fontSize:12.5 }}>💾 Salvar</button>
               </div>
             </div>
 
             {/* aulas salvas */}
             {myLessons.length === 0 ? (
-              <p style={{ color:"#5d679c", fontSize:13, marginBottom:14 }}>Você ainda não salvou nenhuma aula. Programe na aba Meu código e clique em Salvar acima — ela aparece aqui pra sempre.</p>
+              <p style={{ color:"#776798", fontSize:13, marginBottom:14 }}>Você ainda não salvou nenhuma aula. Programe na aba Meu código e clique em Salvar acima — ela aparece aqui pra sempre.</p>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
                 {myLessons.map((lesson, li) => (
-                  <div key={li} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 14px", flexWrap:"wrap" }}>
+                  <div key={li} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"10px 14px", flexWrap:"wrap" }}>
                     <div style={{ flex:"1 1 220px" }}>
-                      <p style={{ color:"#e8ebfa", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
-                      <p style={{ color:"#5d679c", fontSize:11.5, margin:"3px 0 0" }}>salva em {new Date(lesson.at).toLocaleDateString("pt-BR")} · {lesson.files.length} arquivo{lesson.files.length!==1?"s":""}</p>
+                      <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
+                      <p style={{ color:"#776798", fontSize:11.5, margin:"3px 0 0" }}>salva em {new Date(lesson.at).toLocaleDateString("pt-BR")} · {lesson.files.length} arquivo{lesson.files.length!==1?"s":""}</p>
                     </div>
                     <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
                       style={{ ...styles.btn("#34d399"), padding:"7px 14px", fontSize:12.5 }}>Usar esta aula →</button>
@@ -8204,19 +8204,19 @@ function TeacherView({ onLogout, teacherAuth }) {
             )}
 
             {/* modelos de exemplo (secundário, recolhido) */}
-            <button onClick={()=>setShowModels(v=>!v)} style={{ background:"transparent", border:"1px solid #2a3154", color:"#96a0cc", borderRadius:10, padding:"7px 14px", fontSize:12.5, cursor:"pointer", width:"100%" }}>
+            <button onClick={()=>setShowModels(v=>!v)} style={{ background:"transparent", border:"1px solid #3b2a58", color:"#a99ac9", borderRadius:10, padding:"7px 14px", fontSize:12.5, cursor:"pointer", width:"100%" }}>
               {showModels ? "▾" : "▸"} Modelos de exemplo do Nyx ({LESSON_LIBRARY.length}) — ponto de partida, se quiser
             </button>
             {showModels && (
               <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:10 }}>
                 {LESSON_LIBRARY.map((lesson, li) => (
-                  <div key={li} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"1px solid #2a3154", borderRadius:12, padding:"10px 14px", flexWrap:"wrap" }}>
+                  <div key={li} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"10px 14px", flexWrap:"wrap" }}>
                     <div style={{ flex:"1 1 260px" }}>
-                      <p style={{ color:"#e8ebfa", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
-                      <p style={{ color:"#96a0cc", fontSize:12, margin:"3px 0 0" }}>{lesson.desc}</p>
+                      <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
+                      <p style={{ color:"#a99ac9", fontSize:12, margin:"3px 0 0" }}>{lesson.desc}</p>
                     </div>
                     <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
-                      style={{ ...styles.btn("#2a3154"), padding:"7px 14px", fontSize:12.5 }}>Usar este modelo →</button>
+                      style={{ ...styles.btn("#3b2a58"), padding:"7px 14px", fontSize:12.5 }}>Usar este modelo →</button>
                   </div>
                 ))}
               </div>
@@ -8228,14 +8228,14 @@ function TeacherView({ onLogout, teacherAuth }) {
       {/* confirmação de reset (dentro do app, sem depender do navegador) */}
       {confirmReset && (
         <div style={{ position:"fixed", inset:0, background:"#000000aa", display:"flex", alignItems:"center", justifyContent:"center", zIndex:999, padding:16 }}>
-          <div style={{ background:"#151a31", border:"2px solid #f87171", borderRadius:16, padding:24, maxWidth:440, width:"100%" }}>
+          <div style={{ background:"#1e1430", border:"2px solid #f87171", borderRadius:16, padding:24, maxWidth:440, width:"100%" }}>
             <div style={{ fontSize:40, textAlign:"center" }}>⚠️</div>
             <h3 style={{ color:"#f87171", textAlign:"center", margin:"8px 0" }}>Resetar perfis dos alunos?</h3>
-            <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.6, textAlign:"center" }}>Isso apaga os alunos escolhidos e tudo o que eles fizeram (códigos, atividades e feedbacks). O calendário, a cidade e os nomes de conteúdo <b>não</b> são apagados. Não dá para desfazer.</p>
+            <p style={{ color:"#d6c9ec", fontSize:14, lineHeight:1.6, textAlign:"center" }}>Isso apaga os alunos escolhidos e tudo o que eles fizeram (códigos, atividades e feedbacks). O calendário, a cidade e os nomes de conteúdo <b>não</b> são apagados. Não dá para desfazer.</p>
             <button onClick={exportBackup} disabled={backupBusy} style={{ ...styles.btn("#34d399"), width:"100%", padding:"9px 0", fontSize:13, margin:"10px 0 4px", opacity:backupBusy?0.7:1 }}>
               {backupBusy ? "⏳ Gerando backup..." : "📦 Baixar backup completo antes de apagar (recomendado)"}
             </button>
-            <p style={{ color:"#96a0cc", fontSize:13, margin:"14px 0 6px" }}>O que você quer resetar?</p>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"14px 0 6px" }}>O que você quer resetar?</p>
             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
               <button onClick={()=>setResetScope("all")} style={{ ...styles.tab(resetScope==="all"), flex:"1 1 120px" }}>Todos os turnos</button>
               {SHIFTS.map(sh => (
@@ -8243,7 +8243,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               ))}
             </div>
             <div style={{ display:"flex", gap:10, marginTop:18 }}>
-              <button onClick={()=>setConfirmReset(false)} style={{ ...styles.btn("#2a3154"), flex:1 }}>Cancelar</button>
+              <button onClick={()=>setConfirmReset(false)} style={{ ...styles.btn("#3b2a58"), flex:1 }}>Cancelar</button>
               <button onClick={doReset} style={{ ...styles.btn("#f87171"), flex:1 }}>{resetScope==="all"?"Resetar todos":`Resetar ${shiftMeta(resetScope).label}`}</button>
             </div>
           </div>
@@ -8256,12 +8256,12 @@ function TeacherView({ onLogout, teacherAuth }) {
           {/* esquerda */}
           <div className="side-col" style={{ width:300, flex:"0 0 300px" }}>
             {/* Nyx de olho na turma */}
-            <div className="cardfx" style={{ ...styles.card, textAlign:"center", borderColor: needHelp.length>0 ? "#f87171" : "#272e52" }}>
+            <div className="cardfx" style={{ ...styles.card, textAlign:"center", borderColor: needHelp.length>0 ? "#f87171" : "#3a2a55" }}>
               <NyxRobot state={needHelp.length>0 ? "error" : shown.length>0 ? "ok" : "idle"} size={64} showName={false} />
               <div style={{ fontWeight:900, letterSpacing:2, fontSize:12, color:"#fbbf24", marginTop:2 }}>NYX DE OLHO</div>
-              <p style={{ color: needHelp.length>0 ? "#fca5a5" : "#96a0cc", fontSize:13, lineHeight:1.6, margin:"6px 0 0" }}>
+              <p style={{ color: needHelp.length>0 ? "#fca5a5" : "#a99ac9", fontSize:13, lineHeight:1.6, margin:"6px 0 0" }}>
                 {needHelp.length > 0
-                  ? <>⚠ Atenção com: <b style={{color:"#e8ebfa"}}>{needHelp.slice(0,4).map(s=>String(s.name).split(" ")[0]).join(", ")}{needHelp.length>4 ? ` e mais ${needHelp.length-4}` : ""}</b> — clique no aluno para ver o que houve.</>
+                  ? <>⚠ Atenção com: <b style={{color:"#f0e9fb"}}>{needHelp.slice(0,4).map(s=>String(s.name).split(" ")[0]).join(", ")}{needHelp.length>4 ? ` e mais ${needHelp.length-4}` : ""}</b> — clique no aluno para ver o que houve.</>
                   : shown.length > 0 ? "Turma indo bem! Ninguém travado no momento. 👍" : "Aguardando alunos entrarem..."}
               </p>
             </div>
@@ -8276,14 +8276,14 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
               </div>
               {mgmtMsg && <p style={{ color: mgmtMsg.startsWith("❌") ? "#f87171" : "#34d399", fontSize:13, margin:"0 0 10px" }}>{mgmtMsg}</p>}
-              {shown.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno na chamada ainda.</p> : (
+              {shown.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum aluno na chamada ainda.</p> : (
                 chamadaGroups.map((g, gi) => (
-                  <div key={g.shift.id} style={{ marginTop: gi>0 ? 18 : 0, paddingTop: gi>0 ? 16 : 0, borderTop: gi>0 ? "1px solid #2a3154" : "none" }}>
+                  <div key={g.shift.id} style={{ marginTop: gi>0 ? 18 : 0, paddingTop: gi>0 ? 16 : 0, borderTop: gi>0 ? "1px solid #3b2a58" : "none" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                      <b style={{ color:"#e8ebfa", fontSize:14 }}>{g.shift.emoji} {g.shift.label}</b>
+                      <b style={{ color:"#f0e9fb", fontSize:14 }}>{g.shift.emoji} {g.shift.label}</b>
                       <span style={styles.badge("#34d399")}>{g.online} online / {g.list.length}</span>
                     </div>
-                    {g.list.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno nesta turma ainda.</p> : (
+                    {g.list.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum aluno nesta turma ainda.</p> : (
                       <>
                         <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
                           <span style={styles.badge("#34d399")}>✅ {g.present.length} presente{g.present.length!==1?"s":""}</span>
@@ -8297,11 +8297,11 @@ function TeacherView({ onLogout, teacherAuth }) {
                             const stColor = late?"#fb923c":st==="present"?"#34d399":st==="idle"?"#fbbf24":"#f87171";
                             const stLabel = late?"⏰ Atrasado":st==="present"?"✅ Presente":st==="idle"?"⚠ Sem atividade":"❌ Falta";
                             return (
-                              <div key={s.name} className="tilefx" style={{ background:"#0d1122", border:`1px solid ${st==="absent"?"#3f2530":"#2a3154"}`, borderRadius:8, padding:"8px 10px", opacity:st==="absent"?0.7:1, animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
+                              <div key={s.name} className="tilefx" style={{ background:"#171026", border:`1px solid ${st==="absent"?"#3f2530":"#3b2a58"}`, borderRadius:8, padding:"8px 10px", opacity:st==="absent"?0.7:1, animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
                                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                                   <Avatar cfg={s.avatar} size={28} />
                                   <span style={{ fontSize:14, flex:1 }}>{dot(isOnline(s))}{s.name}</span>
-                                  <span style={{ color:"#5d679c", fontSize:11 }}>{hhmm(s.joinedAt)}</span>
+                                  <span style={{ color:"#776798", fontSize:11 }}>{hhmm(s.joinedAt)}</span>
                                 </div>
                                 <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, flexWrap:"wrap" }}>
                                   <span style={styles.badge(stColor)}>{stLabel}</span>
@@ -8314,7 +8314,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                                     <button onClick={()=>markPresentToday(s)} title="Marca a presença de hoje na mão (dia de filme, passeio, atividade sem computador...) — conta como presente normal, sem atraso" style={{ background:"transparent", color:"#34d399", border:"1px solid #34d399", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>✅ Marcar presente</button>
                                   )}
                                   {st==="present" && !isSameDayTs(s.lastSeen) && (
-                                    <button onClick={()=>unmarkPresentToday(s)} title="Este aluno foi marcado presente na mão (ele não entrou hoje) — clique pra desfazer" style={{ background:"transparent", color:"#96a0cc", border:"1px solid #3b4378", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>↩️ Desfazer</button>
+                                    <button onClick={()=>unmarkPresentToday(s)} title="Este aluno foi marcado presente na mão (ele não entrou hoje) — clique pra desfazer" style={{ background:"transparent", color:"#a99ac9", border:"1px solid #56407e", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>↩️ Desfazer</button>
                                   )}
                                 </div>
                               </div>
@@ -8337,18 +8337,18 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <span style={styles.badge(phaseColor(p))}>{todayStudents.filter(s=>dayPhase(s)===p).length}</span>
                 </div>
               ))}
-              <hr style={{ borderColor:"#2a3154", margin:"8px 0" }}/>
+              <hr style={{ borderColor:"#3b2a58", margin:"8px 0" }}/>
               <div style={{ display:"flex", justifyContent:"space-between" }}>
-                <span style={{ color:"#96a0cc", fontSize:13 }}>Média de hoje</span>
+                <span style={{ color:"#a99ac9", fontSize:13 }}>Média de hoje</span>
                 <span style={{ color:"#34d399", fontWeight:700 }}>{(() => {
                   const done = todayStudents.filter(s => s.score!=null && isSameDayTs(s.doneAt));
                   return done.length > 0 ? Math.round(done.reduce((a,s)=>a+s.score,0)/done.length)+" pts" : "—";
                 })()}</span>
               </div>
-              <button onClick={exportCSV} style={{ ...styles.btn("#2a3154"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Baixa uma planilha colorida e organizada por turno (abre no Excel), com presenças, notas e situação de cada aluno (sem a turma de teste)">
+              <button onClick={exportCSV} style={{ ...styles.btn("#3b2a58"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Baixa uma planilha colorida e organizada por turno (abre no Excel), com presenças, notas e situação de cada aluno (sem a turma de teste)">
                 ⬇️ Exportar planilha (Excel)
               </button>
-              <button onClick={exportPDF} disabled={pdfGenerating} style={{ ...styles.btn("#7c83ff"), width:"100%", marginTop:8, padding:"7px 0", fontSize:12.5, opacity: pdfGenerating ? 0.7 : 1 }} title="Gera um material de estudo em PDF: o código do professor (aba Meu código) com as explicações do Nyx — sem nome de aluno, pronto pra enviar pra turma toda">
+              <button onClick={exportPDF} disabled={pdfGenerating} style={{ ...styles.btn("#c084fc"), width:"100%", marginTop:8, padding:"7px 0", fontSize:12.5, opacity: pdfGenerating ? 0.7 : 1 }} title="Gera um material de estudo em PDF: o código do professor (aba Meu código) com as explicações do Nyx — sem nome de aluno, pronto pra enviar pra turma toda">
                 {pdfGenerating ? "⏳ Gerando PDF..." : "📄 Exportar PDF (códigos + explicações)"}
               </button>
               {pdfMsg && <p style={{ color: pdfMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:11.5, marginTop:6 }}>{pdfMsg}</p>}
@@ -8360,18 +8360,18 @@ function TeacherView({ onLogout, teacherAuth }) {
             <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
               <h4 style={{ color:"#fbbf24", fontSize:13, marginBottom:6 }}>🔧 Conexão</h4>
               {diag ? (
-                <div style={{ color:"#c7cfee", lineHeight:1.7 }}>
+                <div style={{ color:"#d6c9ec", lineHeight:1.7 }}>
                   <div>
                     Armazenamento: <b style={{ color:diag.hasStorage?"#34d399":"#f87171" }}>{diag.hasStorage?"OK":"NÃO"}</b>
                     {diag.writeRead!=="—" && <> · <b style={{ color:diag.writeRead==="ok"?"#34d399":"#f87171" }}>{diag.writeRead}</b></>}
                   </div>
-                  <div>Nyx (IA): <b style={{ color:diag.hasAI===true?"#34d399":diag.hasAI===false?"#f87171":"#96a0cc" }}>{diag.hasAI===true?"OK":diag.hasAI===false?"NÃO":"—"}</b></div>
+                  <div>Nyx (IA): <b style={{ color:diag.hasAI===true?"#34d399":diag.hasAI===false?"#f87171":"#a99ac9" }}>{diag.hasAI===true?"OK":diag.hasAI===false?"NÃO":"—"}</b></div>
 
                   {!diag.hasStorage && (
                     <div style={{ background:"#f8717115", border:"1px solid #f87171", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.9 }}>
                       <b style={{ color:"#f87171" }}>❌ Banco não configurado</b><br/>
-                      <span style={{ color:"#96a0cc" }}>
-                        No Supabase → <b style={{color:"#e8ebfa"}}>Settings → API</b>:<br/>
+                      <span style={{ color:"#a99ac9" }}>
+                        No Supabase → <b style={{color:"#f0e9fb"}}>Settings → API</b>:<br/>
                         &nbsp;• Copie <b style={{color:"#fbbf24"}}>Project URL</b> → adicione no Vercel como <code style={{color:"#60a5fa"}}>SUPABASE_URL</code><br/>
                         &nbsp;• Copie <b style={{color:"#fbbf24"}}>service_role</b> → adicione no Vercel como <code style={{color:"#60a5fa"}}>SUPABASE_SERVICE_KEY</code><br/>
                         Depois clique <b style={{color:"#34d399"}}>Inicializar banco</b> abaixo.
@@ -8383,30 +8383,30 @@ function TeacherView({ onLogout, teacherAuth }) {
                   {dbSetupSQL && (
                     <div style={{ background:"#1e3a5f", border:"1px solid #3b82f6", borderRadius:8, padding:"10px 12px", marginTop:8 }}>
                       <b style={{ color:"#93c5fd", fontSize:12 }}>Execute este SQL no Supabase:</b>
-                      <pre style={{ background:"#0d1122", borderRadius:6, padding:"8px 10px", margin:"6px 0", fontSize:11, color:"#22d3ee", overflowX:"auto", userSelect:"all" }}>{dbSetupSQL.sql}</pre>
+                      <pre style={{ background:"#171026", borderRadius:6, padding:"8px 10px", margin:"6px 0", fontSize:11, color:"#22d3ee", overflowX:"auto", userSelect:"all" }}>{dbSetupSQL.sql}</pre>
                       <a href={dbSetupSQL.sqlEditorUrl} target="_blank" rel="noreferrer"
                         style={{ display:"inline-block", background:"#3b82f6", color:"#fff", borderRadius:6, padding:"4px 12px", fontSize:12, textDecoration:"none", marginRight:8 }}>
                         Abrir SQL Editor →
                       </a>
-                      <span style={{color:"#96a0cc",fontSize:11}}>Cole o SQL acima, clique Run, depois ↻ Verificar agora</span>
+                      <span style={{color:"#a99ac9",fontSize:11}}>Cole o SQL acima, clique Run, depois ↻ Verificar agora</span>
                     </div>
                   )}
 
                   {diag.hasAI === false && (
                     <div style={{ background:"#fbbf2415", border:"1px solid #fbbf24", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.8 }}>
                       <b style={{ color:"#fbbf24" }}>⚠ Nyx (IA) sem chave de API</b><br/>
-                      <span style={{ color:"#96a0cc" }}>
+                      <span style={{ color:"#a99ac9" }}>
                         Escolha UMA opção e adicione no Vercel → Settings → Environment Variables:<br/>
-                        &nbsp;• <b style={{color:"#e8ebfa"}}>NVIDIA</b>: build.nvidia.com → adicione <code style={{color:"#60a5fa"}}>NVIDIA_API_KEY</code> + <code style={{color:"#60a5fa"}}>NVIDIA_MODEL</code><br/>
-                        &nbsp;• <b style={{color:"#e8ebfa"}}>Claude</b>: console.anthropic.com → adicione <code style={{color:"#60a5fa"}}>ANTHROPIC_API_KEY</code><br/>
-                        Depois é só dar <b style={{color:"#e8ebfa"}}>Redeploy</b>.
+                        &nbsp;• <b style={{color:"#f0e9fb"}}>NVIDIA</b>: build.nvidia.com → adicione <code style={{color:"#60a5fa"}}>NVIDIA_API_KEY</code> + <code style={{color:"#60a5fa"}}>NVIDIA_MODEL</code><br/>
+                        &nbsp;• <b style={{color:"#f0e9fb"}}>Claude</b>: console.anthropic.com → adicione <code style={{color:"#60a5fa"}}>ANTHROPIC_API_KEY</code><br/>
+                        Depois é só dar <b style={{color:"#f0e9fb"}}>Redeploy</b>.
                       </span>
                     </div>
                   )}
                 </div>
-              ) : <span style={{ color:"#5d679c" }}>verificando...</span>}
+              ) : <span style={{ color:"#776798" }}>verificando...</span>}
               <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap",alignItems:"center"}}>
-                <button style={{ ...styles.btn("#2a3154"), padding:"4px 10px", fontSize:12 }} onClick={()=>{ setDbSetupSQL(null); setDbSetupMsg(""); diagnose().then(setDiag); load(); }}>↻ Verificar agora</button>
+                <button style={{ ...styles.btn("#3b2a58"), padding:"4px 10px", fontSize:12 }} onClick={()=>{ setDbSetupSQL(null); setDbSetupMsg(""); diagnose().then(setDiag); load(); }}>↻ Verificar agora</button>
                 <button style={{...styles.btn("#166534"),padding:"4px 10px",fontSize:12,opacity:dbSetupLoading?0.6:1}} onClick={setupDb} disabled={dbSetupLoading}>{dbSetupLoading?"...":"🔧 Inicializar banco"}</button>
               </div>
               {dbSetupMsg && (
@@ -8418,18 +8418,18 @@ function TeacherView({ onLogout, teacherAuth }) {
               <h4 style={{ color:"#fbbf24", fontSize:13, marginBottom:6 }}>📖 Conteúdo de hoje</h4>
               {todayContentM
                 ? <p style={{ color:"#34d399", fontSize:13, fontWeight:600, lineHeight:1.5, margin:0 }}>☀️ Manhã: {todayContentM}</p>
-                : <p style={{ color:"#96a0cc", fontSize:12.5, lineHeight:1.5, margin:0 }}>☀️ Manhã: ainda não definido</p>}
+                : <p style={{ color:"#a99ac9", fontSize:12.5, lineHeight:1.5, margin:0 }}>☀️ Manhã: ainda não definido</p>}
               {todayContentV
                 ? <p style={{ color:"#34d399", fontSize:13, fontWeight:600, lineHeight:1.5, margin:"4px 0 0" }}>🌙 Tarde: {todayContentV}</p>
-                : <p style={{ color:"#96a0cc", fontSize:12.5, lineHeight:1.5, margin:"4px 0 0" }}>🌙 Tarde: ainda não definido</p>}
-              <p style={{ color:"#5d679c", fontSize:11.5, lineHeight:1.5, margin:"8px 0 0" }}>Programe o exemplo na aba <b>Meu código</b> e gere um nome automático. (Se ainda não programou, uso o código dos alunos.)</p>
-              <button style={{ ...styles.btn("#7c83ff"), padding:"6px 12px", fontSize:13, marginTop:8, width:"100%", opacity:genName?0.6:1 }} onClick={generateContentNameFiltered} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo"}</button>
+                : <p style={{ color:"#a99ac9", fontSize:12.5, lineHeight:1.5, margin:"4px 0 0" }}>🌙 Tarde: ainda não definido</p>}
+              <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"8px 0 0" }}>Programe o exemplo na aba <b>Meu código</b> e gere um nome automático. (Se ainda não programou, uso o código dos alunos.)</p>
+              <button style={{ ...styles.btn("#c084fc"), padding:"6px 12px", fontSize:13, marginTop:8, width:"100%", opacity:genName?0.6:1 }} onClick={generateContentNameFiltered} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo"}</button>
               {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12, marginTop:8, lineHeight:1.5 }}>{nameMsg}</p>}
             </div>
 
             <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
               <h4 style={{ color:"#f9a8d4", fontSize:13, marginBottom:6 }}>💌 Boletim pros responsáveis</h4>
-              <p style={{ color:"#5d679c", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Um PDF com uma página por aluno, em linguagem simples pra família: presenças, o que aprendeu, medalhas e um recado do Nyx. Bom pra mandar pra casa no fim do mês.</p>
+              <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Um PDF com uma página por aluno, em linguagem simples pra família: presenças, o que aprendeu, medalhas e um recado do Nyx. Bom pra mandar pra casa no fim do mês.</p>
               {SHIFTS.map(sh => (
                 <button key={sh.id} onClick={()=>exportBoletins(sh.id)} disabled={boletimBusy}
                   style={{ ...styles.btn("#ec4899"), padding:"6px 12px", fontSize:12.5, width:"100%", marginTop:6, opacity: boletimBusy ? 0.6 : 1 }}>
@@ -8441,12 +8441,12 @@ function TeacherView({ onLogout, teacherAuth }) {
 
             <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
               <h4 style={{ color:"#c4b5fd", fontSize:13, marginBottom:6 }}>🎁 Retrospectiva do mês</h4>
-              <p style={{ color:"#5d679c", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Libere no fim do mês: cada aluno vê uma tela especial com os números dele (linhas de código, presenças, conquistas...). Cada um vê a sua uma vez só.</p>
+              <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Libere no fim do mês: cada aluno vê uma tela especial com os números dele (linhas de código, presenças, conquistas...). Cada um vê a sua uma vez só.</p>
               {SHIFTS.map(sh => {
                 const on = !!(meta.retro || {})[sh.id];
                 return (
                   <button key={sh.id} onClick={()=>toggleRetro(sh.id)}
-                    style={{ ...styles.btn(on ? "#34d399" : "#7c83ff"), padding:"6px 12px", fontSize:12.5, width:"100%", marginTop:6 }}>
+                    style={{ ...styles.btn(on ? "#34d399" : "#c084fc"), padding:"6px 12px", fontSize:12.5, width:"100%", marginTop:6 }}>
                     {on ? `✅ Liberada pra turma ${sh.label} — clique pra recolher` : `🎁 Liberar pra turma ${sh.label}`}
                   </button>
                 );
@@ -8456,11 +8456,11 @@ function TeacherView({ onLogout, teacherAuth }) {
             {commonErrorsToday.length > 0 && (
               <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
                 <h4 style={{ color:"#f87171", fontSize:13, marginBottom:6 }}>🩹 Erros mais comuns agora</h4>
-                <p style={{ color:"#5d679c", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Baseado na última verificação do Nyx em cada aluno — bom pra saber o que reforçar no fechamento da aula.</p>
+                <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Baseado na última verificação do Nyx em cada aluno — bom pra saber o que reforçar no fechamento da aula.</p>
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                   {commonErrorsToday.slice(0, 6).map(c => (
-                    <div key={c.label} title={c.names.join(", ")} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"6px 10px" }}>
-                      <span style={{ color:"#e8ebfa", fontSize:12 }}>{c.label}</span>
+                    <div key={c.label} title={c.names.join(", ")} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"6px 10px" }}>
+                      <span style={{ color:"#f0e9fb", fontSize:12 }}>{c.label}</span>
                       <span style={{ background:"#f8717122", border:"1px solid #f87171", color:"#f87171", borderRadius:20, padding:"1px 9px", fontSize:11, fontWeight:800 }}>{c.count} aluno{c.count>1?"s":""}</span>
                     </div>
                   ))}
@@ -8473,14 +8473,14 @@ function TeacherView({ onLogout, teacherAuth }) {
           <div style={{ flex:"1 1 420px", minWidth:300 }}>
             <div className="cardfx" style={styles.card}>
               <h3 style={{ color:"#fbbf24", marginBottom:12 }}>👥 Monitoramento ({shown.length})</h3>
-              {shown.length===0 && <p style={{ color:"#5d679c", fontSize:13 }}>{students.length===0 ? "Aguardando alunos entrarem..." : "Nenhum aluno nesta turma. Veja outra turma no filtro acima."}</p>}
+              {shown.length===0 && <p style={{ color:"#776798", fontSize:13 }}>{students.length===0 ? "Aguardando alunos entrarem..." : "Nenhum aluno nesta turma. Veja outra turma no filtro acima."}</p>}
               <div style={{ maxHeight:400, overflowY:"auto", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(128px,1fr))", gap:8 }}>
                 {sorted.map((s, tileIdx)=>{
                   const d = difficultyOf(s);
                   const hasHand = s.helpAt && Date.now() - s.helpAt < 15 * 60 * 1000; // pedido de ajuda expira em 15 min
                   const hasError = s.errorAt && Date.now() - s.errorAt < 30 * 60 * 1000; // aviso de erro expira em 30 min
                   return (
-                    <div key={s.name} className="tilefx" onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ position:"relative", background:selected===s.name?"#7c83ff22":hasHand?"#fbbf2415":hasError?"#f8717115":"#0d1122", border:`2px solid ${selected===s.name?"#7c83ff":hasHand?"#fbbf24":hasError?"#f87171":"#2a3154"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center", animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
+                    <div key={s.name} className="tilefx" onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ position:"relative", background:selected===s.name?"#c084fc22":hasHand?"#fbbf2415":hasError?"#f8717115":"#171026", border:`2px solid ${selected===s.name?"#c084fc":hasHand?"#fbbf24":hasError?"#f87171":"#3b2a58"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center", animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
                       {hasHand && <span title="Pediu ajuda! Clique pra ver e marcar como atendido." style={{ position:"absolute", top:4, right:24, fontSize:15, animation:"pulse-dot 1s ease-in-out infinite" }}>✋</span>}
                       {hasError && <span title={`A tela deu um erro: ${s.errorMsg || "sem detalhes"}`} style={{ position:"absolute", top:4, right: hasHand?42:24, fontSize:15 }}>⚠️</span>}
                       {s.score!=null && <span style={{ position:"absolute", top:6, left:6, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:6, padding:"1px 6px", fontSize:10.5, fontWeight:800 }}>🏆 {s.score}</span>}
@@ -8496,9 +8496,9 @@ function TeacherView({ onLogout, teacherAuth }) {
                         <span style={{ ...styles.badge(phaseColor(effectivePhase(s))), fontSize:10.5 }}>{phaseLabel(effectivePhase(s))}</span>
                       </div>
                       <div style={{ marginTop:5 }}>
-                        <span style={{ ...styles.badge(d.level==="dif"?"#f87171":d.level==="bem"?"#34d399":"#96a0cc"), fontSize:10.5 }}>{d.level==="dif"?"⚠ Com dificuldade":d.level==="bem"?"✅ Indo bem":"• Começando"}</span>
+                        <span style={{ ...styles.badge(d.level==="dif"?"#f87171":d.level==="bem"?"#34d399":"#a99ac9"), fontSize:10.5 }}>{d.level==="dif"?"⚠ Com dificuldade":d.level==="bem"?"✅ Indo bem":"• Começando"}</span>
                       </div>
-                      <div style={{ color:"#5d679c", fontSize:10.5, marginTop:5 }}>visto {hhmmss(s.lastSeen)}</div>
+                      <div style={{ color:"#776798", fontSize:10.5, marginTop:5 }}>visto {hhmmss(s.lastSeen)}</div>
                     </div>
                   );
                 })}
@@ -8506,15 +8506,15 @@ function TeacherView({ onLogout, teacherAuth }) {
             </div>
 
             {/* Resumo automático (sem clicar em nada — só agregação dos dados) */}
-            <div className="cardfx" style={{ ...styles.card, borderColor:"#7c83ff" }}>
-              <h3 style={{ color:"#7c83ff", marginBottom:10 }}>📋 Resumo automático</h3>
+            <div className="cardfx" style={{ ...styles.card, borderColor:"#c084fc" }}>
+              <h3 style={{ color:"#c084fc", marginBottom:10 }}>📋 Resumo automático</h3>
               <div style={{ display:"flex", flexDirection:"column", gap:8, fontSize:13 }}>
-                <div style={{ color: absentList.length ? "#f87171" : "#5d679c" }}>
+                <div style={{ color: absentList.length ? "#f87171" : "#776798" }}>
                   {absentList.length > 0
                     ? <>🚫 <b>{absentList.length}</b> ausente{absentList.length>1?"s":""} hoje: {absentList.slice(0,5).map(s=>String(s.name).split(" ")[0]).join(", ")}{absentList.length>5?` e mais ${absentList.length-5}`:""}</>
                     : "✅ Ninguém ausente hoje nessa turma"}
                 </div>
-                <div style={{ color: needHelp.length ? "#fbbf24" : "#5d679c" }}>
+                <div style={{ color: needHelp.length ? "#fbbf24" : "#776798" }}>
                   {needHelp.length > 0
                     ? <>⚠ <b>{needHelp.length}</b> com dificuldade agora: {needHelp.slice(0,5).map(s=>String(s.name).split(" ")[0]).join(", ")}{needHelp.length>5?` e mais ${needHelp.length-5}`:""}</>
                     : "✅ Ninguém com dificuldade agora"}
@@ -8531,14 +8531,14 @@ function TeacherView({ onLogout, teacherAuth }) {
               <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
                 <div style={{ flex:"1 1 200px" }}>
                   <p style={{ color:"#34d399", fontWeight:700, marginBottom:6 }}>✅ Indo bem ({goingWell.length})</p>
-                  {goingWell.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>—</p> : goingWell.map(s=>(
-                    <div key={s.name} style={{ fontSize:13, color:"#c7cfee", marginBottom:4 }}>• <b>{s.name}</b>: {difficultyOf(s).text}</div>
+                  {goingWell.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>—</p> : goingWell.map(s=>(
+                    <div key={s.name} style={{ fontSize:13, color:"#d6c9ec", marginBottom:4 }}>• <b>{s.name}</b>: {difficultyOf(s).text}</div>
                   ))}
                 </div>
                 <div style={{ flex:"1 1 200px" }}>
                   <p style={{ color:"#f87171", fontWeight:700, marginBottom:6 }}>⚠ Precisam de ajuda ({needHelp.length})</p>
-                  {needHelp.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>—</p> : needHelp.map(s=>(
-                    <div key={s.name} style={{ fontSize:13, color:"#c7cfee", marginBottom:4 }}>• <b>{s.name}</b>: {difficultyOf(s).text}</div>
+                  {needHelp.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>—</p> : needHelp.map(s=>(
+                    <div key={s.name} style={{ fontSize:13, color:"#d6c9ec", marginBottom:4 }}>• <b>{s.name}</b>: {difficultyOf(s).text}</div>
                   ))}
                 </div>
               </div>
@@ -8560,14 +8560,14 @@ function TeacherView({ onLogout, teacherAuth }) {
                 .slice(-14);
               if (trend.length < 2) return null;
               const delta = trend[trend.length-1].avg - trend[0].avg;
-              const trendLabel = delta >= 8 ? { text:"📈 Melhorando", color:"#34d399" } : delta <= -8 ? { text:"📉 Caindo", color:"#f87171" } : { text:"➡ Estável", color:"#96a0cc" };
+              const trendLabel = delta >= 8 ? { text:"📈 Melhorando", color:"#34d399" } : delta <= -8 ? { text:"📉 Caindo", color:"#f87171" } : { text:"➡ Estável", color:"#a99ac9" };
               return (
                 <div className="cardfx" style={styles.card}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10, flexWrap:"wrap", gap:8 }}>
-                    <h3 style={{ color:"#7c83ff", margin:0 }}>📊 Evolução da turma nas últimas aulas</h3>
+                    <h3 style={{ color:"#c084fc", margin:0 }}>📊 Evolução da turma nas últimas aulas</h3>
                     <span style={{ ...styles.badge(trendLabel.color) }}>{trendLabel.text}</span>
                   </div>
-                  <p style={{ color:"#5d679c", fontSize:12, margin:"0 0 12px" }}>Média da nota de atividade de todos os alunos, dia a dia — ajuda a ver se a turma está indo melhor ou pior de uma aula pra outra.</p>
+                  <p style={{ color:"#776798", fontSize:12, margin:"0 0 12px" }}>Média da nota de atividade de todos os alunos, dia a dia — ajuda a ver se a turma está indo melhor ou pior de uma aula pra outra.</p>
                   <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:110, overflowX:"auto", paddingBottom:4 }}>
                     {trend.map(({date, avg, count}) => {
                       const [, m, dd] = date.split("-");
@@ -8576,7 +8576,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                         <div key={date} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
                           <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{avg}</span>
                           <div style={{ width:24, height:Math.max(4, Math.round(avg*0.7)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color,-0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${dd}/${m}: média ${avg} pts (${count} aluno${count>1?"s":""})`} />
-                          <span style={{ color:"#5d679c", fontSize:10 }}>{dd}/{m}</span>
+                          <span style={{ color:"#776798", fontSize:10 }}>{dd}/{m}</span>
                         </div>
                       );
                     })}
@@ -8602,34 +8602,34 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <h4 style={{ color:"#fbbf24", marginBottom:12 }}>⚙️ Gerenciar aluno</h4>
                   <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>✏️ Nome:</span>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>✏️ Nome:</span>
                       <input value={renameVal} onChange={e=>setRenameVal(e.target.value)} placeholder={sel.name}
-                        style={{ flex:1, minWidth:140, background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 10px", color:"#e8ebfa", fontSize:13, outline:"none" }} />
-                      <button onClick={()=>doRenameStudent(sel)} disabled={!renameVal.trim()} style={{ ...styles.btn("#7c83ff"), padding:"6px 14px", fontSize:12.5, opacity:renameVal.trim()?1:0.5 }}>Renomear</button>
+                        style={{ flex:1, minWidth:140, background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 10px", color:"#f0e9fb", fontSize:13, outline:"none" }} />
+                      <button onClick={()=>doRenameStudent(sel)} disabled={!renameVal.trim()} style={{ ...styles.btn("#c084fc"), padding:"6px 14px", fontSize:12.5, opacity:renameVal.trim()?1:0.5 }}>Renomear</button>
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🕑 Turma:</span>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>🕑 Turma:</span>
                       {[...SHIFTS, TEST_SHIFT].filter(sh => sh.id !== (sel.shift||"sem-turno")).map(sh => (
-                        <button key={sh.id} onClick={()=>doMoveStudent(sel, sh.id)} style={{ ...styles.btn("#2a3154"), padding:"6px 12px", fontSize:12.5 }}>
+                        <button key={sh.id} onClick={()=>doMoveStudent(sel, sh.id)} style={{ ...styles.btn("#3b2a58"), padding:"6px 12px", fontSize:12.5 }}>
                           Mover p/ {sh.emoji} {sh.label}
                         </button>
                       ))}
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🏆 Nota:</span>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>🏆 Nota:</span>
                       <input type="number" min={0} max={100} value={scoreVal} onChange={e=>setScoreVal(e.target.value)} placeholder={sel.score!=null?String(sel.score):"—"}
-                        style={{ width:90, background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 10px", color:"#e8ebfa", fontSize:13, outline:"none" }} />
+                        style={{ width:90, background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 10px", color:"#f0e9fb", fontSize:13, outline:"none" }} />
                       <button onClick={()=>doSetScore(sel)} disabled={scoreVal===""} style={{ ...styles.btn("#34d399"), padding:"6px 14px", fontSize:12.5, opacity:scoreVal!==""?1:0.5 }}>Alterar nota da atividade</button>
                     </div>
-                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
-                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🧩 Acessibilidade:</span>
-                      <button onClick={()=>doToggleAccessMode(sel)} style={{ ...styles.btn(selAccessMode?"#22d3ee":"#2a3154"), padding:"6px 14px", fontSize:12.5 }}>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>🧩 Acessibilidade:</span>
+                      <button onClick={()=>doToggleAccessMode(sel)} style={{ ...styles.btn(selAccessMode?"#22d3ee":"#3b2a58"), padding:"6px 14px", fontSize:12.5 }}>
                         {selAccessMode ? "✅ Modo Guiado ativado" : "Ativar Modo Guiado"}
                       </button>
-                      <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>{selAccessMode ? "O editor de código deste aluno vira uma montagem de blocos clicáveis, com narração por voz." : "Troca o editor de código por blocos clicáveis + narração por voz, para alunos com dificuldade de ler/escrever/digitar."}</span>
+                      <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>{selAccessMode ? "O editor de código deste aluno vira uma montagem de blocos clicáveis, com narração por voz." : "Troca o editor de código por blocos clicáveis + narração por voz, para alunos com dificuldade de ler/escrever/digitar."}</span>
                     </div>
-                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"flex-start", borderTop:"1px solid #2a3154", paddingTop:10 }}>
-                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88, paddingTop:6 }}>💙 Apoio:</span>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"flex-start", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88, paddingTop:6 }}>💙 Apoio:</span>
                       <div style={{ flex:1, minWidth:220 }}>
                         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                           {[
@@ -8640,12 +8640,12 @@ function TeacherView({ onLogout, teacherAuth }) {
                             ["motora", "🖐️ Motora", "Sugere o tutorial de teclado pra esse aluno automaticamente — ajuda quem tem dificuldade motora pra digitar."],
                           ].map(([flag, label, hint]) => (
                             <button key={flag} onClick={()=>doToggleSupport(sel, flag, label)} title={hint}
-                              style={{ background: selSupport[flag] ? "#3b82f6" : "#0d1122", color: selSupport[flag] ? "#fff" : "#96a0cc", border:`1px solid ${selSupport[flag] ? "#3b82f6" : "#2a3154"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:12 }}>
+                              style={{ background: selSupport[flag] ? "#3b82f6" : "#171026", color: selSupport[flag] ? "#fff" : "#a99ac9", border:`1px solid ${selSupport[flag] ? "#3b82f6" : "#3b2a58"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:12 }}>
                               {selSupport[flag] ? "✓ " : ""}{label}
                             </button>
                           ))}
                         </div>
-                        <p style={{ color:"#5d679c", fontSize:11.5, margin:"6px 0 0" }}>Perfis de apoio pra educação inclusiva — a tela do aluno se adapta sozinha. Só você vê essas marcações; os colegas não.</p>
+                        <p style={{ color:"#776798", fontSize:11.5, margin:"6px 0 0" }}>Perfis de apoio pra educação inclusiva — a tela do aluno se adapta sozinha. Só você vê essas marcações; os colegas não.</p>
                       </div>
                     </div>
                     {sel.helpAt && Date.now() - sel.helpAt < 15 * 60 * 1000 && (
@@ -8666,32 +8666,32 @@ function TeacherView({ onLogout, teacherAuth }) {
                           const [y, m, dd] = d.split("-");
                           return (
                             <div key={d} style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-                              <span style={{ color:"#e8ebfa", fontSize:12.5 }}>📅 {dd}/{m}/{y}: <i>"{j.text}"</i></span>
+                              <span style={{ color:"#f0e9fb", fontSize:12.5 }}>📅 {dd}/{m}/{y}: <i>"{j.text}"</i></span>
                               <button onClick={()=>doApproveJustification(sel, d)} style={{ ...styles.btn("#34d399"), padding:"5px 12px", fontSize:12 }}>✔ Justificar</button>
                             </div>
                           );
                         })}
                       </div>
                     )}
-                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
-                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>⌨️ Teclado:</span>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>⌨️ Teclado:</span>
                       <button onClick={async ()=>{ await setKeyboardLaunch(sel.shift, sel.name, teacherAuth); flashMgmt(`⌨️ Tutorial de teclado aberto na tela de ${sel.name}.`); }} style={{ ...styles.btn("#22d3ee"), padding:"6px 14px", fontSize:12.5 }}>Abrir na tela do aluno</button>
-                      <span style={{ color: sel.keyboardDone ? "#34d399" : "#5d679c", fontSize:11.5, flex:"1 1 200px" }}>{sel.keyboardDone ? "✅ Já concluiu o tutorial." : "Ainda não concluiu o tutorial."}</span>
+                      <span style={{ color: sel.keyboardDone ? "#34d399" : "#776798", fontSize:11.5, flex:"1 1 200px" }}>{sel.keyboardDone ? "✅ Já concluiu o tutorial." : "Ainda não concluiu o tutorial."}</span>
                     </div>
-                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
-                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🔍 Vistoria:</span>
-                      <button onClick={()=>doToggleInspection(sel)} style={{ ...styles.btn(selInspection?"#22d3ee":"#2a3154"), padding:"6px 14px", fontSize:12.5 }}>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>🔍 Vistoria:</span>
+                      <button onClick={()=>doToggleInspection(sel)} style={{ ...styles.btn(selInspection?"#22d3ee":"#3b2a58"), padding:"6px 14px", fontSize:12.5 }}>
                         {selInspection ? "✅ Vistoria aberta — Encerrar" : "Liberar fora do horário"}
                       </button>
-                      <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>{selInspection ? "Esse aluno consegue entrar agora, mesmo fora do horário configurado." : "Se o horário automático estiver fechado, isso libera só ESTE aluno pra você inspecionar o trabalho dele."}</span>
+                      <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>{selInspection ? "Esse aluno consegue entrar agora, mesmo fora do horário configurado." : "Se o horário automático estiver fechado, isso libera só ESTE aluno pra você inspecionar o trabalho dele."}</span>
                     </div>
-                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
-                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>📤 Código:</span>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>📤 Código:</span>
                       <button onClick={()=>doSendClassCode(sel)} style={{ ...styles.btn("#22d3ee"), padding:"6px 14px", fontSize:12.5 }}>Enviar código da turma</button>
-                      <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>Manda todos os arquivos da aba "Meu código" (turno {shiftLabel(sel.shift)}) direto pro editor deste aluno.</span>
+                      <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>Manda todos os arquivos da aba "Meu código" (turno {shiftLabel(sel.shift)}) direto pro editor deste aluno.</span>
                     </div>
-                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
-                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>📄 PDF do dia:</span>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>📄 PDF do dia:</span>
                       <button onClick={()=>{
                         const dayFiles = (proFilesByShift[sel.shift] || []).filter(f => (f.code||"").trim());
                         setDailyPdfCode(dayFiles.map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n"));
@@ -8700,16 +8700,16 @@ function TeacherView({ onLogout, teacherAuth }) {
                       }} disabled={dailyPdfBusy} style={{ ...styles.btn("#fbbf24"), padding:"6px 14px", fontSize:12.5, opacity: dailyPdfBusy ? 0.7 : 1 }}>
                         {dailyPdfBusy ? "⏳ Gerando..." : "Gerar resumo de hoje em PDF"}
                       </button>
-                      <span style={{ color:"#5d679c", fontSize:11.5, flex:"1 1 200px" }}>Confirme o código de hoje e o Nyx gera a explicação — bom pra mandar pra quem faltou.</span>
+                      <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>Confirme o código de hoje e o Nyx gera a explicação — bom pra mandar pra quem faltou.</span>
                       {dailyPdfMsg && <p style={{ width:"100%", margin:0, color: dailyPdfMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:11.5 }}>{dailyPdfMsg}</p>}
                     </div>
-                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #2a3154", paddingTop:10 }}>
-                      <span style={{ color:"#96a0cc", fontSize:13, minWidth:88 }}>🗑️ Perfil:</span>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>🗑️ Perfil:</span>
                       {confirmDelete ? (
                         <>
                           <span style={{ color:"#f87171", fontSize:13 }}>Excluir <b>{sel.name}</b> e tudo o que ele fez? Não dá para desfazer.</span>
                           <button onClick={()=>doDeleteStudent(sel)} style={{ ...styles.btn("#f87171"), padding:"6px 14px", fontSize:12.5 }}>Sim, excluir</button>
-                          <button onClick={()=>setConfirmDelete(false)} style={{ ...styles.btn("#2a3154"), padding:"6px 14px", fontSize:12.5 }}>Cancelar</button>
+                          <button onClick={()=>setConfirmDelete(false)} style={{ ...styles.btn("#3b2a58"), padding:"6px 14px", fontSize:12.5 }}>Cancelar</button>
                         </>
                       ) : (
                         <button onClick={()=>setConfirmDelete(true)} style={{ ...styles.btn("#f87171"), padding:"6px 14px", fontSize:12.5 }}>Excluir perfil do aluno</button>
@@ -8720,18 +8720,18 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
                 {Array.isArray(sel.files) && sel.files.length>0 ? sel.files.map((f,i)=>(
                   <div key={i} className="cardfx" style={styles.card}>
-                    <h4 style={{ color:"#7c83ff", marginBottom:8 }}>📄 {f.name}</h4>
+                    <h4 style={{ color:"#c084fc", marginBottom:8 }}>📄 {f.name}</h4>
                     <pre style={{ background:"#1e1e1e", padding:12, borderRadius:8, fontFamily:"monospace", fontSize:13, color:"#a5f3fc", overflow:"auto", maxHeight:240, whiteSpace:"pre-wrap" }}>{f.code || "(vazio)"}</pre>
                   </div>
                 )) : sel.code && (
                   <div className="cardfx" style={styles.card}>
-                    <h4 style={{ color:"#7c83ff", marginBottom:8 }}>💻 Código</h4>
+                    <h4 style={{ color:"#c084fc", marginBottom:8 }}>💻 Código</h4>
                     <pre style={{ background:"#1e1e1e", padding:12, borderRadius:8, fontFamily:"monospace", fontSize:13, color:"#a5f3fc", overflow:"auto", maxHeight:240, whiteSpace:"pre-wrap" }}>{sel.code}</pre>
                   </div>
                 )}
                 {sel.scoreHistory && Object.keys(sel.scoreHistory).length > 0 && (
                   <div className="cardfx" style={styles.card}>
-                    <h4 style={{ color:"#7c83ff", marginBottom:12 }}>📈 Histórico de notas (atividades)</h4>
+                    <h4 style={{ color:"#c084fc", marginBottom:12 }}>📈 Histórico de notas (atividades)</h4>
                     <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:110, overflowX:"auto", paddingBottom:4 }}>
                       {Object.entries(sel.scoreHistory).sort(([a],[b])=>a.localeCompare(b)).slice(-14).map(([d,n])=>{
                         const [, m, dd] = d.split("-");
@@ -8740,20 +8740,20 @@ function TeacherView({ onLogout, teacherAuth }) {
                           <div key={d} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
                             <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{n}</span>
                             <div style={{ width:24, height:Math.max(4, Math.round(n*0.7)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color,-0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${dd}/${m}: ${n} pts`} />
-                            <span style={{ color:"#5d679c", fontSize:10 }}>{dd}/{m}</span>
+                            <span style={{ color:"#776798", fontSize:10 }}>{dd}/{m}</span>
                           </div>
                         );
                       })}
                     </div>
                   </div>
                 )}
-                {sel.feedback && <div className="cardfx" style={styles.card}><h4 style={{ color:"#7c83ff", marginBottom:6 }}>🤖 Nyx (último aviso)</h4><p style={{ color:sel.feedback.ok?"#34d399":"#f87171", fontSize:13 }}>{sel.feedback.ok?"✅":"⚠"} {sel.feedback.message}</p></div>}
+                {sel.feedback && <div className="cardfx" style={styles.card}><h4 style={{ color:"#c084fc", marginBottom:6 }}>🤖 Nyx (último aviso)</h4><p style={{ color:sel.feedback.ok?"#34d399":"#f87171", fontSize:13 }}>{sel.feedback.ok?"✅":"⚠"} {sel.feedback.message}</p></div>}
                 {sel.answers && sel.dynamicActivity && (
                   <div className="cardfx" style={styles.card}>
-                    <h4 style={{ color:"#7c83ff", marginBottom:10 }}>📝 Atividade</h4>
+                    <h4 style={{ color:"#c084fc", marginBottom:10 }}>📝 Atividade</h4>
                     {sel.dynamicActivity.map((q,i)=>(
-                      <div key={i} style={{ marginBottom:10, background:"#0d1122", borderRadius:8, padding:"8px 12px" }}>
-                        <p style={{ fontSize:13, color:"#96a0cc", marginBottom:4 }}>{i+1}. {q.q}</p>
+                      <div key={i} style={{ marginBottom:10, background:"#171026", borderRadius:8, padding:"8px 12px" }}>
+                        <p style={{ fontSize:13, color:"#a99ac9", marginBottom:4 }}>{i+1}. {q.q}</p>
                         <span style={styles.badge(sel.answers[i]===q.correct?"#34d399":"#f87171")}>{sel.answers[i]===q.correct?"✅ Correto":"❌ Errado"}</span>
                       </div>
                     ))}
@@ -8763,13 +8763,13 @@ function TeacherView({ onLogout, teacherAuth }) {
                   const fb = sel.finalFeedback;
                   const st = fb && typeof fb === "object" && Array.isArray(fb.secoes);
                   const text = st ? [fb.intro, ...fb.secoes.map(s=>`${s.titulo}: ${s.explicacao}`), fb.dica ? `Dica: ${fb.dica}` : ""].filter(Boolean).join("\n") : (typeof fb === "string" ? fb : "");
-                  return text ? <div className="cardfx" style={styles.card}><h4 style={{ color:"#7c83ff", marginBottom:8 }}>🤖 Feedback do Nyx ao aluno</h4><p style={{ color:"#c7cfee", fontSize:13, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{text}</p></div> : null;
+                  return text ? <div className="cardfx" style={styles.card}><h4 style={{ color:"#c084fc", marginBottom:8 }}>🤖 Feedback do Nyx ao aluno</h4><p style={{ color:"#d6c9ec", fontSize:13, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{text}</p></div> : null;
                 })()}
               </>
             ) : (
               <div className="cardfx" style={{ ...styles.card, textAlign:"center", padding:40 }}>
                 <div style={{ fontSize:36 }}>👆</div>
-                <p style={{ color:"#5d679c" }}>Clique em um aluno no monitoramento para ver o código, a atividade e os detalhes.</p>
+                <p style={{ color:"#776798" }}>Clique em um aluno no monitoramento para ver o código, a atividade e os detalhes.</p>
               </div>
             )}
           </div>
@@ -8783,11 +8783,11 @@ function TeacherView({ onLogout, teacherAuth }) {
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, flexWrap:"wrap" }}>
                 <div style={{ flex:"1 1 260px" }}>
                   <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>👨‍💻 Meu código</h3>
-                  <p style={{ color:"#96a0cc", fontSize:12.5, margin:"3px 0 0", lineHeight:1.5 }}>Cada turma tem seu próprio exemplo. Programe aqui e gere o nome do conteúdo a partir dele — é isso que aparece no calendário.</p>
+                  <p style={{ color:"#a99ac9", fontSize:12.5, margin:"3px 0 0", lineHeight:1.5 }}>Cada turma tem seu próprio exemplo. Programe aqui e gere o nome do conteúdo a partir dele — é isso que aparece no calendário.</p>
                 </div>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   <button style={{ ...styles.btn("#34d399"), padding:"7px 12px", fontSize:12.5 }} onClick={()=>setShowLessons(true)} title="Sua biblioteca de aulas: salve o código atual com um nome e reutilize quando quiser">📚 Minhas aulas</button>
-                  <button style={{ ...styles.btn("#7c83ff"), opacity:genName?0.6:1, padding:"7px 12px", fontSize:12.5 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift).label})`}</button>
+                  <button style={{ ...styles.btn("#c084fc"), opacity:genName?0.6:1, padding:"7px 12px", fontSize:12.5 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift).label})`}</button>
                 </div>
               </div>
               <div style={{ display:"flex", gap:8, marginTop:10 }}>
@@ -8814,25 +8814,25 @@ function TeacherView({ onLogout, teacherAuth }) {
                 ))}
               </div>
             </div>
-            <p style={{ color:"#96a0cc", fontSize:13, marginBottom:12 }}>Os dias com aula ficam em verde (são marcados sozinhos quando há alunos online, e você também pode clicar para marcar/desmarcar). O 📖 indica os dias que já têm conteúdo gerado para a turma {shiftMeta(codeShift).label} — passe o mouse para ver o tema.</p>
+            <p style={{ color:"#a99ac9", fontSize:13, marginBottom:12 }}>Os dias com aula ficam em verde (são marcados sozinhos quando há alunos online, e você também pode clicar para marcar/desmarcar). O 📖 indica os dias que já têm conteúdo gerado para a turma {shiftMeta(codeShift).label} — passe o mouse para ver o tema.</p>
             <Calendar classDays={meta.classDays||[]} contentNames={calContentNames} onToggle={toggleClassDay} />
           </div>
           <div className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:12 }}>📍 Sua cidade no DF</h3>
             <input list="df-cities" value={cityInput} onChange={e=>setCityInput(e.target.value)} onBlur={saveCity} placeholder="Ex: Ceilândia"
-              style={{ width:"100%", background:"#0d1122", border:"2px solid #2a3154", borderRadius:10, padding:"10px 12px", color:"#e8ebfa", fontSize:15, boxSizing:"border-box" }} />
+              style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"10px 12px", color:"#f0e9fb", fontSize:15, boxSizing:"border-box" }} />
             <datalist id="df-cities">{DF_CITIES.map(c=><option key={c} value={c} />)}</datalist>
-            <button style={{ ...styles.btn("#7c83ff"), marginTop:10 }} onClick={saveCity}>Salvar cidade</button>
+            <button style={{ ...styles.btn("#c084fc"), marginTop:10 }} onClick={saveCity}>Salvar cidade</button>
             {meta.city && <p style={{ color:"#34d399", fontSize:13, marginTop:10 }}>Cidade salva: {meta.city}</p>}
-            <hr style={{ borderColor:"#2a3154", margin:"14px 0" }}/>
-            <p style={{ color:"#96a0cc", fontSize:13 }}>Total de dias de aula registrados: <b style={{ color:"#e8ebfa" }}>{(meta.classDays||[]).length}</b></p>
-            <hr style={{ borderColor:"#2a3154", margin:"14px 0" }}/>
+            <hr style={{ borderColor:"#3b2a58", margin:"14px 0" }}/>
+            <p style={{ color:"#a99ac9", fontSize:13 }}>Total de dias de aula registrados: <b style={{ color:"#f0e9fb" }}>{(meta.classDays||[]).length}</b></p>
+            <hr style={{ borderColor:"#3b2a58", margin:"14px 0" }}/>
             <p style={{ color:"#fbbf24", fontWeight:700, fontSize:13, marginBottom:6 }}>🏆 Hall da Fama</p>
-            <p style={{ color:"#96a0cc", fontSize:12.5, lineHeight:1.6, margin:"0 0 10px" }}>Quando a carreta for mudar de cidade, encerre aqui: guarda uma placa com quem mais se destacou, pros alunos da próxima cidade verem, e baixa um relatório de despedida em PDF pra você guardar. Não apaga nada da turma atual — exceto a data de nascimento e o CPF de todos, que somem pra sempre (nem você mais tem acesso).</p>
+            <p style={{ color:"#a99ac9", fontSize:12.5, lineHeight:1.6, margin:"0 0 10px" }}>Quando a carreta for mudar de cidade, encerre aqui: guarda uma placa com quem mais se destacou, pros alunos da próxima cidade verem, e baixa um relatório de despedida em PDF pra você guardar. Não apaga nada da turma atual — exceto a data de nascimento e o CPF de todos, que somem pra sempre (nem você mais tem acesso).</p>
             {confirmCloseCity ? (
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 <button style={{ ...styles.btn("#fbbf24"), opacity:farewellBusy?0.6:1 }} onClick={doCloseCity} disabled={farewellBusy}>{farewellBusy ? "Gerando relatório..." : `Sim, encerrar ${meta.city || "a cidade"}`}</button>
-                <button style={styles.btn("#2a3154")} onClick={()=>setConfirmCloseCity(false)} disabled={farewellBusy}>Cancelar</button>
+                <button style={styles.btn("#3b2a58")} onClick={()=>setConfirmCloseCity(false)} disabled={farewellBusy}>Cancelar</button>
               </div>
             ) : (
               <button style={{ ...styles.btn("#fbbf24"), width:"100%" }} onClick={()=>setConfirmCloseCity(true)}>🏆 Encerrar cidade e gerar placa + relatório</button>
@@ -8842,7 +8842,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           </div>
           <div className="cardfx" style={{ ...styles.card, flex:"1 1 300px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🕐 Horário da turma ({shiftMeta(codeShift).label})</h3>
-            <p style={{ color:"#96a0cc", fontSize:12.5, margin:"0 0 12px", lineHeight:1.6 }}>Defina o horário e o Nyx libera/bloqueia o perfil dos alunos sozinho. Deixe em branco pra não restringir nada.</p>
+            <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 12px", lineHeight:1.6 }}>Defina o horário e o Nyx libera/bloqueia o perfil dos alunos sozinho. Deixe em branco pra não restringir nada.</p>
             {(() => {
               const sc = schedule[codeShift] || {};
               const setSc = (patch) => setSchedule(prev => ({ ...prev, [codeShift]: { ...(prev[codeShift]||{}), ...patch } }));
@@ -8850,24 +8850,24 @@ function TeacherView({ onLogout, teacherAuth }) {
               return (
                 <>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
-                    <label style={{ fontSize:11.5, color:"#96a0cc" }}>Início da aula
-                      <input type="time" value={sc.start||""} onChange={e=>setSc({start:e.target.value})} style={{ width:"100%", background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 8px", color:"#e8ebfa", fontSize:13, marginTop:3 }} />
+                    <label style={{ fontSize:11.5, color:"#a99ac9" }}>Início da aula
+                      <input type="time" value={sc.start||""} onChange={e=>setSc({start:e.target.value})} style={{ width:"100%", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 8px", color:"#f0e9fb", fontSize:13, marginTop:3 }} />
                     </label>
-                    <label style={{ fontSize:11.5, color:"#96a0cc" }}>Fim da aula
-                      <input type="time" value={sc.end||""} onChange={e=>setSc({end:e.target.value})} style={{ width:"100%", background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 8px", color:"#e8ebfa", fontSize:13, marginTop:3 }} />
+                    <label style={{ fontSize:11.5, color:"#a99ac9" }}>Fim da aula
+                      <input type="time" value={sc.end||""} onChange={e=>setSc({end:e.target.value})} style={{ width:"100%", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 8px", color:"#f0e9fb", fontSize:13, marginTop:3 }} />
                     </label>
                   </div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
-                    <label style={{ fontSize:11.5, color:"#96a0cc" }}>Início do intervalo
-                      <input type="time" value={sc.breakStart||""} onChange={e=>setSc({breakStart:e.target.value})} style={{ width:"100%", background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 8px", color:"#e8ebfa", fontSize:13, marginTop:3 }} />
+                    <label style={{ fontSize:11.5, color:"#a99ac9" }}>Início do intervalo
+                      <input type="time" value={sc.breakStart||""} onChange={e=>setSc({breakStart:e.target.value})} style={{ width:"100%", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 8px", color:"#f0e9fb", fontSize:13, marginTop:3 }} />
                     </label>
-                    <label style={{ fontSize:11.5, color:"#96a0cc" }}>Duração (min)
-                      <input type="number" min={0} value={sc.breakMin||""} onChange={e=>setSc({breakMin:e.target.value})} placeholder="ex: 15" style={{ width:"100%", background:"#0d1122", border:"1px solid #2a3154", borderRadius:8, padding:"7px 8px", color:"#e8ebfa", fontSize:13, marginTop:3, boxSizing:"border-box" }} />
+                    <label style={{ fontSize:11.5, color:"#a99ac9" }}>Duração (min)
+                      <input type="number" min={0} value={sc.breakMin||""} onChange={e=>setSc({breakMin:e.target.value})} placeholder="ex: 15" style={{ width:"100%", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 8px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box" }} />
                     </label>
                   </div>
-                  <button style={{ ...styles.btn("#7c83ff"), width:"100%", padding:"8px 0", fontSize:13 }} onClick={saveSchedule}>💾 Salvar horário</button>
+                  <button style={{ ...styles.btn("#c084fc"), width:"100%", padding:"8px 0", fontSize:13 }} onClick={saveSchedule}>💾 Salvar horário</button>
                   {scheduleMsg && <p style={{ color:"#34d399", fontSize:12, margin:"8px 0 0" }}>{scheduleMsg}</p>}
-                  <p style={{ fontSize:12, margin:"10px 0 0", fontWeight:700, color: !status.configured ? "#5d679c" : status.open ? (status.inBreak ? "#22d3ee" : "#34d399") : "#f87171" }}>
+                  <p style={{ fontSize:12, margin:"10px 0 0", fontWeight:700, color: !status.configured ? "#776798" : status.open ? (status.inBreak ? "#22d3ee" : "#34d399") : "#f87171" }}>
                     {!status.configured ? "⚪ Sem restrição — aberto o dia todo" : status.inBreak ? `🍎 Em intervalo agora (volta em ${status.minutesToBreakEnd}min)` : status.open ? "🟢 Aula liberada agora" : status.before ? `🔴 Fechado — abre às ${sc.start}` : "🔴 Fechado — aula já encerrou hoje"}
                   </p>
                 </>
@@ -8878,8 +8878,8 @@ function TeacherView({ onLogout, teacherAuth }) {
             <h3 style={{ color:"#fbbf24", marginBottom:8 }}>📖 Conteúdo de hoje ({shiftMeta(codeShift).label})</h3>
             {contentFor(codeShift)
               ? <p style={{ color:"#34d399", fontSize:16, fontWeight:600, lineHeight:1.5, margin:"4px 0 12px" }}>{contentFor(codeShift)}</p>
-              : <p style={{ color:"#96a0cc", fontSize:13, lineHeight:1.6, margin:"4px 0 12px" }}>Ainda não gerado. Programe o exemplo do dia na aba <b>Meu código</b> e clique abaixo para criar um nome automático.</p>}
-            <button style={{ ...styles.btn("#7c83ff"), width:"100%", opacity:genName?0.6:1 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo de hoje"}</button>
+              : <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, margin:"4px 0 12px" }}>Ainda não gerado. Programe o exemplo do dia na aba <b>Meu código</b> e clique abaixo para criar um nome automático.</p>}
+            <button style={{ ...styles.btn("#c084fc"), width:"100%", opacity:genName?0.6:1 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo de hoje"}</button>
             {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12, marginTop:10, lineHeight:1.5 }}>{nameMsg}</p>}
           </div>
         </div>
@@ -8890,18 +8890,18 @@ function TeacherView({ onLogout, teacherAuth }) {
         <div style={{ padding:14, maxWidth:760, margin:"0 auto" }}>
           <div className="cardfx" style={styles.card}>
             <h3 style={{ color:"#fbbf24", marginBottom:12 }}>💬 Feedback dos alunos sobre as aulas</h3>
-            <p style={{ color:"#96a0cc", fontSize:12.5, margin:"-4px 0 12px" }}>Do mais recente para o mais antigo, com a turma de cada aluno.</p>
-            {feedbacks.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno enviou feedback ainda. Eles podem avaliar ao terminar a aula.</p> : (
+            <p style={{ color:"#a99ac9", fontSize:12.5, margin:"-4px 0 12px" }}>Do mais recente para o mais antigo, com a turma de cada aluno.</p>
+            {feedbacks.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum aluno enviou feedback ainda. Eles podem avaliar ao terminar a aula.</p> : (
               feedbacks.map(s=>(
-                <div key={s.name} style={{ background:"#0d1122", border:"1px solid #2a3154", borderRadius:10, padding:14, marginBottom:10 }}>
+                <div key={s.name} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:10, padding:14, marginBottom:10 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6, flexWrap:"wrap" }}>
                     <Avatar cfg={s.avatar} size={30} />
                     <b>{s.name}</b>
-                    <span style={{ ...styles.badge(s.shift===TEST_SHIFT.id?"#a855f7":"#7c83ff"), fontWeight:700 }}>{shiftLabel(s.shift)}</span>
+                    <span style={{ ...styles.badge(s.shift===TEST_SHIFT.id?"#a855f7":"#c084fc"), fontWeight:700 }}>{shiftLabel(s.shift)}</span>
                     <span style={{ color:"#fbbf24" }}>{"★".repeat(s.classFeedback.rating||0)}{"☆".repeat(5-(s.classFeedback.rating||0))}</span>
-                    <span style={{ color:"#5d679c", fontSize:11, marginLeft:"auto", whiteSpace:"nowrap" }}>🕒 {dataHora(s.classFeedback.at)}</span>
+                    <span style={{ color:"#776798", fontSize:11, marginLeft:"auto", whiteSpace:"nowrap" }}>🕒 {dataHora(s.classFeedback.at)}</span>
                   </div>
-                  {(s.classFeedback.text||"").trim() ? <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.6 }}>{s.classFeedback.text}</p> : <p style={{ color:"#5d679c", fontSize:13 }}>(sem comentário escrito)</p>}
+                  {(s.classFeedback.text||"").trim() ? <p style={{ color:"#d6c9ec", fontSize:14, lineHeight:1.6 }}>{s.classFeedback.text}</p> : <p style={{ color:"#776798", fontSize:13 }}>(sem comentário escrito)</p>}
                 </div>
               ))
             )}
@@ -8922,12 +8922,12 @@ function TeacherView({ onLogout, teacherAuth }) {
             {/* confirmação de encerrar */}
             {confirmEndExam && (
               <div style={{ position:"fixed", inset:0, background:"#000000aa", display:"flex", alignItems:"center", justifyContent:"center", zIndex:999, padding:16 }}>
-                <div style={{ background:"#151a31", border:"2px solid #fbbf24", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
+                <div style={{ background:"#1e1430", border:"2px solid #fbbf24", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
                   <div style={{ fontSize:40, textAlign:"center" }}>⚠️</div>
                   <h3 style={{ color:"#fbbf24", textAlign:"center", margin:"8px 0" }}>Encerrar a prova agora?</h3>
-                  <p style={{ color:"#c7cfee", fontSize:14, textAlign:"center", lineHeight:1.6 }}>Os alunos que ainda não terminaram terão a pontuação parcial registrada.</p>
+                  <p style={{ color:"#d6c9ec", fontSize:14, textAlign:"center", lineHeight:1.6 }}>Os alunos que ainda não terminaram terão a pontuação parcial registrada.</p>
                   <div style={{ display:"flex", gap:10, marginTop:18 }}>
-                    <button onClick={()=>setConfirmEndExam(false)} style={{ ...styles.btn("#2a3154"), flex:1 }}>Cancelar</button>
+                    <button onClick={()=>setConfirmEndExam(false)} style={{ ...styles.btn("#3b2a58"), flex:1 }}>Cancelar</button>
                     <button onClick={endExam} style={{ ...styles.btn("#f87171"), flex:1 }}>Encerrar</button>
                   </div>
                 </div>
@@ -8938,16 +8938,16 @@ function TeacherView({ onLogout, teacherAuth }) {
             {examConfig.status === 'idle' && (
               <div className="cardfx" style={styles.card}>
                 <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🏆 Criar Prova</h3>
-                <p style={{ color:"#96a0cc", fontSize:13, marginBottom:14, lineHeight:1.6 }}>A IA gera automaticamente um resumo de revisão e 10 questões de múltipla escolha com base no código de hoje. Os alunos revisam, entram na sala e então você inicia.</p>
+                <p style={{ color:"#a99ac9", fontSize:13, marginBottom:14, lineHeight:1.6 }}>A IA gera automaticamente um resumo de revisão e 10 questões de múltipla escolha com base no código de hoje. Os alunos revisam, entram na sala e então você inicia.</p>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>
-                  <span style={{ color:"#96a0cc", fontSize:13, alignSelf:"center" }}>Turma:</span>
+                  <span style={{ color:"#a99ac9", fontSize:13, alignSelf:"center" }}>Turma:</span>
                   <button onClick={()=>setExamShift("all")} style={styles.tab(examShift==="all")}>Todas</button>
                   {SHIFTS.map(sh=>(
                     <button key={sh.id} onClick={()=>setExamShift(sh.id)} style={styles.tab(examShift===sh.id)}>{sh.emoji} {sh.label}</button>
                   ))}
                 </div>
-                <p style={{ color:"#96a0cc", fontSize:12, marginBottom:10 }}>As questões são geradas a partir do código que você escreveu na aba <b>Meu código</b>. Se não houver, usa o código dos alunos.</p>
-                <button onClick={startExam} disabled={examGenerating} style={{ ...styles.btn("#7c83ff"), opacity:examGenerating?0.6:1, padding:"12px 24px", fontSize:15 }}>
+                <p style={{ color:"#a99ac9", fontSize:12, marginBottom:10 }}>As questões são geradas a partir do código que você escreveu na aba <b>Meu código</b>. Se não houver, usa o código dos alunos.</p>
+                <button onClick={startExam} disabled={examGenerating} style={{ ...styles.btn("#c084fc"), opacity:examGenerating?0.6:1, padding:"12px 24px", fontSize:15 }}>
                   {examGenerating ? "Gerando..." : "🚀 Gerar e Iniciar Prova"}
                 </button>
                 {examMsg && <p style={{ color:examMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:13, marginTop:10, lineHeight:1.5 }}>{examMsg}</p>}
@@ -8961,11 +8961,11 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:10 }}>
                     <div>
                       <h3 style={{ color:"#fbbf24", margin:"0 0 4px" }}>📝 Fase de Revisão</h3>
-                      <p style={{ color:"#96a0cc", fontSize:13 }}>Os alunos estão revisando o conteúdo. Quando estiverem prontos, iniciam a prova.</p>
+                      <p style={{ color:"#a99ac9", fontSize:13 }}>Os alunos estão revisando o conteúdo. Quando estiverem prontos, iniciam a prova.</p>
                     </div>
                     <div style={{ display:"flex", gap:8 }}>
                       <button onClick={activateExam} style={{ ...styles.btn("#34d399") }}>▶ Iniciar Agora ({readyStudents.length} prontos)</button>
-                      <button onClick={resetExam} style={{ ...styles.btn("#5d679c"), fontSize:13 }}>Cancelar</button>
+                      <button onClick={resetExam} style={{ ...styles.btn("#776798"), fontSize:13 }}>Cancelar</button>
                     </div>
                   </div>
                   {examMsg && <p style={{ color:"#34d399", fontSize:13, marginTop:10 }}>{examMsg}</p>}
@@ -8974,7 +8974,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <h4 style={{ color:"#fbbf24", marginBottom:10 }}>Alunos prontos ({readyStudents.length}/{examStudents.length})</h4>
                   <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                     {examStudents.map(s=>(
-                      <div key={s.name} style={{ display:"flex", alignItems:"center", gap:8, background:"#0d1122", border:`1px solid ${s.examReady?"#34d399":"#2a3154"}`, borderRadius:10, padding:"8px 12px" }}>
+                      <div key={s.name} style={{ display:"flex", alignItems:"center", gap:8, background:"#171026", border:`1px solid ${s.examReady?"#34d399":"#3b2a58"}`, borderRadius:10, padding:"8px 12px" }}>
                         <Avatar cfg={s.avatar} size={26} />
                         <span style={{ fontSize:13 }}>{s.name}</span>
                         <span style={{ fontSize:14 }}>{s.examReady?"✅":"⏳"}</span>
@@ -8992,7 +8992,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
                     <div>
                       <h3 style={{ color:"#fbbf24", margin:"0 0 4px" }}>🏆 Prova em andamento</h3>
-                      <p style={{ color:"#96a0cc", fontSize:13 }}>{doneStudents.length}/{examStudents.length} alunos concluíram · {qLen} questões · {qLen*10} pts no máximo</p>
+                      <p style={{ color:"#a99ac9", fontSize:13 }}>{doneStudents.length}/{examStudents.length} alunos concluíram · {qLen} questões · {qLen*10} pts no máximo</p>
                     </div>
                     <button onClick={()=>setConfirmEndExam(true)} style={styles.btn("#f87171")}>⏹ Encerrar Prova</button>
                   </div>
@@ -9000,9 +9000,9 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
                 <div className="cardfx" style={styles.card}>
                   <h4 style={{ color:"#fbbf24", marginBottom:12 }}>📊 Ranking ao vivo</h4>
-                  {ranking.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Aguardando alunos terminarem...</p> : (
+                  {ranking.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Aguardando alunos terminarem...</p> : (
                     ranking.map((s,i)=>(
-                      <div key={s.name} style={{ background:"#0d1122", border:`1px solid ${i===0?"#fbbf24":"#2a3154"}`, borderRadius:10, padding:"10px 14px", marginBottom:8 }}>
+                      <div key={s.name} style={{ background:"#171026", border:`1px solid ${i===0?"#fbbf24":"#3b2a58"}`, borderRadius:10, padding:"10px 14px", marginBottom:8 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                           <span style={{ fontSize:22, width:28 }}>{medal(i)||`#${i+1}`}</span>
                           <Avatar cfg={s.avatar} size={28} />
@@ -9027,37 +9027,37 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
                     <div>
                       <h3 style={{ color:"#34d399", margin:"0 0 4px" }}>✅ Prova Encerrada</h3>
-                      <p style={{ color:"#96a0cc", fontSize:13 }}>Resultado final · {doneStudents.length}/{examStudents.length} alunos concluíram</p>
+                      <p style={{ color:"#a99ac9", fontSize:13 }}>Resultado final · {doneStudents.length}/{examStudents.length} alunos concluíram</p>
                     </div>
-                    <button onClick={resetExam} style={styles.btn("#5d679c")}>🔄 Nova Prova</button>
+                    <button onClick={resetExam} style={styles.btn("#776798")}>🔄 Nova Prova</button>
                   </div>
                 </div>
-                <div className="cardfx" style={{ ...styles.card, borderColor:"#7c83ff" }}>
+                <div className="cardfx" style={{ ...styles.card, borderColor:"#c084fc" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                       <NyxRobot state="thinking" size={44} showName={false} />
                       <div>
-                        <h4 style={{ color:"#7c83ff", margin:0 }}>Análise do Nyx — período + prova</h4>
-                        <p style={{ color:"#96a0cc", fontSize:12, margin:"2px 0 0" }}>Quem foi bem nas aulas e na prova, e quem precisa de atenção — com o porquê.</p>
+                        <h4 style={{ color:"#c084fc", margin:0 }}>Análise do Nyx — período + prova</h4>
+                        <p style={{ color:"#a99ac9", fontSize:12, margin:"2px 0 0" }}>Quem foi bem nas aulas e na prova, e quem precisa de atenção — com o porquê.</p>
                       </div>
                     </div>
-                    <button onClick={nyxExamAnalysis} disabled={analyzingExam} style={{ ...styles.btn("#7c83ff"), fontSize:13, opacity:analyzingExam?0.6:1 }}>
+                    <button onClick={nyxExamAnalysis} disabled={analyzingExam} style={{ ...styles.btn("#c084fc"), fontSize:13, opacity:analyzingExam?0.6:1 }}>
                       {analyzingExam ? "Analisando..." : examAnalysis ? "↻ Refazer análise" : "✨ Pedir análise"}
                     </button>
                   </div>
-                  {examAnalysis && <p style={{ color:"#c7cfee", fontSize:14, lineHeight:1.8, whiteSpace:"pre-wrap", margin:"12px 0 0" }}>{examAnalysis}</p>}
+                  {examAnalysis && <p style={{ color:"#d6c9ec", fontSize:14, lineHeight:1.8, whiteSpace:"pre-wrap", margin:"12px 0 0" }}>{examAnalysis}</p>}
                 </div>
                 <div className="cardfx" style={styles.card}>
                   <h4 style={{ color:"#fbbf24", marginBottom:12 }}>🏆 Ranking Final</h4>
-                  {ranking.length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum aluno respondeu.</p> : (
+                  {ranking.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum aluno respondeu.</p> : (
                     ranking.map((s,i)=>(
-                      <div key={s.name} style={{ background:i===0?"#fbbf2422":"#0d1122", border:`2px solid ${i===0?"#fbbf24":i===1?"#96a0cc":i===2?"#c2410c":"#2a3154"}`, borderRadius:12, padding:"12px 16px", marginBottom:8 }}>
+                      <div key={s.name} style={{ background:i===0?"#fbbf2422":"#171026", border:`2px solid ${i===0?"#fbbf24":i===1?"#a99ac9":i===2?"#c2410c":"#3b2a58"}`, borderRadius:12, padding:"12px 16px", marginBottom:8 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                          <span style={{ fontSize:26, width:32 }}>{medal(i)||<span style={{color:"#5d679c",fontSize:16}}>#{i+1}</span>}</span>
+                          <span style={{ fontSize:26, width:32 }}>{medal(i)||<span style={{color:"#776798",fontSize:16}}>#{i+1}</span>}</span>
                           <Avatar cfg={s.avatar} size={32} />
                           <span style={{ flex:1, fontWeight:700, fontSize:15 }}>{s.name}</span>
                           <span style={{ color:"#34d399", fontWeight:800, fontSize:20 }}>{s.examScore ?? 0}</span>
-                          <span style={{ color:"#96a0cc", fontSize:12 }}>/{qLen*10}</span>
+                          <span style={{ color:"#a99ac9", fontSize:12 }}>/{qLen*10}</span>
                         </div>
                         {(s.examExits||0) > 0 && (
                           <div style={{ margin:"8px 0 0 44px", padding:"8px 12px", background:"#f8717112", border:"1px solid #f8717155", borderRadius:8 }}>
@@ -9072,7 +9072,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                               </div>
                             )}
                             {s.examAppeal?.status === "accepted" && <p style={{ color:"#34d399", fontSize:12, margin:"6px 0 0", fontWeight:700 }}>✅ Defesa aceita — pontos devolvidos.</p>}
-                            {s.examAppeal?.status === "rejected" && <p style={{ color:"#96a0cc", fontSize:12, margin:"6px 0 0", fontWeight:700 }}>Defesa recusada — desconto mantido.</p>}
+                            {s.examAppeal?.status === "rejected" && <p style={{ color:"#a99ac9", fontSize:12, margin:"6px 0 0", fontWeight:700 }}>Defesa recusada — desconto mantido.</p>}
                           </div>
                         )}
                       </div>
@@ -9080,10 +9080,10 @@ function TeacherView({ onLogout, teacherAuth }) {
                   )}
                   {examStudents.filter(s=>!s.examDone && s.examScore==null).length > 0 && (
                     <div style={{ marginTop:12, padding:"10px 14px", background:"#171c33", borderRadius:8 }}>
-                      <p style={{ color:"#96a0cc", fontSize:12, marginBottom:6 }}>Não concluíram:</p>
+                      <p style={{ color:"#a99ac9", fontSize:12, marginBottom:6 }}>Não concluíram:</p>
                       <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                         {examStudents.filter(s=>!s.examDone && s.examScore==null).map(s=>(
-                          <span key={s.name} style={{ background:"#2a3154", color:"#96a0cc", borderRadius:8, padding:"4px 10px", fontSize:12 }}>{s.name}</span>
+                          <span key={s.name} style={{ background:"#3b2a58", color:"#a99ac9", borderRadius:8, padding:"4px 10px", fontSize:12 }}>{s.name}</span>
                         ))}
                       </div>
                     </div>
@@ -9194,10 +9194,10 @@ function Login({ onJoin }) {
   const styles = {
     container:{ minHeight:"100vh", background:PAGE_BG, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:FONT, padding:16 },
     // a turma de aluno fica bem mais larga: metade esquerda (turma/perfil/nome/prévia) e metade direita (personalização), lado a lado
-    card:{ background:"linear-gradient(180deg,#181d38ee,#131730ee)", backdropFilter:"blur(10px)", borderRadius:22, padding:32, width: role==="student" ? 880 : 460, maxWidth:"100%", border:"1px solid #2c3358", boxShadow:"0 24px 70px rgba(0,0,0,.5), 0 0 0 1px #7c83ff1a" },
-    input:{ width:"100%", background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:"12px 14px", color:"#e8ebfa", fontSize:15, outline:"none", boxSizing:"border-box" },
+    card:{ background:"linear-gradient(180deg,#231636ee,#1a1029ee)", backdropFilter:"blur(10px)", borderRadius:22, padding:32, width: role==="student" ? 880 : 460, maxWidth:"100%", border:"1px solid #3e2d5e", boxShadow:"0 24px 70px rgba(0,0,0,.5), 0 0 0 1px #c084fc1a" },
+    input:{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"12px 14px", color:"#f0e9fb", fontSize:15, outline:"none", boxSizing:"border-box" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:12, padding:"12px 0", cursor:"pointer", fontWeight:800, fontSize:15, width:"100%", boxShadow:`0 4px 16px ${c}44` }),
-    rBtn:()=>({ background:"#0d1122", color:"#96a0cc", border:`2px solid #2a3154`, borderRadius:14, padding:"18px 8px", cursor:"pointer", fontWeight:800, fontSize:14, flex:1 }),
+    rBtn:()=>({ background:"#171026", color:"#a99ac9", border:`2px solid #3b2a58`, borderRadius:14, padding:"18px 8px", cursor:"pointer", fontWeight:800, fontSize:14, flex:1 }),
   };
 
   return (
@@ -9205,23 +9205,23 @@ function Login({ onJoin }) {
       <div className="pop" style={styles.card}>
         <div style={{ textAlign:"center", marginBottom:20 }}>
           <NyxRobot state="idle" size={86} showName={false} />
-          <h1 className="shine" style={{ fontSize:28, margin:"6px 0 2px", fontWeight:900, background:"linear-gradient(120deg,#7c83ff,#22d3ee,#7c83ff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Aula de C#</h1>
-          <p style={{ color:"#5d679c", fontSize:13, margin:0 }}>Plataforma da turma · com o robô <b style={{ color:"#7c83ff" }}>Nyx</b></p>
+          <h1 className="shine" style={{ fontSize:28, margin:"6px 0 2px", fontWeight:900, background:"linear-gradient(120deg,#c084fc,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Aula de C#</h1>
+          <p style={{ color:"#776798", fontSize:13, margin:0 }}>Plataforma da turma · com o robô <b style={{ color:"#c084fc" }}>Nyx</b></p>
         </div>
 
         {!role&&(
           <>
-            <p style={{ color:"#96a0cc", textAlign:"center", marginBottom:14 }}>Quem é você?</p>
+            <p style={{ color:"#a99ac9", textAlign:"center", marginBottom:14 }}>Quem é você?</p>
             <div style={{ display:"flex", gap:12 }}>
               <button style={styles.rBtn()} onClick={()=>setRole("student")}>
                 <span style={{ display:"block", fontSize:34, marginBottom:6 }}>🧑‍💻</span>
-                <span style={{ display:"block", color:"#e8ebfa", fontSize:15 }}>Aluno</span>
-                <span style={{ display:"block", color:"#5d679c", fontSize:11.5, fontWeight:600, marginTop:2 }}>programar e aprender</span>
+                <span style={{ display:"block", color:"#f0e9fb", fontSize:15 }}>Aluno</span>
+                <span style={{ display:"block", color:"#776798", fontSize:11.5, fontWeight:600, marginTop:2 }}>programar e aprender</span>
               </button>
               <button style={styles.rBtn()} onClick={()=>setRole("teacher")}>
                 <span style={{ display:"block", fontSize:34, marginBottom:6 }}>👨‍🏫</span>
-                <span style={{ display:"block", color:"#e8ebfa", fontSize:15 }}>Professor</span>
-                <span style={{ display:"block", color:"#5d679c", fontSize:11.5, fontWeight:600, marginTop:2 }}>acompanhar a turma</span>
+                <span style={{ display:"block", color:"#f0e9fb", fontSize:15 }}>Professor</span>
+                <span style={{ display:"block", color:"#776798", fontSize:11.5, fontWeight:600, marginTop:2 }}>acompanhar a turma</span>
               </button>
             </div>
           </>
@@ -9235,27 +9235,27 @@ function Login({ onJoin }) {
                 (em telas estreitas as duas colunas empilham, senão ficam lado a lado) */}
             <div style={{ display:"flex", gap:24, flexWrap:"wrap" }}>
               <div style={{ flex: isNarrow ? "1 1 100%" : "1 1 300px", minWidth: isNarrow ? 0 : 260 }}>
-                <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 8px" }}>🕑 Qual é a sua turma?</p>
+                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 8px" }}>🕑 Qual é a sua turma?</p>
                 <div style={{ display:"flex", gap:10, marginBottom:10 }}>
                   {SHIFTS.map(sh => (
                     <button key={sh.id} onClick={()=>{ setShift(sh.id); setTestUnlocking(false); }}
-                      style={{ ...styles.rBtn(), ...(shift===sh.id ? { borderColor:"#7c83ff", color:"#fff", background:"#7c83ff22" } : {}) }}>
+                      style={{ ...styles.rBtn(), ...(shift===sh.id ? { borderColor:"#c084fc", color:"#fff", background:"#c084fc22" } : {}) }}>
                       {sh.emoji} {sh.label}
                     </button>
                   ))}
                 </div>
                 <button onClick={()=> shift===TEST_SHIFT.id ? null : openTestShift()}
-                  style={{ background:"transparent", border:"none", color: shift===TEST_SHIFT.id ? "#7c83ff" : "#5d679c", fontSize:12, cursor:"pointer", padding:"2px 0", marginBottom: shift===TEST_SHIFT.id||testUnlocking ? 10 : 18 }}>
+                  style={{ background:"transparent", border:"none", color: shift===TEST_SHIFT.id ? "#c084fc" : "#776798", fontSize:12, cursor:"pointer", padding:"2px 0", marginBottom: shift===TEST_SHIFT.id||testUnlocking ? 10 : 18 }}>
                   {shift===TEST_SHIFT.id ? `✓ ${TEST_SHIFT.emoji} Turma de teste selecionada` : `${TEST_SHIFT.emoji} Sou da turma de teste`}
                 </button>
                 {testUnlocking && shift!==TEST_SHIFT.id && (
-                  <div style={{ background:"#0d1122", border:"2px solid #2a3154", borderRadius:12, padding:12, marginBottom:18 }}>
-                    <p style={{ color:"#96a0cc", fontSize:12, margin:"0 0 8px" }}>Digite a senha da turma de teste:</p>
+                  <div style={{ background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:12, marginBottom:18 }}>
+                    <p style={{ color:"#a99ac9", fontSize:12, margin:"0 0 8px" }}>Digite a senha da turma de teste:</p>
                     <div style={{ display:"flex", gap:8 }}>
                       <input type="password" autoFocus value={testPass} onChange={e=>setTestPass(e.target.value)}
                         onKeyDown={e=>e.key==="Enter"&&confirmTestShift()} placeholder="Senha"
                         style={{ ...styles.input, padding:"8px 12px", fontSize:14 }} />
-                      <button onClick={confirmTestShift} style={{ ...styles.btn("#7c83ff"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
+                      <button onClick={confirmTestShift} style={{ ...styles.btn("#c084fc"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
                     </div>
                     {testError && <p style={{ color:"#f87171", fontSize:12, marginTop:6 }}>{testError}</p>}
                   </div>
@@ -9263,18 +9263,18 @@ function Login({ onJoin }) {
 
                 <div style={{ marginBottom:16 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                    <span style={{ color:"#96a0cc", fontSize:13 }}>Já tem um perfil da turma {shiftMeta(shift).label}? Toque no seu nome:</span>
-                    <button onClick={loadProfiles} style={{ background:"transparent", border:"none", color:"#7c83ff", cursor:"pointer", fontSize:12 }}>↻ atualizar</button>
+                    <span style={{ color:"#a99ac9", fontSize:13 }}>Já tem um perfil da turma {shiftMeta(shift).label}? Toque no seu nome:</span>
+                    <button onClick={loadProfiles} style={{ background:"transparent", border:"none", color:"#c084fc", cursor:"pointer", fontSize:12 }}>↻ atualizar</button>
                   </div>
-                  {loadingProfiles ? <p style={{ color:"#5d679c", fontSize:13 }}>Procurando perfis salvos...</p>
-                    : profiles.filter(p => (p.shift||"matutino")===shift).length===0 ? <p style={{ color:"#5d679c", fontSize:13 }}>Nenhum perfil salvo ainda nesta turma. Crie o seu abaixo 👇</p>
+                  {loadingProfiles ? <p style={{ color:"#776798", fontSize:13 }}>Procurando perfis salvos...</p>
+                    : profiles.filter(p => (p.shift||"matutino")===shift).length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum perfil salvo ainda nesta turma. Crie o seu abaixo 👇</p>
                     : (
                       <div style={{ maxHeight:170, overflowY:"auto", display:"flex", flexDirection:"column", gap:8 }}>
                         {profiles.filter(p => (p.shift||"matutino")===shift).map(p=>(
-                          <button key={`${p.shift||"x"}:${p.name}`} onClick={()=>openProfile(p)} style={{ display:"flex", alignItems:"center", gap:10, background:"#0d1122", border:"2px solid #2a3154", borderRadius:10, padding:"8px 12px", cursor:"pointer", color:"#e8ebfa", textAlign:"left" }}>
+                          <button key={`${p.shift||"x"}:${p.name}`} onClick={()=>openProfile(p)} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"8px 12px", cursor:"pointer", color:"#f0e9fb", textAlign:"left" }}>
                             <Avatar cfg={p.avatar} size={32} />
                             <span style={{ fontWeight:600, flex:1 }}>{p.name}</span>
-                            <span style={{ color:"#7c83ff", fontSize:13, fontWeight:700 }}>Entrar →</span>
+                            <span style={{ color:"#c084fc", fontSize:13, fontWeight:700 }}>Entrar →</span>
                           </button>
                         ))}
                       </div>
@@ -9282,45 +9282,45 @@ function Login({ onJoin }) {
                 </div>
 
                 <div style={{ display:"flex", alignItems:"center", gap:10, margin:"6px 0 14px" }}>
-                  <div style={{ flex:1, height:1, background:"#2a3154" }}/>
-                  <span style={{ color:"#5d679c", fontSize:12 }}>ou crie um novo perfil na turma {shiftMeta(shift).label}</span>
-                  <div style={{ flex:1, height:1, background:"#2a3154" }}/>
+                  <div style={{ flex:1, height:1, background:"#3b2a58" }}/>
+                  <span style={{ color:"#776798", fontSize:12 }}>ou crie um novo perfil na turma {shiftMeta(shift).label}</span>
+                  <div style={{ flex:1, height:1, background:"#3b2a58" }}/>
                 </div>
 
                 <input style={styles.input} placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} />
                 <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
                   <div style={{ flex:"1 1 150px" }}>
-                    <label style={{ fontSize:11, color:"#96a0cc" }}>Data de nascimento
+                    <label style={{ fontSize:11, color:"#a99ac9" }}>Data de nascimento
                       <input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)}
-                        style={{ width:"100%", background:"#0d1122", border:"2px solid #2a3154", borderRadius:8, padding:"8px 10px", color:"#e8ebfa", fontSize:13, marginTop:3, boxSizing:"border-box" }} />
+                        style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box" }} />
                     </label>
                   </div>
                   <div style={{ flex:"1 1 150px" }}>
-                    <label style={{ fontSize:11, color:"#96a0cc" }}>CPF (opcional)
+                    <label style={{ fontSize:11, color:"#a99ac9" }}>CPF (opcional)
                       <input value={cpf} disabled={cpfUnknown} placeholder="000.000.000-00" onChange={e=>setCpf(e.target.value)}
-                        style={{ width:"100%", background:"#0d1122", border:"2px solid #2a3154", borderRadius:8, padding:"8px 10px", color:"#e8ebfa", fontSize:13, marginTop:3, boxSizing:"border-box", opacity:cpfUnknown?0.5:1 }} />
+                        style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box", opacity:cpfUnknown?0.5:1 }} />
                     </label>
                   </div>
                 </div>
-                <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, fontSize:11.5, color:"#96a0cc", cursor:"pointer" }}>
+                <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, fontSize:11.5, color:"#a99ac9", cursor:"pointer" }}>
                   <input type="checkbox" checked={cpfUnknown} onChange={e=>{ setCpfUnknown(e.target.checked); if (e.target.checked) setCpf(""); }} />
                   Não sei o CPF
                 </label>
-                <p style={{ color:"#5d679c", fontSize:10.5, margin:"4px 0 0", lineHeight:1.5 }}>Só o professor vê isso, e só na hora de gerar a planilha pra fazer certificado — nunca aparece no seu perfil.</p>
-                <p style={{ color:"#96a0cc", fontSize:13, margin:"14px 0 8px", textAlign:"center" }}>🎨 Seu boneco:</p>
+                <p style={{ color:"#776798", fontSize:10.5, margin:"4px 0 0", lineHeight:1.5 }}>Só o professor vê isso, e só na hora de gerar a planilha pra fazer certificado — nunca aparece no seu perfil.</p>
+                <p style={{ color:"#a99ac9", fontSize:13, margin:"14px 0 8px", textAlign:"center" }}>🎨 Seu boneco:</p>
                 <AvatarPreview value={avatar} onChange={setAvatar} />
                 <AvatarControls value={avatar} onChange={setAvatar} part="basic" />
               </div>
 
               <div style={{ flex: isNarrow ? "1 1 100%" : "1 1 440px", minWidth: isNarrow ? 0 : 400 }}>
-                <p style={{ color:"#96a0cc", fontSize:13, margin:"0 0 8px" }}>Personalize:</p>
+                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 8px" }}>Personalize:</p>
                 <div style={{ columnCount: isNarrow ? 1 : 2, columnGap:20 }}>
                   <AvatarControls value={avatar} onChange={setAvatar} part="rest" />
                 </div>
                 {error&&<p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{error}</p>}
                 <div style={{ display:"flex", gap:8, marginTop:16 }}>
-                  <button style={{ ...styles.btn("#7c83ff"), flex:1 }} onClick={handleNewStudent}>Criar perfil e entrar →</button>
-                  <button style={{ ...styles.btn("#2a3154"), width:44, flex:"none" }} onClick={()=>{ setRole(null); setError(""); }}>↩</button>
+                  <button style={{ ...styles.btn("#c084fc"), flex:1 }} onClick={handleNewStudent}>Criar perfil e entrar →</button>
+                  <button style={{ ...styles.btn("#3b2a58"), width:44, flex:"none" }} onClick={()=>{ setRole(null); setError(""); }}>↩</button>
                 </div>
               </div>
             </div>
@@ -9334,7 +9334,7 @@ function Login({ onJoin }) {
             {error&&<p style={{ color:"#f87171", fontSize:13, marginTop:6 }}>{error}</p>}
             <div style={{ display:"flex", gap:8, marginTop:14 }}>
               <button style={{ ...styles.btn("#fbbf24"), flex:1, opacity:teacherChecking?0.6:1 }} onClick={handleTeacher} disabled={teacherChecking}>{teacherChecking ? "Verificando..." : "Entrar →"}</button>
-              <button style={{ ...styles.btn("#2a3154"), width:44, flex:"none" }} onClick={()=>{ setRole(null); setError(""); }}>↩</button>
+              <button style={{ ...styles.btn("#3b2a58"), width:44, flex:"none" }} onClick={()=>{ setRole(null); setError(""); }}>↩</button>
             </div>
           </>
         )}
