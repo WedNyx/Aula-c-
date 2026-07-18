@@ -1816,6 +1816,7 @@ function FloatingErrorBubble({ errors, step, activeCode, onNext, onPrev, onVerif
     let raf;
     const LINE_H = 21; // 14px * 1.5 — mesma fonte/altura de linha usada no VSEditor
     const PAD_TOP = 12;
+    const MARGIN = 12; // respiro mínimo até a borda da tela
     const update = () => {
       const wrap = document.querySelector('[data-tour="editor"]');
       const ta = wrap?.querySelector('textarea');
@@ -1823,8 +1824,12 @@ function FloatingErrorBubble({ errors, step, activeCode, onNext, onPrev, onVerif
         const li = findLineIndex(activeCode, e.trecho);
         const wrapRect = wrap.getBoundingClientRect();
         const lineTop = wrapRect.top + PAD_TOP + (li >= 0 ? li : 0) * LINE_H - ta.scrollTop;
-        setPos(prev => (prev && prev.top===lineTop && prev.right===wrapRect.right && prev.wrapBottom===wrapRect.bottom)
-          ? prev : { top:lineTop, right:wrapRect.right, wrapTop:wrapRect.top, wrapBottom:wrapRect.bottom });
+        // largura encolhe em telas estreitas, e a posição nunca deixa o balão vazar pra fora da
+        // tela (nem em cima do código: sempre começa depois da borda direita do editor)
+        const width = Math.min(300, Math.max(220, window.innerWidth - MARGIN * 2));
+        const left = Math.min(wrapRect.right + 14, window.innerWidth - width - MARGIN);
+        setPos(prev => (prev && prev.top===lineTop && prev.left===left && prev.width===width && prev.wrapBottom===wrapRect.bottom)
+          ? prev : { top:lineTop, left, width, wrapTop:wrapRect.top, wrapBottom:wrapRect.bottom });
       }
       raf = requestAnimationFrame(update);
     };
@@ -1834,7 +1839,7 @@ function FloatingErrorBubble({ errors, step, activeCode, onNext, onPrev, onVerif
   if (!e || !pos) return null;
   const clampedTop = Math.min(Math.max(pos.top, pos.wrapTop), Math.max(pos.wrapTop, pos.wrapBottom - 60));
   return (
-    <div className="pop" key={step} style={{ position:"fixed", top:clampedTop, left:pos.right + 14, width:300, zIndex:995, background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #f8717166", borderRadius:14, padding:"12px 14px", boxShadow:"0 10px 28px rgba(0,0,0,.45)" }}>
+    <div className="pop" key={step} style={{ position:"fixed", top:clampedTop, left:pos.left, width:pos.width, maxWidth:"calc(100vw - 24px)", zIndex:995, background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #f8717166", borderRadius:14, padding:"12px 14px", boxShadow:"0 10px 28px rgba(0,0,0,.45)" }}>
       {/* setinha apontando pra linha do editor */}
       <div style={{ position:"absolute", left:-7, top:16, width:12, height:12, background:"#231636", borderLeft:"1px solid #f8717166", borderBottom:"1px solid #f8717166", transform:"rotate(45deg)" }} />
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -6133,10 +6138,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           )}
         </div>
 
-        {/* Robô + atalhos */}
-        <div className="side-col" style={{ width:250, flex:"0 0 250px" }}>
+        {/* Robô + atalhos — fica "grudado" na tela conforme rola a página, com scroll próprio se o conteúdo for mais alto que a tela */}
+        <div className="side-col side-col-sticky" style={{ width:250, flex:"0 0 250px" }}>
           {showErrorWalkthrough && codeErrors.length > 0 && (
-            vw >= 900 ? (
+            vw > 700 ? (
               <FloatingErrorBubble
                 errors={codeErrors}
                 step={Math.min(errorWalkStep, codeErrors.length-1)}

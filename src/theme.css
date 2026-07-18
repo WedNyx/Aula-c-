@@ -94,6 +94,22 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
 @media (max-width: 700px) {
   .side-col { width: 100% !important; flex: 1 1 100% !important; }
 }
+
+/* barra lateral do aluno (robô + atalhos): acompanha a rolagem da página presa a uma distância
+   fixa do topo, e se o conteúdo dela for mais alto que a tela, rola por dentro dela mesma — assim
+   os botões continuam alcançáveis sem precisar voltar lá em cima toda hora. Só faz sentido lado a
+   lado com o editor (mesma faixa de largura em que .side-col não empilha, ver regra acima). */
+.side-col-sticky {
+  position: sticky;
+  top: 14px;
+  max-height: calc(100vh - 28px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+@media (max-width: 700px) {
+  .side-col-sticky { position: static; max-height: none; overflow: visible; }
+}
 /* telão: as duas colunas viram uma só, com respiro menor nas bordas e nos cards */
 /* min-width:0 é essencial: sem ele, célula de grid não encolhe além do conteúdo
    (nome comprido no ranking empurrava o card pra fora da tela no celular) */
