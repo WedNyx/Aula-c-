@@ -3666,6 +3666,16 @@ function recentDifficultyHint(scoreHistory) {
   if (avg > 85) return `\n\nATENÇÃO — dificuldade: esse aluno tem tirado notas altas nas últimas atividades (média recente ${Math.round(avg)}/100). Inclua mais questões desafiadoras: peça pra comparar conceitos parecidos, prever a saída exata do código, ou notar pegadinhas sutis — não deixe tão fácil.`;
   return null;
 }
+// mesmo cálculo do recentDifficultyHint, mas devolvendo só a categoria — usado pra decidir se a
+// atividade ganha dicas extras (quem está com dificuldade) ou uma questão bônus (quem está indo muito bem)
+function adaptiveDifficultyTier(scoreHistory) {
+  const dates = Object.keys(scoreHistory || {}).sort((a,b)=>b.localeCompare(a)).slice(0,3);
+  if (dates.length < 2) return null;
+  const avg = dates.reduce((sum,d)=>sum+scoreHistory[d],0) / dates.length;
+  if (avg < 55) return "baixa";
+  if (avg > 85) return "alta";
+  return null;
+}
 function requestFS(){
   if (typeof document === "undefined") return Promise.reject(new Error("no-document"));
   const el = document.documentElement;
@@ -3776,6 +3786,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [keysToShow, setKeysToShow] = useState([]);
   const [phase, setPhase] = useState("coding");
   const [answers, setAnswers] = useState({});
+  const [revealedHints, setRevealedHints] = useState({}); // 💡 dicas da dificuldade adaptativa que o aluno já abriu, por questão
   const [score, setScore] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const lastProviderRef = useRef("nvidia"); // lembra o último modelo escolhido, pra reverificação automática usar o mesmo
@@ -5043,7 +5054,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // Nyx explica os erros da atividade — gera tudo de uma vez (rápido) e depois revela passo a passo num modal
   const explainErrors = async () => {
     const activity = dynamicActivity || [];
-    const wrong = activity.map((q,i)=>({ q, i })).filter(({ q, i }) => answers[i] !== q.correct);
+    // a questão bônus nunca entra na explicação de erros — errar ou pular ela não é "erro de verdade"
+    const wrong = activity.map((q,i)=>({ q, i })).filter(({ q, i }) => !q.bonus && answers[i] !== q.correct);
     if (!wrong.length || explaining) return;
     setExplaining(true);
     setExplainFailMsg("");
@@ -5109,11 +5121,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         ? buildContinuationSummaryRequest(existingSummary, novoCode.trim() ? novoCode : todayCode, fullCode)
         : buildSummaryRequest("simples", hasTodayDiff, todayCode, fullCode);
       const difficultyHint = recentDifficultyHint(scoreHistory);
+      // 🎯 dificuldade adaptativa: quem está com dificuldade ganha uma "dica" em cada questão (ajuda
+      // a pensar no conceito certo sem entregar a resposta); quem está indo muito bem ganha uma
+      // questão BÔNUS extra, opcional, mais desafiadora — não atrapalha nem penaliza quem não é nenhum dos dois
+      const adaptiveTier = adaptiveDifficultyTier(scoreHistory);
+      const adaptiveExtra =
+        adaptiveTier === "baixa" ? `\n\nComo esse aluno tem tido dificuldade, adicione em CADA questão um campo "dica": uma frase curta que ajuda a lembrar do conceito certo SEM entregar qual alternativa é a correta.` :
+        adaptiveTier === "alta" ? `\n\nComo esse aluno tem ido muito bem, crie TAMBÉM UMA questão BÔNUS a mais (além das ${ownPace ? "4" : "8"} normais), mais desafiadora que as outras, marcada com "bonus": true no JSON — ela é opcional pro aluno, vale um ponto extra se acertar e não desconta nada se ele pular ou errar.` :
+        "";
       // resumo e atividade são pedidos ao Nyx AO MESMO TEMPO (não um depois do outro) para não somar o tempo de espera dos dois
       const [summaryResult, activityResult] = await Promise.all([
         askClaude(simpleReq.prompt, simpleReq.system),
         askClaude(
-          `Um aluno de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie ${ownPace ? "4" : "8"} questões de múltipla escolha${ownPace ? " BEM diretas e fáceis (uma ideia por questão, frases curtas)" : ""} focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.${difficultyHint || ""}\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
+          `Um aluno de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie ${ownPace ? "4" : "8"} questões de múltipla escolha${ownPace ? " BEM diretas e fáceis (uma ideia por questão, frases curtas)" : ""} focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.${difficultyHint || ""}${adaptiveExtra}\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0,"dica":"(opcional, só se pedido acima) dica que não entrega a resposta","bonus":false}]}`,
           "Crie questões sobre conceitos de código C#, não matemática. APENAS JSON puro."
         ),
       ]);
@@ -5161,7 +5181,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     setDetailLoading(false);
   };
 
-  const handleStartActivity = async () => { setPhase("activity"); await persist({ phase:"activity" }); };
+  const handleStartActivity = async () => { setRevealedHints({}); setPhase("activity"); await persist({ phase:"activity" }); };
 
   // só marca a alternativa escolhida — certo/errado só aparece depois de Enviar Atividade
   const pickAnswer = (i, j) => {
@@ -5202,16 +5222,21 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
   const handleSubmitActivity = async () => {
     const activity = dynamicActivity || [];
+    // a questão bônus (dificuldade adaptativa) NUNCA entra na conta da nota — só rende ponto
+    // extra se acertada, e não desconta nada se ficar em branco ou errada
+    const required = activity.filter(q=>!q.bonus);
     let pts = 0;
-    activity.forEach((q,i)=>{ if(answers[i]===q.correct) pts++; });
-    const finalScore = Math.round((pts/activity.length)*100);
+    required.forEach((q,i)=>{ if(answers[activity.indexOf(q)]===q.correct) pts++; });
+    const bonusIdx = activity.findIndex(q=>q.bonus);
+    const bonusHit = bonusIdx >= 0 && answers[bonusIdx] === activity[bonusIdx].correct;
+    const finalScore = Math.round((pts/required.length)*100);
     const completedAt = Date.now();
     setScore(finalScore);
     setDoneAt(completedAt);
     setPhase("done");
     setShowFeedbackModal(true);
     setFeedbackLoading(true);
-    const newNyxPoints = nyxPoints + pts;
+    const newNyxPoints = nyxPoints + pts + (bonusHit ? 1 : 0);
     setNyxPoints(newNyxPoints);
     const newScoreHistory = { ...scoreHistory, [todayKey()]: finalScore };
     setScoreHistory(newScoreHistory);
@@ -5224,7 +5249,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     if (doneCount >= 15) unlockAchievement("atividades-15");
     const hundredCount = Object.values(newScoreHistory).filter(v => v === 100).length;
     if (hundredCount >= 3) unlockAchievement("tres-100");
-    const streak = maxCorrectStreak(activity, answers);
+    const requiredAnswers = Object.fromEntries(required.map((q,ri)=>[ri, answers[activity.indexOf(q)]]));
+    const streak = maxCorrectStreak(required, requiredAnswers);
     if (streak >= 5) unlockAchievement("combo-5");
     if (streak >= 8) unlockAchievement("combo-8");
     try {
@@ -5606,9 +5632,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <p style={{ color:"#a99ac9", fontSize:scaleSize(13), marginBottom:16 }}>Baseada no código que você escreveu hoje! Marque a alternativa que você acha certa — o resultado só aparece depois de enviar.</p>
           {activity.map((q,i)=>{
             return (
-              <div key={i} data-q={i} className="cardfx" style={{...styles.card, padding:scalePx(18)}}>
+              <div key={i} data-q={i} className="cardfx" style={{...styles.card, padding:scalePx(18), ...(q.bonus ? { borderColor:"#fbbf24" } : {})}}>
                 <div style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:12, justifyContent:"space-between" }}>
-                  <p style={{ fontWeight:600, margin:0, flex:1, fontSize:scaleSize(16) }}>{i+1}. {q.q}</p>
+                  <p style={{ fontWeight:600, margin:0, flex:1, fontSize:scaleSize(16) }}>
+                    {q.bonus && <span style={{ background:"#fbbf2422", border:"1px solid #fbbf24", color:"#fbbf24", borderRadius:20, padding:"2px 9px", fontSize:scaleSize(11), fontWeight:800, marginRight:8, whiteSpace:"nowrap" }}>⭐ Bônus opcional</span>}
+                    {i+1}. {q.q}
+                  </p>
                   {ttsSupported && <button onClick={() => handleSpeakQuestion(q, i)} style={{ background:isSpeaking && currentSpeakingFor===`q-${i}` ? "#c084fc" : "#c084fc33", border:"1px solid #c084fc", color:"#c084fc", padding:`${scalePx(8)}px ${scalePx(12)}px`, borderRadius:6, fontSize:scaleSize(11), fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`q-${i}` ? "⏸" : "🔊"}</button>}
                 </div>
                 {q.opts.map((opt,j)=>{
@@ -5619,11 +5648,22 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                     </button>
                   );
                 })}
+                {/* 💡 dificuldade adaptativa: dica opcional que ajuda a pensar sem entregar a resposta */}
+                {q.dica && (
+                  revealedHints[i] ? (
+                    <div className="pop" style={{ marginTop:10, background:"#fbbf2416", border:"1px solid #fbbf24", borderRadius:10, padding:"9px 12px", display:"flex", gap:8, alignItems:"flex-start" }}>
+                      <span style={{ fontSize:15 }}>💡</span>
+                      <p style={{ color:"#fcd9a0", fontSize:scaleSize(12.5), lineHeight:1.6, margin:0 }}>{q.dica}</p>
+                    </div>
+                  ) : (
+                    <button onClick={()=>setRevealedHints(h=>({...h,[i]:true}))} style={{ marginTop:10, background:"transparent", border:"1px dashed #fbbf24", color:"#fbbf24", borderRadius:10, padding:"6px 12px", fontSize:scaleSize(12), fontWeight:700, cursor:"pointer" }}>💡 Quer uma dica?</button>
+                  )
+                )}
               </div>
             );
           })}
           <div style={{ textAlign:"right" }}>
-            <button style={{...styles.btn("#c084fc"), padding:`${scalePx(12)}px ${scalePx(26)}px`, fontSize:scaleSize(15), marginTop:scalePx(16) }} onClick={handleSubmitActivity} disabled={Object.keys(answers).length<activity.length}>Enviar Atividade →</button>
+            <button style={{...styles.btn("#c084fc"), padding:`${scalePx(12)}px ${scalePx(26)}px`, fontSize:scaleSize(15), marginTop:scalePx(16) }} onClick={handleSubmitActivity} disabled={activity.some((q,i)=>!q.bonus && answers[i]==null)}>Enviar Atividade →</button>
           </div>
         </div>
       </div>
@@ -5649,7 +5689,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <NyxFeedbackModal score={score} loading={feedbackLoading} feedback={finalFeedback} onClose={()=>{
             setShowFeedbackModal(false);
             // quem errou alguma questão já cai direto na explicação do Nyx, sem precisar clicar em nada
-            if ((dynamicActivity||[]).some((q,i)=>answers[i]!==q.correct)) explainErrors();
+            if ((dynamicActivity||[]).some((q,i)=>!q.bonus && answers[i]!==q.correct)) explainErrors();
           }} />
         )}
         {showErrorExplain && (
@@ -5726,15 +5766,23 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
           <div className="cardfx" style={{ ...styles.card, marginTop:14, textAlign:"left" }}>
             <h4 style={{ color:"#c084fc", marginBottom:10 }}>📝 Revisão da atividade</h4>
-            {activity.map((q,i)=>(
-              <div key={i} style={{ marginBottom:12 }}>
-                <b style={{ color:answers[i]===q.correct?"#34d399":"#f87171" }}>{answers[i]===q.correct?"✅":"❌"} {q.q}</b>
-                {answers[i]!==q.correct&&<div style={{ color:"#a99ac9", fontSize:13, marginTop:2 }}>Correto: {q.opts[q.correct]}</div>}
-              </div>
-            ))}
+            {activity.map((q,i)=>{
+              // a questão bônus nunca aparece como "erro" — ficar sem responder ou errar não conta contra o aluno
+              const hit = answers[i]===q.correct;
+              const skipped = q.bonus && answers[i]==null;
+              const color = skipped ? "#776798" : hit ? "#34d399" : q.bonus ? "#a99ac9" : "#f87171";
+              const icon = skipped ? "⭐" : hit ? (q.bonus ? "⭐✅" : "✅") : (q.bonus ? "⭐" : "❌");
+              return (
+                <div key={i} style={{ marginBottom:12 }}>
+                  <b style={{ color }}>{icon} {q.q}</b>
+                  {skipped && <div style={{ color:"#776798", fontSize:13, marginTop:2 }}>Bônus não respondido — sem problema, não conta contra você.</div>}
+                  {!skipped && !hit && <div style={{ color:"#a99ac9", fontSize:13, marginTop:2 }}>Correto: {q.opts[q.correct]}</div>}
+                </div>
+              );
+            })}
           </div>
 
-          {(dynamicActivity||[]).some((q,i)=>answers[i]!==q.correct) && (
+          {(dynamicActivity||[]).some((q,i)=>!q.bonus && answers[i]!==q.correct) && (
             <div className="cardfx" style={{ ...styles.card, marginTop:14, textAlign:"left", borderColor:"#c084fc" }}>
               <h4 style={{ color:"#c084fc", marginBottom:8 }}>🤖 Não entendeu algum erro?</h4>
               <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, marginBottom:10 }}>O Nyx pode explicar cada questão que você errou, com calma e do seu jeito.</p>
