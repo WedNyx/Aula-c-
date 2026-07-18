@@ -442,12 +442,25 @@ export async function getCodeSend(shift, name) {
 // ── saúde do Nyx (IA): toda chamada de qualquer aluno/professor reporta aqui — o painel do
 // professor usa isso pra mostrar "Reconectando Nyx" quando a última chamada de alguém falhou ──
 const AI_HEALTH_KEY = 'ai:health'
-export async function reportAiHealth(ok) {
+const aiHealthProviderKey = (provider) => `ai:health:${provider}`
+// "provider" é opcional — quando informado (chamadas explícitas do botão de análise), também grava
+// a saúde DAQUELE modelo específico, pro indicador do painel do professor mostrar Nemotron/Laguna
+// separados; a chave geral continua servendo pro aviso "Reconectando Nyx" (qualquer modelo)
+export async function reportAiHealth(ok, provider) {
   try { await kvCall({ action: 'set', key: AI_HEALTH_KEY, value: JSON.stringify({ ok, at: Date.now() }) }) } catch {}
+  if (provider) {
+    try { await kvCall({ action: 'set', key: aiHealthProviderKey(provider), value: JSON.stringify({ ok, at: Date.now() }) }) } catch {}
+  }
 }
 export async function getAiHealth() {
   try {
     const r = await kvCall({ action: 'get', key: AI_HEALTH_KEY })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
+export async function getAiHealthByProvider(provider) {
+  try {
+    const r = await kvCall({ action: 'get', key: aiHealthProviderKey(provider) })
     return r.value ? JSON.parse(r.value) : null
   } catch { return null }
 }

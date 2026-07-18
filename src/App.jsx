@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 
 // ── tema ──
@@ -543,7 +543,7 @@ function highlight(code, errorLines) {
 // ════════════════════════════════════════════════════════════════════════════
 //  EDITOR ESTILO VS CODE
 // ════════════════════════════════════════════════════════════════════════════
-function VSEditor({ value, onChange, filename, errorLines }) {
+function VSEditor({ value, onChange, filename, errorLines, locked }) {
   const textareaRef = useRef(null);
   const highlightRef = useRef(null);
   const gutterRef = useRef(null);
@@ -559,6 +559,7 @@ function VSEditor({ value, onChange, filename, errorLines }) {
   };
 
   const handleKeyDown = (e) => {
+    if (locked) { e.preventDefault(); return; } // Nyx está analisando: código congelado até terminar
     const ta = textareaRef.current;
     const start = ta.selectionStart, end = ta.selectionEnd, v = ta.value;
     const pairs = { "{":"}","(":")",'"':'"',"[":"]","'":"'" };
@@ -633,8 +634,18 @@ function VSEditor({ value, onChange, filename, errorLines }) {
               sem isso, esse caractere invisível sobra escondido no texto e a camada colorida (que só
               existe pra pintar as palavras) desenha uma letra a mais que o cursor de verdade não tem,
               indo empurrando a marcação visual pra direita conforme a linha afetada cresce */}
-          <textarea ref={textareaRef} value={value} onChange={e => onChange(e.target.value.replace(/\r/g, ""))} onKeyDown={handleKeyDown} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
-            style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, background:"transparent", color:"transparent", caretColor:"#aeafad", border:"none", outline:"none", resize:"none", zIndex:1, paddingLeft:14, overflow:"auto" }} />
+          <textarea ref={textareaRef} value={value} readOnly={locked} onChange={e => { if (!locked) onChange(e.target.value.replace(/\r/g, "")); }} onKeyDown={handleKeyDown} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
+            style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, background:"transparent", color:"transparent", caretColor: locked ? "transparent" : "#aeafad", border:"none", outline:"none", resize:"none", zIndex:1, paddingLeft:14, overflow:"auto", cursor: locked ? "not-allowed" : "text" }} />
+          {/* congela o código enquanto o Nyx analisa — evita que o aluno mude algo bem na hora que
+              o Nyx está lendo, o que faria a análise apontar pra um código que já nem existe mais */}
+          {locked && (
+            <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(10,6,20,.35)", display:"flex", alignItems:"flex-start", justifyContent:"center", pointerEvents:"none" }}>
+              <div className="pop" style={{ marginTop:14, background:"#171026", border:"1px solid #c084fc66", borderRadius:20, padding:"6px 14px", fontSize:12.5, fontWeight:700, color:"#e8ebfa", display:"flex", alignItems:"center", gap:8, boxShadow:"0 6px 18px rgba(0,0,0,.4)" }}>
+                <span style={{ animation:"nyx-spin 1.1s linear infinite", display:"inline-block" }}>🔍</span>
+                Nyx analisando... o código fica congelado até terminar
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {/* barra de status azul, igual à do VS Code de verdade */}
@@ -3577,11 +3588,11 @@ async function askClaude(prompt, system, opts = {}){
       throw e;
     }
     if (!resp.ok) throw new Error(data.error || `API ${resp.status}`);
-    reportAiHealth(true); // avisa o painel do professor (em qualquer navegador) que o Nyx está respondendo
+    reportAiHealth(true, opts.provider); // avisa o painel do professor (em qualquer navegador) que o Nyx está respondendo
     return data.content?.map(b=>b.text||"").join("")||"";
   } catch (e) {
     // chave não configurada não é "fora do ar temporariamente" — é config pendente, não reporta como falha
-    if (e.message !== 'ROBOTKEY_MISSING') reportAiHealth(false);
+    if (e.message !== 'ROBOTKEY_MISSING') reportAiHealth(false, opts.provider);
     throw e;
   }
 }
@@ -6132,7 +6143,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
 
               <div data-tour="editor">
-                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} errorLines={errorLinesForEditor} />
+                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} errorLines={errorLinesForEditor} locked={analyzing} />
               </div>
 
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
@@ -6831,6 +6842,19 @@ function TeacherView({ onLogout, teacherAuth }) {
       const h = await getAiHealth();
       if (!active) return;
       setAiDown(!!h && h.ok === false && Date.now() - h.at < 5 * 60 * 1000);
+    };
+    check();
+    const iv = setInterval(check, 4000);
+    return () => { active = false; clearInterval(iv); };
+  }, []);
+  // 🩺 saúde de CADA modelo separado (Nemotron/Laguna) — pontinho no cabeçalho, pra o professor ver
+  // de longe se algum dos dois está fora do ar antes de a turma toda esbarrar nisso
+  const [providerHealth, setProviderHealth] = useState({ nvidia:null, laguna:null });
+  useEffect(() => {
+    let active = true;
+    const check = async () => {
+      const [nvidia, laguna] = await Promise.all([getAiHealthByProvider("nvidia"), getAiHealthByProvider("laguna")]);
+      if (active) setProviderHealth({ nvidia, laguna });
     };
     check();
     const iv = setInterval(check, 4000);
@@ -8113,6 +8137,22 @@ function TeacherView({ onLogout, teacherAuth }) {
             <span style={{ color:"#a99ac9", marginLeft:12, fontSize:12 }}>
               ● ao vivo · {lastUpdate}{meta.city?` · 📍 ${meta.city}`:""}
               {(todayContentM||todayContentV) ? ` · 📖 ${[todayContentM&&`☀️ ${todayContentM}`, todayContentV&&`🌙 ${todayContentV}`].filter(Boolean).join(" · ")}` : ""}
+            </span>
+          )}
+          {tab!=="code" && (
+            <span data-tour="saude-ia" style={{ marginLeft:12, display:"inline-flex", alignItems:"center", gap:10, fontSize:11.5, verticalAlign:"middle" }}>
+              {[["nvidia","✨ Nemotron"],["laguna","🌊 Laguna"]].map(([key,label]) => {
+                const h = providerHealth[key];
+                const recent = h && Date.now() - h.at < 5 * 60 * 1000;
+                const color = !recent ? "#5d679c" : h.ok ? "#34d399" : "#f87171";
+                const title = !recent ? `${label}: sem dados recentes` : h.ok ? `${label}: respondendo normalmente` : `${label}: não respondeu na última tentativa`;
+                return (
+                  <span key={key} title={title} style={{ display:"inline-flex", alignItems:"center", gap:4, color:"#a99ac9" }}>
+                    <span style={{ width:8, height:8, borderRadius:"50%", background:color, display:"inline-block", boxShadow: recent && h.ok ? `0 0 6px ${color}` : "none" }} />
+                    {label}
+                  </span>
+                );
+              })}
             </span>
           )}
         </div>
