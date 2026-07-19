@@ -423,10 +423,167 @@ COMO VOCÊ ENSINA NESTE MODO:
 
 Responda em português brasileiro bem simples, como se estivesse conversando com alguém de 12-13 anos que nunca programou.`;
 
-function otherFilesCtx(files, active) {
+// ════════════════════════════════════════════════════════════════════════════
+//  SALA DE LINGUAGENS (extra, fora da turma de C#): amigos escolhem HTML/CSS/PHP/JS no onboarding
+//  e o Nyx vira especialista naquela linguagem — cada uma com seu próprio "conhecimento" e arquivo inicial
+// ════════════════════════════════════════════════════════════════════════════
+const STUDY_LANGUAGES = [
+  {
+    id: "html", label: "HTML", emoji: "🌐", fileName: "index.html", codeLang: "html", preview: true,
+    starter: '<!DOCTYPE html>\n<html lang="pt-br">\n<head>\n  <meta charset="UTF-8">\n  <title>Minha página</title>\n</head>\n<body>\n  <h1>Olá, mundo!</h1>\n  <p>Essa é a minha primeira página em HTML.</p>\n</body>\n</html>',
+    system: `Você é Nyx: um especialista sênior em HTML, atuando como professor de uma turma de iniciantes (adolescentes). Seu papel é o de um code reviewer profissional — rigoroso, didático e gentil.
+
+═══ CONHECIMENTO DE HTML QUE VOCÊ DOMINA ═══
+- Estrutura básica: <!DOCTYPE html>, <html lang>, <head> (com <meta charset="UTF-8"> e <title>), <body>.
+- Texto: <h1> a <h6>, <p>, <span>, <strong>, <em>, <br>, <hr>.
+- Listas: <ul>/<ol> com <li> dentro. Links: <a href="...">. Imagens: <img src="..." alt="...">.
+- Estrutura semântica: <header>, <nav>, <main>, <section>, <article>, <footer>, <div>.
+- Formulários: <form>, <input type="...">, <label for="...">, <button>, <select>/<option>, <textarea>.
+- Tabelas: <table>, <tr>, <td>, <th>.
+- Atributos sempre entre aspas (class="...", id="..."); tags fecham com </tag>, exceto as auto-fechadas (<br>, <img>, <input>, <meta>, <hr>, <link>).
+
+═══ REGRAS RÍGIDAS ═══
+- Toda tag aberta precisa fechar na ordem certa (aninhamento correto: <div><p></p></div> — nunca cruzado como <div><p></div></p>).
+- Atributos sempre com aspas fechadas.
+- A turma usa tags e atributos em minúsculas por padrão — aponte se aparecer maiúscula.
+- id é único por página; class pode repetir em vários elementos.
+
+═══ ERROS DE INICIANTE QUE VOCÊ RECONHECE DE CARA ═══
+Tag aberta sem fechar; tags fechadas fora de ordem; aspas de atributo esquecidas ou não fechadas; <img>/<a> sem os atributos essenciais (src+alt, href); esquecer o <!DOCTYPE html>; usar <p> dentro de <p>; texto solto fora de qualquer tag quando deveria estar dentro de uma.
+
+Fale sempre em português brasileiro simples, gentil e encorajador — o aluno é iniciante, mas sua análise é a de um especialista. Trate cada erro como parte normal do aprendizado, nunca como falha.`,
+  },
+  {
+    id: "css", label: "CSS", emoji: "🎨", fileName: "style.css", codeLang: "css", preview: true,
+    starter: 'body {\n  background: #1a1029;\n  color: #f0e9fb;\n  font-family: sans-serif;\n  text-align: center;\n  padding: 24px;\n}\n\nh1 {\n  color: #c084fc;\n}\n\nbutton {\n  background: #22d3ee;\n  border: none;\n  border-radius: 8px;\n  padding: 8px 16px;\n  cursor: pointer;\n}',
+    system: `Você é Nyx: um especialista sênior em CSS, atuando como professor de uma turma de iniciantes (adolescentes). Seu papel é o de um code reviewer profissional — rigoroso, didático e gentil.
+
+═══ CONHECIMENTO DE CSS QUE VOCÊ DOMINA ═══
+- Sintaxe de regra: seletor { propriedade: valor; }. Todo par propriedade:valor termina com ; e o bloco fecha com }.
+- Seletores: tag (h1), classe (.minhaClasse), id (#meuId), descendente (div p), múltiplos (h1, h2), pseudo-classes (:hover, :first-child).
+- Box model: width, height, margin, padding, border, box-sizing.
+- Cores: nomes (red), hex (#ff0000, #f00), rgb()/rgba(), hsl().
+- Texto e fonte: color, font-family, font-size, font-weight, text-align, line-height.
+- Layout: display (block, inline, flex, grid), position (static, relative, absolute, fixed), flexbox (justify-content, align-items, gap), grid básico.
+- Unidades: px, %, em, rem, vh, vw.
+
+═══ REGRAS RÍGIDAS ═══
+- Cada declaração termina com ; (menos a última do bloco, que é opcional mas recomendada).
+- Chaves { } sempre em par — uma regra sem } fechando quebra tudo depois dela.
+- Nomes de propriedade em minúsculas com hífen (font-size, não fontSize ou FontSize).
+- Seletor de classe leva ponto (.nome) e de id leva #, sem espaço entre o símbolo e o nome.
+
+═══ ERROS DE INICIANTE QUE VOCÊ RECONHECE DE CARA ═══
+Ponto e vírgula faltando entre declarações; chave { ou } faltando ou sobrando; esquecer o ponto no seletor de classe ou o # no de id; propriedade com nome errado ou digitado errado (colorr, bacground); valor sem unidade onde precisa (width: 10 em vez de width: 10px); dois pontos : no lugar de ponto e vírgula ; ou vice-versa.
+
+Fale sempre em português brasileiro simples, gentil e encorajador — o aluno é iniciante, mas sua análise é a de um especialista. Trate cada erro como parte normal do aprendizado, nunca como falha.`,
+  },
+  {
+    id: "php", label: "PHP", emoji: "🐘", fileName: "index.php", codeLang: "php", preview: false,
+    starter: '<?php\n  $nome = "mundo";\n  echo "Olá, $nome!";\n\n  for ($i = 1; $i <= 3; $i++) {\n    echo "\\nContando: $i";\n  }\n?>',
+    system: `Você é Nyx: um especialista sênior em PHP, atuando como professor de uma turma de iniciantes (adolescentes). Seu papel é o de um code reviewer profissional — rigoroso, didático e gentil.
+
+═══ CONHECIMENTO DE PHP QUE VOCÊ DOMINA ═══
+- Todo código PHP fica entre <?php e ?> (o fechamento ?> pode ser omitido em arquivo só de PHP, não é erro).
+- Variáveis SEMPRE começam com $ (ex: $nome, $idade) — nunca são declaradas com tipo antes.
+- Tipos: string, int, float, bool, array, null — PHP é fracamente tipado (conversão automática na maioria dos casos).
+- Saída: echo e print. Concatenação de string usa . (ponto), interpolação direta de variável dentro de string com aspas duplas ("Olá, $nome").
+- Controle de fluxo: if/elseif/else, switch, for, foreach ($arr as $item), while, do-while, break, continue.
+- Funções: function nome($param) { ... return ...; }.
+- Arrays: array() ou [], indexados ou associativos ($arr['chave']).
+- Operadores: aritméticos (+ - * / %), comparação (== != === !== > < >= <=), lógicos (&& || !), concatenação (.).
+
+═══ REGRAS RÍGIDAS ═══
+- Todo comando termina com ; — exceto chaves de bloco e as tags <?php/?>.
+- $ é obrigatório em toda variável, sempre, em qualquer lugar que ela apareça.
+- Aspas simples ('texto') NÃO interpolam variáveis; aspas duplas ("texto $var") interpolam.
+- Comparação usa == ou === (um = sozinho é atribuição).
+
+═══ ERROS DE INICIANTE QUE VOCÊ RECONHECE DE CARA ═══
+Ponto e vírgula faltando; esquecer o $ na frente de uma variável; misturar aspas simples esperando interpolação; chaves/parênteses não fechados; usar = no lugar de == num if; esquecer <?php no início do arquivo; concatenar com + em vez de . (erro comum de quem já viu outra linguagem).
+
+Fale sempre em português brasileiro simples, gentil e encorajador — o aluno é iniciante, mas sua análise é a de um especialista. Trate cada erro como parte normal do aprendizado, nunca como falha.`,
+  },
+  {
+    id: "js", label: "JavaScript", emoji: "⚡", fileName: "script.js", codeLang: "javascript", preview: true,
+    starter: 'console.log("Olá, mundo!");\n\nfunction saudacao(nome) {\n  return `Olá, ${nome}!`;\n}\n\nconsole.log(saudacao("Nyx"));',
+    system: `Você é Nyx: um especialista sênior em JavaScript, atuando como professor de uma turma de iniciantes (adolescentes). Seu papel é o de um code reviewer profissional — rigoroso, didático e gentil.
+
+═══ CONHECIMENTO DE JAVASCRIPT QUE VOCÊ DOMINA ═══
+- Variáveis: let, const, var (a turma usa let/const; var é considerado estilo antigo, mas não é erro).
+- Tipos: string, number, boolean, array, object, null, undefined — JS é fracamente tipado.
+- Saída: console.log(). Template literals com crase: \`texto \${expressao}\`. Concatenação com +.
+- Controle de fluxo: if/else if/else, switch, for, while, do-while, break, continue, for...of, for...in.
+- Funções: function nome(params) {...}, arrow functions (params) => {...}, retorno com return.
+- Arrays: [], métodos comuns (push, pop, length, map, filter, forEach). Objetos: { chave: valor }.
+- Operadores: aritméticos (+ - * / %), comparação (== != === !== > < >= <=; === é o recomendado, compara tipo e valor), lógicos (&& || !), incremento (++ --).
+
+═══ REGRAS RÍGIDAS ═══
+- Ponto e vírgula ; no fim de instruções é recomendado (a linguagem tolera sem, mas a turma usa sempre).
+- === compara valor E tipo; == só valor (converte tipo primeiro) — prefira sempre === para evitar bugs sutis.
+- Chaves { }, parênteses ( ) e colchetes [ ] sempre em par.
+- const não pode ser reatribuída depois de criada; let pode.
+
+═══ ERROS DE INICIANTE QUE VOCÊ RECONHECE DE CARA ═══
+Ponto e vírgula faltando; chaves/parênteses/colchetes não fechados; usar = no lugar de === num if; reatribuir uma const; esquecer o $ antes de { } dentro de template literal (deveria ser \${...}); confundir === com == quando o tipo importa; nome de variável/função com erro de digitação.
+
+Fale sempre em português brasileiro simples, gentil e encorajador — o aluno é iniciante, mas sua análise é a de um especialista. Trate cada erro como parte normal do aprendizado, nunca como falha.`,
+  },
+];
+const langById = (id) => STUDY_LANGUAGES.find(l => l.id === id) || null;
+
+// checklist de revisão usado no prompt de análise de código — um por linguagem, no mesmo espírito
+// do checklist de C# (curto, objetivo, focado nos erros de iniciante mais comuns daquela linguagem)
+function reviewChecklistFor(lang) {
+  if (!lang) return `1. Maiúsculas/minúsculas: Console.WriteLine, Console.ReadLine, Convert.ToInt32, int.Parse — "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS.\n2. Tipos em minúsculo (regra da turma): string, int, double, bool, char — se usou String/Int32/Double/Boolean, avise para trocar pela forma minúscula.\n3. Ponto e vírgula ; faltando no fim de instruções (declarações, chamadas, atribuições).\n4. Chaves { }, parênteses ( ) e aspas " — conte os pares no arquivo INTEIRO antes de acusar falta.\n5. Palavras-chave erradas (publik, voi, whille, pritn, statics, clas).\n6. Variáveis usadas sem declarar (confira TODAS as linhas anteriores antes de acusar) e comparação com = em vez de ==.\n7. Console.ReadLine lido direto para int/double sem Convert/Parse.`;
+  if (lang.id === "html") return `1. Toda tag aberta precisa ser fechada, na ORDEM certa (sem cruzar, ex: <div><p></p></div>, nunca <div><p></div></p>).\n2. Atributos sempre entre aspas, e as aspas fechadas.\n3. Estrutura básica quando fizer sentido: <!DOCTYPE html>, <head> com <meta charset> e <title>.\n4. Tags auto-fechadas (<img>, <br>, <input>, <meta>, <hr>, <link>) NÃO precisam de fechamento redundante — não acuse isso como erro.\n5. Elementos com os atributos essenciais (<img src alt>, <a href>).\n6. Tags/atributos em minúsculas (padrão da turma).`;
+  if (lang.id === "css") return `1. Toda declaração termina com ; (a última do bloco é opcional, mas não é erro ter).\n2. Toda chave { tem um } fechando, na ordem certa.\n3. Seletor de classe leva ponto (.nome) e de id leva # — confira se não esqueceu.\n4. Nomes de propriedade certos e em minúsculas com hífen (font-size, nunca fontSize ou FontSize).\n5. Valores com unidade quando precisam (10px, não só 10) — exceto 0 e propriedades sem unidade (line-height, opacity, z-index, font-weight).\n6. Cores válidas (nome, #hex de 3 ou 6 dígitos, rgb()/rgba()).`;
+  if (lang.id === "php") return `1. Toda variável começa com $ — confira se não esqueceu em alguma.\n2. Todo comando termina com ; (exceto chaves de bloco e as tags <?php / ?>).\n3. Chaves { }, parênteses ( ) e aspas ' " — conte os pares no arquivo inteiro.\n4. Aspas simples NÃO interpolam variável ('$nome' mostra literalmente $nome); aspas duplas interpolam ("$nome" mostra o valor).\n5. Comparação usa == ou === (um = sozinho é atribuição, erro clássico dentro de if).\n6. echo/print, foreach ($arr as $item), function nome($param) — sintaxe certa.`;
+  if (lang.id === "js") return `1. Chaves { }, parênteses ( ) e colchetes [ ] sempre em par — conte no arquivo inteiro.\n2. Ponto e vírgula ; no fim das instruções (a turma usa sempre, mesmo sendo opcional na linguagem).\n3. === (compara valor e tipo) é o recomendado — == pode ser aceito, mas aponte a diferença se for claramente um bug.\n4. const não pode ser reatribuída depois de criada — se reatribuir, é erro.\n5. Template literal usa crase \` e \${...} pra interpolar — um $ sem chave dentro de crase não interpola sozinho (erro comum).\n6. Nome de variável/função digitado errado ou usado antes de declarar.`;
+  return "";
+}
+
+// ── 👁️ prévia ao vivo (HTML/CSS/JS): monta um documento HTML combinando os arquivos do projeto,
+// pra rodar direto num iframe isolado. Como o iframe não tem sistema de arquivos de verdade, injeta
+// o CSS/JS de qualquer outro arquivo direto no HTML em vez de depender de <link>/<script src> ──
+function buildPreviewDoc(files, langId) {
+  const list = files || [];
+  const byExt = (ext) => list.filter(f => String(f.name||"").toLowerCase().endsWith(ext));
+  const htmlFile = byExt(".html")[0];
+  const cssBlock = byExt(".css").map(f => f.code || "").join("\n");
+  const jsBlock = byExt(".js").map(f => f.code || "").join("\n");
+  // pega console.log/erros e mostra numa caixinha no rodapé da prévia, já que o aluno não tem devtools ali
+  const consoleShim = `<script>(function(){var out=document.getElementById('__nyx_console__');function show(t){if(!out)return;out.style.display='block';out.textContent+=t+"\\n";}var origLog=console.log;console.log=function(){origLog.apply(console,arguments);show(Array.prototype.map.call(arguments,function(a){try{return typeof a==='object'?JSON.stringify(a):String(a);}catch(e){return String(a);}}).join(' '));};window.onerror=function(msg){show('⚠ '+msg);};})();</script>`;
+  const consoleBox = `<pre id="__nyx_console__" style="display:none;position:fixed;bottom:0;left:0;right:0;max-height:110px;overflow:auto;background:#0b0614;color:#a3e635;font:12px monospace;margin:0;padding:8px;border-top:2px solid #c084fc;white-space:pre-wrap;"></pre>`;
+  if (htmlFile) {
+    let doc = htmlFile.code || "";
+    if (cssBlock) doc = doc.includes("</head>") ? doc.replace("</head>", `<style>${cssBlock}</style></head>`) : `<style>${cssBlock}</style>` + doc;
+    const tail = `${consoleBox}${consoleShim}${jsBlock ? `<script>${jsBlock}</script>` : ""}`;
+    doc = doc.includes("</body>") ? doc.replace("</body>", `${tail}</body>`) : doc + tail;
+    return doc;
+  }
+  if (langId === "css") {
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;padding:24px;background:#fff;color:#222;}${cssBlock}</style></head><body>
+      <h1>Título de exemplo</h1>
+      <p>Este é um parágrafo de exemplo pra você ver o efeito do seu CSS.</p>
+      <button>Um botão</button>
+      <ul><li>Item um</li><li>Item dois</li><li>Item três</li></ul>
+      <div class="card" style="border:1px solid #ccc;padding:12px;margin-top:12px;">Uma div com a classe "card"</div>
+    </body></html>`;
+  }
+  // js sem HTML próprio ainda: mostra a saída do console.log direto
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:sans-serif;padding:16px;color:#333;background:#fff">
+    <p style="color:#888">Saída do seu código (console.log) aparece abaixo:</p>
+    <pre id="__nyx_console__" style="display:block;background:#0b0614;color:#a3e635;padding:10px;border-radius:8px;min-height:60px;white-space:pre-wrap;"></pre>
+    ${consoleShim}
+    <script>try{${jsBlock}}catch(e){var o=document.getElementById('__nyx_console__'); if(o) o.textContent += '⚠ '+e.message;}</script>
+  </body></html>`;
+}
+
+function otherFilesCtx(files, active, lang) {
   const others = (files||[]).filter((f,i)=>i!==active && (f.code||"").trim());
   if (!others.length) return "";
-  return `Outros arquivos do MESMO projeto (compilam juntos com o arquivo em edição — classes daqui podem ser usadas nele):\n\`\`\`csharp\n${others.map(f=>`// ${f.name}\n${f.code}`).join("\n\n")}\n\`\`\`\n\n`;
+  return `Outros arquivos do MESMO projeto (compilam juntos com o arquivo em edição — classes daqui podem ser usadas nele):\n\`\`\`${lang ? lang.codeLang : "csharp"}\n${others.map(f=>`// ${f.name}\n${f.code}`).join("\n\n")}\n\`\`\`\n\n`;
 }
 
 // acha em qual linha (0-indexado) um trecho de código aparece — usado pra sublinhar o erro que o Nyx apontou.
@@ -446,7 +603,18 @@ function findLineIndex(code, trecho) {
 // ════════════════════════════════════════════════════════════════════════════
 const BRACKET_COLORS = ["#FFD700", "#DA70D6", "#179FFF"]; // ouro, roxo, azul (padrão VSCode)
 
-function highlight(code, errorLines) {
+// dispatcher: escolhe o tokenizer certo pela extensão do arquivo — cada sala de linguagem (C# na
+// turma normal, HTML/CSS/PHP/JS na sala de linguagens) ganha o realce que combina com sua sintaxe
+function highlight(code, errorLines, filename) {
+  const ext = String(filename || "").toLowerCase().split(".").pop();
+  if (ext === "html" || ext === "htm") return highlightHTML(code, errorLines);
+  if (ext === "css") return highlightCSS(code, errorLines);
+  if (ext === "php") return highlightPHP(code, errorLines);
+  if (ext === "js") return highlightJS(code, errorLines);
+  return highlightCSharp(code, errorLines);
+}
+
+function highlightCSharp(code, errorLines) {
   const keywords = ["using","namespace","class","static","void","public","private","protected","internal","int","long","short","string","bool","double","float","char","decimal","byte","return","if","else","for","while","foreach","do","in","new","var","true","false","null","this","base","override","virtual","abstract","sealed","readonly","const","try","catch","finally","throw","switch","case","break","continue","default","get","set","using","enum","struct","interface","async","await"];
   let depth = 0; // profundidade de colchetes acumulada entre linhas
   const lines = code.split("\n");
@@ -531,6 +699,268 @@ function highlight(code, errorLines) {
         tokens.push(<span key={i} style={{color:"#d4d4d4"}}>{ch}</span>);
       }
       i++;
+    }
+    return (
+      <div key={li} style={{ minHeight:"1.5em", ...(errSet.has(li) ? { textDecoration:"underline wavy #f87171", textDecorationThickness:"2px", textUnderlineOffset:"3px" } : {}) }}>
+        {tokens.length ? tokens : " "}
+      </div>
+    );
+  });
+}
+
+function highlightJS(code, errorLines) {
+  const keywords = ["function","return","if","else","for","while","do","break","continue","switch","case","default","try","catch","finally","throw","new","delete","typeof","instanceof","in","of","var","let","const","true","false","null","undefined","this","class","extends","super","static","get","set","async","await","yield","import","export","from","void"];
+  let depth = 0;
+  const lines = code.split("\n");
+  const errSet = new Set(errorLines || []);
+  return lines.map((line, li) => {
+    const tokens = [];
+    let i = 0;
+    while (i < line.length) {
+      if (line[i] === "/" && line[i+1] === "/") {
+        tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i)}</span>);
+        i = line.length; break;
+      }
+      // template literal `...${expr}...` — mesma ideia da string interpolada do C#, só que com crase
+      if (line[i] === "`") {
+        tokens.push(<span key={i} style={{color:"#ce9178"}}>{"`"}</span>);
+        i += 1;
+        let runStart = i;
+        const flushRun = (end) => { if (end > runStart) tokens.push(<span key={runStart} style={{color:"#ce9178"}}>{line.slice(runStart, end)}</span>); };
+        while (i < line.length && line[i] !== "`") {
+          if (line[i] === "$" && line[i+1] === "{") {
+            flushRun(i);
+            tokens.push(<span key={i} style={{color:"#569cd6"}}>{"${"}</span>);
+            i += 2;
+            const exprStart = i;
+            let edepth = 1;
+            while (i < line.length && edepth > 0) {
+              if (line[i] === "{") edepth++;
+              else if (line[i] === "}") { edepth--; if (edepth === 0) break; }
+              i++;
+            }
+            const expr = line.slice(exprStart, i);
+            if (expr) tokens.push(<span key={exprStart} style={{color:"#9cdcfe"}}>{expr}</span>);
+            if (line[i] === "}") { tokens.push(<span key={i} style={{color:"#569cd6"}}>{"}"}</span>); i++; }
+            runStart = i;
+            continue;
+          }
+          i++;
+        }
+        flushRun(i);
+        if (line[i] === "`") { tokens.push(<span key={i} style={{color:"#ce9178"}}>{"`"}</span>); i++; }
+        continue;
+      }
+      if (line[i] === '"' || line[i] === "'") {
+        const q = line[i];
+        let j = i+1;
+        while (j < line.length && line[j] !== q) j++;
+        tokens.push(<span key={i} style={{color:"#ce9178"}}>{q+line.slice(i+1,j)+q}</span>);
+        i = j+1; continue;
+      }
+      if (/[a-zA-Z_$]/.test(line[i])) {
+        let j = i;
+        while (j < line.length && /[a-zA-Z0-9_$]/.test(line[j])) j++;
+        const word = line.slice(i,j);
+        if (keywords.includes(word)) tokens.push(<span key={i} style={{color:"#569cd6"}}>{word}</span>);
+        else if (j < line.length && line[j] === "(") tokens.push(<span key={i} style={{color:"#dcdcaa"}}>{word}</span>);
+        else if (/^[A-Z]/.test(word)) tokens.push(<span key={i} style={{color:"#4ec9b0"}}>{word}</span>);
+        else tokens.push(<span key={i} style={{color:"#9cdcfe"}}>{word}</span>);
+        i = j; continue;
+      }
+      if (/[0-9]/.test(line[i])) {
+        let j = i;
+        while (j < line.length && /[0-9.]/.test(line[j])) j++;
+        tokens.push(<span key={i} style={{color:"#b5cea8"}}>{line.slice(i,j)}</span>);
+        i = j; continue;
+      }
+      const ch = line[i];
+      if ("([{".includes(ch)) {
+        const col = BRACKET_COLORS[depth % 3]; depth++;
+        tokens.push(<span key={i} style={{color:col}}>{ch}</span>);
+      } else if (")]}".includes(ch)) {
+        depth = Math.max(0, depth-1);
+        const col = BRACKET_COLORS[depth % 3];
+        tokens.push(<span key={i} style={{color:col}}>{ch}</span>);
+      } else {
+        tokens.push(<span key={i} style={{color:"#d4d4d4"}}>{ch}</span>);
+      }
+      i++;
+    }
+    return (
+      <div key={li} style={{ minHeight:"1.5em", ...(errSet.has(li) ? { textDecoration:"underline wavy #f87171", textDecorationThickness:"2px", textUnderlineOffset:"3px" } : {}) }}>
+        {tokens.length ? tokens : " "}
+      </div>
+    );
+  });
+}
+
+function highlightPHP(code, errorLines) {
+  const keywords = ["function","return","if","else","elseif","endif","for","foreach","while","do","break","continue","switch","case","default","try","catch","finally","throw","new","echo","print","class","extends","implements","interface","public","private","protected","static","const","true","false","null","namespace","use","require","require_once","include","include_once","array","global","isset","unset","empty","instanceof","as"];
+  let depth = 0;
+  const lines = code.split("\n");
+  const errSet = new Set(errorLines || []);
+  return lines.map((line, li) => {
+    const tokens = [];
+    let i = 0;
+    while (i < line.length) {
+      if (line[i] === "/" && line[i+1] === "/") { tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i)}</span>); i = line.length; break; }
+      if (line[i] === "<" && line.slice(i, i+5) === "<?php") { tokens.push(<span key={i} style={{color:"#c586c0"}}>{"<?php"}</span>); i += 5; continue; }
+      if (line[i] === "?" && line[i+1] === ">") { tokens.push(<span key={i} style={{color:"#c586c0"}}>{"?>"}</span>); i += 2; continue; }
+      if (line[i] === '"' || line[i] === "'") {
+        const q = line[i]; let j = i+1;
+        while (j < line.length && line[j] !== q) j++;
+        tokens.push(<span key={i} style={{color:"#ce9178"}}>{q+line.slice(i+1,j)+q}</span>);
+        i = j+1; continue;
+      }
+      // variáveis do PHP sempre começam com $ — vira uma cor própria em qualquer lugar (não só em string)
+      if (line[i] === "$" && /[a-zA-Z_]/.test(line[i+1]||"")) {
+        let j = i+1;
+        while (j < line.length && /[a-zA-Z0-9_]/.test(line[j])) j++;
+        tokens.push(<span key={i} style={{color:"#9cdcfe"}}>{line.slice(i,j)}</span>);
+        i = j; continue;
+      }
+      if (/[a-zA-Z_]/.test(line[i])) {
+        let j = i;
+        while (j < line.length && /[a-zA-Z0-9_]/.test(line[j])) j++;
+        const word = line.slice(i,j);
+        if (keywords.includes(word.toLowerCase())) tokens.push(<span key={i} style={{color:"#569cd6"}}>{word}</span>);
+        else if (j < line.length && line[j] === "(") tokens.push(<span key={i} style={{color:"#dcdcaa"}}>{word}</span>);
+        else if (/^[A-Z]/.test(word)) tokens.push(<span key={i} style={{color:"#4ec9b0"}}>{word}</span>);
+        else tokens.push(<span key={i} style={{color:"#d4d4d4"}}>{word}</span>);
+        i = j; continue;
+      }
+      if (/[0-9]/.test(line[i])) {
+        let j = i; while (j < line.length && /[0-9.]/.test(line[j])) j++;
+        tokens.push(<span key={i} style={{color:"#b5cea8"}}>{line.slice(i,j)}</span>);
+        i = j; continue;
+      }
+      const ch = line[i];
+      if ("([{".includes(ch)) { const col = BRACKET_COLORS[depth % 3]; depth++; tokens.push(<span key={i} style={{color:col}}>{ch}</span>); }
+      else if (")]}".includes(ch)) { depth = Math.max(0, depth-1); const col = BRACKET_COLORS[depth % 3]; tokens.push(<span key={i} style={{color:col}}>{ch}</span>); }
+      else tokens.push(<span key={i} style={{color:"#d4d4d4"}}>{ch}</span>);
+      i++;
+    }
+    return (
+      <div key={li} style={{ minHeight:"1.5em", ...(errSet.has(li) ? { textDecoration:"underline wavy #f87171", textDecorationThickness:"2px", textUnderlineOffset:"3px" } : {}) }}>
+        {tokens.length ? tokens : " "}
+      </div>
+    );
+  });
+}
+
+function highlightCSS(code, errorLines) {
+  let inComment = false;
+  const lines = code.split("\n");
+  const errSet = new Set(errorLines || []);
+  return lines.map((line, li) => {
+    const tokens = [];
+    let i = 0;
+    while (i < line.length) {
+      if (inComment) {
+        const end = line.indexOf("*/", i);
+        if (end === -1) { tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i)}</span>); i = line.length; break; }
+        tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i, end+2)}</span>);
+        i = end+2; inComment = false; continue;
+      }
+      if (line[i] === "/" && line[i+1] === "*") {
+        const end = line.indexOf("*/", i+2);
+        if (end === -1) { tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i)}</span>); inComment = true; i = line.length; break; }
+        tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i, end+2)}</span>);
+        i = end+2; continue;
+      }
+      if (line[i] === '"' || line[i] === "'") {
+        const q = line[i]; let j = i+1;
+        while (j < line.length && line[j] !== q) j++;
+        tokens.push(<span key={i} style={{color:"#ce9178"}}>{q+line.slice(i+1,j)+q}</span>);
+        i = j+1; continue;
+      }
+      if (line[i] === "#" && /[0-9a-fA-F]/.test(line[i+1]||"")) {
+        let j = i+1; while (j < line.length && /[0-9a-fA-F]/.test(line[j])) j++;
+        tokens.push(<span key={i} style={{color:"#ce9178"}}>{line.slice(i,j)}</span>);
+        i = j; continue;
+      }
+      if (/[.#]/.test(line[i]) && /[a-zA-Z_-]/.test(line[i+1]||"")) {
+        let j = i+1; while (j < line.length && /[a-zA-Z0-9_-]/.test(line[j])) j++;
+        tokens.push(<span key={i} style={{color:"#d7ba7d"}}>{line.slice(i,j)}</span>);
+        i = j; continue;
+      }
+      if (/[a-zA-Z-]/.test(line[i])) {
+        let j = i; while (j < line.length && /[a-zA-Z0-9-]/.test(line[j])) j++;
+        const word = line.slice(i,j);
+        let k = j; while (k < line.length && line[k] === " ") k++;
+        if (line[k] === ":") tokens.push(<span key={i} style={{color:"#9cdcfe"}}>{word}</span>);
+        else if (line[k] === "{" || line[j] === ",") tokens.push(<span key={i} style={{color:"#4ec9b0"}}>{word}</span>);
+        else tokens.push(<span key={i} style={{color:"#dcdcaa"}}>{word}</span>);
+        i = j; continue;
+      }
+      if (/[0-9]/.test(line[i])) {
+        let j = i; while (j < line.length && /[0-9.]/.test(line[j])) j++;
+        let k = j; while (k < line.length && /[a-zA-Z%]/.test(line[k])) k++;
+        tokens.push(<span key={i} style={{color:"#b5cea8"}}>{line.slice(i,k)}</span>);
+        i = k; continue;
+      }
+      const ch = line[i];
+      if (ch === "{" || ch === "}") tokens.push(<span key={i} style={{color:"#FFD700"}}>{ch}</span>);
+      else tokens.push(<span key={i} style={{color:"#d4d4d4"}}>{ch}</span>);
+      i++;
+    }
+    return (
+      <div key={li} style={{ minHeight:"1.5em", ...(errSet.has(li) ? { textDecoration:"underline wavy #f87171", textDecorationThickness:"2px", textUnderlineOffset:"3px" } : {}) }}>
+        {tokens.length ? tokens : " "}
+      </div>
+    );
+  });
+}
+
+function highlightHTML(code, errorLines) {
+  let inComment = false;
+  const lines = code.split("\n");
+  const errSet = new Set(errorLines || []);
+  return lines.map((line, li) => {
+    const tokens = [];
+    let i = 0;
+    while (i < line.length) {
+      if (inComment) {
+        const end = line.indexOf("-->", i);
+        if (end === -1) { tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i)}</span>); i = line.length; break; }
+        tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i, end+3)}</span>);
+        i = end+3; inComment = false; continue;
+      }
+      if (line.slice(i, i+4) === "<!--") {
+        const end = line.indexOf("-->", i+4);
+        if (end === -1) { tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i)}</span>); inComment = true; i = line.length; break; }
+        tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i, end+3)}</span>);
+        i = end+3; continue;
+      }
+      if (line[i] === "<") {
+        const isClose = line[i+1] === "/";
+        tokens.push(<span key={i} style={{color:"#808080"}}>{isClose ? "</" : "<"}</span>);
+        i += isClose ? 2 : 1;
+        let j = i; while (j < line.length && /[a-zA-Z0-9-]/.test(line[j])) j++;
+        if (j > i) { tokens.push(<span key={i} style={{color:"#4ec9b0"}}>{line.slice(i,j)}</span>); i = j; }
+        while (i < line.length && line[i] !== ">") {
+          if (line[i] === "/" && line[i+1] === ">") { tokens.push(<span key={i} style={{color:"#808080"}}>{"/>"}</span>); i += 2; break; }
+          if (line[i] === '"' || line[i] === "'") {
+            const q = line[i]; let k = i+1;
+            while (k < line.length && line[k] !== q) k++;
+            tokens.push(<span key={i} style={{color:"#ce9178"}}>{q+line.slice(i+1,k)+q}</span>);
+            i = k+1; continue;
+          }
+          if (/[a-zA-Z-]/.test(line[i])) {
+            let k = i; while (k < line.length && /[a-zA-Z0-9-]/.test(line[k])) k++;
+            tokens.push(<span key={i} style={{color:"#9cdcfe"}}>{line.slice(i,k)}</span>);
+            i = k; continue;
+          }
+          tokens.push(<span key={i} style={{color:"#d4d4d4"}}>{line[i]}</span>);
+          i++;
+        }
+        if (line[i] === ">") { tokens.push(<span key={i} style={{color:"#808080"}}>{">"}</span>); i++; }
+        continue;
+      }
+      let j = i; while (j < line.length && line[j] !== "<") j++;
+      if (j > i) tokens.push(<span key={i} style={{color:"#d4d4d4"}}>{line.slice(i,j)}</span>);
+      i = j;
     }
     return (
       <div key={li} style={{ minHeight:"1.5em", ...(errSet.has(li) ? { textDecoration:"underline wavy #f87171", textDecorationThickness:"2px", textUnderlineOffset:"3px" } : {}) }}>
@@ -628,7 +1058,7 @@ function VSEditor({ value, onChange, filename, errorLines, locked }) {
         </div>
         <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
           <div ref={highlightRef} style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, color:"#d4d4d4", pointerEvents:"none", overflow:"hidden", paddingLeft:14 }}>
-            {highlight(value, errorLines)}
+            {highlight(value, errorLines, filename)}
           </div>
           {/* tira \r de código colado (ex: do Windows/Visual Studio, que usa quebra de linha \r\n) —
               sem isso, esse caractere invisível sobra escondido no texto e a camada colorida (que só
@@ -1583,7 +2013,7 @@ function Terminal({ files, dataTour, maxHeight = 260, onEasterEgg = null }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  CHAT COM O NYX  (botão flutuante — aluno e professor)
 // ════════════════════════════════════════════════════════════════════════════
-function NyxChat({ who = "student", context, onTheme, onCommand, accent = "#c084fc", dataTour, gear, accessMode = false, speak = null, nyxPrefs = null }) {
+function NyxChat({ who = "student", context, onTheme, onCommand, accent = "#c084fc", dataTour, gear, accessMode = false, speak = null, nyxPrefs = null, language = null }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
@@ -1615,7 +2045,7 @@ function NyxChat({ who = "student", context, onTheme, onCommand, accent = "#c084
       const persona = who === "student"
         ? (accessMode
             ? `Você está conversando com um aluno dentro da plataforma, num chat pequeno, e este aluno está no seu MODO GUIADO (dificuldade de leitura/escrita/motora). Responda MUITO curto (no máximo 3 frases), com palavras bem simples, sempre calorosamente. Se puder, relacione a resposta com exemplos de jogos.${themeRule}`
-            : `Você está conversando com um aluno dentro da plataforma, num chat pequeno. Responda CURTO (no máximo 5 frases), simples e animado. Ajude com dúvidas de C#, dicas de estudo e o que ele precisar. Não resolva a atividade por ele — explique o caminho.${themeRule}`)
+            : `Você está conversando com um aluno dentro da plataforma, num chat pequeno. Responda CURTO (no máximo 5 frases), simples e animado. Ajude com dúvidas de ${language ? language.label : "C#"}, dicas de estudo e o que ele precisar. Não resolva a atividade por ele — explique o caminho.${themeRule}`)
         : `Você é o assistente pessoal do PROFESSOR dentro da plataforma, num chat pequeno. Responda curto e direto (máximo 6 frases), com base nos dados da turma fornecidos. Sugira a quem dar atenção, ideias de exercícios e próximos passos quando fizer sentido.
 COMANDOS DISPONÍVEIS que o professor pode digitar aqui no chat (executados por você na hora):
 - "zek" → você aparece na tela de TODOS os alunos, no centro, pedindo atenção, e bloqueia tudo o que eles estiverem fazendo.
@@ -1625,7 +2055,7 @@ COMANDOS DISPONÍVEIS que o professor pode digitar aqui no chat (executados por 
 Se o professor perguntar como chamar a atenção da turma ou controlar os duelos, LEMBRE-O desses comandos. Outras ações (mudar nota, renomear, mover de turno ou excluir aluno, ativar Modo Guiado) o professor faz no painel Monitoramento clicando no aluno — indique o caminho quando ele pedir esse tipo de mudança.`;
       const out = await askClaude(
         `${context ? context() : ""}\n\nConversa até agora:\n${histTxt}\n\nResponda como Nyx à última mensagem.`,
-        (who === "student" && accessMode ? NYX_GUIDED_SYSTEM : CS_SYSTEM) + "\n\n" + persona + (who === "student" ? nyxPrefsInstruction(nyxPrefs) : ""),
+        (who === "student" && accessMode ? NYX_GUIDED_SYSTEM : (who === "student" && language ? language.system : CS_SYSTEM)) + "\n\n" + persona + (who === "student" ? nyxPrefsInstruction(nyxPrefs) : ""),
         { temperature: 0.6 }
       );
       let reply = out.trim();
@@ -3685,29 +4115,34 @@ async function askClaudeJson(prompt, system, opts = {}) {
 }
 // monta o pedido de resumo da aula pro Nyx — "simples" (padrão, frases curtas) ou "detalhado"
 // (mais completo, pra quem quer entender o porquê de cada coisa, não só o quê)
-function buildSummaryRequest(detail, hasTodayDiff, todayCode, fullCode) {
+function buildSummaryRequest(detail, hasTodayDiff, todayCode, fullCode, lang) {
+  const langName = lang ? lang.label : "C#";
+  const fence = lang ? lang.codeLang : "csharp";
   const contextPart = hasTodayDiff
-    ? `Projeto C# completo de um aluno iniciante (contexto — inclui código de aulas ANTERIORES):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nTRECHOS QUE ELE ESCREVEU HOJE, na aula de hoje (extraídos por comparação com o início do dia):\n\`\`\`csharp\n${todayCode}\n\`\`\`\n\nCrie um resumo da AULA DE HOJE: cubra APENAS os conceitos que aparecem nos trechos escritos hoje. NÃO faça seções sobre conceitos que só existem no código das aulas anteriores — o projeto completo é só contexto para você entender os trechos novos.`
-    : `Um aluno iniciante de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos fazem parte do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie um resumo da aula`;
+    ? `Projeto ${langName} completo de um aluno iniciante (contexto — inclui código de aulas ANTERIORES):\n\`\`\`${fence}\n${fullCode}\n\`\`\`\n\nTRECHOS QUE ELE ESCREVEU HOJE, na aula de hoje (extraídos por comparação com o início do dia):\n\`\`\`${fence}\n${todayCode}\n\`\`\`\n\nCrie um resumo da AULA DE HOJE: cubra APENAS os conceitos que aparecem nos trechos escritos hoje. NÃO faça seções sobre conceitos que só existem no código das aulas anteriores — o projeto completo é só contexto para você entender os trechos novos.`
+    : `Um aluno iniciante de ${langName} escreveu este código na aula de hoje (pode ter mais de um arquivo, todos fazem parte do mesmo projeto):\n\`\`\`${fence}\n${fullCode}\n\`\`\`\n\nCrie um resumo da aula`;
   const codeScope = hasTodayDiff ? "código escrito HOJE" : "código dele, olhando TODOS os arquivos";
+  const exemploConceitos = lang ? (lang.id === "html" ? "<!DOCTYPE html>, <head>, <body>, <h1>, <p>, <a>, <img>, atributos" : lang.id === "css" ? "seletores, propriedades, {  }, cores, box model, flexbox" : lang.id === "php" ? "<?php ?>, variáveis $, echo, if/else, foreach, function" : "let/const, function, if/else, arrays, template literals") : "using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }";
   if (detail === "detalhado") {
     return {
-      prompt: contextPart + ` bem organizado e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 ou 2 frases curtas e acolhedoras dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação bem simples, de 1 a 3 frases, do que isso faz e por quê", "exemplo": "um trecho de código C# curto e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta, útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${codeScope} (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Linguagem bem de iniciante. Exemplos curtos, corretos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
-      system: "Você é um professor de C# paciente e organizado, para iniciantes. Português correto e simples. Responda APENAS JSON puro válido.",
+      prompt: contextPart + ` bem organizado e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 ou 2 frases curtas e acolhedoras dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação bem simples, de 1 a 3 frases, do que isso faz e por quê", "exemplo": "um trecho de código ${langName} curto e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta, útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${codeScope} (ex: ${exemploConceitos}). Linguagem bem de iniciante. Exemplos curtos, corretos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
+      system: `Você é um professor de ${langName} paciente e organizado, para iniciantes. Português correto e simples. Responda APENAS JSON puro válido.`,
     };
   }
   return {
-    prompt: contextPart + ` bem organizado, SIMPLES e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 frase curta e acolhedora dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação BEM simples, em NO MÁXIMO 2 frases curtas, do que isso faz — sem jargão técnico, como se explicasse para alguém de 13 anos que nunca programou", "exemplo": "um trecho de código C# BEM curto (1 a 3 linhas) e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta (1 frase), útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${codeScope} (ex: using, class, static void Main, string, int, Console.WriteLine, Console.ReadLine, ; , { }). Frases curtas e diretas, uma ideia por vez. Nada de explicações longas ou com vários porquês encadeados. Exemplos curtos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
-    system: "Você é um professor de C# paciente, para iniciantes de 13-14 anos que nunca programaram. Explique tudo do jeito MAIS SIMPLES possível: frases curtas, uma ideia por frase, sem jargão técnico desnecessário e sem explicações longas. Português correto e simples. Responda APENAS JSON puro válido.",
+    prompt: contextPart + ` bem organizado, SIMPLES e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 frase curta e acolhedora dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação BEM simples, em NO MÁXIMO 2 frases curtas, do que isso faz — sem jargão técnico, como se explicasse para alguém de 13 anos que nunca programou", "exemplo": "um trecho de código ${langName} BEM curto (1 a 3 linhas) e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta (1 frase), útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${codeScope} (ex: ${exemploConceitos}). Frases curtas e diretas, uma ideia por vez. Nada de explicações longas ou com vários porquês encadeados. Exemplos curtos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
+    system: `Você é um professor de ${langName} paciente, para iniciantes de 13-14 anos que nunca programaram. Explique tudo do jeito MAIS SIMPLES possível: frases curtas, uma ideia por frase, sem jargão técnico desnecessário e sem explicações longas. Português correto e simples. Responda APENAS JSON puro válido.`,
   };
 }
 // monta o pedido de CONTINUAÇÃO do resumo — usado quando o aluno já tinha um resumo pronto hoje e o
 // professor passou mais código depois; pede só as seções NOVAS, sem repetir o que já foi explicado
-function buildContinuationSummaryRequest(existingSummary, novoCode, fullCode) {
+function buildContinuationSummaryRequest(existingSummary, novoCode, fullCode, lang) {
+  const langName = lang ? lang.label : "C#";
+  const fence = lang ? lang.codeLang : "csharp";
   const jaExplicado = (existingSummary.secoes || []).map(s => s.titulo).filter(Boolean).join(", ") || "(nada ainda)";
   return {
-    prompt: `Um aluno iniciante de C# já tinha um resumo de aula pronto, cobrindo estes conceitos: ${jaExplicado}.\n\nDepois disso, o professor passou MAIS código pra turma copiar, e isto é o que o aluno escreveu a mais:\n\`\`\`csharp\n${novoCode}\n\`\`\`\n\nCódigo completo do projeto até agora (contexto, pode repetir trechos de antes):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie a CONTINUAÇÃO do resumo: só seções sobre conceitos NOVOS que aparecem no código escrito depois. NÃO repita nenhum dos conceitos já listados acima.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito", "explicacao": "explicação BEM simples, em NO MÁXIMO 2 frases curtas, sem jargão técnico", "exemplo": "um trecho de código C# BEM curto (1 a 3 linhas) mostrando o uso (use \\n para quebrar linha)" }\n  ],\n  "dica": "uma dica final curta (1 frase), sobre o que aprendeu de novo"\n}\n\nSe não houver nenhum conceito realmente novo, devolva "secoes": [] mesmo assim. Frases curtas, simples, para quem começou a programar agora. Garanta JSON válido.`,
-    system: "Você é um professor de C# continuando um resumo de aula já começado — só acrescenta o que é novo, nunca repete o que já foi explicado antes. Português correto e simples. Responda APENAS JSON puro válido.",
+    prompt: `Um aluno iniciante de ${langName} já tinha um resumo de aula pronto, cobrindo estes conceitos: ${jaExplicado}.\n\nDepois disso, o professor passou MAIS código pra turma copiar, e isto é o que o aluno escreveu a mais:\n\`\`\`${fence}\n${novoCode}\n\`\`\`\n\nCódigo completo do projeto até agora (contexto, pode repetir trechos de antes):\n\`\`\`${fence}\n${fullCode}\n\`\`\`\n\nCrie a CONTINUAÇÃO do resumo: só seções sobre conceitos NOVOS que aparecem no código escrito depois. NÃO repita nenhum dos conceitos já listados acima.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito", "explicacao": "explicação BEM simples, em NO MÁXIMO 2 frases curtas, sem jargão técnico", "exemplo": "um trecho de código ${langName} BEM curto (1 a 3 linhas) mostrando o uso (use \\n para quebrar linha)" }\n  ],\n  "dica": "uma dica final curta (1 frase), sobre o que aprendeu de novo"\n}\n\nSe não houver nenhum conceito realmente novo, devolva "secoes": [] mesmo assim. Frases curtas, simples, para quem começou a programar agora. Garanta JSON válido.`,
+    system: `Você é um professor de ${langName} continuando um resumo de aula já começado — só acrescenta o que é novo, nunca repete o que já foi explicado antes. Português correto e simples. Responda APENAS JSON puro válido.`,
   };
 }
 // junta o resumo novo (só as seções novas) ao resumo que já existia, sem perder o que já tinha
@@ -3788,7 +4223,11 @@ const SHIFTS = [
 // turma de teste — só entra quem sabe a senha; fica fora do SHIFTS para não aparecer nos filtros normais
 const TEST_SHIFT = { id:"teste", label:"Teste", emoji:"🧪" };
 const TEST_SHIFT_PASSWORD = "T3steSystem";
-const shiftMeta  = id => SHIFTS.find(s=>s.id===id) || (id===TEST_SHIFT.id ? TEST_SHIFT : { id:id||"", label:"Sem turno", emoji:"" });
+// sala extra pra amigos estudarem outras linguagens (HTML/CSS/PHP/JS) por conta própria — mesmo
+// modelo de acesso da turma de teste (senha própria, fora do fluxo normal da turma de C#)
+const LANG_SHIFT = { id:"linguagens", label:"Linguagens", emoji:"🌐" };
+const LANG_SHIFT_PASSWORD = "MultiLang2026";
+const shiftMeta  = id => SHIFTS.find(s=>s.id===id) || (id===TEST_SHIFT.id ? TEST_SHIFT : id===LANG_SHIFT.id ? LANG_SHIFT : { id:id||"", label:"Sem turno", emoji:"" });
 const shiftLabel = id => { const m = shiftMeta(id); return `${m.emoji} ${m.label}`.trim(); };
 const isSameDayTs = (ts) => !!ts && new Date(ts).toDateString() === new Date().toDateString();
 
@@ -3839,6 +4278,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [birthDate, setBirthDate] = useState(isNew ? (initialBirthDate || "") : "");
   const [cpf, setCpf] = useState(isNew ? (initialCpf || "") : "");
   const [showIntro, setShowIntro] = useState(!!isNew);
+  // 🌐 sala de linguagens (extra, fora da turma de C#): qual linguagem este aluno escolheu estudar
+  // (HTML/CSS/PHP/JS) — null pra qualquer aluno da turma normal, que continua sendo sempre C#
+  const isLangRoom = shift === LANG_SHIFT.id;
+  const [programmingLanguage, setProgrammingLanguage] = useState(null);
+  const [showLangPicker, setShowLangPicker] = useState(false);
+  // histórico de linguagens já estudadas (código + resumos arquivados ao trocar de linguagem)
+  const [languageHistory, setLanguageHistory] = useState([]);
+  const studyLang = isLangRoom ? langById(programmingLanguage) : null;
   const [files, setFiles] = useState([{ name:"Program.cs", code:"" }]);
   const [active, setActive] = useState(0);
   const [renaming, setRenaming] = useState(null);
@@ -4070,7 +4517,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg, programmingLanguage, languageHistory };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -4165,6 +4612,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       detailedSummaryHistory: s.detailedSummaryHistory || {},
       guidedBlocks: s.guidedBlocks || [],
       guidedLessons: s.guidedLessons || [],
+      programmingLanguage: s.programmingLanguage || null,
+      languageHistory: s.languageHistory || [],
       ...extra,
     });
     setConnected(ok);
@@ -4190,6 +4639,56 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     window.addEventListener("online", onOnline);
     return () => { window.removeEventListener("offline", onOffline); window.removeEventListener("online", onOnline); };
   }, [persist]);
+
+  // 🌐 sala de linguagens: depois da preferência do Nyx (e antes da apresentação/tour), quem ainda
+  // não escolheu uma linguagem pra estudar (HTML/CSS/PHP/JS) vê a tela de escolha
+  useEffect(() => {
+    if (!loaded || !isLangRoom || showNyxPrefs) return;
+    setShowLangPicker(!programmingLanguage);
+  }, [loaded, isLangRoom, showNyxPrefs, programmingLanguage]);
+
+  // 👁️ prévia ao vivo (só HTML/CSS/JS, PHP precisa de servidor): recalcula com um pequeno atraso
+  // pra não recarregar o iframe a cada tecla digitada
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState("");
+  useEffect(() => {
+    if (!showPreview || !studyLang?.preview) return;
+    const t = setTimeout(() => setPreviewDoc(buildPreviewDoc(files, programmingLanguage)), 400);
+    return () => clearTimeout(t);
+  }, [showPreview, studyLang, files, programmingLanguage]);
+
+  const chooseLanguage = async (langId) => {
+    const lang = langById(langId);
+    if (!lang) return;
+    const newFiles = [{ name: lang.fileName, code: lang.starter }];
+    setProgrammingLanguage(langId);
+    setFiles(newFiles);
+    setActive(0);
+    setShowLangPicker(false);
+    await persist({ programmingLanguage: langId, files: newFiles, code: lang.starter });
+  };
+
+  // 🔁 trocar de linguagem: arquiva o código e os resumos da linguagem atual no histórico (igual o
+  // caderno de resumos) e volta pra tela de escolha, começando do zero na próxima linguagem
+  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const switchLanguage = async () => {
+    const archived = { language: programmingLanguage, files: files.map(f => ({ ...f })), summaryHistory, detailedSummaryHistory, endedAt: Date.now() };
+    const newHistory = [...languageHistory, archived];
+    setLanguageHistory(newHistory);
+    setProgrammingLanguage(null);
+    setFiles([{ name:"Program.cs", code:"" }]);
+    setSummaryHistory({});
+    setDetailedSummaryHistory({});
+    setDynamicSummary(""); setDynamicActivity(null); setAnswers({}); setRevealedHints({}); setScore(null); setDoneAt(null);
+    setPhase("coding");
+    setShowSwitchConfirm(false);
+    setShowLangPicker(true);
+    await persist({
+      languageHistory: newHistory, programmingLanguage: null, files: [{ name:"Program.cs", code:"" }], code: "",
+      summaryHistory: {}, detailedSummaryHistory: {}, dynamicSummary: null, dynamicActivity: null, answers: {},
+      score: null, doneAt: null, phase: "coding",
+    });
+  };
 
   // 🤝 parceiro de código: fica de olho se o professor me pareou com alguém (como ajudado OU como
   // ajudante). Quando o ajudante marca como resolvido, o AJUDADO detecta na próxima verificação,
@@ -4469,6 +4968,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           // editor ficava com a marcação colorida desalinhada do cursor de verdade nessas linhas
           if (Array.isArray(prev.files) && prev.files.length) setFiles(prev.files.map(f => ({ ...f, code: String(f.code||"").replace(/\r/g, "") })));
           else if (typeof prev.code === "string") setFiles([{ name:"Program.cs", code:prev.code.replace(/\r/g, "") }]);
+          if (prev.programmingLanguage) setProgrammingLanguage(prev.programmingLanguage);
+          if (Array.isArray(prev.languageHistory)) setLanguageHistory(prev.languageHistory);
           if (prev.avatar) setAvatar(prev.avatar);
           if (prev.score != null) setScore(prev.score);
           if (prev.answers) setAnswers(prev.answers);
@@ -4927,8 +5428,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     for (const provider of order) {
       try {
         const parsed = await askClaudeJson(
-          `Revise o código C# de um aluno iniciante como um COMPILADOR faria, linha por linha.\n\n${otherFilesCtx(files, active)}Arquivo em edição — é ESTE e SÓ ESTE que você deve revisar (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nO que verificar (nesta ordem):\n1. Maiúsculas/minúsculas: Console.WriteLine, Console.ReadLine, Convert.ToInt32, int.Parse — "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS.\n2. Tipos em minúsculo (regra da turma): string, int, double, bool, char — se usou String/Int32/Double/Boolean, avise para trocar pela forma minúscula.\n3. Ponto e vírgula ; faltando no fim de instruções (declarações, chamadas, atribuições).\n4. Chaves { }, parênteses ( ) e aspas " — conte os pares no arquivo INTEIRO antes de acusar falta.\n5. Palavras-chave erradas (publik, voi, whille, pritn, statics, clas).\n6. Variáveis usadas sem declarar (confira TODAS as linhas anteriores antes de acusar) e comparação com = em vez de ==.\n7. Console.ReadLine lido direto para int/double sem Convert/Parse.\n\nLembretes IMPORTANTES:\n- Os "Outros arquivos" (se houver) são SÓ contexto de compilação, pra você saber que classes/métodos de lá existem e podem ser usados no arquivo em edição — NUNCA os revise, NUNCA aponte erro neles, e NUNCA copie um "trecho" retirado deles. Cada "trecho" de erro tem que ser uma linha que existe literalmente no arquivo em edição.\n- Top-level statements (código sem class/Main) e ausência de using System são VÁLIDOS — não são erro.\n- Não aponte classe/método "inexistente" se estiver definido em outro arquivo do projeto.\n- NÃO invente erro em código correto. Na dúvida real, prefira ok=true.\n\nResponda APENAS em JSON puro, sem markdown, com os campos NESTA ordem:\n{"analise": "sua verificação rápida linha a linha, citando o que conferiu (máx 3 frases — o aluno não vê isto)", "ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: onde está (linha/trecho) e como corrigir mostrando a forma certa, em 1 a 3 frases gentis", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se nenhum"], "errors": ["se ok for false: uma lista com CADA erro encontrado no arquivo em edição (pode ter mais de um). Cada item é um objeto {\\"trecho\\": a linha EXATA e completa como aparece no ARQUIVO EM EDIÇÃO (nunca nos outros arquivos), copiada literalmente, sem espaços extras no início; \\"explicacao\\": por que está errado e como corrigir, 1 a 2 frases bem simples e gentis; \\"exemplo\\": a mesma linha já corrigida}. Lista vazia se ok for true."]}`,
-          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown." + nyxPrefsInstruction(nyxPrefs),
+          `Revise o código ${studyLang ? studyLang.label : "C#"} de um aluno iniciante como um COMPILADOR faria, linha por linha.\n\n${otherFilesCtx(files, active, studyLang)}Arquivo em edição — é ESTE e SÓ ESTE que você deve revisar (${files[active]?.name || "Program.cs"}):\n\`\`\`${studyLang ? studyLang.codeLang : "csharp"}\n${activeCode}\n\`\`\`\n\nO que verificar (nesta ordem):\n${reviewChecklistFor(studyLang)}\n\nLembretes IMPORTANTES:\n- Os "Outros arquivos" (se houver) são SÓ contexto, pra você saber que existem e podem ser usados no arquivo em edição — NUNCA os revise, NUNCA aponte erro neles, e NUNCA copie um "trecho" retirado deles. Cada "trecho" de erro tem que ser uma linha que existe literalmente no arquivo em edição.${studyLang ? "" : "\n- Top-level statements (código sem class/Main) e ausência de using System são VÁLIDOS — não são erro.\n- Não aponte classe/método \"inexistente\" se estiver definido em outro arquivo do projeto."}\n- NÃO invente erro em código correto. Na dúvida real, prefira ok=true.\n\nResponda APENAS em JSON puro, sem markdown, com os campos NESTA ordem:\n{"analise": "sua verificação rápida linha a linha, citando o que conferiu (máx 3 frases — o aluno não vê isto)", "ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: onde está (linha/trecho) e como corrigir mostrando a forma certa, em 1 a 3 frases gentis", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se nenhum"], "errors": ["se ok for false: uma lista com CADA erro encontrado no arquivo em edição (pode ter mais de um). Cada item é um objeto {\\"trecho\\": a linha EXATA e completa como aparece no ARQUIVO EM EDIÇÃO (nunca nos outros arquivos), copiada literalmente, sem espaços extras no início; \\"explicacao\\": por que está errado e como corrigir, 1 a 2 frases bem simples e gentis; \\"exemplo\\": a mesma linha já corrigida}. Lista vazia se ok for true."]}`,
+          (studyLang ? studyLang.system : CS_SYSTEM) + "\nResponda APENAS JSON puro, sem markdown." + nyxPrefsInstruction(nyxPrefs),
           { temperature: 0, provider }
         );
         lastProviderRef.current = provider; // o modelo que funcionou vira o preferido pras próximas análises (inclusive as silenciosas)
@@ -5015,34 +5516,36 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     return () => clearTimeout(t);
   }, [teacherWriting, showNyxShop, showKeyboard, showDuel]);
 
-  // arquivos
+  // arquivos — na sala de linguagens a extensão padrão acompanha a linguagem escolhida (.html/.css/.php/.js)
+  const fileExt = studyLang ? `.${studyLang.fileName.split(".").pop()}` : ".cs";
   const updateActiveCode = (newCode) => setFiles(fs => fs.map((f,i)=> i===active ? { ...f, code:newCode } : f));
   const uniqueName = (base, ignoreIdx=-1) => {
     let name = base, n = 2;
+    const extRe = new RegExp(`\\${fileExt}$`, "i");
     while (files.some((f,i)=> i!==ignoreIdx && f.name.toLowerCase()===name.toLowerCase())) {
-      name = base.replace(/\.cs$/i, "") + n + ".cs"; n++;
+      name = base.replace(extRe, "") + n + fileExt; n++;
     }
     return name;
   };
   const addFile = () => {
-    const name = uniqueName(`Arquivo${files.length+1}.cs`);
+    const name = uniqueName(`Arquivo${files.length+1}${fileExt}`);
     const newIdx = files.length;
     setFiles(fs => [...fs, { name, code:"" }]);
     setActive(newIdx);
     setRenaming(newIdx);           // já abre para o aluno nomear
-    setRenameValue(name.replace(/\.cs$/i, ""));
+    setRenameValue(name.replace(new RegExp(`\\${fileExt}$`, "i"), ""));
   };
   const deleteFile = (idx) => {
     if (files.length <= 1) return;
     setFiles(fs => fs.filter((_,i)=>i!==idx));
     setActive(a => (idx<=a ? Math.max(0,a-1) : a));
   };
-  const openRename = (idx) => { setRenaming(idx); setRenameValue((files[idx]?.name || "").replace(/\.cs$/i, "")); };
+  const openRename = (idx) => { setRenaming(idx); setRenameValue((files[idx]?.name || "").replace(new RegExp(`\\${fileExt}$`, "i"), "")); };
   const confirmRename = () => {
     if (renaming == null) return;
     let base = String(renameValue).trim().replace(/["'\/\\]/g, "");
     if (!base) base = `Arquivo${renaming+1}`;
-    let name = /\.cs$/i.test(base) ? base : base + ".cs";
+    let name = new RegExp(`\\${fileExt}$`, "i").test(base) ? base : base + fileExt;
     name = uniqueName(name, renaming);
     const idx = renaming;
     setFiles(fs => fs.map((f,i)=> i===idx ? { ...f, name } : f));
@@ -5215,9 +5718,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     setExplainFailMsg("");
     try {
       const list = wrong.map(({ q, i }) => `Pergunta: ${q.q}\nO aluno respondeu: ${q.opts[answers[i]] ?? "(não respondeu)"}\nResposta correta: ${q.opts[q.correct]}`).join("\n\n");
+      const langName = studyLang ? studyLang.label : "C#";
       const parsed = await askClaudeJson(
-        `Um aluno iniciante errou estas questões sobre o próprio código C# dele:\n\n${list}\n\nPara CADA questão errada, crie uma seção explicando o conceito de forma simples e gentil: por que a resposta certa é a certa e onde ele provavelmente se confundiu, seguida de um EXEMPLO CURTO de código C# correto que ilustre bem o conceito (pode ser um exemplo didático, não precisa ser do código dele). No final, escreva UMA mensagem curta e encorajadora olhando o desempenho geral dele.\n\nResponda APENAS em JSON puro, sem markdown:\n{"secoes":[{"emoji":"emoji que combine com o conceito","titulo":"nome curto do conceito","explicacao":"1 a 3 frases simples e gentis","exemplo":"código C# curto e correto (use \\n para quebrar linha)"}],"encorajamento":"mensagem final motivadora, 1 a 2 frases"}`,
-        CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown." + nyxPrefsInstruction(nyxPrefs),
+        `Um aluno iniciante errou estas questões sobre o próprio código ${langName} dele:\n\n${list}\n\nPara CADA questão errada, crie uma seção explicando o conceito de forma simples e gentil: por que a resposta certa é a certa e onde ele provavelmente se confundiu, seguida de um EXEMPLO CURTO de código ${langName} correto que ilustre bem o conceito (pode ser um exemplo didático, não precisa ser do código dele). No final, escreva UMA mensagem curta e encorajadora olhando o desempenho geral dele.\n\nResponda APENAS em JSON puro, sem markdown:\n{"secoes":[{"emoji":"emoji que combine com o conceito","titulo":"nome curto do conceito","explicacao":"1 a 3 frases simples e gentis","exemplo":"código ${langName} curto e correto (use \\n para quebrar linha)"}],"encorajamento":"mensagem final motivadora, 1 a 2 frases"}`,
+        (studyLang ? studyLang.system : CS_SYSTEM) + "\nResponda APENAS JSON puro, sem markdown." + nyxPrefsInstruction(nyxPrefs),
         { temperature: 0.5 }
       );
       const secoes = Array.isArray(parsed.secoes) ? parsed.secoes : [];
@@ -5280,8 +5784,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const isContinuation = existingSummary && typeof existingSummary === "object" && Array.isArray(existingSummary.secoes) && existingSummary.secoes.length > 0;
       const novoCode = isContinuation ? codeWrittenSinceLastSummary() : "";
       const simpleReq = isContinuation
-        ? buildContinuationSummaryRequest(existingSummary, novoCode.trim() ? novoCode : todayCode, fullCode)
-        : buildSummaryRequest("simples", hasTodayDiff, todayCode, fullCode);
+        ? buildContinuationSummaryRequest(existingSummary, novoCode.trim() ? novoCode : todayCode, fullCode, studyLang)
+        : buildSummaryRequest("simples", hasTodayDiff, todayCode, fullCode, studyLang);
       const difficultyHint = recentDifficultyHint(scoreHistory);
       // 🎯 dificuldade adaptativa: quem está com dificuldade ganha uma "dica" em cada questão (ajuda
       // a pensar no conceito certo sem entregar a resposta); quem está indo muito bem ganha uma
@@ -5295,8 +5799,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const [summaryResult, activityResult] = await Promise.all([
         askClaude(simpleReq.prompt, simpleReq.system),
         askClaude(
-          `Um aluno de C# escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`csharp\n${fullCode}\n\`\`\`\n\nCrie ${ownPace ? "4" : "8"} questões de múltipla escolha${ownPace ? " BEM diretas e fáceis (uma ideia por questão, frases curtas)" : ""} focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.${difficultyHint || ""}${adaptiveExtra}\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0,"dica":"(opcional, só se pedido acima) dica que não entrega a resposta","bonus":false}]}`,
-          "Crie questões sobre conceitos de código C#, não matemática. APENAS JSON puro."
+          `Um aluno de ${studyLang ? studyLang.label : "C#"} escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`${studyLang ? studyLang.codeLang : "csharp"}\n${fullCode}\n\`\`\`\n\nCrie ${ownPace ? "4" : "8"} questões de múltipla escolha${ownPace ? " BEM diretas e fáceis (uma ideia por questão, frases curtas)" : ""} focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.${difficultyHint || ""}${adaptiveExtra}\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0,"dica":"(opcional, só se pedido acima) dica que não entrega a resposta","bonus":false}]}`,
+          `Crie questões sobre conceitos de código ${studyLang ? studyLang.label : "C#"}, não matemática. APENAS JSON puro.`
         ),
       ]);
       let summaryData;
@@ -5346,7 +5850,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const fullCode = allCodeToday();
       const todayCode = codeWrittenToday();
       const hasTodayDiff = todayCode.trim().length >= 10 && todayCode.trim() !== fullCode.trim();
-      const { prompt, system } = buildSummaryRequest("detalhado", hasTodayDiff, todayCode, fullCode);
+      const { prompt, system } = buildSummaryRequest("detalhado", hasTodayDiff, todayCode, fullCode, studyLang);
       const data = await askClaudeJson(prompt, system);
       setDetailedSummary(data);
       const newDetailedHistory = { ...detailedSummaryHistory, [todayKey()]: data };
@@ -5434,8 +5938,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     try {
       const list = activity.map((q,i)=>`- ${q.q} → ${answers[i]===q.correct?"acertou":"errou"}`).join("\n");
       const fbData = await askClaudeJson(
-        `Um aluno iniciante de C# escreveu este código na aula de hoje:\n\`\`\`csharp\n${allCodeToday()}\n\`\`\`\n\nDepois respondeu uma atividade de ${activity.length} perguntas e acertou ${pts} (nota ${finalScore}).\nResultado pergunta a pergunta:\n${list}\n\nCrie um feedback gentil e motivador para ESTE aluno, baseado no código que ele escreveu E no desempenho.\n\nResponda APENAS em JSON puro, sem markdown:\n{\n  "intro": "1 frase curta e calorosa resumindo como ele foi nesta aula",\n  "secoes": [\n    { "emoji": "emoji que combine", "titulo": "O que você mandou bem (curto)", "explicacao": "1 a 2 frases concretas sobre o que ele acertou, citando o código ou o desempenho dele" },\n    { "emoji": "emoji que combine", "titulo": "Um ponto para melhorar (curto)", "explicacao": "1 a 2 frases gentis sobre um ponto específico a melhorar — se não houver nada relevante a melhorar, foque em um próximo passo desafiador em vez disso" }\n  ],\n  "dica": "se foi bem (nota alta e código sem erros): uma curiosidade ou próximo passo mais avançado para se desafiar. Se teve dificuldade: uma dica simples e prática para o que errou. 1 a 2 frases."\n}\n\nFrases curtas, uma ideia por vez, sem jargão técnico desnecessário, tom acolhedor. Garanta JSON válido.`,
-        CS_SYSTEM + "\nResponda APENAS JSON puro válido, sem markdown." + nyxPrefsInstruction(nyxPrefs)
+        `Um aluno iniciante de ${studyLang ? studyLang.label : "C#"} escreveu este código na aula de hoje:\n\`\`\`${studyLang ? studyLang.codeLang : "csharp"}\n${allCodeToday()}\n\`\`\`\n\nDepois respondeu uma atividade de ${activity.length} perguntas e acertou ${pts} (nota ${finalScore}).\nResultado pergunta a pergunta:\n${list}\n\nCrie um feedback gentil e motivador para ESTE aluno, baseado no código que ele escreveu E no desempenho.\n\nResponda APENAS em JSON puro, sem markdown:\n{\n  "intro": "1 frase curta e calorosa resumindo como ele foi nesta aula",\n  "secoes": [\n    { "emoji": "emoji que combine", "titulo": "O que você mandou bem (curto)", "explicacao": "1 a 2 frases concretas sobre o que ele acertou, citando o código ou o desempenho dele" },\n    { "emoji": "emoji que combine", "titulo": "Um ponto para melhorar (curto)", "explicacao": "1 a 2 frases gentis sobre um ponto específico a melhorar — se não houver nada relevante a melhorar, foque em um próximo passo desafiador em vez disso" }\n  ],\n  "dica": "se foi bem (nota alta e código sem erros): uma curiosidade ou próximo passo mais avançado para se desafiar. Se teve dificuldade: uma dica simples e prática para o que errou. 1 a 2 frases."\n}\n\nFrases curtas, uma ideia por vez, sem jargão técnico desnecessário, tom acolhedor. Garanta JSON válido.`,
+        (studyLang ? studyLang.system : CS_SYSTEM) + "\nResponda APENAS JSON puro válido, sem markdown." + nyxPrefsInstruction(nyxPrefs)
       );
       setFinalFeedback(fbData);
       await persist({ phase:"done", score:finalScore, answers, finalFeedback:fbData });
@@ -6045,8 +6549,30 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           </div>
         </div>
       )}
+      {/* 🌐 sala de linguagens: escolha de HTML/CSS/PHP/JS antes de conhecer o Nyx */}
+      {!showNyxPrefs && showLangPicker && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1001, padding:16 }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"26px 24px", maxWidth:480, width:"100%", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 44px #22d3ee22" }}>
+            <div style={{ textAlign:"center" }}>
+              <NyxRobot state="idle" size={80} showName={false} />
+              <p style={{ color:"#f0e9fb", fontSize:16.5, fontWeight:800, margin:"10px 0 4px" }}>E aí, {String(studentName).split(" ")[0]}! 🌐</p>
+              <p style={{ color:"#a99ac9", fontSize:13, margin:0, lineHeight:1.6 }}>Você está na sala de linguagens — qual você quer estudar? Eu viro especialista nela pra te ajudar.</p>
+            </div>
+            <div style={{ marginTop:18, display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              {STUDY_LANGUAGES.map(l => (
+                <button key={l.id} onClick={()=>chooseLanguage(l.id)}
+                  style={{ background:"#171026", border:"2px solid #3b2a58", borderRadius:14, padding:"18px 10px", cursor:"pointer", textAlign:"center", color:"#f0e9fb" }}>
+                  <span style={{ display:"block", fontSize:30, marginBottom:6 }}>{l.emoji}</span>
+                  <span style={{ display:"block", fontWeight:800, fontSize:14.5 }}>{l.label}</span>
+                </button>
+              ))}
+            </div>
+            <p style={{ color:"#776798", fontSize:11.5, margin:"16px 0 0", textAlign:"center" }}>Dá pra trocar de linguagem depois, quando quiser — seu código antigo fica guardado no histórico.</p>
+          </div>
+        </div>
+      )}
       {/* apresentação do Nyx no primeiro acesso */}
-      {!showNyxPrefs && showIntro && (
+      {!showNyxPrefs && !showLangPicker && showIntro && (
         <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
           <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"26px 24px", maxWidth:440, width:"100%", textAlign:"center", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 44px #c084fc22" }}>
             <div style={{ animation:"nyx-float 3s ease-in-out .8s infinite" }}>
@@ -6247,7 +6773,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         <div style={{ position:"fixed", inset:0, background:"#000000aa", display:"flex", alignItems:"center", justifyContent:"center", zIndex:999, padding:16 }}>
           <div style={{ background:"#1e1430", border:"2px solid #c084fc", borderRadius:16, padding:24, maxWidth:380, width:"100%" }}>
             <h3 style={{ color:"#c084fc", margin:"0 0 4px" }}>✎ Renomear arquivo</h3>
-            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 12px" }}>Escolha um nome para o arquivo (o ".cs" é colocado sozinho).</p>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 12px" }}>Escolha um nome para o arquivo (o "{fileExt}" é colocado sozinho).</p>
             <div style={{ display:"flex", alignItems:"center", background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"0 12px" }}>
               <input autoFocus value={renameValue} onChange={e=>setRenameValue(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") confirmRename(); if(e.key==="Escape") cancelRename(); }}
                 placeholder="ex: MeuPrograma" style={{ flex:1, background:"transparent", border:"none", outline:"none", color:"#f0e9fb", fontSize:15, padding:"11px 0" }} />
@@ -6443,6 +6969,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             {!focusMode && <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#c084fc"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
               🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
             </button>}
+            {studyLang?.preview && (
+              <button onClick={()=>setShowPreview(true)} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja o resultado do seu código rodando de verdade">
+                👁️ Prévia ao vivo
+              </button>
+            )}
+            {isLangRoom && studyLang && (
+              <button onClick={()=>setShowSwitchConfirm(true)} style={{ ...styles.btn("#3b2a58"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Guarda o código e os resumos de agora no histórico e começa outra linguagem do zero">
+                🔁 Trocar linguagem
+              </button>
+            )}
             <button data-tour="teclado" onClick={()=>setShowKeyboard(true)} style={{ ...styles.btn("#22d3ee"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Aprenda onde fica cada tecla, no seu ritmo — pode treinar quando quiser">
               ⌨️ Tutorial de Teclado
             </button>
@@ -6638,6 +7174,33 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
       {showAchievements && <AchievementsModal unlocked={achievements} onClose={()=>setShowAchievements(false)} />}
       {showRanking && <RankingModal shift={shift} myName={studentName} onClose={()=>setShowRanking(false)} />}
+      {showPreview && studyLang?.preview && (
+        <div style={{ position:"fixed", inset:0, background:"#000000aa", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:14 }} onClick={()=>setShowPreview(false)}>
+          <div className="cardfx" style={{ ...styles.card, width:"min(900px, 96vw)", maxHeight:"92vh", display:"flex", flexDirection:"column" }} onClick={e=>e.stopPropagation()}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+              <h3 style={{ color:"#34d399", margin:0 }}>👁️ Prévia ao vivo</h3>
+              <button onClick={()=>setShowPreview(false)} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:20, cursor:"pointer" }}>✕</button>
+            </div>
+            <p style={{ color:"#776798", fontSize:12, marginBottom:8 }}>Atualiza sozinha alguns instantes depois de você parar de digitar.</p>
+            <iframe title="Prévia ao vivo" srcDoc={previewDoc} sandbox="allow-scripts" style={{ width:"100%", height:"65vh", border:"1px solid #3b2a58", borderRadius:10, background:"#fff" }} />
+          </div>
+        </div>
+      )}
+      {showSwitchConfirm && (
+        <div style={{ position:"fixed", inset:0, background:"#000000aa", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:14 }} onClick={()=>setShowSwitchConfirm(false)}>
+          <div className="cardfx" style={{ ...styles.card, width:"min(420px, 96vw)" }} onClick={e=>e.stopPropagation()}>
+            <h3 style={{ color:"#fbbf24", marginBottom:10 }}>🔁 Trocar de linguagem?</h3>
+            <p style={{ color:"#d6c9ec", fontSize:13.5, lineHeight:1.6, marginBottom:16 }}>
+              Seu código e resumos de <b>{studyLang?.label}</b> vão pro histórico, guardados — você não perde nada.
+              Depois você escolhe outra linguagem e começa do zero nela.
+            </p>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={()=>setShowSwitchConfirm(false)} style={{ ...styles.btn("#3b2a58"), flex:1, padding:"9px 0", fontSize:13 }}>Cancelar</button>
+              <button onClick={switchLanguage} style={{ ...styles.btn("#fbbf24"), flex:1, padding:"9px 0", fontSize:13 }}>Sim, trocar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showPartnerHelp && partnerHelping && (
         <div style={{ position:"fixed", inset:0, background:"#000000aa", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:14 }} onClick={()=>setShowPartnerHelp(false)}>
           <div className="cardfx" style={{ ...styles.card, width:"min(720px, 96vw)", maxHeight:"90vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
@@ -6699,6 +7262,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         gear={nyxGear}
         accessMode={accessMode}
         nyxPrefs={nyxPrefs}
+        language={studyLang}
         speak={ttsSupported ? speak : null}
         onTheme={handleNyxTheme}
         context={() => `Contexto: você conversa com o aluno ${studentName}. Código atual dele (${files[active]?.name || "Program.cs"}):\n${activeCode || "(vazio ainda)"}\n${robotMsg ? `Seu último aviso sobre o código: ${robotMsg}` : ""}`}
@@ -9604,11 +10168,20 @@ function Login({ onJoin }) {
   const [testPass, setTestPass] = useState("");
   const [testError, setTestError] = useState("");
   const [teacherChecking, setTeacherChecking] = useState(false);
+  // sala de linguagens pra amigos (protegida por senha, mesmo modelo da turma de teste)
+  const [langUnlocking, setLangUnlocking] = useState(false);
+  const [langPass, setLangPass] = useState("");
+  const [langError, setLangError] = useState("");
 
-  const openTestShift = () => { setTestUnlocking(true); setTestPass(""); setTestError(""); };
+  const openTestShift = () => { setTestUnlocking(true); setLangUnlocking(false); setTestPass(""); setTestError(""); };
   const confirmTestShift = () => {
     if (testPass === TEST_SHIFT_PASSWORD) { setShift(TEST_SHIFT.id); setTestUnlocking(false); setTestError(""); }
     else setTestError("Senha incorreta!");
+  };
+  const openLangShift = () => { setLangUnlocking(true); setTestUnlocking(false); setLangPass(""); setLangError(""); };
+  const confirmLangShift = () => {
+    if (langPass === LANG_SHIFT_PASSWORD) { setShift(LANG_SHIFT.id); setLangUnlocking(false); setLangError(""); }
+    else setLangError("Senha incorreta!");
   };
 
   const loadProfiles = useCallback(async () => {
@@ -9687,7 +10260,7 @@ function Login({ onJoin }) {
                 <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 8px" }}>🕑 Qual é a sua turma?</p>
                 <div style={{ display:"flex", gap:10, marginBottom:10 }}>
                   {SHIFTS.map(sh => (
-                    <button key={sh.id} onClick={()=>{ setShift(sh.id); setTestUnlocking(false); }}
+                    <button key={sh.id} onClick={()=>{ setShift(sh.id); setTestUnlocking(false); setLangUnlocking(false); }}
                       style={{ ...styles.rBtn(), ...(shift===sh.id ? { borderColor:"#c084fc", color:"#fff", background:"#c084fc22" } : {}) }}>
                       {sh.emoji} {sh.label}
                     </button>
@@ -9707,6 +10280,22 @@ function Login({ onJoin }) {
                       <button onClick={confirmTestShift} style={{ ...styles.btn("#c084fc"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
                     </div>
                     {testError && <p style={{ color:"#f87171", fontSize:12, marginTop:6 }}>{testError}</p>}
+                  </div>
+                )}
+                <button onClick={()=> shift===LANG_SHIFT.id ? null : openLangShift()}
+                  style={{ background:"transparent", border:"none", color: shift===LANG_SHIFT.id ? "#22d3ee" : "#776798", fontSize:12, cursor:"pointer", padding:"2px 0", marginBottom: shift===LANG_SHIFT.id||langUnlocking ? 10 : 18 }}>
+                  {shift===LANG_SHIFT.id ? `✓ ${LANG_SHIFT.emoji} Sala de linguagens selecionada` : `${LANG_SHIFT.emoji} Sou de fora, quero estudar outra linguagem`}
+                </button>
+                {langUnlocking && shift!==LANG_SHIFT.id && (
+                  <div style={{ background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:12, marginBottom:18 }}>
+                    <p style={{ color:"#a99ac9", fontSize:12, margin:"0 0 8px" }}>Digite a senha da sala de linguagens:</p>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <input type="password" autoFocus value={langPass} onChange={e=>setLangPass(e.target.value)}
+                        onKeyDown={e=>e.key==="Enter"&&confirmLangShift()} placeholder="Senha"
+                        style={{ ...styles.input, padding:"8px 12px", fontSize:14 }} />
+                      <button onClick={confirmLangShift} style={{ ...styles.btn("#22d3ee"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
+                    </div>
+                    {langError && <p style={{ color:"#f87171", fontSize:12, marginTop:6 }}>{langError}</p>}
                   </div>
                 )}
 
