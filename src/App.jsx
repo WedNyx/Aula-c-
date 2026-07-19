@@ -10326,25 +10326,29 @@ function Login({ onJoin }) {
                 </div>
 
                 <input style={styles.input} placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} />
-                <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
-                  <div style={{ flex:"1 1 150px" }}>
-                    <label style={{ fontSize:11, color:"#a99ac9" }}>Data de nascimento
-                      <input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)}
-                        style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box" }} />
+                {shift !== LANG_SHIFT.id && (
+                  <>
+                    <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
+                      <div style={{ flex:"1 1 150px" }}>
+                        <label style={{ fontSize:11, color:"#a99ac9" }}>Data de nascimento
+                          <input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)}
+                            style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box" }} />
+                        </label>
+                      </div>
+                      <div style={{ flex:"1 1 150px" }}>
+                        <label style={{ fontSize:11, color:"#a99ac9" }}>CPF (opcional)
+                          <input value={cpf} disabled={cpfUnknown} placeholder="000.000.000-00" onChange={e=>setCpf(e.target.value)}
+                            style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box", opacity:cpfUnknown?0.5:1 }} />
+                        </label>
+                      </div>
+                    </div>
+                    <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, fontSize:11.5, color:"#a99ac9", cursor:"pointer" }}>
+                      <input type="checkbox" checked={cpfUnknown} onChange={e=>{ setCpfUnknown(e.target.checked); if (e.target.checked) setCpf(""); }} />
+                      Não sei o CPF
                     </label>
-                  </div>
-                  <div style={{ flex:"1 1 150px" }}>
-                    <label style={{ fontSize:11, color:"#a99ac9" }}>CPF (opcional)
-                      <input value={cpf} disabled={cpfUnknown} placeholder="000.000.000-00" onChange={e=>setCpf(e.target.value)}
-                        style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box", opacity:cpfUnknown?0.5:1 }} />
-                    </label>
-                  </div>
-                </div>
-                <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, fontSize:11.5, color:"#a99ac9", cursor:"pointer" }}>
-                  <input type="checkbox" checked={cpfUnknown} onChange={e=>{ setCpfUnknown(e.target.checked); if (e.target.checked) setCpf(""); }} />
-                  Não sei o CPF
-                </label>
-                <p style={{ color:"#776798", fontSize:10.5, margin:"4px 0 0", lineHeight:1.5 }}>Só o professor vê isso, e só na hora de gerar a planilha pra fazer certificado — nunca aparece no seu perfil.</p>
+                    <p style={{ color:"#776798", fontSize:10.5, margin:"4px 0 0", lineHeight:1.5 }}>Só o professor vê isso, e só na hora de gerar a planilha pra fazer certificado — nunca aparece no seu perfil.</p>
+                  </>
+                )}
                 <p style={{ color:"#a99ac9", fontSize:13, margin:"14px 0 8px", textAlign:"center" }}>🎨 Seu boneco:</p>
                 <AvatarPreview value={avatar} onChange={setAvatar} />
                 <AvatarControls value={avatar} onChange={setAvatar} part="basic" />
