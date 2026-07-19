@@ -278,6 +278,9 @@ const ACHIEVEMENTS = [
   // duelos
   { id:"duelista",           emoji:"⚔️", label:"Duelista",       desc:"Venceu um duelo contra um colega" },
   { id:"duelista-3",         emoji:"🏆", label:"Campeão de Duelos", desc:"Venceu 3 duelos" },
+  // sala de linguagens (HTML/CSS/PHP/JS)
+  { id:"primeira-pagina",    emoji:"🌐", label:"Primeira Página", desc:"Concluiu a primeira aula na sala de linguagens" },
+  { id:"poliglota",          emoji:"🗺️", label:"Poliglota",       desc:"Estudou as 4 linguagens da sala: HTML, CSS, PHP e JavaScript" },
   // extras
   { id:"artista",            emoji:"🎨", label:"Artista",        desc:"Pediu ao Nyx um fundo de cor personalizada" },
   { id:"teclado-mestre",     emoji:"🎹", label:"Mestre do Teclado", desc:"Completou o tutorial de teclado até o fim" },
@@ -4690,6 +4693,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     });
   };
 
+  // 🗺️ poliglota: junta a linguagem atual + todas as já arquivadas no histórico — se cobrir as 4, desbloqueia
+  useEffect(() => {
+    if (!isLangRoom) return;
+    const distinct = new Set([...languageHistory.map(h => h.language), programmingLanguage].filter(Boolean));
+    if (distinct.size >= STUDY_LANGUAGES.length) unlockAchievement("poliglota");
+  }, [isLangRoom, languageHistory, programmingLanguage]);
+
   // 🤝 parceiro de código: fica de olho se o professor me pareou com alguém (como ajudado OU como
   // ajudante). Quando o ajudante marca como resolvido, o AJUDADO detecta na próxima verificação,
   // ganha os pontos e limpa o registro (o ajudante já ganhou os dele na hora de marcar) — mesmo
@@ -5820,6 +5830,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       summarySnapshotRef.current = { date: todayKey(), files: (files||[]).map(f => ({ name:f.name, code:f.code||"" })) };
       await persist({ phase:"summary", dynamicActivity:questions, dynamicSummary:finalSummary, summaryHistory: newSummaryHistory, summarySnapshot: summarySnapshotRef.current });
       setPhase("summary");
+      if (isLangRoom) unlockAchievement("primeira-pagina");
     } catch (e) {
       if (isNetworkError(e)) {
         pendingSaveRef.current = true;
@@ -9098,6 +9109,11 @@ function TeacherView({ onLogout, teacherAuth }) {
           {students.some(s=>s.shift===TEST_SHIFT.id) && (
             <button onClick={()=>setShiftFilter(TEST_SHIFT.id)} style={{ ...styles.tab(shiftFilter===TEST_SHIFT.id), opacity:0.75 }}>
               {TEST_SHIFT.emoji} {TEST_SHIFT.label} ({students.filter(s=>s.shift===TEST_SHIFT.id).length})
+            </button>
+          )}
+          {students.some(s=>s.shift===LANG_SHIFT.id) && (
+            <button onClick={()=>setShiftFilter(LANG_SHIFT.id)} style={{ ...styles.tab(shiftFilter===LANG_SHIFT.id), opacity:0.75, borderColor: shiftFilter===LANG_SHIFT.id ? undefined : "#22d3ee55" }} title="Amigos estudando outras linguagens (HTML/CSS/PHP/JS), fora da turma de C#">
+              {LANG_SHIFT.emoji} {LANG_SHIFT.label} ({students.filter(s=>s.shift===LANG_SHIFT.id).length})
             </button>
           )}
         </div>
