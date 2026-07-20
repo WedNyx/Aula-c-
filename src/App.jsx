@@ -3850,7 +3850,9 @@ const QUIZ_COLORS = [
   { bg: "#d89e00", shape: "●" },
   { bg: "#26890c", shape: "■" },
 ];
-const QUIZ_QUESTION_SECONDS = 20;
+const QUIZ_QUESTION_SECONDS = 20; // padrão — o professor escolhe outro tempo ao criar a sala
+const QUIZ_TIMER_OPTIONS = [10, 15, 20, 30, 45, 60];
+const quizSecsOf = (room) => (room && room.secs) || QUIZ_QUESTION_SECONDS;
 // pontuação estilo Kahoot: acertou vale 500 + até 500 de bônus por velocidade; pergunta difícil vale em dobro
 function quizPoints(isCorrect, elapsedMs, durationMs, hard) {
   if (!isCorrect) return 0;
@@ -3863,7 +3865,7 @@ const makeQuizCode = () => String(Math.floor(100000 + Math.random() * 900000));
 // de cada um (quizAnswers, com horário) contra o horário de início de cada pergunta (room.startedAts)
 function quizLeaderboard(room, students) {
   const players = (students || []).filter(s => s.quizJoin && s.quizJoin.code === room.code);
-  const durationMs = QUIZ_QUESTION_SECONDS * 1000;
+  const durationMs = quizSecsOf(room) * 1000;
   return players.map(s => {
     let total = 0;
     (room.questions || []).forEach((q, i) => {
@@ -4812,7 +4814,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     const qi = room.qIndex;
     if (quizAnswers[qi] != null) return; // já respondeu esta pergunta
     const startedAt = (room.startedAts || {})[qi];
-    if (startedAt == null || Date.now() > startedAt + QUIZ_QUESTION_SECONDS * 1000) return; // tempo esgotado
+    if (startedAt == null || Date.now() > startedAt + quizSecsOf(room) * 1000) return; // tempo esgotado
     const next = { ...quizAnswers, [qi]: { opt: optIdx, at: Date.now() } };
     setQuizAnswers(next);
     playSound("click");
@@ -7344,7 +7346,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {/* 🎉 quiz: tela do jogador (cobre tudo enquanto o quiz rola, estilo Kahoot) */}
       {quizRoomInfo && quizJoin && quizJoin.code === quizRoomInfo.code && (() => {
         const room = quizRoomInfo;
-        const durationMs = QUIZ_QUESTION_SECONDS * 1000;
+        const durationMs = quizSecsOf(room) * 1000;
         const myTotal = (room.questions || []).reduce((sum, q, i) => {
           const ans = quizAnswers[i]; const st = (room.startedAts||{})[i];
           if (!ans || st == null) return sum;
@@ -7378,7 +7380,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
               {room.status==="question" && (
                 <div style={{ height:6, background:"#171026", borderRadius:4, overflow:"hidden", marginBottom:12 }}>
-                  <div style={{ height:"100%", width:`${Math.max(0, Math.min(100, (remaining/QUIZ_QUESTION_SECONDS)*100))}%`, background: remaining<=5?"#f87171":"#34d399", transition:"width 1s linear" }} />
+                  <div style={{ height:"100%", width:`${Math.max(0, Math.min(100, (remaining/quizSecsOf(room))*100))}%`, background: remaining<=5?"#f87171":"#34d399", transition:"width 1s linear" }} />
                 </div>
               )}
               <h3 style={{ color:"#f0e9fb", fontSize:"clamp(16px, 4vw, 21px)", lineHeight:1.45, margin:"0 0 14px" }}>{q.q}</h3>
@@ -7854,6 +7856,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [quizRoom, setQuizRoomState] = useState(null);
   const [quizNow, setQuizNow] = useState(() => Date.now());
   const [quizNewTitle, setQuizNewTitle] = useState("");
+  const [quizSecs, setQuizSecs] = useState(QUIZ_QUESTION_SECONDS); // tempo por pergunta escolhido pra próxima sala
   const [quizEditingTheme, setQuizEditingTheme] = useState(null); // { id?, title, questions } em edição
   const [quizQDraft, setQuizQDraft] = useState({ q:"", opts:["","","",""], correct:0, hard:false });
   useEffect(() => { getQuizThemes().then(ts => setQuizThemes(Array.isArray(ts) ? ts : [])); }, []);
@@ -7865,7 +7868,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   }, [quizRoom?.status, quizRoom?.qIndex]);
   const quizWrite = async (state) => { setQuizRoomState(state); await setQuizRoom(state, teacherAuth); };
   const startQuizRoom = async (theme) => {
-    await quizWrite({ code: makeQuizCode(), themeTitle: theme.title, questions: theme.questions, status: "lobby", qIndex: 0, startedAts: {}, createdAt: Date.now() });
+    await quizWrite({ code: makeQuizCode(), themeTitle: theme.title, questions: theme.questions, secs: quizSecs, status: "lobby", qIndex: 0, startedAts: {}, createdAt: Date.now() });
     setTab("quiz");
   };
   const quizNextQuestion = async () => {
@@ -7879,7 +7882,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   useEffect(() => {
     if (!quizRoom || quizRoom.status !== "question") return;
     const startedAt = quizRoom.startedAts[quizRoom.qIndex];
-    if (startedAt != null && quizNow >= startedAt + QUIZ_QUESTION_SECONDS * 1000) quizReveal();
+    if (startedAt != null && quizNow >= startedAt + quizSecsOf(quizRoom) * 1000) quizReveal();
   }, [quizNow]);
   const saveQuizTheme = async () => {
     const t = quizEditingTheme;
@@ -10246,6 +10249,15 @@ function TeacherView({ onLogout, teacherAuth }) {
             <div className="cardfx" style={{ ...styles.card, borderColor:"#c084fc" }}>
               <h3 style={{ color:"#c084fc", marginBottom:6 }}>🎉 Quiz da Turma (estilo Kahoot)</h3>
               <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, margin:"0 0 14px" }}>Escolha um tema e crie uma sala: um código aparece na sua tela, e na tela dos alunos acende um botão pra entrar com esse código. Cada pergunta vale até 1000 pontos — quanto mais rápido responder, mais pontos (difíceis valem em dobro).</p>
+              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:14 }}>
+                <span style={{ color:"#a99ac9", fontSize:13 }}>⏱ Tempo por pergunta:</span>
+                {QUIZ_TIMER_OPTIONS.map(s => (
+                  <button key={s} onClick={()=>setQuizSecs(s)}
+                    style={{ background: quizSecs===s ? "linear-gradient(135deg,#c084fc,#9333ea)" : "#171026", color: quizSecs===s ? "#fff" : "#a99ac9", border:`2px solid ${quizSecs===s?"#c084fc":"#3b2a58"}`, borderRadius:10, padding:"5px 12px", fontSize:13, fontWeight:800, cursor:"pointer" }}>
+                    {s}s
+                  </button>
+                ))}
+              </div>
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                 {allThemes.map(t => (
                   <div key={t.id} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"1px solid #3b2a58", borderRadius:10, padding:"10px 14px", flexWrap:"wrap" }}>
@@ -10317,7 +10329,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         if (room.status === "lobby") return (
           <div style={{ padding:14, maxWidth:760, margin:"0 auto" }}>
             <div className="cardfx" style={{ ...styles.card, borderColor:"#c084fc", textAlign:"center" }}>
-              <p style={{ color:"#a99ac9", fontSize:14, margin:"6px 0 0" }}>{room.themeTitle} · {room.questions.length} perguntas</p>
+              <p style={{ color:"#a99ac9", fontSize:14, margin:"6px 0 0" }}>{room.themeTitle} · {room.questions.length} perguntas · ⏱ {quizSecsOf(room)}s por pergunta</p>
               <p style={{ color:"#a99ac9", fontSize:13, margin:"14px 0 4px" }}>Código da sala — fale pra turma digitar:</p>
               <div style={{ fontSize:"clamp(44px, 10vw, 72px)", fontWeight:900, letterSpacing:10, color:"#c084fc", textShadow:"0 0 30px #c084fc66" }}>{room.code}</div>
               <div style={{ marginTop:16 }}>
@@ -10364,7 +10376,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         // ── pergunta rolando / revelação ──
         const q = room.questions[room.qIndex];
         const startedAt = room.startedAts[room.qIndex];
-        const remaining = room.status==="question" ? Math.max(0, Math.ceil((startedAt + QUIZ_QUESTION_SECONDS*1000 - quizNow)/1000)) : 0;
+        const remaining = room.status==="question" ? Math.max(0, Math.ceil((startedAt + quizSecsOf(room)*1000 - quizNow)/1000)) : 0;
         const answeredCount = players.filter(p => (p.quizAnswers||{})[room.qIndex] != null).length;
         const optCount = (i) => players.filter(p => ((p.quizAnswers||{})[room.qIndex]||{}).opt === i).length;
         const board = quizLeaderboard(room, students).slice(0, 5);
