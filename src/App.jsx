@@ -9654,7 +9654,20 @@ function TeacherView({ onLogout, teacherAuth }) {
                   </div>
                   <div>Nyx (IA): <b style={{ color:diag.hasAI===true?"#34d399":diag.hasAI===false?"#f87171":"#a99ac9" }}>{diag.hasAI===true?"OK":diag.hasAI===false?"NÃO":"—"}</b></div>
 
-                  {!diag.hasStorage && (
+                  {!diag.hasStorage && diag.writeRead === "erro" && (
+                    <div style={{ background:"#f8717115", border:"1px solid #f87171", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.9 }}>
+                      <b style={{ color:"#f87171" }}>❌ Não consegui conectar no banco</b><br/>
+                      <span style={{ color:"#a99ac9" }}>
+                        Como já funcionava antes, o mais provável é o banco ter <b style={{color:"#f0e9fb"}}>pausado sozinho</b> (comum no plano grátis do Supabase depois de alguns dias sem uso) — os dados continuam salvos, só precisa "acordar" ele:<br/>
+                        &nbsp;• Entre em <b style={{color:"#f0e9fb"}}>supabase.com</b>, abra o projeto e clique em <b style={{color:"#34d399"}}>Restore/Resume project</b><br/>
+                        &nbsp;• Se não estiver pausado, confira no Vercel → Settings → Environment Variables se <code style={{color:"#60a5fa"}}>SUPABASE_URL</code> e <code style={{color:"#60a5fa"}}>SUPABASE_SERVICE_KEY</code> continuam lá<br/>
+                        Depois clique <b style={{color:"#34d399"}}>↻ Verificar agora</b> abaixo.
+                      </span>
+                      {diag.err && <div style={{ marginTop:8, paddingTop:8, borderTop:"1px solid #f8717133", color:"#c9a5a5", fontSize:11, fontFamily:"monospace", wordBreak:"break-word" }}>Erro técnico: {diag.err}</div>}
+                    </div>
+                  )}
+
+                  {!diag.hasStorage && diag.writeRead !== "erro" && (
                     <div style={{ background:"#f8717115", border:"1px solid #f87171", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.9 }}>
                       <b style={{ color:"#f87171" }}>❌ Banco não configurado</b><br/>
                       <span style={{ color:"#a99ac9" }}>
