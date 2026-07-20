@@ -2677,7 +2677,7 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
     let alive = true;
     const load = async () => { const b = await getBoss(); if (alive) setBossState(b && b.status === "active" ? b : null); };
     load();
-    const iv = setInterval(load, 4000);
+    const iv = setInterval(load, 8000);
     return () => { alive = false; clearInterval(iv); };
   }, []);
   // ⏳ 10min de estudo antes da batalha começar de verdade — dá tempo da turma revisar o que
@@ -2708,7 +2708,7 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
     let alive = true;
     const load = async () => { const t = await getTourney(); if (alive) setTourneyState(t); };
     load();
-    const iv = setInterval(load, 4000);
+    const iv = setInterval(load, 8000);
     return () => { alive = false; clearInterval(iv); };
   }, []);
   const genTourneyQuestions = async () => {
@@ -3943,7 +3943,7 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
   const refresh = async () => {
     try {
       const all = await listStudents();
-      const online = all.filter(s => (s.shift||"sem-turno")===(shift||"sem-turno") && s.name!==myName && s.lastSeen && (Date.now()-s.lastSeen)<9000);
+      const online = all.filter(s => (s.shift||"sem-turno")===(shift||"sem-turno") && s.name!==myName && s.lastSeen && (Date.now()-s.lastSeen)<30000);
       setOpponents(online);
     } catch {}
     try {
@@ -3956,7 +3956,7 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
 
   useEffect(() => {
     refresh();
-    const iv = setInterval(refresh, 2500);
+    const iv = setInterval(refresh, 8000);
     return () => clearInterval(iv);
   }, [shift, myName]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -4790,10 +4790,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   useEffect(() => {
     if (!loaded) return;
     let active = true;
-    const check = async () => { const r = await getQuizRoom(); if (active) setQuizRoomInfo(r); };
+    let timer = null;
+    // enquanto NÃO tem sala aberta, checa devagar (a maior parte do dia não tem quiz rolando);
+    // assim que uma sala existe, acelera pra manter a experiência ao vivo do jogo
+    const check = async () => {
+      if (!active) return;
+      const r = await getQuizRoom();
+      if (!active) return;
+      setQuizRoomInfo(r);
+      timer = setTimeout(check, r ? 2500 : 10000);
+    };
     check();
-    const iv = setInterval(check, 3000);
-    return () => { active = false; clearInterval(iv); };
+    return () => { active = false; if (timer) clearTimeout(timer); };
   }, [loaded]);
 
   const joinQuiz = async () => {
@@ -4856,7 +4864,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       setPartnerHelped(mineHelped && mineHelped.status === "active" ? mineHelped : null);
     };
     check();
-    const iv = setInterval(check, 5000);
+    const iv = setInterval(check, 12000);
     return () => { active = false; clearInterval(iv); };
   }, [shift, studentName, persist]);
 
@@ -4872,7 +4880,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       setPartnerPeerCode({ name: st.name, files: (st.files && st.files.length) ? st.files : [{ name:"Program.cs", code: st.code||"" }] });
     };
     loadPeer();
-    const iv = setInterval(loadPeer, 4000);
+    const iv = setInterval(loadPeer, 6000);
     return () => { active = false; clearInterval(iv); };
   }, [showPartnerHelp, partnerHelping, shift]);
 
@@ -5469,7 +5477,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       if (totalLines >= 100) unlockAchievement("cem-linhas");
     };
     tick();
-    const iv = setInterval(tick, 3000);
+    const iv = setInterval(tick, 12000);
     return () => { active2 = false; clearInterval(iv); };
   }, [loaded, persist, onLogout, shift, studentName]);
 
@@ -7948,7 +7956,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     let active = true;
     const run = async () => { if (active) await load(); };
     run();
-    const iv = setInterval(run, 2000);
+    const iv = setInterval(run, 10000);
     return () => { active = false; clearInterval(iv); };
   }, [load]);
 
@@ -8046,7 +8054,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       setAiDown(!!h && h.ok === false && Date.now() - h.at < 5 * 60 * 1000);
     };
     check();
-    const iv = setInterval(check, 4000);
+    const iv = setInterval(check, 10000);
     return () => { active = false; clearInterval(iv); };
   }, []);
   // 🩺 saúde de CADA modelo separado (Nemotron/Laguna) — pontinho no cabeçalho, pra o professor ver
@@ -8059,7 +8067,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       if (active) setProviderHealth({ nvidia, laguna });
     };
     check();
-    const iv = setInterval(check, 4000);
+    const iv = setInterval(check, 10000);
     return () => { active = false; clearInterval(iv); };
   }, []);
   // 🤝 parceiros de código ativos (dos dois turnos) — pra saber quem já está pareado e não sugerir de novo
@@ -8071,7 +8079,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       if (active) setPartners(lists.flat());
     };
     load2();
-    const iv = setInterval(load2, 3000);
+    const iv = setInterval(load2, 10000);
     return () => { active = false; clearInterval(iv); };
   }, []);
   useEffect(() => { getTeacherMeta().then(m => { metaRef.current = m; setMeta(m); setCityInput(m.city||""); setSchedule(m.schedule||{}); }); }, []);
@@ -9065,7 +9073,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
   const now = Date.now();
   const tk = todayKey();
-  const isOnline = (s) => s.lastSeen && (now - s.lastSeen) < 9000;
+  const isOnline = (s) => s.lastSeen && (now - s.lastSeen) < 30000;
   // a atividade concluída "vale" até as 9h da manhã do dia seguinte, mesmo que o aluno volte à tela inicial
   const effectivePhase = s => (s.phase !== "done" && isDoneActive(s.doneAt)) ? "done" : s.phase;
   const phaseLabel = p => ({coding:"Codando",generating:"Gerando",summary:"No Resumo",activity:"Na Atividade",done:"Concluído"})[p]||"Aguardando";
