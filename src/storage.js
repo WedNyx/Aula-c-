@@ -143,6 +143,39 @@ export async function clearTourney(auth) {
   try { await kvCall({ action: 'delete', key: TOURNEY_KEY, auth }) } catch {}
 }
 
+// 🎉 quiz estilo Kahoot: temas criados pelo professor + a sala ativa (código, pergunta atual, fase).
+// Só o professor escreve (prefixo quiz: protegido por senha no servidor); os alunos leem a sala no
+// polling e respondem gravando no PRÓPRIO perfil (quizJoin/quizAnswers), que o telão do professor apura
+const QUIZ_THEMES_KEY = 'quiz:themes'
+const QUIZ_ROOM_KEY = 'quiz:room'
+export async function getQuizThemes() {
+  try {
+    const r = await kvCall({ action: 'get', key: QUIZ_THEMES_KEY })
+    return r.value ? JSON.parse(r.value) : []
+  } catch { return [] }
+}
+export async function saveQuizThemes(themes, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: QUIZ_THEMES_KEY, value: JSON.stringify(themes || []), auth })
+    return r.ok === true
+  } catch { return false }
+}
+export async function getQuizRoom() {
+  try {
+    const r = await kvCall({ action: 'get', key: QUIZ_ROOM_KEY })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
+export async function setQuizRoom(state, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: QUIZ_ROOM_KEY, value: JSON.stringify(state), auth })
+    return r.ok === true
+  } catch { return false }
+}
+export async function clearQuizRoom(auth) {
+  try { await kvCall({ action: 'delete', key: QUIZ_ROOM_KEY, auth }) } catch {}
+}
+
 // backup completo: baixa TODAS as chaves do banco (menos as técnicas) num JSON —
 // seguro contra acidente e histórico permanente antes de resetar a turma de uma cidade
 export async function exportAllData() {

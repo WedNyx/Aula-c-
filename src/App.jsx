@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 
 // ── tema ──
@@ -3841,6 +3841,80 @@ function ConfettiParty({ level }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  🎉 QUIZ ESTILO KAHOOT  (professor cria sala com código; alunos entram e respondem valendo pontos por velocidade)
+// ════════════════════════════════════════════════════════════════════════════
+// cores e formas das alternativas, na ordem clássica do Kahoot
+const QUIZ_COLORS = [
+  { bg: "#e21b3c", shape: "▲" },
+  { bg: "#1368ce", shape: "◆" },
+  { bg: "#d89e00", shape: "●" },
+  { bg: "#26890c", shape: "■" },
+];
+const QUIZ_QUESTION_SECONDS = 20;
+// pontuação estilo Kahoot: acertou vale 500 + até 500 de bônus por velocidade; pergunta difícil vale em dobro
+function quizPoints(isCorrect, elapsedMs, durationMs, hard) {
+  if (!isCorrect) return 0;
+  const speed = Math.max(0, Math.min(1, 1 - elapsedMs / durationMs));
+  const base = 500 + Math.round(500 * speed);
+  return hard ? base * 2 : base;
+}
+const makeQuizCode = () => String(Math.floor(100000 + Math.random() * 900000));
+// apura o placar da sala: soma os pontos de cada jogador a partir das respostas gravadas no perfil
+// de cada um (quizAnswers, com horário) contra o horário de início de cada pergunta (room.startedAts)
+function quizLeaderboard(room, students) {
+  const players = (students || []).filter(s => s.quizJoin && s.quizJoin.code === room.code);
+  const durationMs = QUIZ_QUESTION_SECONDS * 1000;
+  return players.map(s => {
+    let total = 0;
+    (room.questions || []).forEach((q, i) => {
+      const ans = (s.quizAnswers || {})[i];
+      const startedAt = (room.startedAts || {})[i];
+      if (!ans || startedAt == null) return;
+      const elapsed = ans.at - startedAt;
+      if (elapsed < 0 || elapsed > durationMs) return; // respondeu fora do tempo, não vale
+      total += quizPoints(ans.opt === q.correct, elapsed, durationMs, q.hard);
+    });
+    return { name: s.name, avatar: s.avatar, total };
+  }).sort((a, b) => b.total - a.total);
+}
+// tema pronto de fábrica: "O Jogo da Imitação" (25 perguntas fornecidas pelo professor em PDF) —
+// perguntas [Difícil] valem pontos em dobro, e as de Verdadeiro/Falso têm só 2 alternativas
+const QUIZ_SEED_THEMES = [
+  {
+    id: "seed-imitacao",
+    title: "🎬 O Jogo da Imitação",
+    builtin: true,
+    questions: [
+      { q: "Quem é o protagonista do filme?", opts: ["Alan Turing", "Winston Churchill", "Hugh Alexander", "John Cairncross"], correct: 0 },
+      { q: "Qual era a profissão de Alan Turing?", opts: ["Médico", "Matemático", "Advogado", "Piloto"], correct: 1 },
+      { q: "Qual o nome da máquina alemã cujos códigos precisavam ser quebrados?", opts: ["Colossus", "Enigma", "Cipher", "Atlas"], correct: 1, hard: true },
+      { q: "Alan Turing trabalhava sozinho durante toda a missão.", opts: ["Verdadeiro", "Falso"], correct: 1 },
+      { q: "Em que guerra o filme se passa?", opts: ["Primeira Guerra", "Guerra Fria", "Segunda Guerra Mundial", "Guerra do Vietnã"], correct: 2 },
+      { q: "Onde a equipe trabalhava?", opts: ["Oxford", "Bletchley Park", "Cambridge", "Londres Tower"], correct: 1 },
+      { q: "Como Alan chamou sua máquina?", opts: ["Joan", "Christopher", "Victory", "Turing"], correct: 1, hard: true },
+      { q: "O nome da máquina foi uma homenagem a um amigo de infância.", opts: ["Verdadeiro", "Falso"], correct: 0 },
+      { q: "Quem convence Alan a dar uma chance aos colegas?", opts: ["Joan Clarke", "Churchill", "Hugh", "Peter"], correct: 0 },
+      { q: "Quem é a única mulher da equipe principal?", opts: ["Margaret", "Joan Clarke", "Helen", "Mary"], correct: 1 },
+      { q: "Joan resolve palavras cruzadas para entrar na equipe.", opts: ["Verdadeiro", "Falso"], correct: 0 },
+      { q: "O que permitiu reduzir drasticamente as possibilidades da Enigma?", opts: ["Um erro de cálculo", "A palavra repetida nas mensagens", "Um ataque aéreo", "Um mapa"], correct: 1, hard: true },
+      { q: "O principal objetivo da equipe era:", opts: ["Construir aviões", "Decifrar mensagens alemãs", "Invadir bases", "Criar rádios"], correct: 1 },
+      { q: "A equipe podia agir sobre todas as mensagens decifradas.", opts: ["Verdadeiro", "Falso"], correct: 1 },
+      { q: "Por que nem todos os ataques podiam ser impedidos?", opts: ["Faltavam soldados", "Para não revelar que o código havia sido quebrado", "Não havia combustível", "Churchill proibiu"], correct: 1, hard: true },
+      { q: "Quem interpretou Alan Turing?", opts: ["Tom Hanks", "Benedict Cumberbatch", "Matt Damon", "Cillian Murphy"], correct: 1 },
+      { q: "Quem interpretou Joan Clarke?", opts: ["Keira Knightley", "Emma Watson", "Emily Blunt", "Natalie Portman"], correct: 0 },
+      { q: "Alan e Joan chegam a ficar noivos no filme.", opts: ["Verdadeiro", "Falso"], correct: 0 },
+      { q: "Alan escondia qual aspecto de sua vida?", opts: ["Era casado", "Sua orientação sexual", "Era espião", "Era militar"], correct: 1 },
+      { q: "O que acontece com Alan após a guerra?", opts: ["Vira ministro", "É perseguido judicialmente por ser homossexual", "Vai para outro país", "Entra no exército"], correct: 1, hard: true },
+      { q: "O filme mostra que Alan recebeu reconhecimento em vida por seu trabalho.", opts: ["Verdadeiro", "Falso"], correct: 1 },
+      { q: "Qual área moderna foi profundamente influenciada por Turing?", opts: ["Medicina", "Computação", "Arquitetura", "Astronomia"], correct: 1 },
+      { q: "O teste criado por Turing ficou conhecido como:", opts: ["Teste Alpha", "Teste de Turing", "Teste Enigma", "Teste Binary"], correct: 1, hard: true },
+      { q: "O filme é baseado em fatos reais.", opts: ["Verdadeiro", "Falso"], correct: 0 },
+      { q: "Aproximadamente quanto tempo a guerra pode ter sido encurtada graças ao trabalho de Bletchley Park, segundo o filme?", opts: ["6 meses", "1 ano", "2 anos", "5 anos"], correct: 2, hard: true },
+    ],
+  },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
 //  DUELO ENTRE ALUNOS  (desafio 1x1: convite, aceite, mini-quiz compartilhado, resultado)
 // ════════════════════════════════════════════════════════════════════════════
 const DUEL_SYSTEM = "Você cria questões de múltipla escolha básicas sobre C# para iniciantes. Responda APENAS JSON puro, sem markdown.";
@@ -4346,6 +4420,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [retroSeen, setRetroSeen] = useState(null);     // id da última retrospectiva que ESTE aluno já viu (persistido)
   const [showRetro, setShowRetro] = useState(false);
   // 🏟️ torneio da turma (iniciado pelo professor no telão): o aluno responde o quiz da rodada aqui
+  // 🎉 quiz estilo Kahoot: sala aberta pelo professor (polling) + minha participação nela
+  const [quizRoomInfo, setQuizRoomInfo] = useState(null); // sala ativa lida do servidor (ou null)
+  const [quizJoin, setQuizJoin] = useState(null);         // { code, at } quando entrei numa sala (persistido)
+  const [quizAnswers, setQuizAnswers] = useState({});     // { qIndex: { opt, at } } (persistido — o professor apura)
+  const [showQuizJoin, setShowQuizJoin] = useState(false);
+  const [quizCodeInput, setQuizCodeInput] = useState("");
+  const [quizCodeError, setQuizCodeError] = useState("");
   const [tourneyInfo, setTourneyInfo] = useState(null);   // estado do torneio lido do servidor
   const [tourneyQuiz, setTourneyQuiz] = useState(null);   // { id, round, opponent, questions[] } do quiz aberto
   const [tourneyStep, setTourneyStep] = useState(0);
@@ -4520,7 +4601,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg, programmingLanguage, languageHistory };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -4617,6 +4698,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       guidedLessons: s.guidedLessons || [],
       programmingLanguage: s.programmingLanguage || null,
       languageHistory: s.languageHistory || [],
+      quizJoin: s.quizJoin || null,
+      quizAnswers: s.quizAnswers || {},
       ...extra,
     });
     setConnected(ok);
@@ -4699,6 +4782,48 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     const distinct = new Set([...languageHistory.map(h => h.language), programmingLanguage].filter(Boolean));
     if (distinct.size >= STUDY_LANGUAGES.length) unlockAchievement("poliglota");
   }, [isLangRoom, languageHistory, programmingLanguage]);
+
+  // 🎉 quiz: fica de olho se o professor abriu uma sala — enquanto tiver sala, o botão brilhante
+  // aparece; depois que eu entro, esse mesmo polling move minha tela junto com a do professor
+  useEffect(() => {
+    if (!loaded) return;
+    let active = true;
+    const check = async () => { const r = await getQuizRoom(); if (active) setQuizRoomInfo(r); };
+    check();
+    const iv = setInterval(check, 3000);
+    return () => { active = false; clearInterval(iv); };
+  }, [loaded]);
+
+  const joinQuiz = async () => {
+    if (!quizRoomInfo) return;
+    if (quizCodeInput.trim() !== quizRoomInfo.code) { setQuizCodeError("Código errado! Confere no telão e tenta de novo."); return; }
+    const join = { code: quizRoomInfo.code, at: Date.now() };
+    setQuizJoin(join);
+    setQuizAnswers({});
+    setShowQuizJoin(false);
+    setQuizCodeInput(""); setQuizCodeError("");
+    playSound("enter");
+    await persist({ quizJoin: join, quizAnswers: {} });
+  };
+
+  const answerQuiz = async (optIdx) => {
+    const room = quizRoomInfo;
+    if (!room || room.status !== "question") return;
+    const qi = room.qIndex;
+    if (quizAnswers[qi] != null) return; // já respondeu esta pergunta
+    const startedAt = (room.startedAts || {})[qi];
+    if (startedAt == null || Date.now() > startedAt + QUIZ_QUESTION_SECONDS * 1000) return; // tempo esgotado
+    const next = { ...quizAnswers, [qi]: { opt: optIdx, at: Date.now() } };
+    setQuizAnswers(next);
+    playSound("click");
+    await persist({ quizAnswers: next });
+  };
+
+  const leaveQuiz = async () => {
+    setQuizJoin(null);
+    setQuizAnswers({});
+    await persist({ quizJoin: null, quizAnswers: {} });
+  };
 
   // 🤝 parceiro de código: fica de olho se o professor me pareou com alguém (como ajudado OU como
   // ajudante). Quando o ajudante marca como resolvido, o AJUDADO detecta na próxima verificação,
@@ -4980,6 +5105,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           else if (typeof prev.code === "string") setFiles([{ name:"Program.cs", code:prev.code.replace(/\r/g, "") }]);
           if (prev.programmingLanguage) setProgrammingLanguage(prev.programmingLanguage);
           if (Array.isArray(prev.languageHistory)) setLanguageHistory(prev.languageHistory);
+          if (prev.quizJoin) setQuizJoin(prev.quizJoin);
+          if (prev.quizAnswers) setQuizAnswers(prev.quizAnswers);
           if (prev.avatar) setAvatar(prev.avatar);
           if (prev.score != null) setScore(prev.score);
           if (prev.answers) setAnswers(prev.answers);
@@ -6702,6 +6829,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <div style={{ background:"#22d3ee18", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#a5f3fc", fontWeight:700 }}>{breakEndMsg}</div>
         </div>
       )}
+      {/* 🎉 quiz: sala aberta pelo professor — botão brilhante pra entrar com o código */}
+      {quizRoomInfo && quizRoomInfo.status !== "podium" && (!quizJoin || quizJoin.code !== quizRoomInfo.code) && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <button onClick={()=>{ setShowQuizJoin(true); setQuizCodeInput(""); setQuizCodeError(""); }}
+            style={{ width:"100%", background:"linear-gradient(120deg,#7c3aed,#c026d3,#7c3aed)", backgroundSize:"200% auto", border:"2px solid #c084fc", borderRadius:14, padding:"14px 18px", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, animation:"glow-ring 1.3s ease-in-out infinite, shine 3s linear infinite" }}>
+            <span style={{ fontSize:22, animation:"pulse-dot 1.1s ease-in-out infinite" }}>🎉</span>
+            Quiz valendo! Toque aqui e entre com o código
+          </button>
+        </div>
+      )}
       {/* 🤝 parceiro de código: alguém foi designado pra me ajudar */}
       {partnerHelped && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
@@ -7185,6 +7322,116 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
       {showAchievements && <AchievementsModal unlocked={achievements} onClose={()=>setShowAchievements(false)} />}
       {showRanking && <RankingModal shift={shift} myName={studentName} onClose={()=>setShowRanking(false)} />}
+      {/* 🎉 quiz: modal de entrar com o código */}
+      {showQuizJoin && quizRoomInfo && (!quizJoin || quizJoin.code !== quizRoomInfo.code) && (
+        <div style={{ position:"fixed", inset:0, background:"#000000bb", zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:14 }} onClick={()=>setShowQuizJoin(false)}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"2px solid #c084fc", borderRadius:20, padding:"24px 22px", maxWidth:380, width:"100%", textAlign:"center" }} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontSize:40 }}>🎉</div>
+            <h3 style={{ color:"#c084fc", margin:"6px 0 4px" }}>Entrar no Quiz</h3>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Digite o código que está na tela do professor:</p>
+            <input autoFocus value={quizCodeInput} inputMode="numeric" maxLength={6}
+              onChange={e=>{ setQuizCodeInput(e.target.value.replace(/\D/g,"")); setQuizCodeError(""); }}
+              onKeyDown={e=>e.key==="Enter"&&joinQuiz()} placeholder="000000"
+              style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"12px 14px", color:"#f0e9fb", fontSize:26, fontWeight:900, letterSpacing:8, textAlign:"center", outline:"none", boxSizing:"border-box" }} />
+            {quizCodeError && <p style={{ color:"#f87171", fontSize:12.5, margin:"8px 0 0" }}>{quizCodeError}</p>}
+            <div style={{ display:"flex", gap:8, marginTop:14 }}>
+              <button onClick={()=>setShowQuizJoin(false)} style={{ ...styles.btn("#3b2a58"), flex:1, padding:"11px 0", fontSize:13.5 }}>Cancelar</button>
+              <button onClick={joinQuiz} disabled={quizCodeInput.length<6} style={{ ...styles.btn("#c084fc"), flex:1, padding:"11px 0", fontSize:13.5, opacity:quizCodeInput.length<6?0.5:1 }}>Entrar →</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 🎉 quiz: tela do jogador (cobre tudo enquanto o quiz rola, estilo Kahoot) */}
+      {quizRoomInfo && quizJoin && quizJoin.code === quizRoomInfo.code && (() => {
+        const room = quizRoomInfo;
+        const durationMs = QUIZ_QUESTION_SECONDS * 1000;
+        const myTotal = (room.questions || []).reduce((sum, q, i) => {
+          const ans = quizAnswers[i]; const st = (room.startedAts||{})[i];
+          if (!ans || st == null) return sum;
+          const el = ans.at - st;
+          if (el < 0 || el > durationMs) return sum;
+          return sum + quizPoints(ans.opt === q.correct, el, durationMs, q.hard);
+        }, 0);
+        let body;
+        if (room.status === "lobby") {
+          body = (
+            <div style={{ textAlign:"center" }}>
+              <div style={{ animation:"nyx-float 2.5s ease-in-out infinite" }}><NyxRobot state="ok" size={90} showName={false} /></div>
+              <h3 style={{ color:"#34d399", fontSize:22, margin:"10px 0 4px" }}>Você tá dentro! 🎉</h3>
+              <p style={{ color:"#a99ac9", fontSize:14 }}>Sala <b style={{ color:"#c084fc", letterSpacing:3 }}>{room.code}</b> · {room.themeTitle}</p>
+              <p style={{ color:"#776798", fontSize:13, marginTop:14 }}>Esperando o professor começar<span className="shine">...</span></p>
+            </div>
+          );
+        } else if (room.status === "question" || room.status === "reveal") {
+          const q = room.questions[room.qIndex];
+          const startedAt = (room.startedAts||{})[room.qIndex];
+          const myAns = quizAnswers[room.qIndex];
+          const remaining = Math.max(0, Math.ceil((startedAt + durationMs - clockNow)/1000));
+          const timedOut = room.status === "question" && remaining <= 0;
+          const chip = (c) => ({ background:c+"22", color:c, padding:"2px 10px", borderRadius:12, fontSize:11.5, fontWeight:700 });
+          body = (
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, flexWrap:"wrap", gap:6 }}>
+                <span style={chip("#c084fc")}>Pergunta {room.qIndex+1}/{room.questions.length}</span>
+                {q.hard && <span style={chip("#fbbf24")}>⭐ Vale em dobro</span>}
+                {room.status==="question" && <span style={{ fontSize:22, fontWeight:900, color: remaining<=5?"#f87171":"#34d399", fontVariantNumeric:"tabular-nums" }}>⏱ {remaining}s</span>}
+              </div>
+              {room.status==="question" && (
+                <div style={{ height:6, background:"#171026", borderRadius:4, overflow:"hidden", marginBottom:12 }}>
+                  <div style={{ height:"100%", width:`${Math.max(0, Math.min(100, (remaining/QUIZ_QUESTION_SECONDS)*100))}%`, background: remaining<=5?"#f87171":"#34d399", transition:"width 1s linear" }} />
+                </div>
+              )}
+              <h3 style={{ color:"#f0e9fb", fontSize:"clamp(16px, 4vw, 21px)", lineHeight:1.45, margin:"0 0 14px" }}>{q.q}</h3>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                {q.opts.map((opt,i) => {
+                  const picked = myAns && myAns.opt === i;
+                  const isCorrect = i === q.correct;
+                  const showResult = room.status === "reveal";
+                  const dim = (showResult && !isCorrect) || (myAns && !picked) || timedOut;
+                  return (
+                    <button key={i} onClick={()=>answerQuiz(i)} disabled={!!myAns || room.status!=="question" || timedOut}
+                      style={{ background:QUIZ_COLORS[i].bg, opacity:dim?0.35:1, borderRadius:12, padding:"18px 12px", color:"#fff", fontWeight:800, fontSize:15, display:"flex", alignItems:"center", gap:10, border: picked || (showResult && isCorrect) ? "3px solid #fff" : "3px solid transparent", cursor: (!!myAns || room.status!=="question" || timedOut) ? "default" : "pointer", textAlign:"left" }}>
+                      <span style={{ fontSize:19 }}>{QUIZ_COLORS[i].shape}</span>
+                      <span style={{ flex:1 }}>{opt}</span>
+                      {showResult && isCorrect && <span>✅</span>}
+                      {picked && !showResult && <span>👆</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              {room.status==="question" && myAns && <p style={{ color:"#34d399", fontWeight:800, textAlign:"center", marginTop:14 }}>✔ Resposta enviada! Aguarde...</p>}
+              {room.status==="question" && !myAns && timedOut && <p style={{ color:"#f87171", fontWeight:800, textAlign:"center", marginTop:14 }}>⏰ Tempo esgotado!</p>}
+              {room.status==="reveal" && (() => {
+                if (!myAns) return <p style={{ color:"#f87171", fontWeight:800, textAlign:"center", marginTop:14 }}>⏰ Você não respondeu essa.</p>;
+                const el = myAns.at - startedAt;
+                const pts = (el >= 0 && el <= durationMs) ? quizPoints(myAns.opt === q.correct, el, durationMs, q.hard) : 0;
+                return myAns.opt === q.correct
+                  ? <p style={{ color:"#34d399", fontWeight:900, fontSize:18, textAlign:"center", marginTop:14 }} className="pop">✅ Acertou! +{pts} pontos</p>
+                  : <p style={{ color:"#f87171", fontWeight:800, textAlign:"center", marginTop:14 }}>❌ Não foi dessa vez — a certa era "{q.opts[q.correct]}"</p>;
+              })()}
+              <p style={{ color:"#a99ac9", fontSize:13, textAlign:"center", marginTop:10 }}>Seus pontos: <b style={{ color:"#fbbf24" }}>{myTotal}</b></p>
+            </div>
+          );
+        } else {
+          body = (
+            <div style={{ textAlign:"center" }}>
+              <div style={{ fontSize:52 }}>🏁</div>
+              <h3 style={{ color:"#fbbf24", fontSize:22, margin:"8px 0 4px" }}>Quiz encerrado!</h3>
+              <p style={{ color:"#f0e9fb", fontSize:16 }}>Você fez <b style={{ color:"#fbbf24" }}>{myTotal} pontos</b></p>
+              <p style={{ color:"#a99ac9", fontSize:13, marginTop:8 }}>Olha no telão do professor pra ver o pódio! 🏆</p>
+              <button onClick={leaveQuiz} style={{ ...styles.btn("#c084fc"), marginTop:16, padding:"11px 28px", fontSize:14 }}>Sair do quiz</button>
+            </div>
+          );
+        }
+        return (
+          <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.94)", zIndex:1150, display:"flex", alignItems:"center", justifyContent:"center", padding:14, overflowY:"auto" }}>
+            <div style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:20, padding:"22px 20px", maxWidth:560, width:"100%", boxShadow:"0 24px 70px rgba(0,0,0,.6)", position:"relative" }}>
+              <button onClick={leaveQuiz} title="Sair do quiz" style={{ position:"absolute", top:10, right:12, background:"transparent", border:"none", color:"#776798", fontSize:18, cursor:"pointer" }}>✕</button>
+              {body}
+            </div>
+          </div>
+        );
+      })()}
       {showPreview && studyLang?.preview && (
         <div style={{ position:"fixed", inset:0, background:"#000000aa", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:14 }} onClick={()=>setShowPreview(false)}>
           <div className="cardfx" style={{ ...styles.card, width:"min(900px, 96vw)", maxHeight:"92vh", display:"flex", flexDirection:"column" }} onClick={e=>e.stopPropagation()}>
@@ -7601,6 +7848,54 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [examMsg, setExamMsg] = useState("");
   const [examShift, setExamShift] = useState("all");
   const [confirmEndExam, setConfirmEndExam] = useState(false);
+  // 🎉 quiz estilo Kahoot: temas salvos + sala ativa (o professor é o único que escreve; os alunos
+  // respondem no próprio perfil e o placar é apurado aqui a partir do polling da turma)
+  const [quizThemes, setQuizThemes] = useState([]);
+  const [quizRoom, setQuizRoomState] = useState(null);
+  const [quizNow, setQuizNow] = useState(() => Date.now());
+  const [quizNewTitle, setQuizNewTitle] = useState("");
+  const [quizEditingTheme, setQuizEditingTheme] = useState(null); // { id?, title, questions } em edição
+  const [quizQDraft, setQuizQDraft] = useState({ q:"", opts:["","","",""], correct:0, hard:false });
+  useEffect(() => { getQuizThemes().then(ts => setQuizThemes(Array.isArray(ts) ? ts : [])); }, []);
+  useEffect(() => { getQuizRoom().then(setQuizRoomState); }, []); // retoma sala aberta após recarregar a página
+  useEffect(() => {
+    if (!quizRoom || quizRoom.status !== "question") return;
+    const iv = setInterval(() => setQuizNow(Date.now()), 250);
+    return () => clearInterval(iv);
+  }, [quizRoom?.status, quizRoom?.qIndex]);
+  const quizWrite = async (state) => { setQuizRoomState(state); await setQuizRoom(state, teacherAuth); };
+  const startQuizRoom = async (theme) => {
+    await quizWrite({ code: makeQuizCode(), themeTitle: theme.title, questions: theme.questions, status: "lobby", qIndex: 0, startedAts: {}, createdAt: Date.now() });
+    setTab("quiz");
+  };
+  const quizNextQuestion = async () => {
+    const next = quizRoom.status === "lobby" ? 0 : quizRoom.qIndex + 1;
+    if (next >= quizRoom.questions.length) { await quizWrite({ ...quizRoom, status: "podium" }); return; }
+    await quizWrite({ ...quizRoom, status: "question", qIndex: next, startedAts: { ...quizRoom.startedAts, [next]: Date.now() } });
+  };
+  const quizReveal = async () => { await quizWrite({ ...quizRoom, status: "reveal" }); };
+  const quizEnd = async () => { setQuizRoomState(null); await clearQuizRoom(teacherAuth); };
+  // encerra a pergunta sozinho quando o tempo acabar (o professor também pode encerrar antes no botão)
+  useEffect(() => {
+    if (!quizRoom || quizRoom.status !== "question") return;
+    const startedAt = quizRoom.startedAts[quizRoom.qIndex];
+    if (startedAt != null && quizNow >= startedAt + QUIZ_QUESTION_SECONDS * 1000) quizReveal();
+  }, [quizNow]);
+  const saveQuizTheme = async () => {
+    const t = quizEditingTheme;
+    if (!t || !t.title.trim() || !t.questions.length) return;
+    const next = t.id
+      ? quizThemes.map(x => x.id === t.id ? { ...t } : x)
+      : [...quizThemes, { ...t, id: `t${Date.now()}` }];
+    setQuizThemes(next);
+    setQuizEditingTheme(null);
+    await saveQuizThemes(next, teacherAuth);
+  };
+  const deleteQuizTheme = async (id) => {
+    const next = quizThemes.filter(t => t.id !== id);
+    setQuizThemes(next);
+    await saveQuizThemes(next, teacherAuth);
+  };
   const [dbSetupMsg, setDbSetupMsg] = useState("");
   const [dbSetupLoading, setDbSetupLoading] = useState(false);
   const [dbSetupSQL, setDbSetupSQL] = useState(null); // { sql, sqlEditorUrl }
@@ -9090,6 +9385,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           <button style={{ ...styles.tab(tab==="calendar"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
           <button style={{ ...styles.tab(tab==="feedback"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
           <button style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle' && tab!=="exam" ? {borderColor:"#fbbf24",color:"#fbbf24"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
+          <button style={{ ...styles.tab(tab==="quiz"), ...(quizRoom && tab!=="quiz" ? {borderColor:"#c084fc",color:"#c084fc"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?' ●':''}</button>
           {tab!=="code" && <button style={styles.btn("#22d3ee")} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
           {tab!=="code" && <button style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
           <button style={{ ...styles.btn("#776798"), fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
@@ -9939,6 +10235,187 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {/* ─────────── PROVA ─────────── */}
+      {tab==="quiz" && (() => {
+        const allThemes = [...QUIZ_SEED_THEMES, ...quizThemes];
+        const room = quizRoom;
+        const players = room ? students.filter(s => s.quizJoin && s.quizJoin.code === room.code) : [];
+        const medal = (i) => i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}º`;
+        // ── sem sala aberta: lista de temas + editor de tema ──
+        if (!room) return (
+          <div style={{ padding:14, maxWidth:900, margin:"0 auto" }}>
+            <div className="cardfx" style={{ ...styles.card, borderColor:"#c084fc" }}>
+              <h3 style={{ color:"#c084fc", marginBottom:6 }}>🎉 Quiz da Turma (estilo Kahoot)</h3>
+              <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, margin:"0 0 14px" }}>Escolha um tema e crie uma sala: um código aparece na sua tela, e na tela dos alunos acende um botão pra entrar com esse código. Cada pergunta vale até 1000 pontos — quanto mais rápido responder, mais pontos (difíceis valem em dobro).</p>
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {allThemes.map(t => (
+                  <div key={t.id} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"1px solid #3b2a58", borderRadius:10, padding:"10px 14px", flexWrap:"wrap" }}>
+                    <span style={{ color:"#f0e9fb", fontWeight:700, flex:"1 1 200px" }}>{t.title}</span>
+                    <span style={{ ...styles.badge("#a99ac9"), fontSize:11 }}>{t.questions.length} perguntas</span>
+                    {t.builtin && <span style={{ ...styles.badge("#22d3ee"), fontSize:11 }}>pronto de fábrica</span>}
+                    <button onClick={()=>startQuizRoom(t)} style={{ ...styles.btn("#c084fc"), padding:"7px 16px", fontSize:13 }}>▶ Criar sala</button>
+                    {!t.builtin && <button onClick={()=>{ setQuizEditingTheme({ ...t, questions:[...t.questions] }); }} style={{ ...styles.btn("#3b2a58"), padding:"7px 12px", fontSize:13 }}>✏️</button>}
+                    {!t.builtin && <button onClick={()=>deleteQuizTheme(t.id)} style={{ ...styles.btn("#f87171"), padding:"7px 12px", fontSize:13 }}>🗑️</button>}
+                  </div>
+                ))}
+              </div>
+              {!quizEditingTheme && (
+                <button onClick={()=>{ setQuizEditingTheme({ title:"", questions:[] }); setQuizQDraft({ q:"", opts:["","","",""], correct:0, hard:false }); }} style={{ ...styles.btn("#34d399"), marginTop:12, padding:"9px 18px", fontSize:13.5 }}>➕ Novo tema</button>
+              )}
+            </div>
+            {quizEditingTheme && (
+              <div className="cardfx" style={{ ...styles.card, borderColor:"#34d399" }}>
+                <h4 style={{ color:"#34d399", marginBottom:10 }}>{quizEditingTheme.id ? "✏️ Editando tema" : "➕ Novo tema"}</h4>
+                <input value={quizEditingTheme.title} onChange={e=>setQuizEditingTheme(t=>({ ...t, title:e.target.value }))} placeholder="Nome do tema (ex: Sistema Solar)"
+                  style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"10px 12px", color:"#f0e9fb", fontSize:14, outline:"none", boxSizing:"border-box" }} />
+                {quizEditingTheme.questions.length > 0 && (
+                  <div style={{ display:"flex", flexDirection:"column", gap:6, marginTop:12 }}>
+                    {quizEditingTheme.questions.map((q,i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", gap:8, background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"6px 10px" }}>
+                        <span style={{ color:"#d6c9ec", fontSize:12.5, flex:1 }}>{i+1}. {q.q} {q.hard && "⭐"}</span>
+                        <span style={{ color:"#34d399", fontSize:11.5 }}>✓ {q.opts[q.correct]}</span>
+                        <button onClick={()=>setQuizEditingTheme(t=>({ ...t, questions:t.questions.filter((_,j)=>j!==i) }))} style={{ background:"transparent", border:"none", color:"#f87171", cursor:"pointer", fontSize:14 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ background:"#171026", border:"1px dashed #3b2a58", borderRadius:12, padding:14, marginTop:12 }}>
+                  <input value={quizQDraft.q} onChange={e=>setQuizQDraft(d=>({ ...d, q:e.target.value }))} placeholder="Pergunta"
+                    style={{ width:"100%", background:"#1e1430", border:"2px solid #3b2a58", borderRadius:8, padding:"9px 12px", color:"#f0e9fb", fontSize:13.5, outline:"none", boxSizing:"border-box" }} />
+                  <p style={{ color:"#776798", fontSize:11.5, margin:"10px 0 6px" }}>Alternativas (deixe as duas últimas em branco pra fazer Verdadeiro/Falso) — clique na forma pra marcar a certa:</p>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                    {quizQDraft.opts.map((opt,i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", gap:6 }}>
+                        <button onClick={()=>setQuizQDraft(d=>({ ...d, correct:i }))} title="Marcar como correta"
+                          style={{ background:QUIZ_COLORS[i].bg, opacity:quizQDraft.correct===i?1:0.35, border:quizQDraft.correct===i?"2px solid #fff":"2px solid transparent", borderRadius:8, width:34, height:34, color:"#fff", fontWeight:900, cursor:"pointer", flexShrink:0 }}>{quizQDraft.correct===i?"✓":QUIZ_COLORS[i].shape}</button>
+                        <input value={opt} onChange={e=>setQuizQDraft(d=>({ ...d, opts:d.opts.map((o,j)=>j===i?e.target.value:o) }))} placeholder={`Alternativa ${i+1}${i>=2?" (opcional)":""}`}
+                          style={{ flex:1, background:"#1e1430", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:12.5, outline:"none", minWidth:0 }} />
+                      </div>
+                    ))}
+                  </div>
+                  <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:10, fontSize:12.5, color:"#fbbf24", cursor:"pointer" }}>
+                    <input type="checkbox" checked={quizQDraft.hard} onChange={e=>setQuizQDraft(d=>({ ...d, hard:e.target.checked }))} />
+                    ⭐ Difícil (vale pontos em dobro)
+                  </label>
+                  <button onClick={()=>{
+                    const opts = quizQDraft.opts.map(o=>o.trim());
+                    while (opts.length > 2 && !opts[opts.length-1]) opts.pop();
+                    if (!quizQDraft.q.trim() || opts.some(o=>!o) || quizQDraft.correct >= opts.length) return;
+                    setQuizEditingTheme(t=>({ ...t, questions:[...t.questions, { q:quizQDraft.q.trim(), opts, correct:quizQDraft.correct, ...(quizQDraft.hard?{hard:true}:{}) }] }));
+                    setQuizQDraft({ q:"", opts:["","","",""], correct:0, hard:false });
+                  }} style={{ ...styles.btn("#22d3ee"), marginTop:10, padding:"8px 16px", fontSize:13 }}>＋ Adicionar pergunta</button>
+                </div>
+                <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                  <button onClick={saveQuizTheme} disabled={!quizEditingTheme.title.trim() || !quizEditingTheme.questions.length}
+                    style={{ ...styles.btn("#34d399"), flex:1, padding:"10px 0", fontSize:13.5, opacity:(!quizEditingTheme.title.trim() || !quizEditingTheme.questions.length)?0.5:1 }}>💾 Salvar tema</button>
+                  <button onClick={()=>setQuizEditingTheme(null)} style={{ ...styles.btn("#3b2a58"), flex:1, padding:"10px 0", fontSize:13.5 }}>Cancelar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+        // ── lobby: código gigante + jogadores entrando ──
+        if (room.status === "lobby") return (
+          <div style={{ padding:14, maxWidth:760, margin:"0 auto" }}>
+            <div className="cardfx" style={{ ...styles.card, borderColor:"#c084fc", textAlign:"center" }}>
+              <p style={{ color:"#a99ac9", fontSize:14, margin:"6px 0 0" }}>{room.themeTitle} · {room.questions.length} perguntas</p>
+              <p style={{ color:"#a99ac9", fontSize:13, margin:"14px 0 4px" }}>Código da sala — fale pra turma digitar:</p>
+              <div style={{ fontSize:"clamp(44px, 10vw, 72px)", fontWeight:900, letterSpacing:10, color:"#c084fc", textShadow:"0 0 30px #c084fc66" }}>{room.code}</div>
+              <div style={{ marginTop:16 }}>
+                <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:15, marginBottom:10 }}>👥 Na sala ({players.length})</p>
+                <div style={{ display:"flex", gap:10, flexWrap:"wrap", justifyContent:"center", minHeight:44 }}>
+                  {players.length===0 && <span style={{ color:"#776798", fontSize:13 }}>Esperando a galera entrar...</span>}
+                  {players.map(p => (
+                    <span key={p.name} className="pop" style={{ display:"flex", alignItems:"center", gap:6, background:"#171026", border:"1px solid #c084fc55", borderRadius:20, padding:"5px 12px" }}>
+                      <Avatar cfg={p.avatar} size={22} /><span style={{ fontSize:13, fontWeight:700 }}>{String(p.name).split(" ")[0]}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:10, marginTop:20, justifyContent:"center" }}>
+                <button onClick={quizNextQuestion} disabled={players.length===0} style={{ ...styles.btn("#34d399"), padding:"12px 34px", fontSize:16, opacity:players.length===0?0.5:1 }}>🚀 Começar!</button>
+                <button onClick={quizEnd} style={{ ...styles.btn("#f87171"), padding:"12px 20px", fontSize:14 }}>✖ Cancelar sala</button>
+              </div>
+            </div>
+          </div>
+        );
+        // ── pódio final ──
+        if (room.status === "podium") {
+          const board = quizLeaderboard(room, students);
+          return (
+            <div style={{ padding:14, maxWidth:760, margin:"0 auto" }}>
+              <div className="cardfx" style={{ ...styles.card, borderColor:"#fbbf24", textAlign:"center" }}>
+                <h3 style={{ color:"#fbbf24", fontSize:24, marginBottom:4 }}>🏆 Pódio — {room.themeTitle}</h3>
+                <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:14 }}>
+                  {board.length===0 && <p style={{ color:"#776798" }}>Ninguém pontuou.</p>}
+                  {board.map((p,i) => (
+                    <div key={p.name} style={{ display:"flex", alignItems:"center", gap:10, background:i<3?"#fbbf2415":"#171026", border:`1px solid ${i<3?"#fbbf24":"#3b2a58"}`, borderRadius:10, padding:"9px 14px" }}>
+                      <span style={{ fontSize:i<3?24:14, width:40, fontWeight:800, color:"#a99ac9" }}>{medal(i)}</span>
+                      <Avatar cfg={p.avatar} size={30} />
+                      <span style={{ flex:1, textAlign:"left", fontWeight:800, fontSize:15 }}>{p.name}</span>
+                      <span style={{ color:"#fbbf24", fontWeight:900, fontSize:16 }}>{p.total} pts</span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={quizEnd} style={{ ...styles.btn("#c084fc"), marginTop:18, padding:"11px 30px", fontSize:14.5 }}>✔ Encerrar quiz</button>
+              </div>
+            </div>
+          );
+        }
+        // ── pergunta rolando / revelação ──
+        const q = room.questions[room.qIndex];
+        const startedAt = room.startedAts[room.qIndex];
+        const remaining = room.status==="question" ? Math.max(0, Math.ceil((startedAt + QUIZ_QUESTION_SECONDS*1000 - quizNow)/1000)) : 0;
+        const answeredCount = players.filter(p => (p.quizAnswers||{})[room.qIndex] != null).length;
+        const optCount = (i) => players.filter(p => ((p.quizAnswers||{})[room.qIndex]||{}).opt === i).length;
+        const board = quizLeaderboard(room, students).slice(0, 5);
+        return (
+          <div style={{ padding:14, maxWidth:860, margin:"0 auto" }}>
+            <div className="cardfx" style={{ ...styles.card, borderColor:"#c084fc" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8 }}>
+                <span style={{ ...styles.badge("#c084fc") }}>Pergunta {room.qIndex+1} / {room.questions.length}</span>
+                {q.hard && <span style={{ ...styles.badge("#fbbf24") }}>⭐ Vale em dobro</span>}
+                {room.status==="question"
+                  ? <span style={{ fontSize:30, fontWeight:900, color: remaining<=5 ? "#f87171" : "#34d399", fontVariantNumeric:"tabular-nums" }}>⏱ {remaining}s</span>
+                  : <span style={{ ...styles.badge("#34d399") }}>Resposta revelada</span>}
+              </div>
+              <h3 style={{ color:"#f0e9fb", fontSize:"clamp(18px, 3.4vw, 26px)", lineHeight:1.4, margin:"14px 0" }}>{q.q}</h3>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                {q.opts.map((opt,i) => {
+                  const isCorrect = i === q.correct;
+                  const dim = room.status==="reveal" && !isCorrect;
+                  return (
+                    <div key={i} style={{ background:QUIZ_COLORS[i].bg, opacity:dim?0.3:1, borderRadius:12, padding:"16px 14px", color:"#fff", fontWeight:800, fontSize:15.5, display:"flex", alignItems:"center", gap:10, border: room.status==="reveal" && isCorrect ? "3px solid #fff" : "3px solid transparent" }}>
+                      <span style={{ fontSize:20 }}>{QUIZ_COLORS[i].shape}</span>
+                      <span style={{ flex:1 }}>{opt}</span>
+                      {room.status==="reveal" && <span style={{ background:"#00000044", borderRadius:14, padding:"2px 10px", fontSize:13 }}>{optCount(i)} voto{optCount(i)!==1?"s":""}</span>}
+                      {room.status==="reveal" && isCorrect && <span style={{ fontSize:20 }}>✅</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:14, flexWrap:"wrap", gap:10 }}>
+                <span style={{ color:"#a99ac9", fontSize:14 }}>✋ {answeredCount} de {players.length} responderam</span>
+                {room.status==="question"
+                  ? <button onClick={quizReveal} style={{ ...styles.btn("#fbbf24"), padding:"10px 22px", fontSize:14 }}>⏹ Encerrar pergunta</button>
+                  : <button onClick={quizNextQuestion} style={{ ...styles.btn("#34d399"), padding:"10px 22px", fontSize:14 }}>{room.qIndex+1 < room.questions.length ? "Próxima ▶" : "🏆 Ver pódio"}</button>}
+              </div>
+            </div>
+            {room.status==="reveal" && board.length > 0 && (
+              <div className="cardfx" style={{ ...styles.card, borderColor:"#fbbf24" }}>
+                <h4 style={{ color:"#fbbf24", marginBottom:10 }}>🏆 Placar parcial</h4>
+                {board.map((p,i) => (
+                  <div key={p.name} style={{ display:"flex", alignItems:"center", gap:10, padding:"5px 0", borderBottom:"1px solid #241f38" }}>
+                    <span style={{ width:34, fontWeight:800, color:"#a99ac9" }}>{medal(i)}</span>
+                    <span style={{ flex:1, fontWeight:700, fontSize:14 }}>{p.name}</span>
+                    <span style={{ color:"#fbbf24", fontWeight:900 }}>{p.total} pts</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {tab==="exam" && (() => {
         const examStudents = shiftFilter==="all" ? students : students.filter(s=>(s.shift||"sem-turno")===shiftFilter);
         const readyStudents = examStudents.filter(s => s.examReady);
