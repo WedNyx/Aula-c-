@@ -4289,8 +4289,11 @@ function hmToMin(hm) {
 }
 function nowMin() { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
 // calcula a situação da aula AGORA a partir do horário configurado pro turno — sem horário
-// definido (start/end vazios), a aula fica sempre aberta (a trava é 100% opt-in)
-function classStatus(sched) {
+// definido (start/end vazios), a aula fica sempre aberta (a trava é 100% opt-in). Fim de semana
+// fecha por padrão (a turma só funciona seg-sex) — só abre se o professor liberar explicitamente
+function classStatus(sched, allowWeekend) {
+  const dow = new Date().getDay(); // 0=domingo, 6=sábado
+  if ((dow === 0 || dow === 6) && !allowWeekend) return { configured:true, open:false, inBreak:false, warnEnd:false, isWeekend:true };
   const start = hmToMin(sched?.start), end = hmToMin(sched?.end);
   if (start == null || end == null) return { configured:false, open:true, inBreak:false, warnEnd:false };
   const n = nowMin();
@@ -4492,6 +4495,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [bossInfo, setBossInfo] = useState(null);
   // 🕐 horário automático de aula (do turno) + vistoria (libera este aluno específico fora do horário)
   const [mySchedule, setMySchedule] = useState({});
+  const [myAllowWeekend, setMyAllowWeekend] = useState(false);
   const [myInspection, setMyInspection] = useState(false);
   const [myClassDays, setMyClassDays] = useState([]);
   const [myContentNames, setMyContentNames] = useState({});
@@ -4623,7 +4627,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   useEffect(() => { if (nyxLocks.zeker && showDuel) setShowDuel(false); }, [nyxLocks.zeker, showDuel]);
 
   // ── fim do intervalo: sininho + aviso, uma vez só por intervalo (não repete a cada nova checagem) ──
-  const classStatusNow = classStatus(mySchedule);
+  const classStatusNow = classStatus(mySchedule, myAllowWeekend);
   useEffect(() => {
     const bEnd = mySchedule?.breakStart && mySchedule?.breakMin ? `${todayKey()}-${mySchedule.breakStart}-${mySchedule.breakMin}` : null;
     if (!bEnd) return;
@@ -5379,6 +5383,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       try {
         const m = await getTeacherMeta();
         setMySchedule((m.schedule || {})[shift] || {});
+        setMyAllowWeekend(!!m.allowWeekend);
         setMyInspection(await getInspection(shift, studentName));
         currentClassDays = m.classDays || [];
         setMyClassDays(currentClassDays);
@@ -6203,9 +6208,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         <div style={{ animation:"nyx-float 3s ease-in-out infinite" }}>
           <NyxRobot state="idle" size={110} showName={false} gear={nyxGear} />
         </div>
-        <h2 style={{ color:"#c084fc", fontSize:23, fontWeight:900, margin:"14px 0 6px" }}>{classStatusNow.before ? "⏰ A aula ainda não começou" : "👋 A aula de hoje já encerrou"}</h2>
+        <h2 style={{ color:"#c084fc", fontSize:23, fontWeight:900, margin:"14px 0 6px" }}>{classStatusNow.isWeekend ? "🎉 Fim de semana, sem aula!" : classStatusNow.before ? "⏰ A aula ainda não começou" : "👋 A aula de hoje já encerrou"}</h2>
         <p style={{ color:"#d6c9ec", fontSize:15, lineHeight:1.7, margin:0 }}>
-          {classStatusNow.before
+          {classStatusNow.isWeekend
+            ? "A turma só tem aula de segunda a sexta. Aproveite o descanso e até a próxima aula! 😊"
+            : classStatusNow.before
             ? `A turma ${shiftMeta(shift).label} começa às ${mySchedule.start}. Até já!`
             : "Até a próxima aula! Seu código já está salvo, então pode ficar tranquilo(a)."}
         </p>
@@ -7955,8 +7962,11 @@ function TeacherView({ onLogout, teacherAuth }) {
     setStudents(arr);
     setLastUpdate(new Date().toLocaleTimeString("pt-BR"));
     try { const ec = await getExamState(); setExamConfig(ec); } catch {}
-    // marca o dia de hoje como aula se houver alunos
-    if (arr.length > 0) {
+    // marca o dia de hoje como aula se houver alunos — não conta fim de semana
+    // como aula por padrão (só se o professor liberar em allowWeekend)
+    const dowNow = new Date().getDay();
+    const isWeekendNow = dowNow === 0 || dowNow === 6;
+    if (arr.length > 0 && (!isWeekendNow || metaRef.current.allowWeekend)) {
       const tk = todayKey();
       if (!metaRef.current.classDays.includes(tk)) {
         const nm = { ...metaRef.current, classDays:[...metaRef.current.classDays, tk] };
@@ -7976,7 +7986,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   useEffect(() => { diagnose().then(setDiag); }, []);
 
   // 🍎 intervalo: status de cada turno (recalcula a cada carregamento da turma, ~2s) + sininho no fim
-  const shiftBreakStatuses = SHIFTS.map(sh => ({ ...sh, status: classStatus(schedule[sh.id] || {}) }));
+  const shiftBreakStatuses = SHIFTS.map(sh => ({ ...sh, status: classStatus(schedule[sh.id] || {}, meta.allowWeekend) }));
   useEffect(() => {
     shiftBreakStatuses.forEach(({ id, label, status }) => {
       const sc = schedule[id] || {};
@@ -8291,6 +8301,11 @@ function TeacherView({ onLogout, teacherAuth }) {
     const has = metaRef.current.classDays.includes(k);
     const days = has ? metaRef.current.classDays.filter(d=>d!==k) : [...metaRef.current.classDays, k];
     const nm = { ...metaRef.current, classDays:days }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth);
+  };
+  // fim de semana fecha por padrão (a turma só funciona seg-sex) — esse toggle libera sábado/domingo
+  const toggleAllowWeekend = async () => {
+    const nm = { ...metaRef.current, allowWeekend: !metaRef.current.allowWeekend };
+    metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth);
   };
 
   const doReset = async () => {
@@ -10218,7 +10233,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             {(() => {
               const sc = schedule[codeShift] || {};
               const setSc = (patch) => setSchedule(prev => ({ ...prev, [codeShift]: { ...(prev[codeShift]||{}), ...patch } }));
-              const status = classStatus(sc);
+              const status = classStatus(sc, meta.allowWeekend);
               return (
                 <>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
@@ -10239,8 +10254,12 @@ function TeacherView({ onLogout, teacherAuth }) {
                   </div>
                   <button style={{ ...styles.btn("#c084fc"), width:"100%", padding:"8px 0", fontSize:13 }} onClick={saveSchedule}>💾 Salvar horário</button>
                   {scheduleMsg && <p style={{ color:"#34d399", fontSize:12, margin:"8px 0 0" }}>{scheduleMsg}</p>}
-                  <p style={{ fontSize:12, margin:"10px 0 0", fontWeight:700, color: !status.configured ? "#776798" : status.open ? (status.inBreak ? "#22d3ee" : "#34d399") : "#f87171" }}>
-                    {!status.configured ? "⚪ Sem restrição — aberto o dia todo" : status.inBreak ? `🍎 Em intervalo agora (volta em ${status.minutesToBreakEnd}min)` : status.open ? "🟢 Aula liberada agora" : status.before ? `🔴 Fechado — abre às ${sc.start}` : "🔴 Fechado — aula já encerrou hoje"}
+                  <label style={{ display:"flex", alignItems:"center", gap:8, marginTop:12, fontSize:12.5, color:"#a99ac9", cursor:"pointer" }}>
+                    <input type="checkbox" checked={!!meta.allowWeekend} onChange={toggleAllowWeekend} style={{ width:16, height:16, accentColor:"#c084fc" }} />
+                    Permitir aulas no fim de semana (por padrão, sábado e domingo ficam fechados)
+                  </label>
+                  <p style={{ fontSize:12, margin:"10px 0 0", fontWeight:700, color: !status.configured ? "#776798" : status.isWeekend ? "#818cf8" : status.open ? (status.inBreak ? "#22d3ee" : "#34d399") : "#f87171" }}>
+                    {!status.configured ? "⚪ Sem restrição — aberto o dia todo" : status.isWeekend ? "🌙 Fechado — fim de semana" : status.inBreak ? `🍎 Em intervalo agora (volta em ${status.minutesToBreakEnd}min)` : status.open ? "🟢 Aula liberada agora" : status.before ? `🔴 Fechado — abre às ${sc.start}` : "🔴 Fechado — aula já encerrou hoje"}
                   </p>
                 </>
               );
