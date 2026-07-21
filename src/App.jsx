@@ -1221,7 +1221,7 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
   if (idRef.current === null) idRef.current = ++__nyxSeq;
   const uid = "nyx" + idRef.current;
   const MAP = {
-    idle:     { main:"#c084fc", dark:"#575ee0", eye:"#a5f0ff", label:"Pronto para ajudar",  anim:"nyx-float 3.4s ease-in-out infinite" },
+    idle:     { main:"#818cf8", dark:"#4338ca", eye:"#e0e7ff", label:"Pronto para ajudar",  anim:"nyx-float 3.4s ease-in-out infinite" },
     thinking: { main:"#fbbf24", dark:"#d99b0d", eye:"#fff3c4", label:"Analisando...",        anim:"nyx-float 1.5s ease-in-out infinite" },
     ok:       { main:"#34d399", dark:"#0da879", eye:"#d1fae5", label:"Tudo certo!",          anim:"nyx-bounce 1.1s ease" },
     error:    { main:"#f87171", dark:"#dc4848", eye:"#ffe1e1", label:"Encontrei algo!",      anim:"nyx-shake .55s ease" },
@@ -1295,15 +1295,23 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
             </radialGradient>
           </defs>
 
-          {/* aura de luz atrás */}
+          {/* aura de luz atrás, com umas estrelinhas piscando — o Nyx é uma criatura da noite */}
           <circle cx="60" cy="62" r="55" fill={`url(#${uid}g)`} />
+          <g fill="#fefce8">
+            <circle cx="15" cy="30" r="1.3" opacity="0.9"><animate attributeName="opacity" values="0.2;1;0.2" dur="2.4s" repeatCount="indefinite" /></circle>
+            <circle cx="106" cy="24" r="1.6" opacity="0.7"><animate attributeName="opacity" values="1;0.2;1" dur="3.1s" repeatCount="indefinite" /></circle>
+            <circle cx="12" cy="70" r="1" opacity="0.8"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.8s" repeatCount="indefinite" /></circle>
+            <circle cx="110" cy="80" r="1.4" opacity="0.6"><animate attributeName="opacity" values="1;0.3;1" dur="2.7s" repeatCount="indefinite" /></circle>
+          </g>
 
           {/* sombra no chão */}
           <ellipse cx="60" cy="128" rx="26" ry="5" fill="#000" opacity="0.35" />
 
-          {/* orelhas */}
-          <rect x="21" y="34" width="9" height="16" rx="4.5" fill={P.dark} />
-          <rect x="90" y="34" width="9" height="16" rx="4.5" fill={P.dark} />
+          {/* orelhas em formato de morcego — criatura da noite */}
+          <path d="M18 44 L26 16 L34 40 Z" fill={P.dark} stroke={shade(P.dark, -0.3)} strokeWidth="1" />
+          <path d="M21 40 L26 22 L31 38 Z" fill={P.main} opacity="0.5" />
+          <path d="M86 40 L94 16 L102 44 Z" fill={P.dark} stroke={shade(P.dark, -0.3)} strokeWidth="1" />
+          <path d="M89 38 L94 22 L99 40 Z" fill={P.main} opacity="0.5" />
 
           {/* cabeça */}
           <rect x="28" y="20" width="64" height="44" rx="17" fill={`url(#${uid}h)`} />
@@ -1374,11 +1382,15 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
           <rect x="36" y="29" width="48" height="27" rx="12" fill="#0b0e1d" />
           <rect x="38" y="31" width="44" height="10" rx="6" fill="#ffffff" opacity="0.06" />
 
-          {/* olhos por estado */}
+          {/* olhos por estado — no idle, viram meia-lua (o jeito de "olhar" da criatura da noite): um
+              círculo cheio "mordido" por outro da cor do visor, o jeito confiável de desenhar uma lua
+              crescente em SVG (arco A com raio pequeno demais degenera e some — já vi isso quebrar) */}
           {state === "idle" && (
             <g style={{ animation:"nyx-blink 4.2s infinite", transformOrigin:"60px 42px" }}>
-              <rect x="46" y="36" width="8" height="12" rx="4" fill={P.eye} style={{ filter:`drop-shadow(0 0 3px ${P.eye})` }} />
-              <rect x="66" y="36" width="8" height="12" rx="4" fill={P.eye} style={{ filter:`drop-shadow(0 0 3px ${P.eye})` }} />
+              <circle cx="50" cy="42" r="6.2" fill={P.eye} style={{ filter:`drop-shadow(0 0 3px ${P.eye})` }} />
+              <circle cx="53.2" cy="39.2" r="5.4" fill="#0b0e1d" />
+              <circle cx="70" cy="42" r="6.2" fill={P.eye} style={{ filter:`drop-shadow(0 0 3px ${P.eye})` }} />
+              <circle cx="73.2" cy="39.2" r="5.4" fill="#0b0e1d" />
             </g>
           )}
           {state === "thinking" && (
@@ -1478,9 +1490,10 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
           <rect x="38" y="68" width="44" height="38" rx="14" fill={`url(#${uid}b)`} />
           <rect x="38" y="68" width="44" height="16" rx="14" fill="#ffffff" opacity="0.10" />
 
-          {/* núcleo de energia no peito */}
+          {/* núcleo de energia no peito, em formato de lua crescente */}
           <circle cx="60" cy="86" r="9.5" fill="#0b0e1d" />
-          <circle cx="60" cy="86" r="6" fill={P.eye} style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite`, filter:`drop-shadow(0 0 4px ${P.eye})` }} />
+          <circle cx="60" cy="86" r="6.5" fill={P.eye} style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite`, filter:`drop-shadow(0 0 4px ${P.eye})` }} />
+          <circle cx="63.2" cy="83.2" r="5.5" fill="#0b0e1d" />
 
           {/* pés */}
           <rect x="43" y="106" width="14" height="10" rx="5" fill={P.dark} />
