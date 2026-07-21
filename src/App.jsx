@@ -5653,11 +5653,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCode, pendingAutoVerify]);
 
-  // auto-análise silenciosa: se o aluno ficar 1 minuto inteiro sem digitar nada, o Nyx confere
+  // auto-análise silenciosa: se o aluno ficar 5 minutos inteiros sem digitar nada, o Nyx confere
   // o código sozinho — sem avisar antes que vai analisar, só reagenda o timer a cada tecla
   useEffect(() => {
     if (analyzing || activeCode.trim().length < 12) return;
-    const t = setTimeout(() => { analyzeCode(); }, 60000);
+    const t = setTimeout(() => { analyzeCode(); }, 5 * 60000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCode, analyzing]);
