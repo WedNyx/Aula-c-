@@ -148,6 +148,9 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
   }
 }
 
+/* ── Modo Guiado: efeito de "encaixe" ao soltar um bloco arrastado ── */
+@keyframes guided-snap { 0% { transform: scale(1.08); } 50% { transform: scale(0.96); } 100% { transform: scale(1); } }
+
 /* ── animações do Nyx (robô) ── */
 @keyframes nyx-float   { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 @keyframes nyx-blink   { 0%, 90%, 100% { transform: scaleY(1); } 94% { transform: scaleY(.08); } }

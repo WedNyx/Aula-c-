@@ -61,6 +61,7 @@ function playSound(kind) {
     else if (kind === "click") { playTone(ctx, 740, t, 0.06, "sine", 0.05); }
     else if (kind === "enter") { [440, 660].forEach((f, i) => playTone(ctx, f, t + i * 0.09, 0.16, "sine", 0.07)); }
     else if (kind === "bell") { [987.77, 1318.5, 987.77].forEach((f, i) => playTone(ctx, f, t + i * 0.22, 0.5, "sine", 0.12)); }
+    else if (kind === "snap") { playTone(ctx, 660, t, 0.05, "sine", 0.06); playTone(ctx, 440, t + 0.04, 0.09, "sine", 0.05); }
   } catch {}
 }
 function setSoundsMuted(v) { soundsMuted = v; try { localStorage.setItem("nyx_sounds_muted", v ? "1" : "0"); } catch {} }
@@ -4604,6 +4605,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   useEffect(() => { setSoundsCalm(calmMode); return () => setSoundsCalm(false); }, [calmMode]);
   const [guidedBlocks, setGuidedBlocks] = useState([]);
   const [pendingBlock, setPendingBlock] = useState(null);
+  // arrastar e soltar os blocos do Modo Guiado pra reordenar (mais tátil que os botões ⬆️⬇️, que continuam
+  // funcionando junto — quem não conseguir arrastar com precisão ainda reordena pelos botões)
+  const [guidedDragIdx, setGuidedDragIdx] = useState(null);
+  const [guidedOverIdx, setGuidedOverIdx] = useState(null);
+  const [guidedJustDropped, setGuidedJustDropped] = useState(null);
+  const guidedRowRefs = useRef([]);
+  const guidedDragFromRef = useRef(null);
   // "Nyx te ensina" no Modo Guiado: mini-lições geradas sob demanda (C# explicado com exemplos de jogos)
   const [guidedLessons, setGuidedLessons] = useState([]);
   const [guidedLessonLoading, setGuidedLessonLoading] = useState(false);
@@ -5539,6 +5547,71 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     setFiles(prev => { const u=[...prev]; u[0] = { ...u[0], code: fullCode }; return u; });
     persist({ guidedBlocks: updated, code: fullCode });
   };
+
+  // arrastar e soltar: move o bloco de "from" pra posição de "to" (qualquer distância, não só vizinho)
+  const reorderGuidedBlock = (from, to) => {
+    if (from == null || to == null || from === to || !guidedBlocks[from]) return;
+    const updated = [...guidedBlocks];
+    const [moved] = updated.splice(from, 1);
+    updated.splice(to, 0, moved);
+    setGuidedBlocks(updated);
+    const fullCode = regenerateGuidedCode(updated);
+    setFiles(prev => { const u=[...prev]; u[0] = { ...u[0], code: fullCode }; return u; });
+    persist({ guidedBlocks: updated, code: fullCode });
+    playSound("snap");
+    setGuidedJustDropped(moved.uid);
+    setTimeout(() => setGuidedJustDropped(j => j===moved.uid ? null : j), 320);
+  };
+
+  const startGuidedDrag = (index) => {
+    guidedDragFromRef.current = index;
+    setGuidedDragIdx(index);
+    setGuidedOverIdx(index);
+  };
+
+  // durante o arrasto, acha a fileira de bloco mais próxima do ponteiro (pelo centro vertical de cada
+  // uma) — os blocos só trocam de posição de verdade quando o dedo/mouse solta (onUp), nunca durante
+  useEffect(() => {
+    if (guidedDragIdx == null) return;
+    const findClosestIndex = (y) => {
+      let closest = null, closestDist = Infinity;
+      guidedRowRefs.current.forEach((el, i) => {
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        const dist = Math.abs(y - mid);
+        if (dist < closestDist) { closestDist = dist; closest = i; }
+      });
+      return closest;
+    };
+    const onMove = (e) => {
+      const y = e.touches ? e.touches[0]?.clientY : e.clientY;
+      if (y == null) return;
+      if (e.cancelable) e.preventDefault();
+      const closest = findClosestIndex(y);
+      if (closest != null) setGuidedOverIdx(closest);
+    };
+    const onUp = () => {
+      const from = guidedDragFromRef.current;
+      setGuidedOverIdx(currentOver => {
+        if (from != null && currentOver != null && currentOver !== from) reorderGuidedBlock(from, currentOver);
+        return null;
+      });
+      guidedDragFromRef.current = null;
+      setGuidedDragIdx(null);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guidedDragIdx]);
 
   // "Nyx te ensina" no Modo Guiado: gera uma mini-lição nova sob demanda, com o C# explicado através de
   // exemplos de criação de jogos — o professor mantém o Modo Guiado ligado durante a aula toda, e o aluno
@@ -7041,17 +7114,36 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 {guidedBlocks.length===0 ? (
                   <p style={{ color:"#776798", fontSize:scaleSize(13) }}>Clique num bloco acima para começar!</p>
                 ) : (
+                  <>
+                  {guidedBlocks.length > 1 && <p style={{ color:"#776798", fontSize:scaleSize(11.5), margin:"0 0 8px" }}>🖐️ Arraste pelo <b style={{color:"#a99ac9"}}>⠿</b> pra reordenar, ou use as setinhas.</p>}
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                    {guidedBlocks.map((b,i)=>(
-                      <div key={b.uid} style={{ display:"flex", alignItems:"center", gap:10, background:"#1e1430", border:"1px solid #3b2a58", borderRadius:8, padding:"8px 12px" }}>
+                    {guidedBlocks.map((b,i)=>{
+                      const isDragging = guidedDragIdx === i;
+                      const isOver = guidedOverIdx === i && guidedDragIdx != null && guidedDragIdx !== i;
+                      return (
+                      <div key={b.uid} ref={el => guidedRowRefs.current[i]=el}
+                        style={{
+                          display:"flex", alignItems:"center", gap:10, background:"#1e1430",
+                          border: isOver ? "2px dashed #22d3ee" : "1px solid #3b2a58", borderRadius:8, padding:"8px 12px",
+                          opacity: isDragging ? 0.45 : 1,
+                          transform: isDragging ? "scale(1.03)" : "scale(1)",
+                          boxShadow: isDragging ? "0 8px 20px rgba(0,0,0,.35)" : "none",
+                          transition: "border-color .12s, transform .12s, opacity .12s",
+                          animation: guidedJustDropped === b.uid ? "guided-snap .32s ease" : "none",
+                          touchAction: guidedDragIdx != null ? "none" : "auto",
+                        }}>
+                        <span onPointerDown={(e)=>{ e.preventDefault(); startGuidedDrag(i); }} onTouchStart={()=>startGuidedDrag(i)}
+                          title="Arraste pra reordenar" style={{ cursor: guidedDragIdx===i ? "grabbing" : "grab", color:"#776798", fontSize:scaleSize(18), padding:"2px 4px", userSelect:"none", touchAction:"none" }}>⠿</span>
                         <span style={{ fontSize:scaleSize(20) }}>{b.emoji}</span>
                         <span style={{ flex:1, fontSize:scaleSize(13) }}>{i+1}. {b.label}</span>
                         <button onClick={()=>moveGuidedBlock(i,-1)} disabled={i===0} style={{ background:"transparent", border:"none", color:"#a99ac9", cursor:"pointer", opacity:i===0?0.3:1, fontSize:scaleSize(15), minWidth:scaleSize(32) }}>⬆️</button>
                         <button onClick={()=>moveGuidedBlock(i,1)} disabled={i===guidedBlocks.length-1} style={{ background:"transparent", border:"none", color:"#a99ac9", cursor:"pointer", opacity:i===guidedBlocks.length-1?0.3:1, fontSize:scaleSize(15), minWidth:scaleSize(32) }}>⬇️</button>
                         <button onClick={()=>removeGuidedBlock(b.uid)} style={{ background:"transparent", border:"none", color:"#f87171", cursor:"pointer", fontSize:scaleSize(16), minWidth:scaleSize(32) }}>✕</button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                  </>
                 )}
               </div>
 
