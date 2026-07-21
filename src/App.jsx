@@ -9731,7 +9731,18 @@ function TeacherView({ onLogout, teacherAuth }) {
                   </div>
                   <div>Nyx (IA): <b style={{ color:diag.hasAI===true?"#34d399":diag.hasAI===false?"#f87171":"#a99ac9" }}>{diag.hasAI===true?"OK":diag.hasAI===false?"NÃO":"—"}</b></div>
 
-                  {!diag.hasStorage && diag.writeRead === "erro" && (
+                  {!diag.hasStorage && diag.writeRead === "erro" && diag.quotaSuspect && (
+                    <div style={{ background:"#fbbf2415", border:"1px solid #fbbf24", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.9 }}>
+                      <b style={{ color:"#fbbf24" }}>⚠ Parece ter estourado a cota do plano grátis</b><br/>
+                      <span style={{ color:"#a99ac9" }}>
+                        O erro que voltou do banco tem cara de <b style={{color:"#f0e9fb"}}>limite do plano grátis do Supabase</b> (banda/egress, armazenamento ou requisições) — diferente de projeto pausado. Confira em <b style={{color:"#f0e9fb"}}>supabase.com</b> → seu projeto → <b style={{color:"#34d399"}}>Settings → Billing/Usage</b> se algum item está no limite. Se estiver, dá pra esperar renovar no mês seguinte ou fazer upgrade de plano.<br/>
+                        Depois clique <b style={{color:"#34d399"}}>↻ Verificar agora</b> abaixo.
+                      </span>
+                      {diag.err && <div style={{ marginTop:8, paddingTop:8, borderTop:"1px solid #fbbf2433", color:"#c9b98a", fontSize:11, fontFamily:"monospace", wordBreak:"break-word" }}>Erro técnico: {diag.err}</div>}
+                    </div>
+                  )}
+
+                  {!diag.hasStorage && diag.writeRead === "erro" && !diag.quotaSuspect && (
                     <div style={{ background:"#f8717115", border:"1px solid #f87171", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.9 }}>
                       <b style={{ color:"#f87171" }}>❌ Não consegui conectar no banco</b><br/>
                       <span style={{ color:"#a99ac9" }}>

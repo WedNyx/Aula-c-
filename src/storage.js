@@ -7,7 +7,13 @@ async function kvCall(body) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!resp.ok) throw new Error(`KV error ${resp.status}`)
+  if (!resp.ok) {
+    // tenta trazer o texto do erro que veio no corpo da resposta (ex: mensagem de cota do
+    // Supabase) além do status — ajuda o diagnóstico a identificar a causa real, não só o número
+    let detail = ''
+    try { detail = (await resp.json())?.error || '' } catch {}
+    throw new Error(`KV error ${resp.status}${detail ? `: ${detail}` : ''}`)
+  }
   return resp.json()
 }
 
@@ -548,8 +554,17 @@ export async function setExamState(state, auth) {
   } catch { return false }
 }
 
+// sinais de texto que costumam aparecer quando o Supabase free tier estourou a cota (armazenamento,
+// egress/banda ou limite de requisições) — não temos acesso à API de billing, então é uma detecção
+// por palavras-chave no erro que já vem da chamada normal, sem custo extra
+const QUOTA_HINTS = [/quota/i, /too many requests/i, /rate limit/i, /429/, /402/, /payment required/i, /exceeded/i, /disk.*full/i, /out of space/i, /egress/i]
+function looksLikeQuotaIssue(errText) {
+  const s = String(errText || '')
+  return QUOTA_HINTS.some(re => re.test(s))
+}
+
 export async function diagnose() {
-  const out = { hasStorage: true, configured: true, writeRead: '—', listOk: false, keys: [], err: '', hasAI: null }
+  const out = { hasStorage: true, configured: true, writeRead: '—', listOk: false, keys: [], err: '', hasAI: null, quotaSuspect: false }
 
   // Verifica variáveis de ambiente (ação rápida, sem gastar nada)
   try {
@@ -565,6 +580,7 @@ export async function diagnose() {
     out.configured = false
     out.writeRead = 'erro'
     out.err = String(e?.message || e)
+    out.quotaSuspect = looksLikeQuotaIssue(out.err)
   }
 
   // Testa escrita/leitura só se parece configurado
@@ -577,6 +593,7 @@ export async function diagnose() {
       out.writeRead = 'erro'
       out.hasStorage = false
       out.err = String(e?.message || e)
+      out.quotaSuspect = looksLikeQuotaIssue(out.err)
     }
   }
 
