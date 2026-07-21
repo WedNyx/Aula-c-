@@ -9123,6 +9123,20 @@ function TeacherView({ onLogout, teacherAuth }) {
   // velha de uma mudança de turno que falhou), cada card precisa ser selecionável/identificável
   // separadamente; usar só o nome fazia todo clique cair sempre no primeiro encontrado
   const studentKey = s => `${s.shift||"sem-turno"}::${s.name}`;
+  // detecta o mesmo nome aparecendo em mais de um turno — geralmente sobra de uma troca de turno/turma
+  // que falhou no meio (o antigo bug de duplicação); avisa o professor pra conferir e excluir a cópia errada
+  const duplicateGroups = (() => {
+    const byName = new Map();
+    for (const s of students) {
+      const nm = (s.name||"").trim();
+      if (!nm) continue;
+      if (!byName.has(nm)) byName.set(nm, []);
+      byName.get(nm).push(s);
+    }
+    return [...byName.entries()]
+      .filter(([, list]) => new Set(list.map(s=>s.shift||"sem-turno")).size > 1)
+      .map(([name, list]) => ({ name, list }));
+  })();
   // erros mais comuns HOJE na turma: olha a última análise de cada aluno (feedback), categoriza
   // pelo texto do erro e junta por categoria — ajuda o professor a saber o que reforçar no fechamento
   const commonErrorsToday = (() => {
@@ -9585,6 +9599,23 @@ function TeacherView({ onLogout, teacherAuth }) {
 
       {/* ─────────── MONITORAMENTO ─────────── */}
       {tab==="monitor" && (
+        <>
+        {duplicateGroups.length > 0 && (
+          <div style={{ maxWidth:1180, margin:"14px auto 0", padding:"0 14px" }}>
+            <div className="cardfx" style={{ ...styles.card, borderColor:"#fbbf24", background:"linear-gradient(180deg,#2a2015,#1a1029)" }}>
+              <h3 style={{ color:"#fbbf24", marginBottom:6 }}>⚠ Aluno duplicado entre turmas</h3>
+              <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 10px", lineHeight:1.6 }}>Esse nome aparece em mais de um turno/turma — geralmente sobra de uma troca que falhou no meio. Confira cada cópia e exclua a que estiver errada.</p>
+              {duplicateGroups.map(g => (
+                <div key={g.name} style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", padding:"6px 0", borderTop:"1px solid #3b2a5855" }}>
+                  <b style={{ color:"#f0e9fb", fontSize:13.5 }}>{g.name}</b>
+                  {g.list.map(s => (
+                    <button key={studentKey(s)} onClick={()=>{ setShiftFilter(s.shift||"sem-turno"); setSelected(studentKey(s)); }} style={{ ...styles.badge("#fbbf24"), cursor:"pointer", border:"1px solid #fbbf24", background:"transparent" }}>{shiftLabel(s.shift)}</button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div style={{ display:"flex", gap:14, padding:14, maxWidth:1180, margin:"0 auto", alignItems:"flex-start", flexWrap:"wrap" }}>
           {/* esquerda */}
           <div className="side-col" style={{ width:300, flex:"0 0 300px" }}>
@@ -10161,6 +10192,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             )}
           </div>
         </div>
+        </>
       )}
 
       {/* ─────────── MEU CÓDIGO (exemplo da aula, do professor) — layout expandido tipo "tela cheia" ─────────── */}
