@@ -279,9 +279,10 @@ const ACHIEVEMENTS = [
   // duelos
   { id:"duelista",           emoji:"⚔️", label:"Duelista",       desc:"Venceu um duelo contra um colega" },
   { id:"duelista-3",         emoji:"🏆", label:"Campeão de Duelos", desc:"Venceu 3 duelos" },
-  // sala de linguagens (HTML/CSS/PHP/JS)
-  { id:"primeira-pagina",    emoji:"🌐", label:"Primeira Página", desc:"Concluiu a primeira aula na sala de linguagens" },
-  { id:"poliglota",          emoji:"🗺️", label:"Poliglota",       desc:"Estudou as 4 linguagens da sala: HTML, CSS, PHP e JavaScript" },
+  // sala de linguagens (HTML/CSS/PHP/JS) — langOnly: só entra na lista/contagem de quem está
+  // nessa sala; pra quem só faz C# normal, essas duas são impossíveis de conseguir mesmo
+  { id:"primeira-pagina",    emoji:"🌐", label:"Primeira Página", desc:"Concluiu a primeira aula na sala de linguagens", langOnly:true },
+  { id:"poliglota",          emoji:"🗺️", label:"Poliglota",       desc:"Estudou as 4 linguagens da sala: HTML, CSS, PHP e JavaScript", langOnly:true },
   // extras
   { id:"artista",            emoji:"🎨", label:"Artista",        desc:"Pediu ao Nyx um fundo de cor personalizada" },
   { id:"teclado-mestre",     emoji:"🎹", label:"Mestre do Teclado", desc:"Completou o tutorial de teclado até o fim" },
@@ -308,6 +309,9 @@ const ACHIEVEMENTS = [
 // ids de todo Easter Egg individual que conta pra conquista "Caçador Lendário"
 const ALL_EGG_ACHIEVEMENT_IDS = ["segredo-vaca","segredo-danca","segredo-matrix","segredo-piada","segredo-pirata","segredo-sanduiche","segredo-cafe","segredo-42","segredo-rm","tesouro","espartano"];
 const achievementInfo = (id) => ACHIEVEMENTS.find(a => a.id === id);
+// conquistas que valem pra esse aluno — some as "langOnly" (sala de linguagens) de quem nunca
+// vai poder consegui-las, pra não aparecerem impossíveis na lista nem inflarem o "X de Y"
+const visibleAchievements = (isLangRoom) => ACHIEVEMENTS.filter(a => !a.langOnly || isLangRoom);
 
 // ── metas coletivas da turma (soma dos pontos de todos da turma) ──
 const CLASS_GOALS = [80, 200, 400, 800, 1500, 2500, 4000, 6000, 9000, 13000];
@@ -2578,7 +2582,8 @@ function AchievementToast({ achievement }) {
   );
 }
 
-function AchievementsModal({ unlocked, onClose }) {
+function AchievementsModal({ unlocked, onClose, isLangRoom }) {
+  const list = visibleAchievements(isLangRoom);
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
       <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
@@ -2586,9 +2591,9 @@ function AchievementsModal({ unlocked, onClose }) {
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#fbbf24,#f59e0b)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎖️ Conquistas</h2>
           <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>{unlocked.length} de {ACHIEVEMENTS.length} desbloqueadas</p>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>{unlocked.filter(id=>list.some(a=>a.id===id)).length} de {list.length} desbloqueadas</p>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))", gap:10 }}>
-          {ACHIEVEMENTS.map(a => {
+          {list.map(a => {
             const got = unlocked.includes(a.id);
             return (
               <div key={a.id} style={{ background:got?"#fbbf2418":"#171026", border:`1px solid ${got?"#fbbf24":"#241f38"}`, borderRadius:14, padding:"12px 14px", display:"flex", gap:10, alignItems:"center", opacity:got?1:0.55 }}>
@@ -7265,7 +7270,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             <p style={{ color:"#fbbf24", fontWeight:700, marginBottom:8, fontSize:13 }}>🏆 Turma & Você</p>
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               {!focusMode && <button onClick={()=>setShowRanking(true)} style={{ ...styles.btn("#22d3ee"), fontSize:12, padding:"7px 0" }}>📊 Ranking da turma</button>}
-              <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btn("#a855f7"), fontSize:12, padding:"7px 0" }}>🎖️ Conquistas · {achievements.length}/{ACHIEVEMENTS.length}</button>
+              <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btn("#a855f7"), fontSize:12, padding:"7px 0" }}>🎖️ Conquistas · {achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/{visibleAchievements(isLangRoom).length}</button>
               <button onClick={()=>setShowNotebook(true)} style={{ ...styles.btn("#34d399"), fontSize:12, padding:"7px 0" }}>📒 Caderno de resumos</button>
               <button onClick={()=>setShowPerformance(true)} style={{ ...styles.btn("#06b6d4"), fontSize:12, padding:"7px 0" }}>📊 Meu Desempenho</button>
               {!focusMode && <button onClick={()=>{ if (!nyxLocks.zeker) setShowDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : ""}
@@ -7442,7 +7447,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         </div>
       )}
 
-      {showAchievements && <AchievementsModal unlocked={achievements} onClose={()=>setShowAchievements(false)} />}
+      {showAchievements && <AchievementsModal unlocked={achievements} onClose={()=>setShowAchievements(false)} isLangRoom={isLangRoom} />}
       {showRanking && <RankingModal shift={shift} myName={studentName} onClose={()=>setShowRanking(false)} />}
       {/* 🎉 quiz: modal de entrar com o código */}
       {showQuizJoin && quizRoomInfo && (!quizJoin || quizJoin.code !== quizRoomInfo.code) && (
@@ -7905,6 +7910,7 @@ const LESSON_LIBRARY = [
 function TeacherView({ onLogout, teacherAuth }) {
   const [students, setStudents] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [showDupHover, setShowDupHover] = useState(false); // aviso de aluno duplicado — só aparece ao passar o mouse
   // gestão do aluno selecionado (renomear, mover de turno, corrigir nota, excluir)
   const [renameVal, setRenameVal] = useState("");
   const [scoreVal, setScoreVal] = useState("");
@@ -9691,23 +9697,6 @@ function TeacherView({ onLogout, teacherAuth }) {
 
       {/* ─────────── MONITORAMENTO ─────────── */}
       {tab==="monitor" && (
-        <>
-        {duplicateGroups.length > 0 && (
-          <div style={{ maxWidth:1180, margin:"14px auto 0", padding:"0 14px" }}>
-            <div className="cardfx" style={{ ...styles.card, borderColor:"#fbbf24", background:"linear-gradient(180deg,#2a2015,#1a1029)" }}>
-              <h3 style={{ color:"#fbbf24", marginBottom:6 }}>⚠ Aluno duplicado entre turmas</h3>
-              <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 10px", lineHeight:1.6 }}>Esse nome aparece em mais de um turno/turma — geralmente sobra de uma troca que falhou no meio. Confira cada cópia e exclua a que estiver errada.</p>
-              {duplicateGroups.map(g => (
-                <div key={g.name} style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", padding:"6px 0", borderTop:"1px solid #3b2a5855" }}>
-                  <b style={{ color:"#f0e9fb", fontSize:13.5 }}>{g.name}</b>
-                  {g.list.map(s => (
-                    <button key={studentKey(s)} onClick={()=>{ setShiftFilter(s.shift||"sem-turno"); setSelected(studentKey(s)); }} style={{ ...styles.badge("#fbbf24"), cursor:"pointer", border:"1px solid #fbbf24", background:"transparent" }}>{shiftLabel(s.shift)}</button>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         <div style={{ display:"flex", gap:14, padding:14, maxWidth:1180, margin:"0 auto", alignItems:"flex-start", flexWrap:"wrap" }}>
           {/* esquerda */}
           <div className="side-col" style={{ width:300, flex:"0 0 300px" }}>
@@ -9952,7 +9941,29 @@ function TeacherView({ onLogout, teacherAuth }) {
           {/* direita */}
           <div style={{ flex:"1 1 420px", minWidth:300 }}>
             <div className="cardfx" style={styles.card}>
-              <h3 style={{ color:"#fbbf24", marginBottom:12 }}>👥 Monitoramento ({shown.length})</h3>
+              <h3 style={{ color:"#fbbf24", marginBottom:12, display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                <span>👥 Monitoramento ({shown.length})</span>
+                {duplicateGroups.length > 0 && (
+                  <div style={{ position:"relative" }} onMouseEnter={()=>setShowDupHover(true)} onMouseLeave={()=>setShowDupHover(false)}>
+                    <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:"#fbbf2422", border:"1px solid #fbbf24", color:"#fbbf24", borderRadius:20, padding:"4px 10px", fontSize:11.5, fontWeight:700, cursor:"default" }}>
+                      ⚠ {duplicateGroups.length} duplicado{duplicateGroups.length!==1?"s":""}
+                    </span>
+                    {showDupHover && (
+                      <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, zIndex:50, width:300, background:"linear-gradient(180deg,#2a2015,#1a1029)", border:"1px solid #fbbf24", borderRadius:12, padding:"12px 14px", boxShadow:"0 14px 40px rgba(0,0,0,.5)" }}>
+                        <p style={{ color:"#a99ac9", fontSize:12, margin:"0 0 8px", lineHeight:1.5 }}>Esse nome aparece em mais de um turno/turma — geralmente sobra de uma troca que falhou no meio. Clique no turno pra abrir e conferir.</p>
+                        {duplicateGroups.map(g => (
+                          <div key={g.name} style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", padding:"6px 0", borderTop:"1px solid #3b2a5855" }}>
+                            <b style={{ color:"#f0e9fb", fontSize:13 }}>{g.name}</b>
+                            {g.list.map(s => (
+                              <button key={studentKey(s)} onClick={()=>{ setShiftFilter(s.shift||"sem-turno"); setSelected(studentKey(s)); setShowDupHover(false); }} style={{ ...styles.badge("#fbbf24"), cursor:"pointer", border:"1px solid #fbbf24", background:"transparent" }}>{shiftLabel(s.shift)}</button>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </h3>
               {shown.length===0 && <p style={{ color:"#776798", fontSize:13 }}>{students.length===0 ? "Aguardando alunos entrarem..." : "Nenhum aluno nesta turma. Veja outra turma no filtro acima."}</p>}
               <div style={{ maxHeight:400, overflowY:"auto", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(128px,1fr))", gap:8 }}>
                 {sorted.map((s, tileIdx)=>{
@@ -10295,7 +10306,6 @@ function TeacherView({ onLogout, teacherAuth }) {
             )}
           </div>
         </div>
-        </>
       )}
 
       {/* ─────────── MEU CÓDIGO (exemplo da aula, do professor) — layout expandido tipo "tela cheia" ─────────── */}
