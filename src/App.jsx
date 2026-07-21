@@ -8898,20 +8898,26 @@ function TeacherView({ onLogout, teacherAuth }) {
     const newName = renameVal.trim();
     if (!s || !newName || newName === s.name) return;
     if (students.some(x => x.name === newName && (x.shift||"sem-turno") === (s.shift||"sem-turno"))) { flashMgmt("❌ Já existe um aluno com esse nome nessa turma."); return; }
-    await saveStudent(s.shift, newName, { ...s, name: newName });
-    await deleteStudentProfile(s.shift, s.name, teacherAuth);
+    const saved = await saveStudent(s.shift, newName, { ...s, name: newName });
+    if (!saved) { flashMgmt("❌ Não consegui salvar o novo nome agora (conexão?). Tente de novo."); return; }
+    const deleted = await deleteStudentProfile(s.shift, s.name, teacherAuth);
     await setKick(s.shift, s.name, teacherAuth); // se estiver online, a sessão antiga sai (ele entra de novo com o nome novo)
-    setSelected(newName); setRenameVal("");
-    flashMgmt(`✅ Renomeado para ${newName}. Se estiver online, ele vai precisar entrar de novo.`);
+    setSelected(`${s.shift||"sem-turno"}::${newName}`); setRenameVal("");
+    flashMgmt(deleted
+      ? `✅ Renomeado para ${newName}. Se estiver online, ele vai precisar entrar de novo.`
+      : `⚠️ Renomeado para ${newName}, mas não consegui apagar o registro antigo (ficou uma cópia com o nome "${s.name}" — pode excluir ela na mesma turma).`);
     load();
   };
 
   const doMoveStudent = async (s, newShift) => {
     if (!s || !newShift || newShift === (s.shift||"sem-turno")) return;
-    await saveStudent(newShift, s.name, { ...s, shift: newShift });
-    await deleteStudentProfile(s.shift, s.name, teacherAuth);
+    const saved = await saveStudent(newShift, s.name, { ...s, shift: newShift });
+    if (!saved) { flashMgmt("❌ Não consegui mover agora (conexão?). Tente de novo."); return; }
+    const deleted = await deleteStudentProfile(s.shift, s.name, teacherAuth);
     await setKick(s.shift, s.name, teacherAuth);
-    flashMgmt(`✅ Movido para ${shiftLabel(newShift)}. Se estiver online, ele vai precisar entrar de novo.`);
+    flashMgmt(deleted
+      ? `✅ Movido para ${shiftLabel(newShift)}. Se estiver online, ele vai precisar entrar de novo.`
+      : `⚠️ Movido para ${shiftLabel(newShift)}, mas não consegui apagar a cópia antiga em ${shiftLabel(s.shift||"sem-turno")} (fica um card duplicado lá — pode excluir ele por lá).`);
     load();
   };
 
@@ -8953,10 +8959,10 @@ function TeacherView({ onLogout, teacherAuth }) {
 
   const doDeleteStudent = async (s) => {
     if (!s) return;
-    await deleteStudentProfile(s.shift, s.name, teacherAuth);
+    const deleted = await deleteStudentProfile(s.shift, s.name, teacherAuth);
     await setKick(s.shift, s.name, teacherAuth);
     setSelected(null); setConfirmDelete(false);
-    flashMgmt("");
+    flashMgmt(deleted ? "" : "❌ Não consegui excluir agora (conexão?). Tente de novo.");
     load();
   };
 
@@ -9085,6 +9091,10 @@ function TeacherView({ onLogout, teacherAuth }) {
   // filtro por turno
   const shown = shiftFilter==="all" ? students : students.filter(s => (s.shift||"sem-turno")===shiftFilter);
   const sorted = [...shown].sort((a,b)=>(a.name||"").localeCompare(b.name||"","pt-BR"));
+  // chave composta (turno+nome) — se o mesmo nome existir em mais de um turno (ex: sobrou uma cópia
+  // velha de uma mudança de turno que falhou), cada card precisa ser selecionável/identificável
+  // separadamente; usar só o nome fazia todo clique cair sempre no primeiro encontrado
+  const studentKey = s => `${s.shift||"sem-turno"}::${s.name}`;
   // erros mais comuns HOJE na turma: olha a última análise de cada aluno (feedback), categoriza
   // pelo texto do erro e junta por categoria — ajuda o professor a saber o que reforçar no fechamento
   const commonErrorsToday = (() => {
@@ -9116,7 +9126,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     });
     return Object.values(tally).sort((a,b)=>b.count-a.count);
   })();
-  const sel = selected ? students.find(s=>s.name===selected) : null;
+  const sel = selected ? students.find(s=>studentKey(s)===selected) : null;
   useEffect(() => {
     let alive = true;
     if (sel) getAccessMode(sel.shift, sel.name).then(v => { if (alive) setSelAccessMode(v); });
@@ -9788,7 +9798,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   const hasHand = s.helpAt && Date.now() - s.helpAt < 15 * 60 * 1000; // pedido de ajuda expira em 15 min
                   const hasError = s.errorAt && Date.now() - s.errorAt < 30 * 60 * 1000; // aviso de erro expira em 30 min
                   return (
-                    <div key={s.name} className="tilefx" onClick={()=>setSelected(s.name===selected?null:s.name)} style={{ position:"relative", background:selected===s.name?"#c084fc22":hasHand?"#fbbf2415":hasError?"#f8717115":"#171026", border:`2px solid ${selected===s.name?"#c084fc":hasHand?"#fbbf24":hasError?"#f87171":"#3b2a58"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center", animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
+                    <div key={studentKey(s)} className="tilefx" onClick={()=>setSelected(studentKey(s)===selected?null:studentKey(s))} style={{ position:"relative", background:selected===studentKey(s)?"#c084fc22":hasHand?"#fbbf2415":hasError?"#f8717115":"#171026", border:`2px solid ${selected===studentKey(s)?"#c084fc":hasHand?"#fbbf24":hasError?"#f87171":"#3b2a58"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center", animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
                       {hasHand && <span title="Pediu ajuda! Clique pra ver e marcar como atendido." style={{ position:"absolute", top:4, right:24, fontSize:15, animation:"pulse-dot 1s ease-in-out infinite" }}>✋</span>}
                       {hasError && <span title={`A tela deu um erro: ${s.errorMsg || "sem detalhes"}`} style={{ position:"absolute", top:4, right: hasHand?42:24, fontSize:15 }}>⚠️</span>}
                       {s.score!=null && <span style={{ position:"absolute", top:6, left:6, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:6, padding:"1px 6px", fontSize:10.5, fontWeight:800 }}>🏆 {s.score}</span>}
