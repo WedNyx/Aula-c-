@@ -9282,14 +9282,18 @@ function TeacherView({ onLogout, teacherAuth }) {
     try {
       const summaryResult = await askClaude(
         `Aqui está o código C# que a turma escreveu ao longo de toda a aula de hoje (exemplo do professor e/ou código dos alunos):\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie um RESUMO DE REVISÃO em tópicos claros (máximo 8 tópicos) cobrindo os principais conceitos vistos durante a aula, para os alunos estudarem antes de uma prova. Cada tópico: emoji + nome do conceito + explicação simples de 1 frase + exemplo curto. Português simples. Sem markdown pesado, use • para tópicos.`,
-        "Você cria resumos de revisão de C# para alunos iniciantes. Português simples."
+        "Você cria resumos de revisão de C# para alunos iniciantes. Português simples.",
+        { max_tokens: 3000 }
       );
       setExamMsg("Gerando questões...");
-      const questionsResult = await askClaude(
+      // 28-32 questões em JSON é a maior resposta pedida em todo o app — precisa de um teto de
+      // tokens bem mais alto que o padrão (2000), senão a resposta corta no meio e o parse quebra
+      // (era exatamente isso que fazia a criação da prova falhar silenciosamente)
+      const parsed = await askClaudeJson(
         `Aqui está o código C# que os PRÓPRIOS ALUNOS escreveram ao longo de TODA a aula de hoje, junto com o exemplo do professor (mas o foco principal são os trechos que os alunos escreveram):\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie entre 28 e 32 questões de múltipla escolha cobrindo os CONCEITOS que apareceram no código que os alunos escreveram durante o processo inteiro da aula (não só o trecho final) — o que faz cada palavra-chave/instrução que eles usaram, para que serve cada estrutura, o papel de cada símbolo, o que acontece ao executar cada parte. Priorize perguntar sobre trechos e padrões que aparecem de fato no código dos alunos, não só teoria genérica. Varie a dificuldade e não repita a mesma pergunta com outras palavras. NÃO faça perguntas de matemática. Responda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
-        "Crie questões de múltipla escolha sobre C#. APENAS JSON puro sem markdown."
+        "Crie questões de múltipla escolha sobre C#. APENAS JSON puro sem markdown.",
+        { max_tokens: 6000 }
       );
-      const parsed = extractJson(questionsResult);
       // ⏳ 30min de estudo antes da prova poder ser iniciada de verdade — mesmo espírito do
       // chefão: dá tempo pra turma revisar o resumo com calma antes de valer a nota
       const EXAM_STUDY_MS = 30 * 60 * 1000;
