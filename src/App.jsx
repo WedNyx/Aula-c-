@@ -305,6 +305,7 @@ const ACHIEVEMENTS = [
   // meta: só quem achar TODOS os segredos acima
   { id:"todos-segredos",     emoji:"🏆", label:"Caçador Lendário", desc:"Encontrou TODOS os segredos escondidos da plataforma", secret:true },
   { id:"campeao-torneio",    emoji:"🏟️", label:"Campeão do Torneio", desc:"Venceu o torneio da turma no telão" },
+  { id:"autodidata",         emoji:"🧠", label:"Autodidata",       desc:"Fez um teste de conhecimento por conta própria, sem esperar a atividade da aula" },
 ];
 // ids de todo Easter Egg individual que conta pra conquista "Caçador Lendário"
 const ALL_EGG_ACHIEVEMENT_IDS = ["segredo-vaca","segredo-danca","segredo-matrix","segredo-piada","segredo-pirata","segredo-sanduiche","segredo-cafe","segredo-42","segredo-rm","tesouro","espartano"];
@@ -3950,6 +3951,19 @@ async function generateDuelQuestions() {
   return shuffleQuestions(parsed.questions || []);
 }
 
+// 🧠 teste de conhecimento por conta própria: o aluno pode se testar a qualquer momento da aula,
+// sem precisar esperar a atividade oficial (que só libera depois de finalizar a aula) — sem dicas,
+// pra valer mesmo como autoavaliação
+async function generateKnowledgeTestQuestions() {
+  const res = await askClaude(
+    `Crie 6 questões de múltipla escolha sobre conceitos fundamentais de C# para iniciantes (variáveis, tipos, Console.WriteLine/ReadLine, if/else, for/while, operadores, listas/arrays básicos). Nível fácil/médio, pra um aluno se autoavaliar sobre a matéria a qualquer momento — sem depender do código específico que ele escreveu hoje. Responda APENAS JSON puro:\n{"questions":[{"q":"...","opts":["A","B","C","D"],"correct":0}]}`,
+    DUEL_SYSTEM,
+    { temperature: 0.7 }
+  );
+  const parsed = extractJson(res);
+  return shuffleQuestions(parsed.questions || []);
+}
+
 function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
   const [loading, setLoading] = useState(true);
   const [opponents, setOpponents] = useState([]);
@@ -4141,6 +4155,92 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
             <button onClick={closeResult} style={{ background:"linear-gradient(135deg,#c084fc,#9333ea)", color:"#fff", border:"none", borderRadius:10, padding:"10px 18px", cursor:"pointer", fontWeight:800, fontSize:14, width:"100%", marginTop:14 }}>
               Fechar
             </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 🧠 teste de conhecimento por conta própria — o aluno pode se autoavaliar a qualquer momento da
+// aula, sem esperar a atividade oficial (que só libera depois de finalizar) e sem nenhuma dica: só
+// gera as perguntas, ele responde, e vê o resultado na hora. Não mexe na fase da aula nem na nota oficial
+function KnowledgeTestModal({ onAward, onFirstToday, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [questions, setQuestions] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [done, setDone] = useState(false);
+  const [score, setScore] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const qs = await generateKnowledgeTestQuestions();
+        if (!qs.length) throw new Error("sem perguntas");
+        setQuestions(qs);
+      } catch { setErr("Não consegui gerar o teste agora. Tente de novo em instantes."); }
+      setLoading(false);
+    })();
+  }, []);
+
+  const pick = (qi, oi) => { if (!done) setAnswers(a => ({ ...a, [qi]: oi })); };
+  const allAnswered = questions.length > 0 && questions.every((_, i) => answers[i] != null);
+
+  const submit = async () => {
+    let correct = 0;
+    questions.forEach((q, i) => { if (answers[i] === q.correct) correct++; });
+    setScore(correct);
+    setDone(true);
+    const firstToday = onFirstToday();
+    if (firstToday && correct > 0) await onAward(correct * 2);
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:560, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#818cf8,#6366f1)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🧠 Testar Conhecimento</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        {!done && <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 14px" }}>Sem dicas, pra valer mesmo — é só pra você se autoavaliar. Pode fazer quando quiser, sem precisar finalizar a aula.</p>}
+
+        {loading && <p style={{ color:"#a99ac9", fontSize:14 }}>🤔 Gerando as perguntas...</p>}
+        {err && <p style={{ color:"#f87171", fontSize:13 }}>{err}</p>}
+
+        {!loading && !err && !done && questions.map((q, i) => (
+          <div key={i} data-q={i} className="cardfx" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:14, marginBottom:10, padding:14 }}>
+            <p style={{ fontWeight:700, margin:"0 0 10px", fontSize:14 }}>{i+1}. {q.q}</p>
+            {q.opts.map((opt, j) => (
+              <button key={j} data-opt={j} onClick={()=>pick(i,j)} style={{ display:"block", width:"100%", background:answers[i]===j?"#6366f133":"#171026", border:`2px solid ${answers[i]===j?"#6366f1":"#3b2a58"}`, borderRadius:10, padding:"10px 14px", color:"#f0e9fb", textAlign:"left", cursor:"pointer", marginBottom:6, fontSize:13 }}>
+                <span style={{ color:"#818cf8", fontWeight:700, marginRight:8 }}>{["A","B","C","D"][j]}.</span>{opt}
+              </button>
+            ))}
+          </div>
+        ))}
+
+        {!loading && !err && !done && questions.length > 0 && (
+          <button onClick={submit} disabled={!allAnswered} style={{ background:"#6366f1", border:"none", borderRadius:12, color:"#fff", fontWeight:800, cursor:allAnswered?"pointer":"not-allowed", width:"100%", padding:"12px 0", fontSize:14, opacity:allAnswered?1:0.5, marginTop:6 }}>
+            {allAnswered ? "Enviar respostas →" : "Responda tudo pra enviar"}
+          </button>
+        )}
+
+        {done && (
+          <div style={{ textAlign:"center", padding:"10px 0" }}>
+            <div style={{ fontSize:44 }}>{score===questions.length ? "🏆" : score >= questions.length/2 ? "👍" : "📚"}</div>
+            <h3 style={{ color:"#f0e9fb", margin:"8px 0 4px" }}>Você acertou {score} de {questions.length}</h3>
+            <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:16, textAlign:"left" }}>
+              {questions.map((q, i) => {
+                const ok = answers[i] === q.correct;
+                return (
+                  <div key={i} style={{ background: ok ? "#34d39918" : "#f8717118", border:`1px solid ${ok?"#34d399":"#f87171"}`, borderRadius:10, padding:"10px 12px" }}>
+                    <p style={{ margin:"0 0 4px", fontSize:12.5, color:"#f0e9fb", fontWeight:700 }}>{ok?"✅":"❌"} {q.q}</p>
+                    <p style={{ margin:0, fontSize:12, color:"#a99ac9" }}>Certa: {q.opts[q.correct]}</p>
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={onClose} style={{ background:"#6366f1", border:"none", borderRadius:12, color:"#fff", fontWeight:800, cursor:"pointer", width:"100%", padding:"11px 0", fontSize:14, marginTop:16 }}>Fechar</button>
           </div>
         )}
       </div>
@@ -4546,6 +4646,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [showRace, setShowRace] = useState(false);
   const [typingBest, setTypingBest] = useState(null);
   const [typingRewardDay, setTypingRewardDay] = useState(null);
+  // 🧠 teste de conhecimento por conta própria — disponível a qualquer momento, sem finalizar a aula
+  const [showKnowledgeTest, setShowKnowledgeTest] = useState(false);
+  const [knowledgeTestRewardDay, setKnowledgeTestRewardDay] = useState(null);
   // 🎁 presente misterioso do dia (na tela de atividade concluída)
   const [giftLastClaim, setGiftLastClaim] = useState(null);
   const [giftReveal, setGiftReveal] = useState(null);
@@ -4633,7 +4736,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -4701,6 +4804,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       errorMsg: s.errorMsg || "",
       typingBest: s.typingBest || null,
       typingRewardDay: s.typingRewardDay || null,
+      knowledgeTestRewardDay: s.knowledgeTestRewardDay || null,
       giftLastClaim: s.giftLastClaim || null,
       theme: s.theme || "dark",
       themeBeforeSpartan: s.themeBeforeSpartan || null,
@@ -5171,6 +5275,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.errorAt) { setErrorAt(prev.errorAt); setErrorMsg(prev.errorMsg || ""); }
           if (prev.typingBest) setTypingBest(prev.typingBest);
           if (prev.typingRewardDay) setTypingRewardDay(prev.typingRewardDay);
+          if (prev.knowledgeTestRewardDay) setKnowledgeTestRewardDay(prev.knowledgeTestRewardDay);
           if (prev.giftLastClaim) setGiftLastClaim(prev.giftLastClaim);
           if (prev.theme) setTheme(prev.theme);
           if (prev.themeBeforeSpartan) setThemeBeforeSpartan(prev.themeBeforeSpartan);
@@ -7279,6 +7384,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </button>}
               {!focusMode && <button onClick={()=>setShowRace(true)} title="Digite um trecho de código contra o relógio — pontos 1x por dia e pódio da turma"
                 style={{ ...styles.btn("#fb923c"), fontSize:12, padding:"7px 0" }}>🏁 Corrida de digitação{typingBest ? ` · ${(typingBest.ms/1000).toFixed(1)}s` : ""}</button>}
+              {!focusMode && <button onClick={()=>setShowKnowledgeTest(true)} title="Teste seu conhecimento da matéria, sem dicas — pode fazer quando quiser, sem precisar finalizar a aula"
+                style={{ ...styles.btn("#6366f1"), fontSize:12, padding:"7px 0" }}>🧠 Testar Conhecimento</button>}
             </div>
             {!focusMode && <ClassGoalBar sum={classPointsSum} />}
           </div>
@@ -7620,6 +7727,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {showNotebook && <NotebookModal history={summaryHistory} detailedHistory={detailedSummaryHistory} onClose={()=>setShowNotebook(false)} />}
       {showVoicePicker && <VoicePickerModal onClose={()=>setShowVoicePicker(false)} />}
       {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
+      {showKnowledgeTest && (
+        <KnowledgeTestModal
+          onAward={async (pts) => { const np = nyxPoints + pts; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); unlockAchievement("autodidata"); }}
+          onFirstToday={() => {
+            const today = todayKey();
+            const first = knowledgeTestRewardDay !== today;
+            if (first) { setKnowledgeTestRewardDay(today); persist({ knowledgeTestRewardDay: today }); }
+            return first;
+          }}
+          onClose={()=>setShowKnowledgeTest(false)}
+        />
+      )}
       {showKeyboard && <KeyboardTutorialModal onClose={()=>setShowKeyboard(false)} onFinish={finishKeyboardTutorial} speak={speak} stopSpeech={stopSpeech} accessMode={accessMode} onEggFound={triggerEgg} />}
       {showJustify && <JustifyModal absences={pendingAbsences} onSubmit={submitJustification} onClose={()=>setShowJustify(false)} />}
       {showHallOfFame && <HallOfFameModal entries={hallEntries} onClose={()=>setShowHallOfFame(false)} />}
