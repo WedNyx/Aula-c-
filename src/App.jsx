@@ -1673,10 +1673,46 @@ function RoupaSvg({ tipo, cor }) {
   return base;
 }
 
+// 🎭 vida no boneco (estilo perfil animado do Discord): de tempos em tempos o rosto troca por
+// alguns instantes a variante de olhos/boca do gerador — piscada rápida e expressões ocasionais.
+// Só é visual e momentâneo; o perfil salvo do aluno nunca muda.
+const BLINK_EYES = "variant19"; // os dois olhos fechados num arco feliz — a "piscada"
+const AVATAR_EXPRESSIONS = [
+  { eyesV:"variant15", mouthV:"happy07" }, // piscadela marota + sorrisão
+  { eyesV:"variant22", mouthV:"happy16" }, // olhos espremidos de alegria + sorriso de dente
+  { eyesV:"variant05" },                   // olhando pro lado, curioso
+  { mouthV:"happy07" },                    // só abre um sorrisão maior
+];
 function Avatar({ cfg, size=72, animated=false }) {
   const c = normalizeAvatar(cfg);
-  const key = JSON.stringify(c);
-  const uri = useMemo(() => "data:image/svg+xml;utf8," + encodeURIComponent(loreleiSvg(c)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [faceOverride, setFaceOverride] = useState(null);
+  useEffect(() => {
+    if (!animated) return;
+    // quem pediu menos movimento no aparelho não recebe nem a piscada (as animações de CSS
+    // já são cortadas pelo prefers-reduced-motion/modo calmo; aqui corta as trocas via JS)
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    let alive = true;
+    const timers = [];
+    const later = (fn, ms) => { const t = setTimeout(() => { if (alive) fn(); }, ms); timers.push(t); };
+    // piscada natural: a cada poucos segundos, olhos fechados por um instante
+    const blinkLoop = () => later(() => {
+      setFaceOverride(o => o || { eyesV: BLINK_EYES });
+      later(() => setFaceOverride(o => (o && o.eyesV === BLINK_EYES && !o.mouthV) ? null : o), 170);
+      blinkLoop();
+    }, 3000 + Math.random() * 4500);
+    // expressão diferente algumas vezes por aula (a cada 3-7min), segurando por uns segundos
+    const exprLoop = () => later(() => {
+      setFaceOverride(AVATAR_EXPRESSIONS[Math.floor(Math.random() * AVATAR_EXPRESSIONS.length)]);
+      later(() => setFaceOverride(null), 2800);
+      exprLoop();
+    }, 180000 + Math.random() * 240000);
+    blinkLoop();
+    exprLoop();
+    return () => { alive = false; timers.forEach(clearTimeout); };
+  }, [animated]);
+  const draw = faceOverride ? { ...c, ...faceOverride } : c;
+  const key = JSON.stringify(draw);
+  const uri = useMemo(() => "data:image/svg+xml;utf8," + encodeURIComponent(loreleiSvg(draw)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const roupa = ROUPA_ITEMS.find(r => r.id && r.id === c.roupa);
   return (
     <div className={`avatar-pop${animated ? " avatar-idle" : ""}`} style={{ position:"relative", width:size, height:size, display:"inline-block", lineHeight:0, flexShrink:0 }}>
@@ -1687,10 +1723,10 @@ function Avatar({ cfg, size=72, animated=false }) {
             <RoupaSvg tipo={roupa.id} cor={roupa.cor} />
           </svg>
         )}
-        <img src={uri} width={size} height={size} alt="" draggable={false} style={{ display:"block", position:"relative", zIndex:1 }} />
+        <img src={uri} width={size} height={size} alt="" draggable={false} className={animated ? "avatar-face" : undefined} style={{ display:"block", position:"relative", zIndex:1 }} />
       </div>
       {c.pet && (
-        <span style={{ position:"absolute", right:Math.round(size*-0.14), bottom:Math.round(size*-0.08), fontSize:Math.max(10, Math.round(size*0.34)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
+        <span className={animated ? "avatar-pet" : undefined} style={{ position:"absolute", right:Math.round(size*-0.14), bottom:Math.round(size*-0.08), fontSize:Math.max(10, Math.round(size*0.34)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
       )}
     </div>
   );
@@ -6722,7 +6758,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={()=>setShowAvatarEdit(true)} title="Editar meu boneco"
             style={{ background:"transparent", border:"none", padding:0, cursor:"pointer", position:"relative", lineHeight:0 }}>
-            <Avatar cfg={avatar} size={34} animated />
+            <Avatar cfg={avatar} size={34} animated={!calmMode} />
             <span style={{ position:"absolute", right:-4, bottom:-4, background:"#c084fc", borderRadius:"50%", width:16, height:16, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, boxShadow:"0 1px 3px rgba(0,0,0,.5)" }}>✏️</span>
           </button>
           <span className="shine" style={{ fontWeight:900, fontSize:17, background:"linear-gradient(120deg,#c084fc,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>💻 Aula C#</span>

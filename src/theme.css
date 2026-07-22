@@ -68,6 +68,22 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
 }
 .avatar-idle > div:first-child { animation: avatar-breathe 3.2s ease-in-out infinite; }
 .avatar-idle:hover > div:first-child { animation-play-state: paused; }
+/* o rosto balança num ritmo DIFERENTE do círculo (5.4s vs 3.2s) — a defasagem faz o cabelo
+   parecer que acompanha o movimento com atraso, como cabelo de verdade */
+@keyframes avatar-sway {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(1.8deg); }
+  70% { transform: rotate(-1.6deg); }
+}
+.avatar-idle .avatar-face { animation: avatar-sway 5.4s ease-in-out infinite; transform-origin: 50% 80%; }
+/* pet dá um pulinho de vez em quando e fica quieto o resto do ciclo, tipo enfeite de perfil do Discord */
+@keyframes pet-hop {
+  0%, 14%, 100% { transform: translateY(0) rotate(0deg); }
+  4% { transform: translateY(-30%) rotate(-9deg); }
+  8% { transform: translateY(0) rotate(0deg); }
+  11% { transform: translateY(-14%) rotate(7deg); }
+}
+.avatar-idle .avatar-pet { animation: pet-hop 7s ease-in-out infinite; }
 
 /* entrada suave de cards e telas */
 .rise { animation: rise .4s ease both; }
