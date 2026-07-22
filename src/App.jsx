@@ -11071,6 +11071,45 @@ function TeacherView({ onLogout, teacherAuth }) {
   );
 }
 
+// poeira estelar bem sutil atrás do card de login — carrega o tsparticles sob demanda (só nesta
+// tela) e respeita "prefers-reduced-motion" não renderizando nada pra quem pediu menos animação
+function AmbientParticles() {
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    mountedRef.current = true;
+    let container = null;
+    (async () => {
+      const [{ tsParticles }, { loadSlim }] = await Promise.all([
+        import("@tsparticles/engine"),
+        import("@tsparticles/slim"),
+      ]);
+      if (!mountedRef.current) return;
+      await loadSlim(tsParticles);
+      if (!mountedRef.current) return;
+      container = await tsParticles.load({
+        id: "nyx-ambient-particles",
+        options: {
+          fullScreen: { enable: false },
+          background: { color: "transparent" },
+          fpsLimit: 60,
+          particles: {
+            number: { value: 36, density: { enable: true, area: 900 } },
+            color: { value: ["#c084fc", "#22d3ee", "#fefce8"] },
+            opacity: { value: { min: 0.12, max: 0.55 }, animation: { enable: true, speed: 0.35, sync: false } },
+            size: { value: { min: 1, max: 2.2 } },
+            move: { enable: true, speed: 0.25, direction: "top", random: true, straight: false, outModes: { default: "out" } },
+            links: { enable: false },
+          },
+          detectRetina: true,
+        },
+      }).catch(() => null);
+    })();
+    return () => { mountedRef.current = false; if (container) container.destroy(); };
+  }, []);
+  return <div id="nyx-ambient-particles" style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none" }} />;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 //  LOGIN
 // ════════════════════════════════════════════════════════════════════════════
@@ -11143,7 +11182,7 @@ function Login({ onJoin }) {
   const styles = {
     container:{ minHeight:"100vh", background:PAGE_BG, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:FONT, padding:16 },
     // a turma de aluno fica bem mais larga: metade esquerda (turma/perfil/nome/prévia) e metade direita (personalização), lado a lado
-    card:{ background:"linear-gradient(180deg,#231636ee,#1a1029ee)", backdropFilter:"blur(10px)", borderRadius:22, padding:32, width: role==="student" ? 880 : 460, maxWidth:"100%", border:"1px solid #3e2d5e", boxShadow:"0 24px 70px rgba(0,0,0,.5), 0 0 0 1px #c084fc1a" },
+    card:{ position:"relative", zIndex:1, background:"linear-gradient(180deg,#231636ee,#1a1029ee)", backdropFilter:"blur(10px)", borderRadius:22, padding:32, width: role==="student" ? 880 : 460, maxWidth:"100%", border:"1px solid #3e2d5e", boxShadow:"0 24px 70px rgba(0,0,0,.5), 0 0 0 1px #c084fc1a" },
     input:{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"12px 14px", color:"#f0e9fb", fontSize:15, outline:"none", boxSizing:"border-box" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:12, padding:"12px 0", cursor:"pointer", fontWeight:800, fontSize:15, width:"100%", boxShadow:`0 4px 16px ${c}44` }),
     rBtn:()=>({ background:"#171026", color:"#a99ac9", border:`2px solid #3b2a58`, borderRadius:14, padding:"18px 8px", cursor:"pointer", fontWeight:800, fontSize:14, flex:1 }),
@@ -11151,6 +11190,7 @@ function Login({ onJoin }) {
 
   return (
     <div style={styles.container}>
+      <AmbientParticles />
       <div className="pop" style={styles.card}>
         <div style={{ textAlign:"center", marginBottom:20 }}>
           <NyxRobot state="idle" size={86} showName={false} />
