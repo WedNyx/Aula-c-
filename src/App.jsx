@@ -298,6 +298,7 @@ const ACHIEVEMENTS = [
   { id:"duelista",           emoji:"⚔️", label:"Duelista",       desc:"Venceu um duelo contra um colega" },
   { id:"duelista-3",         emoji:"🏆", label:"Campeão de Duelos", desc:"Venceu 3 duelos" },
   { id:"dupla-imbativel",    emoji:"🤝", label:"Dupla Imbatível", desc:"Venceu um duelo em dupla (2x2)" },
+  { id:"livre-pensador",     emoji:"🏗️", label:"Livre-pensador(a)", desc:"Completou o desafio livre da semana" },
   // sala de linguagens (HTML/CSS/PHP/JS) — langOnly: só entra na lista/contagem de quem está
   // nessa sala; pra quem só faz C# normal, essas duas são impossíveis de conseguir mesmo
   { id:"primeira-pagina",    emoji:"🌐", label:"Primeira Página", desc:"Concluiu a primeira aula na sala de linguagens", langOnly:true },
@@ -4003,6 +4004,88 @@ async function generateKnowledgeTestQuestions() {
   return shuffleQuestions(parsed.questions || []);
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+//  🏗️ DESAFIO LIVRE DA SEMANA — o aluno propõe algo que quer construir e o Nyx
+//  quebra em passos concretos pra guiar (não deixa solto, sem ajuda)
+// ════════════════════════════════════════════════════════════════════════════
+async function generateFreeBuildPlan(idea, language) {
+  const langLabel = language ? language.label : "C#";
+  const res = await askClaudeJson(
+    `Um aluno iniciante quer construir isso, por conta própria, como desafio pessoal da semana: "${idea}"\n\nCrie um plano de 4 a 6 passos BEM concretos, curtos e em ordem, pra ele conseguir chegar lá sozinho usando ${langLabel}. Cada passo é uma ação prática (não teoria solta) — tipo "Crie uma variável pra guardar X" ou "Use um for pra repetir Y". Adapte pro nível de quem está começando agora, sem pular etapas. Responda APENAS JSON puro: { "steps": ["...", "..."] }`,
+    (language ? language.system : CS_SYSTEM) + "\n\nVocê também ajuda o aluno a PLANEJAR projetos livres, quebrando a ideia dele em passos pequenos e alcançáveis — nunca resolva o projeto inteiro por ele, só mostre o caminho.",
+    { temperature: 0.6, max_tokens: 1200 }
+  );
+  return Array.isArray(res.steps) ? res.steps.slice(0, 6) : [];
+}
+
+function FreeBuildModal({ weeklyChallenge, onSave, onToggleStep, onFinish, language, onClose }) {
+  const [idea, setIdea] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const askNyx = async () => {
+    const clean = idea.trim();
+    if (clean.length < 6) { setErr("Descreva sua ideia com um pouco mais de detalhe."); return; }
+    setLoading(true); setErr("");
+    try {
+      const steps = await generateFreeBuildPlan(clean, language);
+      if (!steps.length) throw new Error("sem passos");
+      await onSave({ weekKey: weekKey(), idea: clean, steps, doneSteps: [], status: "building", createdAt: Date.now() });
+    } catch { setErr("Não consegui montar o plano agora. Tente de novo em instantes."); }
+    setLoading(false);
+  };
+
+  const current = weeklyChallenge && weeklyChallenge.weekKey === weekKey() ? weeklyChallenge : null;
+  const allDone = current && current.steps.length > 0 && current.doneSteps.length === current.steps.length;
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🏗️ Desafio Livre da Semana</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+
+        {!current && (
+          <>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>O que você quer construir essa semana? Pode ser qualquer ideia — um joguinho, uma calculadora, o que quiser. O Nyx te ajuda a planejar como chegar lá, passo a passo.</p>
+            <textarea value={idea} onChange={e=>setIdea(e.target.value)} placeholder="Ex: um jogo de forca simples no terminal"
+              style={{ width:"100%", minHeight:70, background:"#171026", border:"2px solid #3b2a58", borderRadius:10, color:"#f0e9fb", padding:10, fontSize:14, boxSizing:"border-box", resize:"vertical" }} />
+            {err && <p style={{ color:"#f87171", fontSize:12.5, marginTop:8 }}>{err}</p>}
+            <button onClick={askNyx} disabled={loading} style={{ background:"linear-gradient(135deg,#34d399,#22d3ee)", color:"#052014", border:"none", borderRadius:10, padding:"10px 18px", cursor:loading?"default":"pointer", fontWeight:800, fontSize:14, width:"100%", marginTop:12, opacity:loading?0.6:1 }}>
+              {loading ? "🤔 Nyx está planejando..." : "🤖 Pedir ajuda ao Nyx pra planejar"}
+            </button>
+          </>
+        )}
+
+        {current && (
+          <>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 4px" }}>Seu desafio desta semana:</p>
+            <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:15, margin:"0 0 14px" }}>{current.idea}</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {current.steps.map((step, i) => {
+                const done = current.doneSteps.includes(i);
+                return (
+                  <button key={i} onClick={()=>onToggleStep(i)} style={{ display:"flex", alignItems:"flex-start", gap:10, background: done ? "#34d39918" : "#171026", border:`2px solid ${done?"#34d399":"#3b2a58"}`, borderRadius:12, padding:"10px 12px", cursor:"pointer", textAlign:"left" }}>
+                    <span style={{ fontSize:17, lineHeight:1, marginTop:1 }}>{done ? "✅" : "⬜"}</span>
+                    <span style={{ color: done ? "#a7f3d0" : "#f0e9fb", fontSize:13.5, textDecoration: done ? "line-through" : "none" }}>{step}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p style={{ color:"#776798", fontSize:11.5, marginTop:12 }}>Ficou com dúvida em algum passo? Pergunta pro Nyx no chat 💬 — ele te ajuda sem fazer por você.</p>
+            {allDone && (
+              <button onClick={onFinish} style={{ background:"linear-gradient(135deg,#c084fc,#9333ea)", color:"#fff", border:"none", borderRadius:10, padding:"11px 18px", cursor:"pointer", fontWeight:800, fontSize:14, width:"100%", marginTop:14 }}>
+                🎉 Concluí o desafio!
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
   const [loading, setLoading] = useState(true);
   const [opponents, setOpponents] = useState([]);
@@ -4693,6 +4776,15 @@ function requestFS(){
 }
 const goFullscreen = () => { requestFS().catch(()=>{}); };
 const todayKey = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+// semana ISO (segunda a domingo) — usada pro desafio livre da semana resetar sozinho toda semana
+const weekKey = (d = new Date()) => {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2,"0")}`;
+};
 // mesma chave "AAAA-MM-DD", mas a partir de um timestamp qualquer (ex: a data de criação do perfil)
 const dateKeyOf = (ts) => { const d = new Date(ts||Date.now()); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 
@@ -4995,6 +5087,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // anti-cola geral: true quando o professor está escrevendo em "Meu código" AGORA (não faz muito tempo)
   const [teacherWriting, setTeacherWriting] = useState(false);
   const [duelWins, setDuelWins] = useState(0);
+  const [showFreeBuild, setShowFreeBuild] = useState(false);
+  const [weeklyChallenge, setWeeklyChallenge] = useState(null);
   // conquistas, ranking, meta da turma, curiosidade do dia, duelo, sons
   const [achievements, setAchievements] = useState([]);
   const [newAchievement, setNewAchievement] = useState(null);
@@ -5071,7 +5165,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -5169,6 +5263,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       cpf: s.cpf || "",
       achievements: s.achievements || [],
       duelWins: s.duelWins || 0,
+      weeklyChallenge: s.weeklyChallenge || null,
       doneAt: s.doneAt || null,
       daySnapshot: daySnapshotRef.current || null,
       summarySnapshot: summarySnapshotRef.current || null,
@@ -5634,6 +5729,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
           if (prev.nyxSpent) setNyxSpent(prev.nyxSpent);
           if (prev.duelWins) setDuelWins(prev.duelWins);
+          if (prev.weeklyChallenge) setWeeklyChallenge(prev.weeklyChallenge);
           if (prev.nyxGear) {
             // migra quem já tinha o escudo equipado ANTES da correção (quando ele dividia o mesmo
             // slot da espada/arco) pro slot próprio "shield" — sem isso o escudo some da tela dele
@@ -6287,6 +6383,31 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     playSound("achievement");
     fireConfetti("achievement");
     setTimeout(() => setNewAchievement(null), 4000);
+  };
+
+  // 🏗️ desafio livre da semana: o aluno propõe uma ideia, o Nyx quebra em passos e o progresso
+  // fica salvo no próprio perfil — reseta sozinho quando a semana (ISO, segunda a domingo) vira
+  const saveWeeklyChallenge = async (challenge) => {
+    setWeeklyChallenge(challenge);
+    await persist({ weeklyChallenge: challenge });
+  };
+  const toggleChallengeStep = async (i) => {
+    if (!weeklyChallenge) return;
+    const doneSteps = weeklyChallenge.doneSteps.includes(i) ? weeklyChallenge.doneSteps.filter(x=>x!==i) : [...weeklyChallenge.doneSteps, i];
+    const updated = { ...weeklyChallenge, doneSteps };
+    setWeeklyChallenge(updated);
+    await persist({ weeklyChallenge: updated });
+  };
+  const finishWeeklyChallenge = async () => {
+    if (!weeklyChallenge) return;
+    const updated = { ...weeklyChallenge, status: "done", completedAt: Date.now() };
+    setWeeklyChallenge(updated);
+    const np = nyxPoints + 10; // bônus generoso — é um desafio da semana inteira, não uma atividade rápida
+    setNyxPoints(np);
+    await persist({ weeklyChallenge: updated, nyxPoints: np });
+    checkPointsAchievements(np);
+    unlockAchievement("livre-pensador");
+    setShowFreeBuild(false);
   };
 
   // ⚔️🛡️ espada + escudo equipados juntos: o Nyx vira um Espartano. No instante em que o combo se
@@ -7784,6 +7905,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 style={{ ...styles.btn("#fb923c"), fontSize:12, padding:"7px 0" }}>🏁 Corrida de digitação{typingBest ? ` · ${(typingBest.ms/1000).toFixed(1)}s` : ""}</button>}
               {!focusMode && <button onClick={()=>setShowKnowledgeTest(true)} title="Teste seu conhecimento da matéria, sem dicas — pode fazer quando quiser, sem precisar finalizar a aula"
                 style={{ ...styles.btn("#6366f1"), fontSize:12, padding:"7px 0" }}>🧠 Testar Conhecimento</button>}
+              {!focusMode && <button onClick={()=>setShowFreeBuild(true)} title="Proponha algo que você quer construir e o Nyx te ajuda a planejar como chegar lá"
+                style={{ ...styles.btn("#34d399"), fontSize:12, padding:"7px 0" }}>🏗️ Desafio Livre da Semana{weeklyChallenge && weeklyChallenge.weekKey===weekKey() && weeklyChallenge.status==="done" ? " ✅" : ""}</button>}
             </div>
             {!focusMode && <ClassGoalBar sum={classPointsSum} />}
           </div>
@@ -8183,6 +8306,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             unlockAchievement("dupla-imbativel");
           }}
           onClose={()=>setShowTeamDuel(false)}
+        />
+      )}
+      {showFreeBuild && (
+        <FreeBuildModal
+          weeklyChallenge={weeklyChallenge}
+          language={studyLang}
+          onSave={saveWeeklyChallenge}
+          onToggleStep={toggleChallengeStep}
+          onFinish={finishWeeklyChallenge}
+          onClose={()=>setShowFreeBuild(false)}
         />
       )}
 
