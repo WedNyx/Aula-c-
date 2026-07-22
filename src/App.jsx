@@ -4,7 +4,7 @@ import confetti from "canvas-confetti";
 import { Toaster, toast } from "sonner";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 
 // ── tema ──
@@ -297,6 +297,7 @@ const ACHIEVEMENTS = [
   // duelos
   { id:"duelista",           emoji:"⚔️", label:"Duelista",       desc:"Venceu um duelo contra um colega" },
   { id:"duelista-3",         emoji:"🏆", label:"Campeão de Duelos", desc:"Venceu 3 duelos" },
+  { id:"dupla-imbativel",    emoji:"🤝", label:"Dupla Imbatível", desc:"Venceu um duelo em dupla (2x2)" },
   // sala de linguagens (HTML/CSS/PHP/JS) — langOnly: só entra na lista/contagem de quem está
   // nessa sala; pra quem só faz C# normal, essas duas são impossíveis de conseguir mesmo
   { id:"primeira-pagina",    emoji:"🌐", label:"Primeira Página", desc:"Concluiu a primeira aula na sala de linguagens", langOnly:true },
@@ -4200,6 +4201,277 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
   );
 }
 
+// ⚔️🤝 duelo em dupla (2x2): mesmo espírito do duelo 1x1 — mini-quiz de 5 perguntas — só que
+// agora em times de 2. O time A soma os acertos dos 2 jogadores contra o time B; quem somar mais
+// vence. Convite único pros outros 3 jogadores; cada um aceita/recusa por conta própria e o
+// confronto só começa quando todo mundo (menos quem convidou) já aceitou.
+function TeamDuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [opponents, setOpponents] = useState([]);
+  const [teamDuel, setTeamDuelState] = useState(null);
+  const [selPartner, setSelPartner] = useState(null);
+  const [selRivals, setSelRivals] = useState([]);
+  const [myAnswers, setMyAnswers] = useState({});
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState("");
+  const lastKeyRef = useRef(null);
+  const doneAwardedRef = useRef(null);
+
+  const refresh = async () => {
+    try {
+      const all = await listStudents();
+      const online = all.filter(s => (s.shift||"sem-turno")===(shift||"sem-turno") && s.name!==myName && s.lastSeen && (Date.now()-s.lastSeen)<30000);
+      setOpponents(online);
+    } catch {}
+    try {
+      const all = await listTeamDuels(shift);
+      const mine = all.find(d => (d.players||[]).some(p=>p.name===myName)) || null;
+      setTeamDuelState(mine);
+    } catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    refresh();
+    const iv = setInterval(refresh, 8000);
+    return () => clearInterval(iv);
+  }, [shift, myName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const key = teamDuel ? teamDuel.players.map(p=>p.name).sort().join("_") + "_" + teamDuel.createdAt : null;
+    if (key !== lastKeyRef.current) { setMyAnswers({}); lastKeyRef.current = key; }
+  }, [teamDuel]);
+
+  // premia quando o confronto vira "done" — roda uma vez por confronto, pra cada um dos 4 jogadores
+  // detectar sozinho na própria sessão (não só quem enviou a última resposta)
+  useEffect(() => {
+    if (!teamDuel || teamDuel.status !== "done") return;
+    const key = teamDuel.players.map(p=>p.name).sort().join("_") + "_" + teamDuel.createdAt;
+    if (doneAwardedRef.current === key) return;
+    doneAwardedRef.current = key;
+    const myTeam = teamDuel.players.find(p=>p.name===myName)?.team;
+    if (!myTeam) return;
+    const teamTotal = (t) => teamDuel.players.filter(p=>p.team===t).reduce((s,p)=>s+(teamDuel.scores[p.name]||0), 0);
+    const myTotal = teamTotal(myTeam);
+    const rivalTotal = teamTotal(myTeam==="A" ? "B" : "A");
+    const isDraw = myTotal === rivalTotal;
+    const weWon = myTotal > rivalTotal;
+    onAward(isDraw ? 2 : (weWon ? 3 : 1));
+    if (weWon) onWin();
+  }, [teamDuel?.status, teamDuel?.createdAt]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleName = (o) => {
+    if (selPartner === o.name) { setSelPartner(null); return; }
+    if (selRivals.includes(o.name)) { setSelRivals(r => r.filter(n=>n!==o.name)); return; }
+    if (!selPartner) { setSelPartner(o.name); return; }
+    if (selRivals.length < 2) { setSelRivals(r => [...r, o.name]); return; }
+  };
+
+  const challenge = async () => {
+    const partnerObj = opponents.find(o=>o.name===selPartner);
+    const rivalObjs = selRivals.map(n=>opponents.find(o=>o.name===n)).filter(Boolean);
+    if (!partnerObj || rivalObjs.length !== 2) return;
+    setCreating(true); setErr("");
+    try {
+      const qs = await generateDuelQuestions();
+      if (!qs.length) throw new Error("sem perguntas");
+      const players = [
+        { name: myName, avatar: myAvatar, team: "A" },
+        { name: partnerObj.name, avatar: partnerObj.avatar, team: "A" },
+        { name: rivalObjs[0].name, avatar: rivalObjs[0].avatar, team: "B" },
+        { name: rivalObjs[1].name, avatar: rivalObjs[1].avatar, team: "B" },
+      ];
+      const doc = { from: myName, players, status: "invited", accepted: { [myName]: true }, questions: qs, answers: {}, scores: {}, createdAt: Date.now() };
+      await setTeamDuel(shift, players.map(p=>p.name), doc);
+      setTeamDuelState(doc);
+      setSelPartner(null); setSelRivals([]);
+    } catch { setErr("Não consegui criar o duelo em dupla agora. Tente de novo em instantes."); }
+    setCreating(false);
+  };
+
+  const cancelOrDecline = async () => {
+    if (!teamDuel) return;
+    await clearTeamDuel(shift, teamDuel.players.map(p=>p.name));
+    setTeamDuelState(null);
+  };
+
+  const accept = async () => {
+    const latest = (await getTeamDuel(shift, teamDuel.players.map(p=>p.name))) || teamDuel;
+    const accepted = { ...latest.accepted, [myName]: true };
+    const others = latest.players.filter(p=>p.name!==latest.from).map(p=>p.name);
+    const allAccepted = others.every(n => accepted[n]);
+    const updated = { ...latest, accepted, status: allAccepted ? "active" : latest.status };
+    await setTeamDuel(shift, updated.players.map(p=>p.name), updated);
+    setTeamDuelState(updated);
+  };
+
+  const submitAnswers = async () => {
+    const qs = teamDuel.questions || [];
+    let pts = 0;
+    qs.forEach((q,i) => { if (myAnswers[i]===q.correct) pts++; });
+    const latest = (await getTeamDuel(shift, teamDuel.players.map(p=>p.name))) || teamDuel;
+    const scores = { ...latest.scores, [myName]: pts };
+    const answers = { ...latest.answers, [myName]: myAnswers };
+    const allDone = latest.players.every(p => scores[p.name] != null);
+    const merged = { ...latest, scores, answers, status: allDone ? "done" : latest.status };
+    await setTeamDuel(shift, merged.players.map(p=>p.name), merged);
+    setTeamDuelState(merged);
+  };
+
+  const closeResult = async () => {
+    if (teamDuel) await clearTeamDuel(shift, teamDuel.players.map(p=>p.name));
+    setTeamDuelState(null);
+  };
+
+  const myPlayer = teamDuel?.players.find(p=>p.name===myName);
+  const myTeam = myPlayer?.team;
+  const teammate = teamDuel?.players.find(p=>p.team===myTeam && p.name!==myName);
+  const rivals = teamDuel ? teamDuel.players.filter(p=>p.team!==myTeam) : [];
+  const amInitiator = teamDuel?.from === myName;
+
+  let view = "list";
+  let myTeamTotal = null, rivalTeamTotal = null;
+  if (teamDuel) {
+    if (teamDuel.status === "invited") view = (amInitiator || teamDuel.accepted[myName]) ? "invited-wait" : "incoming";
+    else if (teamDuel.status === "active") view = teamDuel.scores[myName] != null ? "waiting-result" : "playing";
+    else if (teamDuel.status === "done") {
+      const teamTotal = (t) => teamDuel.players.filter(p=>p.team===t).reduce((s,p)=>s+(teamDuel.scores[p.name]||0), 0);
+      myTeamTotal = teamTotal(myTeam);
+      rivalTeamTotal = teamTotal(myTeam==="A" ? "B" : "A");
+      view = "result";
+    }
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:540, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#f87171,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🤝⚔️ Duelo em Dupla</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+
+        {loading && <p style={{ color:"#776798", fontSize:13 }}>Carregando...</p>}
+        {err && <div style={{ background:"#f8717111", border:"1px solid #f87171", borderRadius:10, padding:10, color:"#f87171", fontSize:13, marginBottom:10 }}>{err}</div>}
+
+        {!loading && view === "list" && (
+          <>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Escolha <b style={{ color:"#f0e9fb" }}>1 parceiro</b> e <b style={{ color:"#f0e9fb" }}>2 rivais</b> online — 5 perguntas, os pontos das duplas somam e quem tiver mais, vence!</p>
+            {opponents.length < 3 ? (
+              <p style={{ color:"#776798", fontSize:13 }}>Precisa de pelo menos 3 colegas online pra montar um 2x2. Tente de novo daqui a pouco.</p>
+            ) : (
+              <>
+                <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
+                  {opponents.map(o => {
+                    const role = selPartner===o.name ? "🤝 Parceiro" : selRivals.includes(o.name) ? `⚔️ Rival ${selRivals.indexOf(o.name)+1}` : null;
+                    return (
+                      <button key={o.name} onClick={()=>toggleName(o)} style={{ display:"flex", alignItems:"center", gap:10, background: role ? (role.includes("Parceiro")?"#34d39922":"#f8717122") : "#171026", border:`2px solid ${role ? (role.includes("Parceiro")?"#34d399":"#f87171") : "#3b2a58"}`, borderRadius:12, padding:"8px 12px", cursor:"pointer", color:"#f0e9fb", textAlign:"left" }}>
+                        <Avatar cfg={o.avatar} size={32} />
+                        <span style={{ flex:1, fontWeight:700, fontSize:13.5 }}>{o.name}</span>
+                        {role && <span style={{ fontWeight:800, fontSize:12, color: role.includes("Parceiro")?"#34d399":"#f87171" }}>{role}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button onClick={challenge} disabled={creating || !selPartner || selRivals.length!==2}
+                  style={{ background:"linear-gradient(135deg,#f87171,#fbbf24)", color:"#1c1206", border:"none", borderRadius:10, padding:"10px 18px", cursor:(!selPartner||selRivals.length!==2)?"not-allowed":"pointer", fontWeight:800, fontSize:14, width:"100%", opacity:(!selPartner||selRivals.length!==2)?0.5:1 }}>
+                  {creating ? "Criando..." : "⚔️ Desafiar dupla"}
+                </button>
+              </>
+            )}
+          </>
+        )}
+
+        {view === "invited-wait" && (
+          <div style={{ textAlign:"center", padding:"14px 0" }}>
+            <p style={{ color:"#f0e9fb", fontSize:14, fontWeight:700, marginBottom:12 }}>Esperando todo mundo aceitar...</p>
+            <div style={{ display:"flex", justifyContent:"center", gap:18, flexWrap:"wrap" }}>
+              {teamDuel.players.filter(p=>p.name!==myName).map(p => (
+                <div key={p.name} style={{ textAlign:"center" }}>
+                  <Avatar cfg={p.avatar} size={48} />
+                  <p style={{ color:"#f0e9fb", fontSize:12, fontWeight:700, margin:"6px 0 2px" }}>{p.name}</p>
+                  <span style={{ fontSize:11, color: teamDuel.accepted[p.name] ? "#34d399" : "#776798", fontWeight:700 }}>{teamDuel.accepted[p.name] ? "✅ Aceitou" : "⏳ Esperando"}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={cancelOrDecline} style={{ background:"#3b2a58", color:"#f0e9fb", border:"none", borderRadius:10, padding:"8px 16px", cursor:"pointer", fontWeight:700, fontSize:13, marginTop:16 }}>Cancelar</button>
+          </div>
+        )}
+
+        {view === "incoming" && (
+          <div style={{ textAlign:"center", padding:"14px 0" }}>
+            <p style={{ color:"#f0e9fb", fontSize:15, marginBottom:14 }}><b>{teamDuel.from}</b> te chamou pra um duelo em dupla!</p>
+            <div style={{ display:"flex", justifyContent:"center", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+              <div>
+                <p style={{ color:"#34d399", fontSize:11.5, fontWeight:800, marginBottom:6 }}>SUA DUPLA</p>
+                <div style={{ display:"flex", gap:10 }}>
+                  {teamDuel.players.filter(p=>p.team===myTeam).map(p => (
+                    <div key={p.name} style={{ textAlign:"center" }}><Avatar cfg={p.avatar} size={44} /><p style={{ color:"#f0e9fb", fontSize:11.5, margin:"4px 0 0" }}>{p.name}</p></div>
+                  ))}
+                </div>
+              </div>
+              <span style={{ color:"#776798", fontWeight:900, fontSize:16 }}>VS</span>
+              <div>
+                <p style={{ color:"#f87171", fontSize:11.5, fontWeight:800, marginBottom:6 }}>DUPLA RIVAL</p>
+                <div style={{ display:"flex", gap:10 }}>
+                  {rivals.map(p => (
+                    <div key={p.name} style={{ textAlign:"center" }}><Avatar cfg={p.avatar} size={44} /><p style={{ color:"#f0e9fb", fontSize:11.5, margin:"4px 0 0" }}>{p.name}</p></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:10, justifyContent:"center", marginTop:16 }}>
+              <button onClick={accept} style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", color:"#fff", border:"none", borderRadius:10, padding:"10px 20px", cursor:"pointer", fontWeight:800, fontSize:14 }}>✅ Aceitar</button>
+              <button onClick={cancelOrDecline} style={{ background:"#3b2a58", color:"#f0e9fb", border:"none", borderRadius:10, padding:"10px 20px", cursor:"pointer", fontWeight:700, fontSize:14 }}>Recusar</button>
+            </div>
+          </div>
+        )}
+
+        {view === "playing" && (
+          <div>
+            <p style={{ color:"#a99ac9", fontSize:13, marginBottom:10 }}>Você + <b style={{ color:"#34d399" }}>{teammate?.name}</b> contra <b style={{ color:"#f87171" }}>{rivals.map(r=>r.name).join(" + ")}</b> — responda as 5 perguntas:</p>
+            {(teamDuel.questions||[]).map((q,i)=>(
+              <div key={i} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:12, marginBottom:8 }}>
+                <p style={{ color:"#f0e9fb", fontWeight:700, fontSize:13.5, marginBottom:8 }}>{i+1}. {q.q}</p>
+                {q.opts.map((opt,j)=>(
+                  <button key={j} onClick={()=>setMyAnswers(a=>({...a,[i]:j}))}
+                    style={{ display:"block", width:"100%", textAlign:"left", background:myAnswers[i]===j?"#c084fc33":"#1a1029", border:`2px solid ${myAnswers[i]===j?"#c084fc":"#3a2a55"}`, borderRadius:8, padding:"8px 12px", marginBottom:6, color:"#f0e9fb", cursor:"pointer", fontSize:13 }}>
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            ))}
+            <button onClick={submitAnswers} disabled={Object.keys(myAnswers).length < (teamDuel.questions||[]).length}
+              style={{ background:"linear-gradient(135deg,#f87171,#fbbf24)", color:"#1c1206", border:"none", borderRadius:10, padding:"10px 18px", cursor:"pointer", fontWeight:800, fontSize:14, width:"100%", marginTop:6 }}>
+              Enviar respostas ⚔️
+            </button>
+          </div>
+        )}
+
+        {view === "waiting-result" && (
+          <div style={{ textAlign:"center", padding:"20px 0" }}>
+            <div style={{ fontSize:40 }}>⏳</div>
+            <p style={{ color:"#f0e9fb", fontSize:15, marginTop:10 }}>Você já respondeu! Esperando o resto da galera terminar...</p>
+          </div>
+        )}
+
+        {view === "result" && (
+          <div style={{ textAlign:"center", padding:"10px 0" }}>
+            <div style={{ fontSize:48 }}>{myTeamTotal > rivalTeamTotal ? "🏆" : myTeamTotal === rivalTeamTotal ? "🤝" : "💪"}</div>
+            <h3 style={{ color: myTeamTotal > rivalTeamTotal ? "#34d399" : myTeamTotal === rivalTeamTotal ? "#fbbf24" : "#f87171", fontSize:20, margin:"6px 0" }}>
+              {myTeamTotal > rivalTeamTotal ? "Sua dupla venceu!" : myTeamTotal === rivalTeamTotal ? "Empate!" : "Perderam dessa vez"}
+            </h3>
+            <p style={{ color:"#a99ac9", fontSize:14 }}>Você + {teammate?.name}: {myTeamTotal}/10 · {rivals.map(r=>r.name).join(" + ")}: {rivalTeamTotal}/10</p>
+            <p style={{ color:"#fbbf24", fontSize:13, marginTop:6 }}>+{myTeamTotal===rivalTeamTotal?2:(myTeamTotal>rivalTeamTotal?3:1)} pontos do Nyx</p>
+            <button onClick={closeResult} style={{ background:"linear-gradient(135deg,#c084fc,#9333ea)", color:"#fff", border:"none", borderRadius:10, padding:"10px 18px", cursor:"pointer", fontWeight:800, fontSize:14, width:"100%", marginTop:14 }}>
+              Fechar
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // 🧠 teste de conhecimento por conta própria — o aluno pode se autoavaliar a qualquer momento da
 // aula, sem esperar a atividade oficial (que só libera depois de finalizar) e sem nenhuma dica: só
 // gera as perguntas, ele responde, e vê o resultado na hora. Não mexe na fase da aula nem na nota oficial
@@ -4733,6 +5005,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [curiosityDismissed, setCuriosityDismissed] = useState(false);
   const [muted, setMuted] = useState(() => loadSoundsMuted());
   const [showDuel, setShowDuel] = useState(false);
+  const [showTeamDuel, setShowTeamDuel] = useState(false);
   const [duelDoc, setDuelDoc] = useState(null);
   // travas acionadas pelo professor (zek = tela bloqueada; zeker = duelos bloqueados)
   const [nyxLocks, setNyxLocksState] = useState({ zek: false, zeker: false });
@@ -4803,6 +5076,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
   useEffect(() => { if (nyxLocks.zeker && showDuel) setShowDuel(false); }, [nyxLocks.zeker, showDuel]);
+  useEffect(() => { if (nyxLocks.zeker && showTeamDuel) setShowTeamDuel(false); }, [nyxLocks.zeker, showTeamDuel]);
 
   // ── início do intervalo: som suave uma vez só por intervalo ──
   const classStatusNow = classStatus(mySchedule, myAllowWeekend);
@@ -5933,15 +6207,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // e este aluno está distraído (loja, teclado ou duelo) em vez de copiar — depois de 10s parado
   // nessa distração, o Nyx traz ele de volta sozinho pro editor, sem avisar nada antes
   useEffect(() => {
-    const distracted = showNyxShop || showKeyboard || showDuel;
+    const distracted = showNyxShop || showKeyboard || showDuel || showTeamDuel;
     if (!teacherWriting || !distracted) return;
     const t = setTimeout(() => {
       setShowNyxShop(false);
       setShowKeyboard(false);
       setShowDuel(false);
+      setShowTeamDuel(false);
     }, 10000);
     return () => clearTimeout(t);
-  }, [teacherWriting, showNyxShop, showKeyboard, showDuel]);
+  }, [teacherWriting, showNyxShop, showKeyboard, showDuel, showTeamDuel]);
 
   // arquivos — na sala de linguagens a extensão padrão acompanha a linguagem escolhida (.html/.css/.php/.js)
   const fileExt = studyLang ? `.${studyLang.fileName.split(".").pop()}` : ".cs";
@@ -7501,6 +7776,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 style={{ ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:nyxLocks.zeker?0.45:1, cursor:nyxLocks.zeker?"not-allowed":"pointer" }}>
                 {nyxLocks.zeker ? "🔒 Duelos bloqueados" : "⚔️ Duelo entre alunos"}
               </button>}
+              {!focusMode && <button onClick={()=>{ if (!nyxLocks.zeker) setShowTeamDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : "Chame 1 parceiro pra jogar em dupla contra outros 2 colegas"}
+                style={{ ...styles.btn("#fb7185"), fontSize:12, padding:"7px 0", opacity:nyxLocks.zeker?0.45:1, cursor:nyxLocks.zeker?"not-allowed":"pointer" }}>
+                {nyxLocks.zeker ? "🔒 Duelos bloqueados" : "🤝⚔️ Duelo em Dupla (2x2)"}
+              </button>}
               {!focusMode && <button onClick={()=>setShowRace(true)} title="Digite um trecho de código contra o relógio — pontos 1x por dia e pódio da turma"
                 style={{ ...styles.btn("#fb923c"), fontSize:12, padding:"7px 0" }}>🏁 Corrida de digitação{typingBest ? ` · ${(typingBest.ms/1000).toFixed(1)}s` : ""}</button>}
               {!focusMode && <button onClick={()=>setShowKnowledgeTest(true)} title="Teste seu conhecimento da matéria, sem dicas — pode fazer quando quiser, sem precisar finalizar a aula"
@@ -7887,6 +8166,23 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             if (nw >= 3) unlockAchievement("duelista-3");
           }}
           onClose={()=>setShowDuel(false)}
+        />
+      )}
+      {showTeamDuel && (
+        <TeamDuelModal
+          shift={shift}
+          myName={studentName}
+          myAvatar={avatar}
+          onAward={async (pts) => { const np = nyxPoints + pts; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); }}
+          onWin={async () => {
+            const nw = duelWins + 1;
+            setDuelWins(nw);
+            await persist({ duelWins: nw });
+            unlockAchievement("duelista");
+            if (nw >= 3) unlockAchievement("duelista-3");
+            unlockAchievement("dupla-imbativel");
+          }}
+          onClose={()=>setShowTeamDuel(false)}
         />
       )}
 

@@ -402,6 +402,38 @@ export async function listDuels(shift) {
   } catch { return [] }
 }
 
+// ── ⚔️🤝 duelo em dupla (2x2): mesma ideia do duelo 1x1, mas com 4 jogadores — chave pelos 4
+// nomes ordenados (não importa quem convidou), sem proteção de senha pelo mesmo motivo do duelo
+// normal (cada jogador precisa poder escrever a própria resposta de dentro da sessão dele) ──
+const TEAM_DUEL_PREFIX = 'teamduel:'
+function teamDuelKeyFor(shift, names) {
+  const sorted = (names || []).map(safeName).sort()
+  return `${TEAM_DUEL_PREFIX}${shift || 'sem-turno'}:${sorted.join('__')}`
+}
+export async function setTeamDuel(shift, names, data) {
+  try {
+    const r = await kvCall({ action: 'set', key: teamDuelKeyFor(shift, names), value: JSON.stringify(data) })
+    return r.ok === true
+  } catch { return false }
+}
+export async function getTeamDuel(shift, names) {
+  try {
+    const r = await kvCall({ action: 'get', key: teamDuelKeyFor(shift, names) })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
+export async function clearTeamDuel(shift, names) {
+  try { await kvCall({ action: 'delete', key: teamDuelKeyFor(shift, names) }) } catch {}
+}
+export async function listTeamDuels(shift) {
+  try {
+    const r = await kvCall({ action: 'list_with_values', prefix: `${TEAM_DUEL_PREFIX}${shift || 'sem-turno'}:` })
+    return (r.items || [])
+      .map(item => { try { return JSON.parse(item.value) } catch { return null } })
+      .filter(Boolean)
+  } catch { return [] }
+}
+
 export async function listStudents() {
   try {
     const r = await kvCall({ action: 'list_with_values', prefix: PREFIX })
