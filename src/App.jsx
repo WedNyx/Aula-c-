@@ -3705,6 +3705,64 @@ function motivationalMessage(avg, name) {
   if (avg >= 40) return `${first}, programar é difícil no começo pra todo mundo. Não desista — continue estudando um pouquinho todo dia, porque assim você vai longe. 💪`;
   return `${first}, todo programador começou exatamente de onde você está agora. Continue tentando e peça ajuda ao Nyx e ao professor sempre que precisar — continue estudando, porque assim você vai longe! 🌱`;
 }
+// gráfico de "notas ao longo do tempo" — carrega o Recharts sob demanda (chunk separado, só baixa
+// quando esta tela abre) e mostra o gráfico de barras simples como fallback enquanto ele não chega
+function PerformanceChart({ entries }) {
+  const [RC, setRC] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    import("recharts").then(mod => { if (alive) setRC(mod); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const fmt = (d) => { const [, m, dd] = d.split("-"); return `${dd}/${m}`; };
+  const data = entries.slice(-14).map(([d, n]) => ({ date: fmt(d), nota: n }));
+
+  if (!RC) {
+    return (
+      <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:120, overflowX:"auto", paddingBottom:4, borderBottom:"1px solid #3b2a58" }}>
+        {data.map(({ date, nota }) => {
+          const g = gradeInfo(nota);
+          return (
+            <div key={date} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
+              <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{nota}</span>
+              <div style={{ width:24, height:Math.max(4, Math.round(nota * 0.9)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color, -0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${date}: ${nota} pts`} />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } = RC;
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    const n = payload[0].value;
+    const g = gradeInfo(n);
+    return (
+      <div style={{ background:"#1e1430", border:`1px solid ${g.color}`, borderRadius:10, padding:"6px 10px", fontSize:12, boxShadow:"0 6px 18px rgba(0,0,0,.4)" }}>
+        <div style={{ color:"#a99ac9" }}>{label}</div>
+        <div style={{ color:g.color, fontWeight:900 }}>{n} pts</div>
+      </div>
+    );
+  };
+  return (
+    <ResponsiveContainer width="100%" height={140}>
+      <AreaChart data={data} margin={{ top:8, right:8, left:-20, bottom:0 }}>
+        <defs>
+          <linearGradient id="perfDesempGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#c084fc" stopOpacity={0.5} />
+            <stop offset="100%" stopColor="#c084fc" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid stroke="#3b2a58" strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="date" stroke="#776798" fontSize={10} tickLine={false} axisLine={false} />
+        <YAxis domain={[0, 100]} stroke="#776798" fontSize={10} tickLine={false} axisLine={false} width={26} />
+        <Tooltip content={<CustomTooltip />} />
+        <Area type="monotone" dataKey="nota" stroke="#c084fc" strokeWidth={2.5} fill="url(#perfDesempGrad)" dot={{ r:3, fill:"#c084fc", strokeWidth:0 }} activeDot={{ r:5 }} animationDuration={700} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
 function PerformanceModal({ studentName, scoreHistory, achievements, duelWins, typingBest, streakCount, onClose }) {
   const entries = Object.entries(scoreHistory || {}).sort(([a], [b]) => a.localeCompare(b));
   const scores = entries.map(([, n]) => n);
@@ -3750,22 +3808,7 @@ function PerformanceModal({ studentName, scoreHistory, achievements, duelWins, t
         {entries.length > 0 ? (
           <div className="cardfx" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:14, padding:14, marginBottom:14 }}>
             <p style={{ color:"#c084fc", fontWeight:700, fontSize:13, margin:"0 0 10px" }}>📈 Notas ao longo do tempo</p>
-            <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:120, overflowX:"auto", paddingBottom:4, borderBottom:"1px solid #3b2a58" }}>
-              {entries.slice(-14).map(([d, n]) => {
-                const g = gradeInfo(n);
-                return (
-                  <div key={d} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
-                    <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{n}</span>
-                    <div style={{ width:24, height:Math.max(4, Math.round(n * 0.9)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color, -0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${fmt(d)}: ${n} pts`} />
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ display:"flex", gap:8, marginTop:6 }}>
-              {entries.slice(-14).map(([d]) => (
-                <span key={d} style={{ color:"#776798", fontSize:10, minWidth:38, textAlign:"center" }}>{fmt(d)}</span>
-              ))}
-            </div>
+            <PerformanceChart entries={entries} />
           </div>
         ) : (
           <p style={{ color:"#776798", fontSize:13, textAlign:"center", padding:"16px 0" }}>Ainda não tem nenhuma atividade concluída — assim que você terminar a primeira, o gráfico aparece aqui!</p>
@@ -10438,19 +10481,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                 {sel.scoreHistory && Object.keys(sel.scoreHistory).length > 0 && (
                   <div className="cardfx" style={styles.card}>
                     <h4 style={{ color:"#c084fc", marginBottom:12 }}>📈 Histórico de notas (atividades)</h4>
-                    <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:110, overflowX:"auto", paddingBottom:4 }}>
-                      {Object.entries(sel.scoreHistory).sort(([a],[b])=>a.localeCompare(b)).slice(-14).map(([d,n])=>{
-                        const [, m, dd] = d.split("-");
-                        const g = gradeInfo(n);
-                        return (
-                          <div key={d} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
-                            <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{n}</span>
-                            <div style={{ width:24, height:Math.max(4, Math.round(n*0.7)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color,-0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${dd}/${m}: ${n} pts`} />
-                            <span style={{ color:"#776798", fontSize:10 }}>{dd}/{m}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <PerformanceChart entries={Object.entries(sel.scoreHistory).sort(([a],[b])=>a.localeCompare(b))} />
                   </div>
                 )}
                 {sel.feedback && <div className="cardfx" style={styles.card}><h4 style={{ color:"#c084fc", marginBottom:6 }}>🤖 Nyx (último aviso)</h4><p style={{ color:sel.feedback.ok?"#34d399":"#f87171", fontSize:13 }}>{sel.feedback.ok?"✅":"⚠"} {sel.feedback.message}</p></div>}
