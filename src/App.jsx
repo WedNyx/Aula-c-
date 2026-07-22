@@ -1683,6 +1683,12 @@ const AVATAR_EXPRESSIONS = [
   { eyesV:"variant05" },                   // olhando pro lado, curioso
   { mouthV:"happy07" },                    // só abre um sorrisão maior
 ];
+// cada pet tem um gesto próprio — o que aquele bicho faria de verdade (keyframes no theme.css)
+const PET_ANIMS = {
+  "🐉":"pet-dragao", "🦄":"pet-unicornio", "🐲":"pet-dragaozinho", "🦅":"pet-aguia",
+  "🦉":"pet-coruja", "🐺":"pet-lobo", "🦊":"pet-raposa", "🐱":"pet-gato",
+  "🐶":"pet-cachorro", "🐰":"pet-coelho", "🦁":"pet-leao", "🐢":"pet-tartaruga",
+};
 function Avatar({ cfg, size=72, animated=false }) {
   const c = normalizeAvatar(cfg);
   const [faceOverride, setFaceOverride] = useState(null);
@@ -1726,7 +1732,7 @@ function Avatar({ cfg, size=72, animated=false }) {
         <img src={uri} width={size} height={size} alt="" draggable={false} className={animated ? "avatar-face" : undefined} style={{ display:"block", position:"relative", zIndex:1 }} />
       </div>
       {c.pet && (
-        <span className={animated ? "avatar-pet" : undefined} style={{ position:"absolute", right:Math.round(size*-0.14), bottom:Math.round(size*-0.08), fontSize:Math.max(10, Math.round(size*0.34)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
+        <span className={animated ? `avatar-pet ${PET_ANIMS[c.pet] || ""}`.trim() : undefined} style={{ position:"absolute", right:Math.round(size*-0.14), bottom:Math.round(size*-0.08), fontSize:Math.max(10, Math.round(size*0.34)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
       )}
     </div>
   );
