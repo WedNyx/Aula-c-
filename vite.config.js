@@ -12,6 +12,7 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom'],
           avatar: ['@dicebear/core', '@dicebear/collection'],
+          gsap: ['gsap'],
         },
       },
     },

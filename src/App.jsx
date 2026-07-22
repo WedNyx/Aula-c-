@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
+import gsap from "gsap";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
 import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom } from "./storage.js";
@@ -1238,6 +1239,118 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
   // ⚔️🛡️ espada + escudo equipados juntos: o Nyx vira um Espartano (elmo, capa e postura de batalha exclusivos)
   const isSpartan = G.hand === "espada" && G.shield === "escudo";
 
+  // 🎬 GSAP: dá vida ao Nyx sem mexer no sistema de humores/quirks/Espartano acima — olhos que
+  // seguem o mouse, antena com física de mola, orelha que treme sozinha, pulo no clique e a cor
+  // "escorrendo" suavemente entre os humores (em vez da troca seca de antes). As cores dos elementos
+  // abaixo NÃO ficam mais presas a {P.main/P.dark/P.eye} no JSX — só o GSAP escreve nelas depois do
+  // primeiro paint, senão qualquer re-render (ex: quirk mudando) resetaria a transição no meio do caminho
+  const bounceWrapRef = useRef(null);
+  const headGroupRef = useRef(null);
+  const eyesLookRef = useRef(null);
+  const antennaGroupRef = useRef(null);
+  const earLGroupRef = useRef(null);
+  const earRGroupRef = useRef(null);
+  const earLFillRef = useRef(null);
+  const earRFillRef = useRef(null);
+  const headStop1Ref = useRef(null);
+  const headStop2Ref = useRef(null);
+  const bodyStop1Ref = useRef(null);
+  const bodyStop2Ref = useRef(null);
+  const antennaLineRef = useRef(null);
+  const antennaTipRef = useRef(null);
+  const coreRef = useRef(null);
+  const neckRef = useRef(null);
+  const armLRef = useRef(null);
+  const armRRef = useRef(null);
+  const footLRef = useRef(null);
+  const footRRef = useRef(null);
+
+  useEffect(() => {
+    const firstPaint = !headGroupRef.current.dataset.painted;
+    headGroupRef.current.dataset.painted = "1";
+    const targets = [
+      [headStop1Ref.current, { attr: { "stop-color": shade(P.main, 0.25) } }],
+      [headStop2Ref.current, { attr: { "stop-color": P.main } }],
+      [bodyStop1Ref.current, { attr: { "stop-color": P.main } }],
+      [bodyStop2Ref.current, { attr: { "stop-color": P.dark } }],
+      [earLFillRef.current, { attr: { fill: P.dark, stroke: shade(P.dark, -0.3) } }],
+      [earRFillRef.current, { attr: { fill: P.dark, stroke: shade(P.dark, -0.3) } }],
+      [antennaLineRef.current, { attr: { stroke: P.dark } }],
+      [antennaTipRef.current, { attr: { fill: P.eye } }],
+      [coreRef.current, { attr: { fill: P.eye } }],
+      [neckRef.current, { attr: { fill: P.dark } }],
+      [armLRef.current, { attr: { fill: P.dark } }],
+      [armRRef.current, { attr: { fill: P.dark } }],
+      [footLRef.current, { attr: { fill: P.dark } }],
+      [footRRef.current, { attr: { fill: P.dark } }],
+    ];
+    targets.forEach(([el, vars]) => {
+      if (!el) return;
+      if (firstPaint) gsap.set(el, vars);
+      else gsap.to(el, { ...vars, duration: 0.65, ease: "power2.inOut" });
+    });
+    if (!firstPaint && eyesLookRef.current) gsap.fromTo(eyesLookRef.current, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "power1.out" });
+  }, [state]);
+
+  // orelha treme sozinha de vez em quando — só um tique de vida, independe do humor
+  useEffect(() => {
+    let alive = true;
+    const timers = [];
+    const twitch = () => {
+      const t = setTimeout(() => {
+        if (!alive) return;
+        const ref = Math.random() < 0.5 ? earLGroupRef : earRGroupRef;
+        if (ref.current) {
+          const dir = Math.random() < 0.5 ? -14 : 14;
+          gsap.fromTo(ref.current, { rotation: 0 }, { rotation: dir, duration: 0.09, yoyo: true, repeat: 3, ease: "sine.inOut", onComplete: () => gsap.set(ref.current, { rotation: 0 }) });
+        }
+        twitch();
+      }, 4000 + Math.random() * 5000);
+      timers.push(t);
+    };
+    twitch();
+    return () => { alive = false; timers.forEach(clearTimeout); };
+  }, []);
+
+  // olhos + cabeça seguem o mouse enquanto ele passa perto (só localmente, não escuta a página toda)
+  const eyeXTo = useRef(null), eyeYTo = useRef(null), headRotTo = useRef(null);
+  useEffect(() => {
+    if (!eyesLookRef.current || !headGroupRef.current) return;
+    gsap.set(headGroupRef.current, { svgOrigin: "60 46" });
+    eyeXTo.current = gsap.quickTo(eyesLookRef.current, "x", { duration: 0.4, ease: "power3.out" });
+    eyeYTo.current = gsap.quickTo(eyesLookRef.current, "y", { duration: 0.4, ease: "power3.out" });
+    headRotTo.current = gsap.quickTo(headGroupRef.current, "rotation", { duration: 0.55, ease: "power3.out" });
+  }, []);
+  const handleNyxMouseMove = (e) => {
+    if (!bounceWrapRef.current) return;
+    const r = bounceWrapRef.current.getBoundingClientRect();
+    const dx = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (r.width * 1.6)));
+    const dy = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height * 0.35)) / (r.height * 1.6)));
+    eyeXTo.current?.(dx * 3.2);
+    eyeYTo.current?.(dy * 2.4);
+    headRotTo.current?.(dx * 5);
+  };
+  const handleNyxMouseLeave = () => { eyeXTo.current?.(0); eyeYTo.current?.(0); headRotTo.current?.(0); };
+  // antena com física de mola quando o mouse passa perto
+  const handleNyxHover = () => {
+    if (!antennaGroupRef.current) return;
+    gsap.set(antennaGroupRef.current, { svgOrigin: "60 22" });
+    gsap.fromTo(antennaGroupRef.current, { rotation: -16 }, { rotation: 0, duration: 1.3, ease: "elastic.out(1.2, 0.2)" });
+  };
+  // clique: salto com squash & stretch, sem brigar com a animação de humor/quirk (que fica no
+  // div de fora) porque esse pulo mexe num div NOVO, só dele
+  const clickingRef = useRef(false);
+  const handleNyxClick = () => {
+    if (!bounceWrapRef.current || clickingRef.current) return;
+    clickingRef.current = true;
+    const tl = gsap.timeline({ onComplete: () => { clickingRef.current = false; } });
+    tl.to(bounceWrapRef.current, { scaleY: 0.82, scaleX: 1.12, duration: 0.15, ease: "power2.out" })
+      .to(bounceWrapRef.current, { y: -16, scaleY: 1.05, scaleX: 0.97, duration: 0.24, ease: "power2.out" })
+      .to(bounceWrapRef.current, { y: 0, duration: 0.22, ease: "power2.in" })
+      .to(bounceWrapRef.current, { scaleY: 0.9, scaleX: 1.06, duration: 0.08 })
+      .to(bounceWrapRef.current, { scaleY: 1, scaleX: 1, duration: 0.7, ease: "elastic.out(1.1, 0.3)" });
+  };
+
   // enquanto parado no estado idle, de vez em quando solta uma animação criativa (bocejo, pulinho, giro...)
   // pra parecer vivo — depois volta pro float calmo de sempre e agenda a próxima aleatoriamente
   // (pausa enquanto o Nyx está em modo Espartano: um guerreiro não fica de bobeira dando pulinho)
@@ -1285,15 +1398,17 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
   return (
     <div style={{ textAlign:"center", padding:4, position:"relative" }}>
       <div style={{ display:"inline-block", animation:wrapperAnim, willChange:"transform", position:"relative" }} onAnimationEnd={handleQuirkEnd}>
+        <div ref={bounceWrapRef} style={{ display:"inline-block", cursor:"pointer" }}
+          onMouseMove={handleNyxMouseMove} onMouseLeave={handleNyxMouseLeave} onMouseEnter={handleNyxHover} onClick={handleNyxClick}>
         <svg width={size} height={size*1.15} viewBox="0 0 120 138" style={{ display:"block", overflow:"visible" }}>
           <defs>
             <linearGradient id={uid+"h"} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor={shade(P.main, 0.25)} />
-              <stop offset="1" stopColor={P.main} />
+              <stop ref={headStop1Ref} offset="0" stopColor={shade(P.main, 0.25)} />
+              <stop ref={headStop2Ref} offset="1" stopColor={P.main} />
             </linearGradient>
             <linearGradient id={uid+"b"} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor={P.main} />
-              <stop offset="1" stopColor={P.dark} />
+              <stop ref={bodyStop1Ref} offset="0" stopColor={P.main} />
+              <stop ref={bodyStop2Ref} offset="1" stopColor={P.dark} />
             </linearGradient>
             <radialGradient id={uid+"g"}>
               <stop offset="0" stopColor={P.main} stopOpacity=".5" />
@@ -1313,11 +1428,17 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
           {/* sombra no chão */}
           <ellipse cx="60" cy="128" rx="26" ry="5" fill="#000" opacity="0.35" />
 
-          {/* orelhas em formato de morcego — criatura da noite */}
-          <path d="M18 44 L26 16 L34 40 Z" fill={P.dark} stroke={shade(P.dark, -0.3)} strokeWidth="1" />
-          <path d="M21 40 L26 22 L31 38 Z" fill={P.main} opacity="0.5" />
-          <path d="M86 40 L94 16 L102 44 Z" fill={P.dark} stroke={shade(P.dark, -0.3)} strokeWidth="1" />
-          <path d="M89 38 L94 22 L99 40 Z" fill={P.main} opacity="0.5" />
+          <g ref={headGroupRef}>
+          {/* orelhas em formato de morcego — criatura da noite (cada uma no seu grupo, pra poder
+              tremer sozinha de vez em quando sem mexer no resto da cabeça) */}
+          <g ref={earLGroupRef}>
+            <path ref={earLFillRef} d="M18 44 L26 16 L34 40 Z" fill={P.dark} stroke={shade(P.dark, -0.3)} strokeWidth="1" />
+            <path d="M21 40 L26 22 L31 38 Z" fill={P.main} opacity="0.5" />
+          </g>
+          <g ref={earRGroupRef}>
+            <path ref={earRFillRef} d="M86 40 L94 16 L102 44 Z" fill={P.dark} stroke={shade(P.dark, -0.3)} strokeWidth="1" />
+            <path d="M89 38 L94 22 L99 40 Z" fill={P.main} opacity="0.5" />
+          </g>
 
           {/* cabeça */}
           <rect x="28" y="20" width="64" height="44" rx="17" fill={`url(#${uid}h)`} />
@@ -1379,10 +1500,12 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
             </>
           )}
 
-          {/* antena (sempre por cima) */}
-          <line x1="60" y1="22" x2="60" y2="9" stroke={P.dark} strokeWidth="3.4" strokeLinecap="round" />
-          <circle cx="60" cy="7" r="7" fill={P.main} opacity="0.25" />
-          <circle cx="60" cy="7" r="4" fill={P.eye} style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite` }} />
+          {/* antena (sempre por cima) — agrupada pra poder balançar como mola quando o mouse chega perto */}
+          <g ref={antennaGroupRef}>
+            <line ref={antennaLineRef} x1="60" y1="22" x2="60" y2="9" stroke={P.dark} strokeWidth="3.4" strokeLinecap="round" />
+            <circle cx="60" cy="7" r="7" fill={P.main} opacity="0.25" />
+            <circle ref={antennaTipRef} cx="60" cy="7" r="4" fill={P.eye} style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite` }} />
+          </g>
 
           {/* visor */}
           <rect x="36" y="29" width="48" height="27" rx="12" fill="#0b0e1d" />
@@ -1390,7 +1513,9 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
 
           {/* olhos por estado — no idle, viram meia-lua (o jeito de "olhar" da criatura da noite): um
               círculo cheio "mordido" por outro da cor do visor, o jeito confiável de desenhar uma lua
-              crescente em SVG (arco A com raio pequeno demais degenera e some — já vi isso quebrar) */}
+              crescente em SVG (arco A com raio pequeno demais degenera e some — já vi isso quebrar).
+              O grupo todo segue o mouse (olhar de verdade) e "desliza" pra dentro quando o humor muda */}
+          <g ref={eyesLookRef}>
           {state === "idle" && (
             <g style={{ animation:"nyx-blink 4.2s infinite", transformOrigin:"60px 42px" }}>
               <circle cx="50" cy="42" r="6.2" fill={P.eye} style={{ filter:`drop-shadow(0 0 3px ${P.eye})` }} />
@@ -1418,6 +1543,7 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
               <path d="M66 38 l9 8 M75 38 l-9 8" />
             </g>
           )}
+          </g>
 
           {/* óculos escuros (cobre os olhos, como acessório de rosto) */}
           {G.face === "oculos" && (
@@ -1431,8 +1557,10 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
             </g>
           )}
 
+          </g>
+
           {/* pescoço */}
-          <rect x="53" y="62" width="14" height="8" rx="3" fill={P.dark} />
+          <rect ref={neckRef} x="53" y="62" width="14" height="8" rx="3" fill={P.dark} />
 
           {/* laço no pescoço */}
           {G.neck === "laco" && (
@@ -1451,8 +1579,8 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
           )}
 
           {/* braços */}
-          <rect x="26" y="74" width="10" height="24" rx="5" fill={P.dark} transform={state==="ok" ? "rotate(-38 31 76)" : "rotate(8 31 76)"} style={{ transition:"transform .3s" }} />
-          <rect x="84" y="74" width="10" height="24" rx="5" fill={P.dark} transform={state==="ok" ? "rotate(38 89 76)" : "rotate(-8 89 76)"} style={{ transition:"transform .3s" }} />
+          <rect ref={armLRef} x="26" y="74" width="10" height="24" rx="5" fill={P.dark} transform={state==="ok" ? "rotate(-38 31 76)" : "rotate(8 31 76)"} style={{ transition:"transform .3s" }} />
+          <rect ref={armRRef} x="84" y="74" width="10" height="24" rx="5" fill={P.dark} transform={state==="ok" ? "rotate(38 89 76)" : "rotate(-8 89 76)"} style={{ transition:"transform .3s" }} />
 
           {/* escudo (sempre na mão esquerda) */}
           {G.shield === "escudo" && (
@@ -1498,13 +1626,14 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
 
           {/* núcleo de energia no peito, em formato de lua crescente */}
           <circle cx="60" cy="86" r="9.5" fill="#0b0e1d" />
-          <circle cx="60" cy="86" r="6.5" fill={P.eye} style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite`, filter:`drop-shadow(0 0 4px ${P.eye})` }} />
+          <circle ref={coreRef} cx="60" cy="86" r="6.5" fill={P.eye} style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite`, filter:`drop-shadow(0 0 4px ${P.eye})` }} />
           <circle cx="63.2" cy="83.2" r="5.5" fill="#0b0e1d" />
 
           {/* pés */}
-          <rect x="43" y="106" width="14" height="10" rx="5" fill={P.dark} />
-          <rect x="63" y="106" width="14" height="10" rx="5" fill={P.dark} />
+          <rect ref={footLRef} x="43" y="106" width="14" height="10" rx="5" fill={P.dark} />
+          <rect ref={footRRef} x="63" y="106" width="14" height="10" rx="5" fill={P.dark} />
         </svg>
+        </div>
         {quirk?.emoji && (
           <span style={{ position:"absolute", right:size*0.02, bottom:size*0.22, fontSize:size*0.34, filter:"drop-shadow(0 2px 3px rgba(0,0,0,.35))", pointerEvents:"none" }}>{quirk.emoji}</span>
         )}
