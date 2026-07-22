@@ -1432,67 +1432,94 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
           {/* orelhas em formato de morcego — criatura da noite (cada uma no seu grupo, pra poder
               tremer sozinha de vez em quando sem mexer no resto da cabeça) */}
           <g ref={earLGroupRef}>
-            <path ref={earLFillRef} d="M18 44 L26 16 L34 40 Z" fill={P.dark} stroke={shade(P.dark, -0.3)} strokeWidth="1" />
-            <path d="M21 40 L26 22 L31 38 Z" fill={P.main} opacity="0.5" />
+            <path ref={earLFillRef} d="M18 44 Q14 28 26 16 Q31 28 34 40 Q26 44 18 44 Z" fill={P.dark} stroke={shade(P.dark, -0.3)} strokeWidth="1" />
+            <path d="M21 40 Q19 28 26 22 Q29 29 31 38 Q26 41 21 40 Z" fill={P.main} opacity="0.5" />
+            <path d="M23 38 Q22 28 26 20" stroke="#a5adf8" strokeWidth="0.8" opacity="0.55" fill="none" strokeLinecap="round" />
           </g>
           <g ref={earRGroupRef}>
-            <path ref={earRFillRef} d="M86 40 L94 16 L102 44 Z" fill={P.dark} stroke={shade(P.dark, -0.3)} strokeWidth="1" />
-            <path d="M89 38 L94 22 L99 40 Z" fill={P.main} opacity="0.5" />
+            <path ref={earRFillRef} d="M86 40 Q89 28 94 16 Q106 28 102 44 Q94 44 86 40 Z" fill={P.dark} stroke={shade(P.dark, -0.3)} strokeWidth="1" />
+            <path d="M99 40 Q101 28 94 22 Q91 29 89 38 Q94 41 99 40 Z" fill={P.main} opacity="0.5" />
+            <path d="M97 38 Q98 28 94 20" stroke="#a5adf8" strokeWidth="0.8" opacity="0.55" fill="none" strokeLinecap="round" />
           </g>
 
           {/* cabeça */}
-          <rect x="28" y="20" width="64" height="44" rx="17" fill={`url(#${uid}h)`} />
-          <rect x="28" y="20" width="64" height="20" rx="17" fill="#ffffff" opacity="0.12" />
+          <rect x="28" y="20" width="64" height="44" rx="17" fill={`url(#${uid}h)`} stroke="#ffffff" strokeOpacity="0.15" strokeWidth="1.2" />
+          <rect x="28" y="20" width="64" height="20" rx="17" fill="#ffffff" opacity="0.14" />
 
           {/* acessório de cabeça (por cima da cabeça; a antena sempre aparece por cima dele) — o elmo
               Espartano é uma TRANSFORMAÇÃO exclusiva e substitui qualquer chapéu normal enquanto durar o combo */}
           {isSpartan ? (
             <g>
-              <path d="M43 6 Q60 -11 77 6 L74 10.5 Q60 -1 46 10.5 Z" fill="#dc2626" stroke="#7a1010" strokeWidth="1" />
+              <defs>
+                <linearGradient id={uid+"crista"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fca5a5"/><stop offset=".5" stopColor="#dc2626"/><stop offset="1" stopColor="#7a1010"/></linearGradient>
+                <linearGradient id={uid+"bronze"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dcb877"/><stop offset=".5" stopColor="#a1783f"/><stop offset="1" stopColor="#6b4d24"/></linearGradient>
+              </defs>
+              <path d="M43 6 Q60 -11 77 6 L74 10.5 Q60 -1 46 10.5 Z" fill={`url(#${uid}crista)`} stroke="#5c1010" strokeWidth="1" />
               <path d="M46 10 Q60 2 74 10 L74 15 Q60 8 46 15 Z" fill="#b91c1c" opacity="0.9" />
-              <ellipse cx="60" cy="4" rx="17" ry="3.6" fill="#ef4444" />
-              <path d="M28 25 Q60 6 92 25 L92 20 Q60 2 28 20 Z" fill="#a1783f" stroke="#5c4326" strokeWidth="1" />
-              <rect x="30" y="19" width="60" height="8" rx="3" fill="#c99b53" stroke="#5c4326" strokeWidth="1" />
+              <ellipse cx="60" cy="4" rx="17" ry="3.6" fill="#f87171" />
+              <ellipse cx="60" cy="3" rx="14" ry="1.6" fill="#fff" opacity="0.3" />
+              <path d="M28 25 Q60 6 92 25 L92 20 Q60 2 28 20 Z" fill={`url(#${uid}bronze)`} stroke="#4a3418" strokeWidth="1" />
+              <path d="M30 22 Q60 6 90 22" stroke="#f3dfae" strokeWidth="1" opacity="0.4" fill="none" />
+              <rect x="30" y="19" width="60" height="8" rx="3" fill={`url(#${uid}bronze)`} stroke="#4a3418" strokeWidth="1" />
+              <rect x="30" y="19" width="60" height="2" rx="1" fill="#f3dfae" opacity="0.4" />
             </g>
           ) : (
             <>
               {G.head === "fone" && (
                 <g>
-                  <path d="M23 38 Q60 6 97 38" stroke="#20242f" strokeWidth="6" fill="none" strokeLinecap="round" />
-                  <path d="M28 35 Q60 11 92 35" stroke="#3a4152" strokeWidth="2" fill="none" strokeLinecap="round" />
-                  <rect x="15" y="31" width="16" height="21" rx="7" fill="#20242f" />
+                  <defs>
+                    <linearGradient id={uid+"fone"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3a4152"/><stop offset="1" stopColor="#181b24"/></linearGradient>
+                  </defs>
+                  <path d="M23 38 Q60 4 97 38" stroke="#14161e" strokeWidth="6.4" fill="none" strokeLinecap="round" />
+                  <path d="M23 38 Q60 4 97 38" stroke="#454e63" strokeWidth="2.2" fill="none" strokeLinecap="round" opacity="0.7" />
+                  <rect x="15" y="31" width="16" height="21" rx="7" fill={`url(#${uid}fone)`} stroke="#0e0f14" strokeWidth="0.6" />
                   <rect x="18.5" y="34.5" width="9" height="14" rx="4.5" fill={P.main} />
-                  <ellipse cx="20" cy="37" rx="2.5" ry="3.5" fill="#ffffff" opacity="0.25" />
-                  <rect x="89" y="31" width="16" height="21" rx="7" fill="#20242f" />
+                  <ellipse cx="20" cy="37" rx="2.5" ry="3.5" fill="#ffffff" opacity="0.3" />
+                  <rect x="89" y="31" width="16" height="21" rx="7" fill={`url(#${uid}fone)`} stroke="#0e0f14" strokeWidth="0.6" />
                   <rect x="92.5" y="34.5" width="9" height="14" rx="4.5" fill={P.main} />
-                  <ellipse cx="94" cy="37" rx="2.5" ry="3.5" fill="#ffffff" opacity="0.25" />
+                  <ellipse cx="94" cy="37" rx="2.5" ry="3.5" fill="#ffffff" opacity="0.3" />
                 </g>
               )}
               {G.head === "chapeu" && (
                 <g>
-                  <ellipse cx="60" cy="20" rx="23" ry="4.5" fill="#1c1530" stroke="#8b83b0" strokeWidth="1" />
-                  <path d="M46 20 L47.5 4 Q60 1 72.5 4 L74 20 Z" fill="#2d2447" stroke="#8b83b0" strokeWidth="1" />
-                  <ellipse cx="60" cy="4.5" rx="12.5" ry="2.6" fill="#3a2f5c" />
+                  <defs>
+                    <linearGradient id={uid+"chapeu"} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#241c3c"/><stop offset=".5" stopColor="#372b5c"/><stop offset="1" stopColor="#241c3c"/></linearGradient>
+                  </defs>
+                  <ellipse cx="60" cy="20.5" rx="23" ry="4.6" fill="#12102080" />
+                  <ellipse cx="60" cy="20" rx="23" ry="4.5" fill={`url(#${uid}chapeu)`} stroke="#8b83b0" strokeWidth="1" />
+                  <path d="M46 20 L47.5 4 Q60 1 72.5 4 L74 20 Z" fill={`url(#${uid}chapeu)`} stroke="#8b83b0" strokeWidth="1" />
+                  <ellipse cx="60" cy="4.5" rx="12.5" ry="2.6" fill="#4a3d78" />
                   <rect x="46.8" y="13" width="26.4" height="5" fill={P.main} />
-                  <path d="M50 6 Q52 12 51.5 18" stroke="#ffffff" strokeWidth="1.6" opacity="0.18" fill="none" strokeLinecap="round" />
+                  <rect x="46.8" y="13" width="26.4" height="1.6" fill="#ffffff" opacity="0.25" />
+                  <path d="M50 6 Q52 12 51.5 18" stroke="#ffffff" strokeWidth="1.6" opacity="0.22" fill="none" strokeLinecap="round" />
                 </g>
               )}
               {G.head === "coroa" && (
                 <g>
-                  <path d="M40 20 L40 7 L49 14 L60 3 L71 14 L80 7 L80 20 Z" fill="#fbbf24" stroke="#d99b0d" strokeWidth="1.3" />
-                  <path d="M44 10 L47 12" stroke="#fff7d6" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
-                  <rect x="40" y="17" width="40" height="5" rx="2.2" fill="#f59e0b" stroke="#d99b0d" strokeWidth="1" />
-                  <circle cx="60" cy="9" r="2.4" fill="#ef4444" stroke="#b91c1c" strokeWidth="0.8" />
-                  <circle cx="48" cy="15" r="1.7" fill="#22d3ee" />
-                  <circle cx="72" cy="15" r="1.7" fill="#22d3ee" />
-                  <circle cx="60" cy="19.5" r="1.5" fill="#a855f7" />
+                  <defs>
+                    <linearGradient id={uid+"coroa"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fde68a"/><stop offset=".55" stopColor="#fbbf24"/><stop offset="1" stopColor="#d99b0d"/></linearGradient>
+                  </defs>
+                  <path d="M40 20 L40 7 L49 14 L60 3 L71 14 L80 7 L80 20 Z" fill={`url(#${uid}coroa)`} stroke="#a9720a" strokeWidth="1.3" />
+                  <path d="M42 17 L42 10 L48 14.5" stroke="#fff7d6" strokeWidth="1.2" strokeLinecap="round" opacity="0.55" fill="none" />
+                  <rect x="40" y="17" width="40" height="5" rx="2.2" fill={`url(#${uid}coroa)`} stroke="#a9720a" strokeWidth="1" />
+                  <rect x="40" y="17" width="40" height="1.6" rx="1" fill="#fff7d6" opacity="0.5" />
+                  <circle cx="60" cy="9" r="2.4" fill="#ef4444" stroke="#7a1010" strokeWidth="0.8" />
+                  <circle cx="59.3" cy="8.3" r="0.8" fill="#fff" opacity="0.7" />
+                  <circle cx="48" cy="15" r="1.7" fill="#22d3ee" stroke="#0e7490" strokeWidth="0.5" />
+                  <circle cx="72" cy="15" r="1.7" fill="#22d3ee" stroke="#0e7490" strokeWidth="0.5" />
+                  <circle cx="60" cy="19.5" r="1.5" fill="#a855f7" stroke="#6b21a8" strokeWidth="0.5" />
                 </g>
               )}
               {G.head === "chapeuPirata" && (
                 <g>
-                  <path d="M24 24 Q60 3 96 24 Q88 30.5 60 27 Q32 30.5 24 24 Z" fill="#1c1410" stroke="#000" strokeWidth="1" />
-                  <path d="M34 22 Q60 9 86 22 Q60 16.5 34 22 Z" fill="#332720" />
-                  <circle cx="60" cy="15.5" r="3.4" fill="#e5e7eb" stroke="#111" strokeWidth="0.6" />
+                  <defs>
+                    <linearGradient id={uid+"pirata"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#332720"/><stop offset="1" stopColor="#161009"/></linearGradient>
+                  </defs>
+                  <path d="M24 24 Q60 1 96 24 Q88 31 60 28 Q32 31 24 24 Z" fill={`url(#${uid}pirata)`} stroke="#000" strokeWidth="1" />
+                  <path d="M24 24 Q60 3 96 24" stroke="#5c463a" strokeWidth="1" fill="none" opacity="0.6" />
+                  <path d="M34 22 Q60 8 86 22 Q60 16 34 22 Z" fill="#211913" />
+                  <circle cx="60" cy="15.5" r="3.6" fill="#f1f2f4" stroke="#111" strokeWidth="0.6" />
+                  <circle cx="59" cy="14.3" r="1" fill="#fff" opacity="0.7" />
                   <path d="M57 14 L60 18.5 L63 14" stroke="#111" strokeWidth="0.9" fill="none" strokeLinecap="round" />
                   <path d="M55.5 13.5 L58 13.5 M62 13.5 L64.5 13.5" stroke="#111" strokeWidth="0.8" strokeLinecap="round" />
                 </g>
@@ -1502,7 +1529,7 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
 
           {/* antena (sempre por cima) — agrupada pra poder balançar como mola quando o mouse chega perto */}
           <g ref={antennaGroupRef}>
-            <line ref={antennaLineRef} x1="60" y1="22" x2="60" y2="9" stroke={P.dark} strokeWidth="3.4" strokeLinecap="round" />
+            <path ref={antennaLineRef} d="M60 22 Q56 18 60 15 Q64 12 60 9" fill="none" stroke={P.dark} strokeWidth="3.4" strokeLinecap="round" />
             <circle cx="60" cy="7" r="7" fill={P.main} opacity="0.25" />
             <circle ref={antennaTipRef} cx="60" cy="7" r="4" fill={P.eye} style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite` }} />
           </g>
@@ -1510,6 +1537,7 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
           {/* visor */}
           <rect x="36" y="29" width="48" height="27" rx="12" fill="#0b0e1d" />
           <rect x="38" y="31" width="44" height="10" rx="6" fill="#ffffff" opacity="0.06" />
+          <path d="M38 58 Q60 62 82 58" stroke="#000" strokeWidth="1" opacity="0.15" fill="none" />
 
           {/* olhos por estado — no idle, viram meia-lua (o jeito de "olhar" da criatura da noite): um
               círculo cheio "mordido" por outro da cor do visor, o jeito confiável de desenhar uma lua
@@ -1565,17 +1593,28 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
           {/* laço no pescoço */}
           {G.neck === "laco" && (
             <g>
-              <path d="M60 66 Q51 59 47 62 Q44.5 65 47 69 Q51 73 60 66 Z" fill="#ec4899" stroke="#db2777" strokeWidth="1" />
-              <path d="M60 66 Q69 59 73 62 Q75.5 65 73 69 Q69 73 60 66 Z" fill="#ec4899" stroke="#db2777" strokeWidth="1" />
-              <path d="M52 63 Q55 64.5 57 66" stroke="#f9a8d4" strokeWidth="1.3" fill="none" strokeLinecap="round" />
-              <path d="M68 63 Q65 64.5 63 66" stroke="#f9a8d4" strokeWidth="1.3" fill="none" strokeLinecap="round" />
-              <circle cx="60" cy="66" r="3.2" fill="#db2777" stroke="#be185d" strokeWidth="0.8" />
+              <defs>
+                <linearGradient id={uid+"laco"} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#f9a8d4"/><stop offset="1" stopColor="#db2777"/></linearGradient>
+              </defs>
+              <path d="M60 66 Q51 59 47 62 Q44.5 65 47 69 Q51 73 60 66 Z" fill={`url(#${uid}laco)`} stroke="#a8135c" strokeWidth="1" />
+              <path d="M60 66 Q69 59 73 62 Q75.5 65 73 69 Q69 73 60 66 Z" fill={`url(#${uid}laco)`} stroke="#a8135c" strokeWidth="1" />
+              <path d="M52 63 Q55 64.5 57 66" stroke="#fce7f3" strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.8" />
+              <path d="M68 63 Q65 64.5 63 66" stroke="#fce7f3" strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.8" />
+              <circle cx="60" cy="66" r="3.2" fill="#db2777" stroke="#a8135c" strokeWidth="0.8" />
+              <circle cx="58.8" cy="64.8" r="0.9" fill="#fff" opacity="0.6" />
             </g>
           )}
 
           {/* capa Espartana (atrás de tudo — braços, mão e corpo ficam por cima dela) */}
           {isSpartan && (
-            <path className="nyx-cape" d="M42 66 Q30 100 38 122 L60 112 L82 122 Q90 100 78 66 Q60 74 42 66 Z" fill="#991b1b" stroke="#5c1010" strokeWidth="1" opacity="0.92" />
+            <g className="nyx-cape">
+              <defs>
+                <linearGradient id={uid+"capa"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dc2626"/><stop offset="1" stopColor="#7a1010"/></linearGradient>
+              </defs>
+              <path d="M42 66 Q30 100 38 122 L60 112 L82 122 Q90 100 78 66 Q60 74 42 66 Z" fill={`url(#${uid}capa)`} stroke="#5c1010" strokeWidth="1" opacity="0.94" />
+              <path d="M46 70 Q38 98 44 116" stroke="#f87171" strokeWidth="1.2" opacity="0.35" fill="none" />
+              <path d="M74 70 Q82 98 76 116" stroke="#5c1010" strokeWidth="1.2" opacity="0.35" fill="none" />
+            </g>
           )}
 
           {/* braços */}
@@ -1585,51 +1624,71 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
           {/* escudo (sempre na mão esquerda) */}
           {G.shield === "escudo" && (
             <g>
-              <path d="M12 82 Q12 78 22 76 Q32 78 32 82 L32 92 Q32 101 22 106 Q12 101 12 92 Z" fill="#94a3b8" stroke="#475569" strokeWidth="1.6" />
-              <path d="M14.5 83 Q14.5 80 22 78.5 Q29.5 80 29.5 83 L29.5 91.5 Q29.5 98.5 22 102.5 Q14.5 98.5 14.5 91.5 Z" fill="#cbd5e1" stroke="none" opacity="0.5" />
+              <defs>
+                <linearGradient id={uid+"escudo"} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#e2e8f0"/><stop offset=".5" stopColor="#94a3b8"/><stop offset="1" stopColor="#5c6b81"/></linearGradient>
+              </defs>
+              <path d="M12 82 Q12 78 22 76 Q32 78 32 82 L32 92 Q32 101 22 106 Q12 101 12 92 Z" fill={`url(#${uid}escudo)`} stroke="#3f4b5c" strokeWidth="1.6" />
+              <path d="M14.5 83 Q14.5 80 22 78.5 Q29.5 80 29.5 83 L29.5 91.5 Q29.5 98.5 22 102.5 Q14.5 98.5 14.5 91.5 Z" fill="#e8edf3" stroke="none" opacity="0.55" />
               <path d="M22 84 L24.5 89 L22 97 L19.5 89 Z" fill={P.main} stroke={P.dark} strokeWidth="0.8" />
-              <circle cx="22" cy="80.5" r="1.2" fill="#475569" />
-              <circle cx="15.5" cy="90" r="1.2" fill="#475569" />
-              <circle cx="28.5" cy="90" r="1.2" fill="#475569" />
+              <path d="M22 84 L23 87.5 L22 91 L21 87.5 Z" fill="#fff" opacity="0.4" />
+              <circle cx="22" cy="80.5" r="1.3" fill="#3f4b5c" />
+              <circle cx="15.5" cy="90" r="1.3" fill="#3f4b5c" />
+              <circle cx="28.5" cy="90" r="1.3" fill="#3f4b5c" />
+              <circle cx="21.6" cy="80.1" r="0.5" fill="#fff" opacity="0.6" />
             </g>
           )}
           {/* arma (sempre na mão direita — espelhada da mesma arte da mão esquerda) */}
           {G.hand === "espada" && (
             <g transform="translate(120,0) scale(-1,1)">
+              <defs>
+                <linearGradient id={uid+"lamina"} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#f8fafc"/><stop offset=".5" stopColor="#e2e8f0"/><stop offset="1" stopColor="#94a3b8"/></linearGradient>
+                <linearGradient id={uid+"cabo"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#a06617"/><stop offset="1" stopColor="#5c3a0d"/></linearGradient>
+              </defs>
               <g transform="rotate(-25 24 90)">
-                <path d="M23.5 62 L26.5 67 L26 94 L21 94 L20.5 67 Z" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.8" />
+                <path d="M23.5 62 L26.5 67 L26 94 L21 94 L20.5 67 Z" fill={`url(#${uid}lamina)`} stroke="#7c8a9c" strokeWidth="0.8" />
+                <line x1="22.3" y1="66" x2="22.3" y2="92" stroke="#fff" strokeWidth="0.7" opacity="0.6" />
                 <line x1="23.5" y1="66" x2="23.5" y2="92" stroke="#94a3b8" strokeWidth="1" />
-                <path d="M13 94 Q23.5 90.5 34 94 L34 97 Q23.5 93.5 13 97 Z" fill="#eab308" stroke="#a16207" strokeWidth="0.8" />
-                <rect x="21" y="97" width="5" height="10" rx="2" fill="#78350f" />
-                <line x1="21.5" y1="100" x2="25.5" y2="100" stroke="#5b2c0c" strokeWidth="1" />
-                <line x1="21.5" y1="103" x2="25.5" y2="103" stroke="#5b2c0c" strokeWidth="1" />
-                <circle cx="23.5" cy="109.5" r="3" fill="#eab308" stroke="#a16207" strokeWidth="0.8" />
+                <path d="M13 94 Q23.5 90.5 34 94 L34 97 Q23.5 93.5 13 97 Z" fill="#eab308" stroke="#8a5f08" strokeWidth="0.8" />
+                <path d="M14 94.5 Q23.5 91.5 33 94.5" stroke="#fef3c7" strokeWidth="0.8" fill="none" opacity="0.6" />
+                <rect x="21" y="97" width="5" height="10" rx="2" fill={`url(#${uid}cabo)`} />
+                <line x1="21.5" y1="100" x2="25.5" y2="100" stroke="#3d2408" strokeWidth="1" />
+                <line x1="21.5" y1="103" x2="25.5" y2="103" stroke="#3d2408" strokeWidth="1" />
+                <circle cx="23.5" cy="109.5" r="3" fill="#eab308" stroke="#8a5f08" strokeWidth="0.8" />
+                <circle cx="22.7" cy="108.7" r="0.8" fill="#fef3c7" opacity="0.8" />
               </g>
             </g>
           )}
           {G.hand === "arco" && (
             <g transform="translate(120,0) scale(-1,1)">
               <g transform="rotate(10 20 90)">
-                <path d="M16 68 Q34 90 16 112" stroke="#92400e" strokeWidth="3.6" fill="none" strokeLinecap="round" />
-                <path d="M17.5 72 Q30 90 17.5 108" stroke="#c2703d" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-                <line x1="16" y1="68" x2="16" y2="112" stroke="#e5e7eb" strokeWidth="1.2" />
-                <line x1="10" y1="90" x2="34" y2="90" stroke="#a16207" strokeWidth="2" />
-                <path d="M34 90 L28 86.5 L28 93.5 Z" fill="#64748b" />
+                <path d="M16 68 Q34 90 16 112" stroke="#7a3406" strokeWidth="3.6" fill="none" strokeLinecap="round" />
+                <path d="M17.5 72 Q30 90 17.5 108" stroke="#d68a52" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+                <line x1="16" y1="68" x2="16" y2="112" stroke="#f1f5f9" strokeWidth="1.2" />
+                <line x1="10" y1="90" x2="34" y2="90" stroke="#8a5f08" strokeWidth="2" />
+                <path d="M34 90 L28 86.5 L28 93.5 Z" fill="#8592a3" />
                 <path d="M10 87 L14 90 L10 93" stroke="#ef4444" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+                <path d="M11 88.3 L13 90 L11 91.7" stroke="#fecaca" strokeWidth="0.9" fill="none" strokeLinecap="round" opacity="0.7" />
               </g>
             </g>
           )}
 
           {/* corpo */}
-          <rect x="38" y="68" width="44" height="38" rx="14" fill={`url(#${uid}b)`} />
-          <rect x="38" y="68" width="44" height="16" rx="14" fill="#ffffff" opacity="0.10" />
+          <rect x="38" y="68" width="44" height="38" rx="14" fill={`url(#${uid}b)`} stroke="#ffffff" strokeOpacity="0.13" strokeWidth="1.2" />
+          <rect x="38" y="68" width="44" height="16" rx="14" fill="#ffffff" opacity="0.12" />
+          <circle cx="42.5" cy="77" r="1" fill={shade(P.dark, -0.3)} opacity="0.6" />
+          <circle cx="77.5" cy="77" r="1" fill={shade(P.dark, -0.3)} opacity="0.6" />
+          <circle cx="42.5" cy="97" r="1" fill={shade(P.dark, -0.3)} opacity="0.6" />
+          <circle cx="77.5" cy="97" r="1" fill={shade(P.dark, -0.3)} opacity="0.6" />
 
-          {/* núcleo de energia no peito, em formato de lua crescente */}
+          {/* núcleo de energia no peito, em formato de lua crescente, com anel de energia ao redor */}
+          <circle cx="60" cy="86" r="11" fill="none" stroke={P.eye} strokeWidth="0.6" opacity="0.35" />
           <circle cx="60" cy="86" r="9.5" fill="#0b0e1d" />
           <circle ref={coreRef} cx="60" cy="86" r="6.5" fill={P.eye} style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite`, filter:`drop-shadow(0 0 4px ${P.eye})` }} />
           <circle cx="63.2" cy="83.2" r="5.5" fill="#0b0e1d" />
 
           {/* pés */}
+          <ellipse cx="50" cy="117" rx="8" ry="1.8" fill="#000" opacity="0.25" />
+          <ellipse cx="70" cy="117" rx="8" ry="1.8" fill="#000" opacity="0.25" />
           <rect ref={footLRef} x="43" y="106" width="14" height="10" rx="5" fill={P.dark} />
           <rect ref={footRRef} x="63" y="106" width="14" height="10" rx="5" fill={P.dark} />
         </svg>
