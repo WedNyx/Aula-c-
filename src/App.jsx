@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
+import confetti from "canvas-confetti";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
 import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom } from "./storage.js";
@@ -62,11 +63,26 @@ function playSound(kind) {
     else if (kind === "click") { playTone(ctx, 740, t, 0.06, "sine", 0.05); }
     else if (kind === "enter") { [440, 660].forEach((f, i) => playTone(ctx, f, t + i * 0.09, 0.16, "sine", 0.07)); }
     else if (kind === "bell") { [987.77, 1318.5, 987.77].forEach((f, i) => playTone(ctx, f, t + i * 0.22, 0.5, "sine", 0.12)); }
+    else if (kind === "recesso") { [880, 698.46, 587.33].forEach((f, i) => playTone(ctx, f, t + i * 0.2, 0.45, "sine", 0.11)); }
     else if (kind === "snap") { playTone(ctx, 660, t, 0.05, "sine", 0.06); playTone(ctx, 440, t + 0.04, 0.09, "sine", 0.05); }
   } catch {}
 }
 function setSoundsMuted(v) { soundsMuted = v; try { localStorage.setItem("nyx_sounds_muted", v ? "1" : "0"); } catch {} }
 function loadSoundsMuted() { try { soundsMuted = localStorage.getItem("nyx_sounds_muted") === "1"; } catch {} return soundsMuted; }
+
+// ── confete (canvas-confetti) pra momentos de comemoração: fim de atividade e conquista desbloqueada ──
+const CONFETTI_COLORS = ["#c084fc","#22d3ee","#34d399","#fbbf24","#ec4899","#f87171"];
+function fireConfetti(kind = "activity") {
+  if (soundsCalm) return; // modo calmo: sem estímulo visual extra
+  try {
+    if (kind === "achievement") {
+      confetti({ particleCount: 60, spread: 65, startVelocity: 32, origin: { x: 0.86, y: 0.12 }, colors: CONFETTI_COLORS, scalar: 0.85, ticks: 160 });
+    } else {
+      confetti({ particleCount: 110, spread: 80, startVelocity: 42, origin: { y: 0.65 }, colors: CONFETTI_COLORS, ticks: 220 });
+      setTimeout(() => confetti({ particleCount: 60, spread: 100, startVelocity: 30, origin: { y: 0.65 }, colors: CONFETTI_COLORS, ticks: 200 }), 220);
+    }
+  } catch {}
+}
 
 // ── rede de segurança local: guarda o código do aluno no navegador (sem depender de internet),
 // pra não perder o que ele estava escrevendo se a conexão cair bem na hora de salvar no servidor ──
@@ -2335,8 +2351,8 @@ Se o professor perguntar como chamar a atenção da turma ou controlar os duelos
   return (
     <>
       <button data-tour={dataTour} onClick={()=>setOpen(o=>!o)} title="Conversar com o Nyx"
-        style={{ position:"fixed", right:18, bottom:18, zIndex:900, width:60, height:60, borderRadius:"50%", border:"none", cursor:"pointer", background:`linear-gradient(135deg, ${accent}, ${shade(accent,-0.25)})`, boxShadow:`0 6px 22px ${accent}66`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-        <span style={{ fontSize:25, lineHeight:1 }}>{open ? "✕" : "🤖"}</span>
+        style={{ position:"fixed", right:18, bottom:18, zIndex:900, width:46, height:46, borderRadius:"50%", border:"none", cursor:"pointer", background:`linear-gradient(135deg, ${accent}, ${shade(accent,-0.25)})`, boxShadow:`0 6px 22px ${accent}66`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+        {open ? <span style={{ fontSize:20, lineHeight:1, color:"#fff" }}>✕</span> : <NyxRobot state="idle" size={34} showName={false} gear={gear} />}
         {!open && <span style={{ position:"absolute", top:-4, right:-2, background:"#34d399", borderRadius:10, fontSize:9, fontWeight:900, color:"#03301f", padding:"2px 6px" }}>NYX</span>}
       </button>
       {open && (
@@ -2808,9 +2824,17 @@ function ErrorExplainModal({ sections, encouragement, onClose }) {
 //  CONQUISTAS, RANKING, META DA TURMA, CURIOSIDADE  (gamificação leve)
 // ════════════════════════════════════════════════════════════════════════════
 function AchievementToast({ achievement }) {
+  const boxRef = useRef(null);
+  useEffect(() => {
+    if (!achievement || !boxRef.current) return;
+    gsap.fromTo(boxRef.current,
+      { scale:0.3, opacity:0, rotate:-8 },
+      { scale:1, opacity:1, rotate:0, duration:0.6, ease:"elastic.out(1,0.55)" }
+    );
+  }, [achievement]);
   if (!achievement) return null;
   return (
-    <div style={{ position:"fixed", top:16, right:16, zIndex:1300, background:"linear-gradient(135deg,#fbbf24,#f59e0b)", color:"#1c1206", borderRadius:16, padding:"14px 18px", boxShadow:"0 14px 40px rgba(0,0,0,.45)", display:"flex", alignItems:"center", gap:12, maxWidth:320, animation:"rise .35s ease both" }}>
+    <div ref={boxRef} style={{ position:"fixed", top:16, right:16, zIndex:1300, background:"linear-gradient(135deg,#fbbf24,#f59e0b)", color:"#1c1206", borderRadius:16, padding:"14px 18px", boxShadow:"0 14px 40px rgba(0,0,0,.45)", display:"flex", alignItems:"center", gap:12, maxWidth:320 }}>
       <div style={{ fontSize:34 }}>{achievement.emoji}</div>
       <div>
         <div style={{ fontWeight:900, fontSize:13 }}>🎖️ Conquista desbloqueada!</div>
@@ -2926,6 +2950,48 @@ const BOSS_PRESETS = [
   { name: "Lag Monstro", emoji: "🦑" },
   { name: "Stack Overlord", emoji: "🤖" },
 ];
+
+// popup rápido de "situação da turma" — pensado pra abrir de dentro da aba "Meu código" (onde o
+// professor costuma dar zoom na tela pra turma copiar) sem precisar trocar de aba e perder o zoom
+function QuickStatusModal({ students, onClose }) {
+  const withStatus = students.map(s => ({ s, d: difficultyOf(s) }));
+  const dif = withStatus.filter(x => x.d.level === "dif");
+  const bem = withStatus.filter(x => x.d.level === "bem");
+  const neutro = withStatus.filter(x => x.d.level === "neutro");
+  const Group = ({ title, color, items }) => items.length > 0 && (
+    <div style={{ marginBottom:14 }}>
+      <div style={{ color, fontWeight:800, fontSize:12.5, marginBottom:6, letterSpacing:.5 }}>{title} · {items.length}</div>
+      <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+        {items.map(({ s, d }) => (
+          <div key={s.name} style={{ background:"#171026", border:`1px solid ${color}44`, borderRadius:10, padding:"7px 10px", display:"flex", alignItems:"center", gap:8 }}>
+            <Avatar cfg={s.avatar} size={24} />
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:"#f0e9fb" }}>{s.name}</div>
+              <div style={{ fontSize:11.5, color:"#a99ac9", lineHeight:1.4 }}>{d.text}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1400, padding:16 }} onClick={onClose}>
+      <div className="pop" onClick={e=>e.stopPropagation()} style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:20, padding:"20px 22px", maxWidth:420, width:"100%", maxHeight:"82vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <h2 style={{ margin:0, fontSize:17, fontWeight:900, color:"#fbbf24" }}>👀 Situação da turma</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        {students.length === 0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum aluno nesta turma ainda.</p> : (
+          <>
+            <Group title="⚠ Precisando de ajuda" color="#f87171" items={dif} />
+            <Group title="✍️ Escrevendo" color="#fbbf24" items={neutro} />
+            <Group title="✅ Indo bem" color="#34d399" items={bem} />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function TelaoModal({ students, shift, onClose, teacherAuth }) {
   const [telaoShift, setTelaoShift] = useState(shift && shift !== "all" ? shift : "matutino");
@@ -4585,6 +4651,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   });
   const [breakEndMsg, setBreakEndMsg] = useState("");
   const breakEndNotifiedRef = useRef(null);
+  const breakStartNotifiedRef = useRef(null);
   // 📋 falta a justificar + horário do 1º acesso do dia (pra marcar atrasado na chamada)
   const [justifications, setJustifications] = useState({});
   const attendanceFirstRef = useRef({});
@@ -4725,8 +4792,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
   useEffect(() => { if (nyxLocks.zeker && showDuel) setShowDuel(false); }, [nyxLocks.zeker, showDuel]);
 
-  // ── fim do intervalo: sininho + aviso, uma vez só por intervalo (não repete a cada nova checagem) ──
+  // ── início do intervalo: som suave uma vez só por intervalo ──
   const classStatusNow = classStatus(mySchedule, myAllowWeekend);
+  useEffect(() => {
+    const bStart = mySchedule?.breakStart && mySchedule?.breakMin ? `${todayKey()}-${mySchedule.breakStart}-${mySchedule.breakMin}` : null;
+    if (!bStart) return;
+    if (classStatusNow.inBreak && breakStartNotifiedRef.current !== bStart) {
+      breakStartNotifiedRef.current = bStart;
+      playSound("recesso");
+    }
+  }, [classStatusNow.inBreak, mySchedule?.breakStart, mySchedule?.breakMin]);
+
+  // ── fim do intervalo: sininho + aviso, uma vez só por intervalo (não repete a cada nova checagem) ──
   useEffect(() => {
     const bEnd = mySchedule?.breakStart && mySchedule?.breakMin ? `${todayKey()}-${mySchedule.breakStart}-${mySchedule.breakMin}` : null;
     if (!bEnd) return;
@@ -5921,6 +5998,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     persist({ achievements: next });
     setNewAchievement(achievementInfo(id));
     playSound("achievement");
+    fireConfetti("achievement");
     setTimeout(() => setNewAchievement(null), 4000);
   };
 
@@ -6143,10 +6221,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       ]);
       let summaryData;
       try { summaryData = extractJson(summaryResult); }
-      catch { summaryData = { raw: summaryResult }; }
-      const finalSummary = isContinuation && typeof summaryData === "object" && !summaryData.raw
+      catch {
+        // primeira resposta veio malformada — insiste uma vez em JSON puro em vez de cair pro texto
+        // cru da IA (era isso que aparecia como "escrita confusa" pro aluno)
+        try {
+          const retryResult = await askClaude(simpleReq.prompt + "\n\nATENÇÃO: responda SOMENTE o objeto JSON válido, sem nenhum texto antes ou depois.", simpleReq.system);
+          summaryData = extractJson(retryResult);
+        } catch { summaryData = null; }
+      }
+      const finalSummary = isContinuation && summaryData
         ? mergeSummaryContinuation(existingSummary, summaryData)
-        : (isContinuation ? existingSummary : summaryData); // se a continuação falhar, mantém o resumo que já existia (nunca perde o que já tinha)
+        : (isContinuation ? existingSummary : (summaryData || { secoes: [] })); // se a continuação falhar, mantém o resumo que já existia (nunca perde o que já tinha)
       setDynamicSummary(finalSummary);
       const parsed = extractJson(activityResult);
       const questions = shuffleQuestions(parsed.questions);
@@ -6255,6 +6340,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     setScore(finalScore);
     setDoneAt(completedAt);
     setPhase("done");
+    fireConfetti("activity");
     setShowFeedbackModal(true);
     setFeedbackLoading(true);
     const newNyxPoints = nyxPoints + pts + (bonusHit ? 1 : 0);
@@ -6734,8 +6820,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <button onClick={backToHome} style={{ background:"transparent", border:"1px solid #3b2a58", color:"#a99ac9", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:12.5, fontWeight:700 }}>← Voltar à tela inicial</button>
         </div>
         <div style={{ maxWidth:580, margin:"40px auto", textAlign:"center", padding:24 }}>
-          <div style={{ fontSize:72 }}>{g.emoji}</div>
-          <h2 style={{ color:g.color, fontSize:26, fontWeight:900 }}>{g.label} — Você fez {score} pontos!</h2>
+          <div ref={el => { if (el) gsap.fromTo(el, { scale:0.2, opacity:0, rotate:-15 }, { scale:1, opacity:1, rotate:0, duration:0.7, ease:"elastic.out(1,0.5)" }); }} style={{ fontSize:72 }}>{g.emoji}</div>
+          <h2 ref={el => { if (el) gsap.fromTo(el, { y:16, opacity:0 }, { y:0, opacity:1, duration:0.5, delay:0.15, ease:"back.out(1.7)" }); }} style={{ color:g.color, fontSize:26, fontWeight:900 }}>{g.label} — Você fez {score} pontos!</h2>
 
           {/* 🎁 presente misterioso do dia: recompensa por concluir a atividade, 1x por dia */}
           {giftReveal ? (
@@ -8084,6 +8170,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [selInspection, setSelInspection] = useState(false);
   const [breakEndMsgTeacher, setBreakEndMsgTeacher] = useState("");
   const breakEndNotifiedTeacherRef = useRef({});
+  const breakStartNotifiedTeacherRef = useRef({});
   const [cityInput, setCityInput] = useState("");
   // 🏆 hall da fama: encerra a cidade atual e guarda uma placa com quem se destacou
   const [hallMsg, setHallMsg] = useState("");
@@ -8186,6 +8273,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [aiDown, setAiDown] = useState(false);
   // telão da turma: tela cheia só de visualização, pra projetar (ranking, meta, combos)
   const [showTelao, setShowTelao] = useState(false);
+  const [showQuickStatus, setShowQuickStatus] = useState(false);
   // PDF com o código e o resumo de cada aluno (pra guardar/enviar ao fim do curso)
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [pdfMsg, setPdfMsg] = useState("");
@@ -8248,6 +8336,10 @@ function TeacherView({ onLogout, teacherAuth }) {
         playSound("bell");
         setBreakEndMsgTeacher(`🔔 Intervalo da turma ${label} acabou!`);
         setTimeout(() => setBreakEndMsgTeacher(""), 8000);
+      }
+      if (status.inBreak && breakStartNotifiedTeacherRef.current[bKey] !== true) {
+        breakStartNotifiedTeacherRef.current[bKey] = true;
+        playSound("recesso");
       }
     });
   }, [shiftBreakStatuses.map(s => s.status.inBreak).join(","), schedule]);
@@ -9701,6 +9793,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           <button style={{ ...styles.tab(tab==="feedback"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
           <button style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle' && tab!=="exam" ? {borderColor:"#fbbf24",color:"#fbbf24"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
           <button style={{ ...styles.tab(tab==="quiz"), ...(quizRoom && tab!=="quiz" ? {borderColor:"#c084fc",color:"#c084fc"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?' ●':''}</button>
+          <button style={{ ...styles.btn(needHelp.length>0 ? "#f87171" : "#34d399"), ...(tab==="code"?{padding:"4px 10px",fontSize:12}:{}) }} onClick={()=>setShowQuickStatus(true)} title="Veja rapidinho quem está com dificuldade, sem sair desta tela">👀 Situação{needHelp.length>0 ? ` (${needHelp.length})` : ""}</button>
           {tab!=="code" && <button style={styles.btn("#22d3ee")} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
           {tab!=="code" && <button style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
           <button style={{ ...styles.btn("#776798"), fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
@@ -9738,6 +9831,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {showTelao && <TelaoModal students={students} shift={shiftFilter} onClose={()=>setShowTelao(false)} teacherAuth={teacherAuth} />}
+      {showQuickStatus && <QuickStatusModal students={sorted} onClose={()=>setShowQuickStatus(false)} />}
       {showTripOverview && <TripOverviewModal entries={tripHallEntries} currentCity={meta.city} onClose={()=>setShowTripOverview(false)} />}
 
       {dailyPdfModal && (

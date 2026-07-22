@@ -13,6 +13,7 @@ export default defineConfig({
           vendor: ['react', 'react-dom'],
           avatar: ['@dicebear/core', '@dicebear/collection'],
           gsap: ['gsap'],
+          confetti: ['canvas-confetti'],
         },
       },
     },
