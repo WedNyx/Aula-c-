@@ -1673,13 +1673,13 @@ function RoupaSvg({ tipo, cor }) {
   return base;
 }
 
-function Avatar({ cfg, size=72 }) {
+function Avatar({ cfg, size=72, animated=false }) {
   const c = normalizeAvatar(cfg);
   const key = JSON.stringify(c);
   const uri = useMemo(() => "data:image/svg+xml;utf8," + encodeURIComponent(loreleiSvg(c)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const roupa = ROUPA_ITEMS.find(r => r.id && r.id === c.roupa);
   return (
-    <div className="avatar-pop" style={{ position:"relative", width:size, height:size, display:"inline-block", lineHeight:0, flexShrink:0 }}>
+    <div className={`avatar-pop${animated ? " avatar-idle" : ""}`} style={{ position:"relative", width:size, height:size, display:"inline-block", lineHeight:0, flexShrink:0 }}>
       <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", position:"relative", background:`radial-gradient(circle at 50% 30%, ${shade(c.bg,0.25)}, ${c.bg} 58%, ${shade(c.bg,-0.25)})`, boxShadow:"0 2px 5px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.14)" }}>
         {/* a roupa fica ATRÁS do personagem: a cabeça/queixo cobrem a gola naturalmente */}
         {roupa && (
@@ -1716,7 +1716,7 @@ function AvatarPreview({ value, onChange }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
       <div style={{ background:"radial-gradient(circle at 50% 28%, #1d2344, #171026)", borderRadius:18, padding:12, border:"1px solid #3e2d5e", animation:"glow-ring 3s ease-in-out infinite" }}>
-        <Avatar cfg={v} size={104} />
+        <Avatar cfg={v} size={104} animated />
       </div>
       <button type="button" onClick={randomize} style={{ background:"#3b2a58", color:"#f0e9fb", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:12, fontWeight:700 }}>🎲 Surpresa</button>
     </div>
@@ -2717,7 +2717,18 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
     await setBoss(b, teacherAuth);
     setBossState(b);
   };
-  const endBoss = async () => { await clearBoss(teacherAuth); setBossState(null); };
+  // 🎁 bônus de participação: todo mundo que causou dano de verdade ganha uns pontos extras
+  // quando o chefão é derrotado — recompensa a turma inteira, não só quem terminou por cima
+  const BOSS_DEFEAT_BONUS = 3;
+  const endBoss = async () => {
+    if (bossDefeated && boss) {
+      const contributors = (students || []).filter(s => (s.shift||"") !== TEST_SHIFT.id)
+        .filter(s => ((s.nyxPoints || 0) - (boss.baseline?.[`${s.shift||"sem-turno"}:${s.name}`] ?? 0)) > 0);
+      await Promise.all(contributors.map(s => setScoreFix(s.shift, s.name, { kind: "boss-bonus", amount: BOSS_DEFEAT_BONUS }, teacherAuth)));
+    }
+    await clearBoss(teacherAuth);
+    setBossState(null);
+  };
 
   // 🏟️ torneio da turma: chaveamento eliminatório iniciado AQUI pelo professor — cada dupla
   // responde o mesmo mini-quiz na própria tela, e o telão apura os placares e avança as rodadas
@@ -2804,6 +2815,22 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
     .reduce((sum, s) => sum + Math.max(0, (s.nyxPoints || 0) - (boss.baseline?.[`${s.shift||"sem-turno"}:${s.name}`] ?? 0)), 0) : 0;
   const bossHp = boss ? Math.max(0, boss.maxHp - bossDamage) : 0;
   const bossDefeated = boss && bossHp === 0;
+  // 🗣️ o chefão provoca a turma de um jeito diferente conforme a vida vai caindo — deixa a
+  // barra de HP menos abstrata, dá a sensação de que ele está reagindo de verdade
+  const bossTaunt = (() => {
+    if (!boss || bossDefeated) return null;
+    const pct = boss.maxHp ? (bossHp / boss.maxHp) * 100 : 100;
+    if (pct > 75) return "Vocês vão precisar de muito mais que isso!";
+    if (pct > 50) return "Ainda de pé! Continuem acertando!";
+    if (pct > 25) return "Argh... estou ficando fraco... não parem agora!";
+    return "Não pode ser... quase lá, mais um empurrão!!";
+  })();
+  // 🗡️ quem mais causou dano até agora — mostrado ao vivo pra dar mais emoção à batalha
+  const topContributors = boss ? (students || []).filter(s => (s.shift||"") !== TEST_SHIFT.id)
+    .map(s => ({ name: s.name, dmg: Math.max(0, (s.nyxPoints||0) - (boss.baseline?.[`${s.shift||"sem-turno"}:${s.name}`] ?? 0)) }))
+    .filter(x => x.dmg > 0)
+    .sort((a,b) => b.dmg - a.dmg)
+    .slice(0, 5) : [];
   useEffect(() => { goFullscreen(); }, []);
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -2855,12 +2882,26 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
                 {bossDefeated ? `${boss.name} FOI DERROTADO! 🎉` : `${boss.name} invadiu a aula!`}
               </h2>
               <p style={{ margin:"4px 0 10px", color: bossDefeated ? "#86efac" : "#c4b5fd", fontSize:"clamp(12px, 3vw, 14px)" }}>
-                {bossDefeated ? "A turma venceu junta — parabéns, guerreiros do código!" : "Cada resposta certa da turma tira vida dele. Ao ataque!"}
+                {bossDefeated ? `A turma venceu junta — todo mundo que causou dano ganha +${BOSS_DEFEAT_BONUS} pts de bônus! 🎁` : "Cada resposta certa da turma tira vida dele. Ao ataque!"}
               </p>
+              {bossTaunt && (
+                <p key={bossTaunt} className="rise" style={{ margin:"0 0 10px", color:"#fca5a5", fontSize:"clamp(12px, 3vw, 13.5px)", fontWeight:800, fontStyle:"italic" }}>
+                  💬 "{bossTaunt}"
+                </p>
+              )}
               <div className="bar-glow" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:20, height:24, overflow:"hidden" }}>
                 <div style={{ width:`${boss.maxHp ? (bossHp / boss.maxHp) * 100 : 0}%`, height:"100%", background: bossDefeated ? "#14532d" : "linear-gradient(90deg,#ef4444,#a855f7)", transition:"width .8s ease" }} />
               </div>
               <p style={{ margin:"6px 0 0", color:"#f0e9fb", fontWeight:900, fontSize:"clamp(13px, 3.5vw, 16px)" }}>❤️ {bossHp}/{boss.maxHp} · dano da turma: {Math.min(bossDamage, boss.maxHp)}</p>
+              {topContributors.length > 0 && (
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:10 }}>
+                  {topContributors.map((c, i) => (
+                    <span key={c.name} style={{ background:"#ffffff14", border:"1px solid #ffffff28", borderRadius:20, padding:"4px 12px", fontSize:"clamp(11px, 2.4vw, 12.5px)", color:"#f0e9fb", fontWeight:700 }}>
+                      {["🥇","🥈","🥉"][i] || "⚔️"} {c.name} · {c.dmg}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
             <button onClick={endBoss} style={{ background:"#3b2a58", color:"#fff", border:"none", borderRadius:12, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:800 }}>{bossDefeated ? "🏁 Encerrar festa" : "✕ Dispensar chefão"}</button>
           </div>
@@ -4649,6 +4690,22 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // 🧠 teste de conhecimento por conta própria — disponível a qualquer momento, sem finalizar a aula
   const [showKnowledgeTest, setShowKnowledgeTest] = useState(false);
   const [knowledgeTestRewardDay, setKnowledgeTestRewardDay] = useState(null);
+  // 🩺 saúde do Nyx pro aluno também ver — mesmo aviso "Reconectando" e os pontinhos por
+  // modelo (Nemotron/Laguna) que já existiam só no painel do professor
+  const [aiDown, setAiDown] = useState(false);
+  const [providerHealth, setProviderHealth] = useState({ nvidia:null, laguna:null });
+  useEffect(() => {
+    let active = true;
+    const check = async () => {
+      const [h, nvidia, laguna] = await Promise.all([getAiHealth(), getAiHealthByProvider("nvidia"), getAiHealthByProvider("laguna")]);
+      if (!active) return;
+      setAiDown(!!h && h.ok === false && Date.now() - h.at < 5 * 60 * 1000);
+      setProviderHealth({ nvidia, laguna });
+    };
+    check();
+    const iv = setInterval(check, 10000);
+    return () => { active = false; clearInterval(iv); };
+  }, []);
   // 🎁 presente misterioso do dia (na tela de atividade concluída)
   const [giftLastClaim, setGiftLastClaim] = useState(null);
   const [giftReveal, setGiftReveal] = useState(null);
@@ -4710,6 +4767,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const focusMode = !!supportFlags.foco;
   const easyRead = !!supportFlags.leitura;
   const ownPace = !!supportFlags.ritmo;
+  const highContrast = !!supportFlags.visual;
   useEffect(() => { setSoundsCalm(calmMode); return () => setSoundsCalm(false); }, [calmMode]);
   const [guidedBlocks, setGuidedBlocks] = useState([]);
   const [pendingBlock, setPendingBlock] = useState(null);
@@ -5564,6 +5622,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           setJustifications(nextJ);
           await clearScoreFix(shift, studentName);
           await persist({ justifications: nextJ });
+        } else if (fix && fix.kind === "boss-bonus" && typeof fix.amount === "number") {
+          // 👾 bônus de pontos por ter causado dano no chefão quando ele foi derrotado
+          const np = (stateRef.current.nyxPoints || 0) + fix.amount;
+          setNyxPoints(np);
+          await clearScoreFix(shift, studentName);
+          await persist({ nyxPoints: np });
+          checkPointsAchievements(np);
         } else if (fix && typeof fix.score === "number") {
           setScore(fix.score);
           await clearScoreFix(shift, studentName);
@@ -6415,7 +6480,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   })();
 
   // classes de apoio (aplicadas em todas as telas do aluno) + rotina visual da aula
-  const supportClass = [calmMode && "calm", easyRead && "easy-read"].filter(Boolean).join(" ") || undefined;
+  const supportClass = [calmMode && "calm", easyRead && "easy-read", highContrast && "high-contrast"].filter(Boolean).join(" ") || undefined;
   const showRoutine = accessMode || calmMode || focusMode || easyRead || ownPace;
   // barrinha fixa com os passos do dia: previsibilidade ajuda muito quem é autista/TDAH —
   // o aluno sempre sabe em que passo está e o que vem depois
@@ -6476,6 +6541,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <div style={{ fontSize:44 }}>📝</div>
           <h1 style={{ color:"#fff", fontSize:24, margin:"8px 0" }}>Hora da Prova!</h1>
           <p style={{ color:"#e0e7ff", fontSize:14, lineHeight:1.6 }}>Revise o conteúdo abaixo e entre na sala quando estiver pronto.</p>
+          {examInfo.studyUntil && clockNow < examInfo.studyUntil && (() => {
+            const msLeft = Math.max(0, examInfo.studyUntil - clockNow);
+            const mm = Math.floor(msLeft / 60000), ss = Math.floor((msLeft % 60000) / 1000);
+            return (
+              <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"rgba(0,0,0,.2)", borderRadius:20, padding:"7px 18px", marginTop:6 }}>
+                <span style={{ fontSize:16 }}>⏳</span>
+                <span style={{ color:"#fff", fontWeight:900, fontSize:17, fontVariantNumeric:"tabular-nums" }}>{String(mm).padStart(2,"0")}:{String(ss).padStart(2,"0")}</span>
+                <span style={{ color:"#e0e7ff", fontSize:12.5 }}>de estudo</span>
+              </div>
+            );
+          })()}
         </div>
         <div className="cardfx" style={{ ...styles.card, marginTop:14 }}>
           <h3 style={{ color:"#c084fc", marginBottom:10 }}>📚 Resumo de Revisão</h3>
@@ -6949,11 +7025,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           </div>
         </div>
       )}
+      {aiDown && (
+        <div style={{ position:"fixed", top:12, left:12, zIndex:1200, background:"#231636", border:"1px solid #fbbf24", borderRadius:10, padding:"7px 12px", display:"flex", alignItems:"center", gap:8, boxShadow:"0 8px 24px rgba(0,0,0,.4)" }}>
+          <span style={{ display:"inline-block", width:9, height:9, borderRadius:"50%", background:"#fbbf24", animation:"nyx-antenna 1s ease-in-out infinite" }} />
+          <span style={{ color:"#fbbf24", fontSize:12.5, fontWeight:700 }}>🔄 Reconectando Nyx...</span>
+        </div>
+      )}
       <div style={styles.header}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={()=>setShowAvatarEdit(true)} title="Editar meu boneco"
             style={{ background:"transparent", border:"none", padding:0, cursor:"pointer", position:"relative", lineHeight:0 }}>
-            <Avatar cfg={avatar} size={34} />
+            <Avatar cfg={avatar} size={34} animated />
             <span style={{ position:"absolute", right:-4, bottom:-4, background:"#c084fc", borderRadius:"50%", width:16, height:16, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, boxShadow:"0 1px 3px rgba(0,0,0,.5)" }}>✏️</span>
           </button>
           <span className="shine" style={{ fontWeight:900, fontSize:17, background:"linear-gradient(120deg,#c084fc,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>💻 Aula C#</span>
@@ -6961,6 +7043,20 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
           <span style={{ fontSize:12, color: connected===false?"#f87171":connected?"#34d399":"#a99ac9" }}>
             {connected===null ? "● conectando..." : connected ? "● conectado" : "● sem conexão"}
+          </span>
+          <span style={{ display:"inline-flex", alignItems:"center", gap:8, fontSize:11 }}>
+            {[["nvidia","✨ Nemotron"],["laguna","🌊 Laguna"]].map(([key,label]) => {
+              const h = providerHealth[key];
+              const recent = h && Date.now() - h.at < 5 * 60 * 1000;
+              const color = !recent ? "#5d679c" : h.ok ? "#34d399" : "#f87171";
+              const title = !recent ? `${label}: sem dados recentes` : h.ok ? `${label}: respondendo normalmente` : `${label}: não respondeu na última tentativa`;
+              return (
+                <span key={key} title={title} style={{ display:"inline-flex", alignItems:"center", gap:4, color:"#a99ac9" }}>
+                  <span style={{ width:7, height:7, borderRadius:"50%", background:color, display:"inline-block", boxShadow: recent && h.ok ? `0 0 5px ${color}` : "none" }} />
+                  {label}
+                </span>
+              );
+            })}
           </span>
           <span style={{ background:"#c084fc22", padding:"4px 12px", borderRadius:20, fontSize:13 }}>👤 {studentName}</span>
           <span style={{ background:"#171026", border:"1px solid #3b2a58", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#a99ac9" }}>{shiftLabel(shift)}</span>
@@ -8093,6 +8189,9 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [examConfig, setExamConfig] = useState({ status: 'idle' });
   const [examGenerating, setExamGenerating] = useState(false);
   const [examMsg, setExamMsg] = useState("");
+  // relógio pra contar o tempo de estudo restante na fase de revisão da prova
+  const [examNow, setExamNow] = useState(() => Date.now());
+  useEffect(() => { const iv = setInterval(() => setExamNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
   const [examShift, setExamShift] = useState("all");
   const [confirmEndExam, setConfirmEndExam] = useState(false);
   // 🎉 quiz estilo Kahoot: temas salvos + sala ativa (o professor é o único que escreve; os alunos
@@ -9241,14 +9340,17 @@ function TeacherView({ onLogout, teacherAuth }) {
       );
       setExamMsg("Gerando questões...");
       const questionsResult = await askClaude(
-        `Aqui está o código C# que a turma escreveu ao longo de TODA a aula de hoje (exemplo do professor e/ou código dos alunos):\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie entre 20 e 25 questões de múltipla escolha cobrindo os CONCEITOS que apareceram durante o processo inteiro da aula (não só o trecho final) — o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, o que acontece ao executar cada parte. Varie a dificuldade e não repita a mesma pergunta com outras palavras. NÃO faça perguntas de matemática. Responda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
+        `Aqui está o código C# que os PRÓPRIOS ALUNOS escreveram ao longo de TODA a aula de hoje, junto com o exemplo do professor (mas o foco principal são os trechos que os alunos escreveram):\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie entre 28 e 32 questões de múltipla escolha cobrindo os CONCEITOS que apareceram no código que os alunos escreveram durante o processo inteiro da aula (não só o trecho final) — o que faz cada palavra-chave/instrução que eles usaram, para que serve cada estrutura, o papel de cada símbolo, o que acontece ao executar cada parte. Priorize perguntar sobre trechos e padrões que aparecem de fato no código dos alunos, não só teoria genérica. Varie a dificuldade e não repita a mesma pergunta com outras palavras. NÃO faça perguntas de matemática. Responda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
         "Crie questões de múltipla escolha sobre C#. APENAS JSON puro sem markdown."
       );
       const parsed = extractJson(questionsResult);
-      const newConfig = { status: 'review', questions: shuffleQuestions(parsed.questions), summary: summaryResult.trim(), shift: examShift, startedAt: Date.now() };
+      // ⏳ 30min de estudo antes da prova poder ser iniciada de verdade — mesmo espírito do
+      // chefão: dá tempo pra turma revisar o resumo com calma antes de valer a nota
+      const EXAM_STUDY_MS = 30 * 60 * 1000;
+      const newConfig = { status: 'review', questions: shuffleQuestions(parsed.questions), summary: summaryResult.trim(), shift: examShift, startedAt: Date.now(), studyUntil: Date.now() + EXAM_STUDY_MS };
       await setExamState(newConfig, teacherAuth);
       setExamConfig(newConfig);
-      setExamMsg("✅ Prova criada! Os alunos estão revisando. Quando todos estiverem prontos, clique em Iniciar Agora.");
+      setExamMsg("✅ Prova criada! Os alunos têm 30min pra estudar. Quando todos estiverem prontos, clique em Iniciar Agora (ou espere o tempo passar).");
     } catch(e) { setExamMsg("Erro ao gerar a prova. Tente de novo."); }
     setExamGenerating(false);
   };
@@ -10289,6 +10391,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                             ["leitura", "📖 Leitura", "Letras e linhas mais espaçadas em toda a tela do aluno — ajuda na dislexia."],
                             ["ritmo", "🐢 Ritmo próprio", "Atividade do dia com 4 questões bem diretas em vez de 8 — termina junto com a turma."],
                             ["motora", "🖐️ Motora", "Sugere o tutorial de teclado pra esse aluno automaticamente — ajuda quem tem dificuldade motora pra digitar."],
+                            ["visual", "👁️ Visual", "Alto contraste + letras maiores em toda a tela do aluno — ajuda quem tem baixa visão."],
                           ].map(([flag, label, hint]) => (
                             <button key={flag} onClick={()=>doToggleSupport(sel, flag, label)} title={hint}
                               style={{ background: selSupport[flag] ? "#3b82f6" : "#171026", color: selSupport[flag] ? "#fff" : "#a99ac9", border:`1px solid ${selSupport[flag] ? "#3b82f6" : "#3b2a58"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:12 }}>
@@ -10807,6 +10910,11 @@ function TeacherView({ onLogout, teacherAuth }) {
                     <div>
                       <h3 style={{ color:"#fbbf24", margin:"0 0 4px" }}>📝 Fase de Revisão</h3>
                       <p style={{ color:"#a99ac9", fontSize:13 }}>Os alunos estão revisando o conteúdo. Quando estiverem prontos, iniciam a prova.</p>
+                      {examConfig.studyUntil && examNow < examConfig.studyUntil && (
+                        <p style={{ color:"#c084fc", fontSize:12.5, marginTop:4, fontWeight:700 }}>
+                          ⏳ Ainda tem {Math.ceil((examConfig.studyUntil - examNow) / 60000)} min de estudo — pode iniciar antes se a turma já estiver pronta.
+                        </p>
+                      )}
                     </div>
                     <div style={{ display:"flex", gap:8 }}>
                       <button onClick={activateExam} style={{ ...styles.btn("#34d399") }}>▶ Iniciar Agora ({readyStudents.length} prontos)</button>

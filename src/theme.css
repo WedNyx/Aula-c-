@@ -60,6 +60,15 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
 .avatar-pop { transition: transform .18s ease; }
 .avatar-pop:hover { transform: scale(1.1); }
 
+/* boneco do próprio aluno "vivo": balanço leve e constante — só nos lugares de destaque
+   (cabeçalho, criação/edição do boneco), não nas listas/grades pra não distrair */
+@keyframes avatar-breathe {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(-1.5deg); }
+}
+.avatar-idle > div:first-child { animation: avatar-breathe 3.2s ease-in-out infinite; }
+.avatar-idle:hover > div:first-child { animation-play-state: paused; }
+
 /* entrada suave de cards e telas */
 .rise { animation: rise .4s ease both; }
 .pop  { animation: pop .35s cubic-bezier(.2,.9,.3,1.4) both; }
@@ -129,6 +138,15 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
 /* leitura facilitada (dislexia): letras e palavras mais espaçadas, linhas mais soltas */
 .easy-read { letter-spacing: .05em; word-spacing: .14em; }
 .easy-read p { line-height: 1.95 !important; }
+
+/* apoio visual (baixa visão): texto maior, mais contraste geral e bordas mais fortes —
+   usa filter em vez de forçar cor em cada elemento, pra não apagar as cores que já têm
+   significado próprio (certo/errado, raridade de conquista etc.) */
+.high-contrast { font-size: 1.14em; filter: contrast(1.22) brightness(1.06); }
+.high-contrast button, .high-contrast input, .high-contrast textarea, .high-contrast select {
+  border-width: 2px !important;
+}
+.high-contrast *:focus-visible { outline: 3px solid #fbbf24 !important; outline-offset: 2px; }
 
 /* 🎁 presente misterioso balançando, pedindo pra ser aberto */
 @keyframes gift-wiggle {
