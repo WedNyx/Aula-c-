@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import confetti from "canvas-confetti";
+import { Toaster, toast } from "sonner";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
 import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom } from "./storage.js";
@@ -8112,14 +8113,13 @@ function TeacherView({ onLogout, teacherAuth }) {
   // gestão do aluno selecionado (renomear, mover de turno, corrigir nota, excluir)
   const [renameVal, setRenameVal] = useState("");
   const [scoreVal, setScoreVal] = useState("");
-  const [mgmtMsg, setMgmtMsg] = useState("");
   const [struggleNotice, setStruggleNotice] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [selAccessMode, setSelAccessMode] = useState(false);
   // perfis de apoio (educação inclusiva) do aluno selecionado + mapa geral pros tiles
   const [selSupport, setSelSupport] = useState({});
   const [supportMap, setSupportMap] = useState({});
-  useEffect(() => { setRenameVal(""); setScoreVal(""); setConfirmDelete(false); setMgmtMsg(""); }, [selected]);
+  useEffect(() => { setRenameVal(""); setScoreVal(""); setConfirmDelete(false); }, [selected]);
   const [resetting, setResetting] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetScope, setResetScope] = useState("all");
@@ -9225,7 +9225,12 @@ function TeacherView({ onLogout, teacherAuth }) {
   };
 
   // ── gestão de alunos: renomear, mover de turno, corrigir nota, excluir ──
-  const flashMgmt = (msg) => { setMgmtMsg(msg); setTimeout(()=>setMgmtMsg(""), 6000); };
+  // toast em vez de mensagem fixa: aparece na hora, não importa onde na tela a ação foi disparada
+  const flashMgmt = (msg) => {
+    if (!msg) return;
+    if (msg.startsWith("❌")) toast.error(msg.replace(/^❌\s*/, ""));
+    else toast.success(msg.replace(/^✅\s*/, ""));
+  };
 
   const doRenameStudent = async (s) => {
     const newName = renameVal.trim();
@@ -9685,6 +9690,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
   return (
     <div style={styles.container}>
+      <Toaster theme="dark" position="top-right" richColors closeButton />
       {struggleNotice && (
         <div style={{ position:"fixed", top:12, right:12, zIndex:1300, background:"linear-gradient(135deg,#f87171,#dc2626)", color:"#fff", borderRadius:14, padding:"12px 16px", boxShadow:"0 14px 40px rgba(0,0,0,.45)", display:"flex", alignItems:"center", gap:10, maxWidth:320 }}>
           <span style={{ fontSize:22 }}>⚠️</span>
@@ -9936,7 +9942,6 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <button onClick={async ()=>{ await Promise.all(shown.map(s=>setKeyboardLaunch(s.shift, s.name, teacherAuth))); flashMgmt(`⌨️ Tutorial de teclado aberto pra ${shown.length} aluno(s).`); }} style={{ ...styles.btn("#22d3ee"), padding:"5px 10px", fontSize:12 }} title="Abre o tutorial de teclado na tela de todos os alunos filtrados">⌨️ Abrir teclado pra todos</button>
                 </div>
               </div>
-              {mgmtMsg && <p style={{ color: mgmtMsg.startsWith("❌") ? "#f87171" : "#34d399", fontSize:13, margin:"0 0 10px" }}>{mgmtMsg}</p>}
               {shown.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum aluno na chamada ainda.</p> : (
                 chamadaGroups.map((g, gi) => (
                   <div key={g.shift.id} style={{ marginTop: gi>0 ? 18 : 0, paddingTop: gi>0 ? 16 : 0, borderTop: gi>0 ? "1px solid #3b2a58" : "none" }}>
@@ -10465,7 +10470,6 @@ function TeacherView({ onLogout, teacherAuth }) {
                       )}
                     </div>
                   </div>
-                  {mgmtMsg && <p style={{ color: mgmtMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:13, marginTop:10 }}>{mgmtMsg}</p>}
                 </div>
                 {Array.isArray(sel.files) && sel.files.length>0 ? sel.files.map((f,i)=>(
                   <div key={i} className="cardfx" style={styles.card}>
