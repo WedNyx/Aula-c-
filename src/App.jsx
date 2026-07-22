@@ -1546,7 +1546,7 @@ const AVATAR_OPTS = {
     { e:"", label:"Nenhum" },
     { e:"🐉", label:"Dragão" },
     { e:"🦄", label:"Unicórnio" },
-    { e:"🐲", label:"Dragãozinho" },
+    { e:"🦖", label:"T-Rex" },
     { e:"🦅", label:"Águia" },
     { e:"🦉", label:"Coruja" },
     { e:"🐺", label:"Lobo" },
@@ -1575,6 +1575,9 @@ const ROUPA_ITEMS = [
 const OLD_HAIR_MAP = { curto:"variant04", longo:"variant16", espetado:"variant27", cacheado:"variant24", afro:"variant39", moicano:"variant27", coque:"variant36", rabo:"variant45", chanel:"variant23", topete:"variant01", careca:"variant47" };
 function normalizeAvatar(cfg) {
   const c = { ...DEFAULT_AVATAR, ...(cfg||{}) };
+  // o dragãozinho 🐲 virou T-Rex 🦖 quando os pets ganharam a arte animada (a biblioteca do
+  // Google não tem dragão pequeno) — perfis antigos passam a mostrar o T-Rex sem precisar reeditar
+  if (c.pet === "🐲") c.pet = "🦖";
   if (cfg && cfg.hairStyle && !cfg.hairV) {
     c.hairV = OLD_HAIR_MAP[cfg.hairStyle] || DEFAULT_AVATAR.hairV;
     if (cfg.eyewear === "oculos") c.glassesV = "variant01";
@@ -1683,11 +1686,13 @@ const AVATAR_EXPRESSIONS = [
   { eyesV:"variant05" },                   // olhando pro lado, curioso
   { mouthV:"happy07" },                    // só abre um sorrisão maior
 ];
-// cada pet tem um gesto próprio — o que aquele bicho faria de verdade (keyframes no theme.css)
-const PET_ANIMS = {
-  "🐉":"pet-dragao", "🦄":"pet-unicornio", "🐲":"pet-dragaozinho", "🦅":"pet-aguia",
-  "🦉":"pet-coruja", "🐺":"pet-lobo", "🦊":"pet-raposa", "🐱":"pet-gato",
-  "🐶":"pet-cachorro", "🐰":"pet-coelho", "🦁":"pet-leao", "🐢":"pet-tartaruga",
+// 🎨 arte de verdade pros pets (Google Noto Animated Emoji, licença gratuita — os mesmos
+// bichinhos animados do teclado do Android): cada pet tem o .webp animado (usado nos lugares
+// de destaque) e o .png parado (listas, ranking e modo calmo), servidos de public/pets/
+const PET_FILES = {
+  "🐉":"dragao", "🦄":"unicornio", "🦖":"trex", "🦅":"aguia",
+  "🦉":"coruja", "🐺":"lobo", "🦊":"raposa", "🐱":"gato",
+  "🐶":"cachorro", "🐰":"coelho", "🦁":"leao", "🐢":"tartaruga",
 };
 function Avatar({ cfg, size=72, animated=false }) {
   const c = normalizeAvatar(cfg);
@@ -1731,9 +1736,12 @@ function Avatar({ cfg, size=72, animated=false }) {
         )}
         <img src={uri} width={size} height={size} alt="" draggable={false} className={animated ? "avatar-face" : undefined} style={{ display:"block", position:"relative", zIndex:1 }} />
       </div>
-      {c.pet && (
-        <span className={animated ? `avatar-pet ${PET_ANIMS[c.pet] || ""}`.trim() : undefined} style={{ position:"absolute", right:Math.round(size*-0.14), bottom:Math.round(size*-0.08), fontSize:Math.max(10, Math.round(size*0.34)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
-      )}
+      {c.pet && (PET_FILES[c.pet] ? (
+        <img src={`/pets/${PET_FILES[c.pet]}.${animated ? "webp" : "png"}`} alt="" draggable={false}
+          style={{ position:"absolute", right:Math.round(size*-0.2), bottom:Math.round(size*-0.12), width:Math.round(size*0.68), height:Math.round(size*0.68), filter:"drop-shadow(0 2px 3px rgba(0,0,0,.55))", pointerEvents:"none" }} />
+      ) : (
+        <span className={animated ? "avatar-pet" : undefined} style={{ position:"absolute", right:Math.round(size*-0.14), bottom:Math.round(size*-0.08), fontSize:Math.max(10, Math.round(size*0.34)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
+      ))}
     </div>
   );
 }
