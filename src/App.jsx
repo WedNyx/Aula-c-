@@ -1181,73 +1181,18 @@ const NYX_ITEMS = [
 ];
 const DEFAULT_NYX_GEAR = { head:null, face:null, neck:null, hand:null, shield:null };
 
-// ── NYX: o robô assistente da turma (SVG + animações CSS) ──
+// ── NYX: o robô assistente da turma (SVG + GSAP) ──
 let __nyxSeq = 0;
-// 10 animações criativas tocadas aleatoriamente quando o Nyx fica muito tempo parado ("idle") sem nada acontecer
-const NYX_IDLE_QUIRKS = [
-  { name:"nyx-idle-spin",      dur:1.4 },
-  { name:"nyx-idle-peek",      dur:1.6 },
-  { name:"nyx-idle-wiggle",    dur:1.2 },
-  { name:"nyx-idle-stretch",   dur:1.8 },
-  { name:"nyx-idle-sway",      dur:2.2 },
-  { name:"nyx-idle-hop",       dur:1.3 },
-  { name:"nyx-idle-tilt",      dur:2.4 },
-  { name:"nyx-idle-heartbeat", dur:1.6 },
-  { name:"nyx-idle-spiral",    dur:1.8 },
-  { name:"nyx-idle-nod",       dur:1.5 },
-];
-// idle exclusivo do Nyx na aba do professor: ele também merece uma pausa entre uma correção e outra
-const NYX_TEACHER_IDLE_QUIRKS = [
-  { name:"nyx-idle-coffee", dur:2.6, emoji:"☕" },
-  { name:"nyx-idle-manga",  dur:2.8, emoji:"📖" },
-];
-// 10 reações sorteadas quando o Nyx encontra um erro no código
-const NYX_ERROR_REACTIONS = [
-  { name:"nyx-err-shake",    dur:.6 },
-  { name:"nyx-err-wobble",   dur:.7 },
-  { name:"nyx-err-droop",    dur:.9 },
-  { name:"nyx-err-spinout",  dur:.8 },
-  { name:"nyx-err-flinch",   dur:.6 },
-  { name:"nyx-err-coverup",  dur:.9 },
-  { name:"nyx-err-buzz",     dur:.7 },
-  { name:"nyx-err-stumble",  dur:.8 },
-  { name:"nyx-err-gasp",     dur:.7 },
-  { name:"nyx-err-facepalm", dur:.9 },
-];
-// 10 reações sorteadas quando o aluno acerta tudo (código ou análise ok)
-const NYX_OK_REACTIONS = [
-  { name:"nyx-ok-bounce",      dur:1.1 },
-  { name:"nyx-ok-cheer",       dur:1.0 },
-  { name:"nyx-ok-spin",        dur:1.0 },
-  { name:"nyx-ok-wiggledance", dur:1.0 },
-  { name:"nyx-ok-doublebounce",dur:1.1 },
-  { name:"nyx-ok-twirl",       dur:1.1 },
-  { name:"nyx-ok-fistpump",    dur:.9 },
-  { name:"nyx-ok-sparkle",     dur:.9 },
-  { name:"nyx-ok-victorylap",  dur:1.2 },
-  { name:"nyx-ok-salute",      dur:1.0 },
-];
-// 7 animações sorteadas enquanto o Nyx está analisando ou gerando conteúdo (fica em loop até terminar)
-const NYX_THINKING_ANIMS = [
-  { name:"nyx-think-float", dur:1.5 },
-  { name:"nyx-think-tilt",  dur:1.8 },
-  { name:"nyx-think-bob",   dur:1.3 },
-  { name:"nyx-think-scan",  dur:1.6 },
-  { name:"nyx-think-pulse", dur:1.2 },
-  { name:"nyx-think-sway",  dur:1.7 },
-  { name:"nyx-think-orbit", dur:1.6 },
-];
-const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
-function NyxRobot({ state = "idle", size = 100, showName = true, gear, context = "student" }) {
+function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
   const G = { ...DEFAULT_NYX_GEAR, ...(gear||{}) };
   const idRef = useRef(null);
   if (idRef.current === null) idRef.current = ++__nyxSeq;
   const uid = "nyx" + idRef.current;
   const MAP = {
-    idle:     { main:"#818cf8", dark:"#4338ca", eye:"#e0e7ff", label:"Pronto para ajudar",  anim:"nyx-float 3.4s ease-in-out infinite" },
-    thinking: { main:"#fbbf24", dark:"#d99b0d", eye:"#fff3c4", label:"Analisando...",        anim:"nyx-float 1.5s ease-in-out infinite" },
-    ok:       { main:"#34d399", dark:"#0da879", eye:"#d1fae5", label:"Tudo certo!",          anim:"nyx-bounce 1.1s ease" },
-    error:    { main:"#f87171", dark:"#dc4848", eye:"#ffe1e1", label:"Encontrei algo!",      anim:"nyx-shake .55s ease" },
+    idle:     { main:"#818cf8", dark:"#4338ca", eye:"#e0e7ff", label:"Pronto para ajudar" },
+    thinking: { main:"#fbbf24", dark:"#d99b0d", eye:"#fff3c4", label:"Analisando..." },
+    ok:       { main:"#34d399", dark:"#0da879", eye:"#d1fae5", label:"Tudo certo!" },
+    error:    { main:"#f87171", dark:"#dc4848", eye:"#ffe1e1", label:"Encontrei algo!" },
   };
   const P = MAP[state] || MAP.idle;
   const antennaSpeed = state === "thinking" ? ".5s" : "1.8s";
@@ -1370,50 +1315,9 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
   // enquanto parado no estado idle, de vez em quando solta uma animação criativa (bocejo, pulinho, giro...)
   // pra parecer vivo — depois volta pro float calmo de sempre e agenda a próxima aleatoriamente
   // (pausa enquanto o Nyx está em modo Espartano: um guerreiro não fica de bobeira dando pulinho)
-  const [quirk, setQuirk] = useState(null);
-  useEffect(() => {
-    if (state !== "idle" || isSpartan) { setQuirk(null); return; }
-    let cancelled = false;
-    const timeoutId = setTimeout(() => {
-      if (cancelled) return;
-      setQuirk(pickRandom(context === "teacher" ? NYX_TEACHER_IDLE_QUIRKS : NYX_IDLE_QUIRKS));
-    }, 7000 + Math.random() * 9000);
-    return () => { cancelled = true; clearTimeout(timeoutId); };
-  }, [state, quirk, isSpartan]);
-  const handleQuirkEnd = (e) => { if (quirk && e.animationName === quirk.name) setQuirk(null); };
-
-  // sempre que o estado muda pra "pensando", "certo" ou "erro", sorteia uma reação nova daquele grupo
-  const [reactAnim, setReactAnim] = useState(null);
-  useEffect(() => {
-    if (state === "error") setReactAnim(pickRandom(NYX_ERROR_REACTIONS));
-    else if (state === "ok") setReactAnim(pickRandom(NYX_OK_REACTIONS));
-    else if (state === "thinking") setReactAnim(pickRandom(NYX_THINKING_ANIMS));
-    else setReactAnim(null);
-  }, [state]);
-
-  // toca a animação exclusiva de transformação em Espartano uma única vez, bem no instante em que o
-  // combo espada+escudo é formado — depois disso, o idle de batalha assume enquanto durar o combo
-  const prevSpartanRef = useRef(false);
-  const [spartanBurst, setSpartanBurst] = useState(false);
-  useEffect(() => {
-    if (isSpartan && !prevSpartanRef.current) {
-      setSpartanBurst(true);
-      const t = setTimeout(() => setSpartanBurst(false), 1000);
-      prevSpartanRef.current = true;
-      return () => clearTimeout(t);
-    }
-    prevSpartanRef.current = isSpartan;
-  }, [isSpartan]);
-
-  const wrapperAnim =
-    spartanBurst ? "nyx-spartan-transform 1s ease" :
-    (state === "idle" && isSpartan) ? "nyx-spartan-idle 2.6s ease-in-out infinite" :
-    (state === "idle" && quirk) ? `${quirk.name} ${quirk.dur}s ease-in-out` :
-    reactAnim ? `${reactAnim.name} ${reactAnim.dur}s ease-in-out${state === "thinking" ? " infinite" : ""}` :
-    P.anim;
   return (
     <div style={{ textAlign:"center", padding:4, position:"relative" }}>
-      <div style={{ display:"inline-block", animation:wrapperAnim, willChange:"transform", position:"relative" }} onAnimationEnd={handleQuirkEnd}>
+      <div style={{ display:"inline-block", position:"relative" }}>
         <div ref={bounceWrapRef} style={{ display:"inline-block", cursor:"pointer" }}
           onMouseMove={handleNyxMouseMove} onMouseLeave={handleNyxMouseLeave} onMouseEnter={handleNyxHover} onClick={handleNyxClick}>
         <svg width={size} height={size*1.15} viewBox="0 0 120 138" style={{ display:"block", overflow:"visible" }}>
@@ -1709,9 +1613,6 @@ function NyxRobot({ state = "idle", size = 100, showName = true, gear, context =
           <rect ref={footRRef} x="63" y="106" width="14" height="10" rx="5" fill={P.dark} />
         </svg>
         </div>
-        {quirk?.emoji && (
-          <span style={{ position:"absolute", right:size*0.02, bottom:size*0.22, fontSize:size*0.34, filter:"drop-shadow(0 2px 3px rgba(0,0,0,.35))", pointerEvents:"none" }}>{quirk.emoji}</span>
-        )}
       </div>
       {showName && (
         <>

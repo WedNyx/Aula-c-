@@ -192,59 +192,8 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
 @keyframes nyx-antenna { 0%,100% { opacity:.45; } 50% { opacity:1; } }
 @keyframes nyx-spin    { to { transform: rotate(360deg); } }
 @keyframes nyx-shake   { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
-@keyframes nyx-bounce  { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-7px); } 55% { transform: translateY(0); } 72% { transform: translateY(-3px); } 86% { transform: translateY(0); } }
 
-/* ── 10 animações criativas de "tédio" do Nyx: tocadas aleatoriamente quando ele fica muito tempo parado ── */
-@keyframes nyx-idle-spin      { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.06); } 100% { transform: rotate(360deg) scale(1); } }
-@keyframes nyx-idle-peek      { 0%,100% { transform: translateY(0) scaleY(1); } 30% { transform: translateY(10px) scaleY(.85); } 55% { transform: translateY(10px) scaleY(.85); } 80% { transform: translateY(-4px) scaleY(1.05); } }
-@keyframes nyx-idle-wiggle    { 0%,100% { transform: translateX(0) rotate(0deg); } 15% { transform: translateX(-6px) rotate(-6deg); } 30% { transform: translateX(6px) rotate(6deg); } 45% { transform: translateX(-6px) rotate(-6deg); } 60% { transform: translateX(6px) rotate(6deg); } 75% { transform: translateX(-3px) rotate(-3deg); } }
-@keyframes nyx-idle-stretch   { 0%,100% { transform: scaleY(1) translateY(0); } 40% { transform: scaleY(1.15) translateY(-6px); } 70% { transform: scaleY(1.15) translateY(-6px); } }
-@keyframes nyx-idle-sway      { 0%,100% { transform: translateX(0) rotate(0deg); } 25% { transform: translateX(-10px) rotate(-3deg); } 75% { transform: translateX(10px) rotate(3deg); } }
-@keyframes nyx-idle-hop       { 0%,20%,45%,100% { transform: translateY(0); } 10% { transform: translateY(-12px); } 35% { transform: translateY(-12px); } }
-@keyframes nyx-idle-tilt      { 0%,100% { transform: rotate(0deg); } 20% { transform: rotate(-10deg); } 40% { transform: rotate(0deg); } 60% { transform: rotate(10deg); } 80% { transform: rotate(0deg); } }
-@keyframes nyx-idle-heartbeat { 0%,100% { transform: scale(1); } 20% { transform: scale(1.12); } 35% { transform: scale(1); } 50% { transform: scale(1.12); } 65% { transform: scale(1); } }
-@keyframes nyx-idle-spiral    { 0% { transform: rotate(0deg) scale(1); } 25% { transform: rotate(15deg) scale(1.08); } 50% { transform: rotate(0deg) scale(.94); } 75% { transform: rotate(-15deg) scale(1.08); } 100% { transform: rotate(0deg) scale(1); } }
-@keyframes nyx-idle-nod       { 0%,100% { transform: translateY(0) rotate(0deg); } 25% { transform: translateY(4px) rotate(4deg); } 50% { transform: translateY(0) rotate(0deg); } 75% { transform: translateY(4px) rotate(-4deg); } }
-
-/* ── idle exclusivo do Nyx na aba do professor (café / mangá) ── */
-@keyframes nyx-idle-coffee    { 0%,100% { transform: translateY(0) rotate(0deg); } 20% { transform: translateY(-3px) rotate(-4deg); } 35% { transform: translateY(6px) rotate(6deg); } 50% { transform: translateY(0) rotate(0deg); } 65% { transform: translateY(6px) rotate(6deg); } 80% { transform: translateY(-2px) rotate(-3deg); } }
-@keyframes nyx-idle-manga     { 0%,100% { transform: translateX(0) rotate(0deg); } 15% { transform: translateX(-3px) rotate(-2deg); } 35% { transform: translateX(3px) rotate(2deg); } 55% { transform: translateX(-3px) rotate(-2deg); } 75% { transform: translateX(3px) rotate(2deg); } 90% { transform: translateX(0) rotate(0deg); } }
-
-/* ── 10 reações de ERRO (código com problema): tocadas uma vez, sorteadas a cada análise ── */
-@keyframes nyx-err-shake     { 0%,100% { transform: translateX(0) rotate(0deg); } 20% { transform: translateX(-4px) rotate(-2deg); } 40% { transform: translateX(4px) rotate(2deg); } 60% { transform: translateX(-3px) rotate(-1deg); } 80% { transform: translateX(3px) rotate(1deg); } }
-@keyframes nyx-err-wobble    { 0%,100% { transform: rotate(0deg); } 25% { transform: rotate(-8deg) translateX(-3px); } 50% { transform: rotate(6deg) translateX(2px); } 75% { transform: rotate(-4deg) translateX(-1px); } }
-@keyframes nyx-err-droop     { 0%,100% { transform: translateY(0) scaleY(1); } 60% { transform: translateY(8px) scaleY(.92); } 80% { transform: translateY(8px) scaleY(.92); } }
-@keyframes nyx-err-spinout   { 0% { transform: rotate(0deg) scale(1); } 40% { transform: rotate(-160deg) scale(.92); } 70% { transform: rotate(-190deg) scale(.92); } 100% { transform: rotate(-180deg) scale(1); } }
-@keyframes nyx-err-flinch    { 0%,100% { transform: translateX(0) scale(1); } 25% { transform: translateX(-10px) scale(.94); } 55% { transform: translateX(4px) scale(1.02); } }
-@keyframes nyx-err-coverup   { 0%,100% { transform: translateY(0) scale(1) rotate(0deg); } 40% { transform: translateY(4px) scale(.88) rotate(-4deg); } 70% { transform: translateY(4px) scale(.88) rotate(-4deg); } }
-@keyframes nyx-err-buzz      { 0%,100% { transform: translateX(0); } 10% { transform: translateX(-2px); } 20% { transform: translateX(2px); } 30% { transform: translateX(-2px); } 40% { transform: translateX(2px); } 50% { transform: translateX(-2px); } 60% { transform: translateX(2px); } 70% { transform: translateX(-1px); } 80% { transform: translateX(1px); } }
-@keyframes nyx-err-stumble   { 0%,100% { transform: translateX(0) rotate(0deg); } 30% { transform: translateX(-8px) rotate(-10deg); } 60% { transform: translateX(4px) rotate(6deg); } 85% { transform: translateX(-2px) rotate(-2deg); } }
-@keyframes nyx-err-gasp      { 0%,100% { transform: scale(1); } 20% { transform: scale(1.15); } 35% { transform: scale(.95); } 50% { transform: scale(1.05) translateX(-3px); } 65% { transform: scale(1.05) translateX(3px); } }
-@keyframes nyx-err-facepalm  { 0%,100% { transform: translateY(0) rotate(0deg); } 35% { transform: translateY(6px) rotate(-14deg); } 65% { transform: translateY(6px) rotate(-14deg); } 85% { transform: translateY(2px) rotate(-4deg); } }
-
-/* ── 10 reações de ACERTO (código correto): tocadas uma vez, sorteadas a cada análise bem-sucedida ── */
-@keyframes nyx-ok-bounce     { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-7px); } 55% { transform: translateY(0); } 72% { transform: translateY(-3px); } 86% { transform: translateY(0); } }
-@keyframes nyx-ok-cheer      { 0%,100% { transform: translateY(0) rotate(0deg) scale(1); } 30% { transform: translateY(-14px) rotate(-6deg) scale(1.08); } 55% { transform: translateY(0) rotate(4deg) scale(1); } 75% { transform: translateY(-5px) rotate(-2deg) scale(1.03); } }
-@keyframes nyx-ok-spin       { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.1); } 100% { transform: rotate(360deg) scale(1); } }
-@keyframes nyx-ok-wiggledance{ 0%,100% { transform: translateX(0) rotate(0deg); } 15% { transform: translateX(-7px) rotate(-8deg); } 30% { transform: translateX(7px) rotate(8deg); } 45% { transform: translateX(-7px) rotate(-8deg); } 60% { transform: translateX(7px) rotate(8deg); } 80% { transform: translateX(-3px) rotate(-3deg); } }
-@keyframes nyx-ok-doublebounce{ 0%,20%,45%,70%,100% { transform: translateY(0); } 10% { transform: translateY(-10px); } 35% { transform: translateY(-10px); } 58% { transform: translateY(-5px); } }
-@keyframes nyx-ok-twirl      { 0% { transform: rotate(0deg) scale(1); } 30% { transform: rotate(140deg) scale(1.12); } 60% { transform: rotate(320deg) scale(1.12); } 100% { transform: rotate(360deg) scale(1); } }
-@keyframes nyx-ok-fistpump   { 0%,100% { transform: translateY(0) scale(1); } 25% { transform: translateY(-11px) scale(1.06); } 50% { transform: translateY(0) scale(1); } 70% { transform: translateY(-6px) scale(1.03); } }
-@keyframes nyx-ok-sparkle    { 0%,100% { transform: scale(1); } 25% { transform: scale(1.14); } 50% { transform: scale(1); } 75% { transform: scale(1.08); } }
-@keyframes nyx-ok-victorylap { 0%,100% { transform: translateX(0) translateY(0) rotate(0deg); } 25% { transform: translateX(-9px) translateY(-4px) rotate(-4deg); } 50% { transform: translateX(0) translateY(-8px) rotate(0deg); } 75% { transform: translateX(9px) translateY(-4px) rotate(4deg); } }
-@keyframes nyx-ok-salute     { 0%,100% { transform: translateY(0) rotate(0deg); } 30% { transform: translateY(-6px) rotate(6deg); } 55% { transform: translateY(0) rotate(0deg); } 75% { transform: translateY(-3px) rotate(-3deg); } }
-
-/* ── 7 animações de "PENSANDO" (Nyx analisando ou gerando conteúdo): sorteada uma por sessão de análise, em loop ── */
-@keyframes nyx-think-float   { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-@keyframes nyx-think-tilt    { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
-@keyframes nyx-think-bob     { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-4px) scale(1.02); } }
-@keyframes nyx-think-scan    { 0%,100% { transform: translateX(-6px); } 50% { transform: translateX(6px); } }
-@keyframes nyx-think-pulse   { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
-@keyframes nyx-think-sway    { 0%,100% { transform: rotate(-4deg) translateX(-3px); } 50% { transform: rotate(4deg) translateX(3px); } }
-@keyframes nyx-think-orbit   { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(8deg) scale(1.03); } 100% { transform: rotate(0deg) scale(1); } }
-
-/* ── ⚔️🛡️ combo espada+escudo: Nyx vira um Espartano (transformação + postura de batalha + capa) ── */
-@keyframes nyx-spartan-transform { 0% { transform: scale(1) rotate(0deg); } 25% { transform: scale(1.22) rotate(-8deg); } 50% { transform: scale(.94) rotate(6deg); } 75% { transform: scale(1.1) rotate(-3deg); } 100% { transform: scale(1) rotate(0deg); } }
+/* ── ⚔️🛡️ combo espada+escudo: Nyx vira um Espartano (postura de batalha + capa) ── */
 @keyframes nyx-spartan-idle { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-4px) rotate(2deg); } }
 @keyframes nyx-cape-flutter { 0%,100% { transform: skewX(-2deg); } 50% { transform: skewX(3deg); } }
 .nyx-cape { transform-origin: 60px 66px; animation: nyx-cape-flutter 2.4s ease-in-out infinite; }
