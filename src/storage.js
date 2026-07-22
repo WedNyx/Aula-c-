@@ -328,6 +328,39 @@ export async function clearScoreFix(shift, name) {
   try { await kvCall({ action: 'delete', key: scoreFixKeyFor(shift, name) }) } catch {}
 }
 
+// ── 😊 check-in emocional: aluno registra como chegou hoje (opcional, dispensável) — o professor
+// vê o mapa do dia inteiro como contexto extra pros perfis de apoio, sem exigir senha (o próprio
+// aluno escreve sobre si mesmo, igual ao duelo/parceiro) ──
+const CHECKIN_PREFIX = 'checkin:'
+function checkinKeyFor(shift, name, dateStr) {
+  return `${CHECKIN_PREFIX}${shift || 'sem-turno'}:${safeName(name)}:${dateStr}`
+}
+export async function setCheckin(shift, name, dateStr, mood) {
+  try {
+    const r = await kvCall({ action: 'set', key: checkinKeyFor(shift, name, dateStr), value: JSON.stringify({ mood, at: Date.now() }) })
+    return r.ok === true
+  } catch { return false }
+}
+export async function getCheckin(shift, name, dateStr) {
+  try {
+    const r = await kvCall({ action: 'get', key: checkinKeyFor(shift, name, dateStr) })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
+// todos os check-ins de uma data, pro painel do professor (chave: "turno:nome")
+export async function listCheckinsForDate(dateStr) {
+  try {
+    const r = await kvCall({ action: 'list_with_values', prefix: CHECKIN_PREFIX })
+    const map = {}
+    for (const item of r.items || []) {
+      if (!item.key.endsWith(`:${dateStr}`)) continue
+      const rest = item.key.slice(CHECKIN_PREFIX.length, -(dateStr.length + 1))
+      try { map[rest] = JSON.parse(item.value) } catch {}
+    }
+    return map
+  } catch { return {} }
+}
+
 export async function getDailyCuriosity(dateStr) {
   try {
     const r = await kvCall({ action: 'get', key: curiosityKey(dateStr) })

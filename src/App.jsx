@@ -4,7 +4,7 @@ import confetti from "canvas-confetti";
 import { Toaster, toast } from "sonner";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 
 // ── tema ──
@@ -3764,6 +3764,47 @@ function PerformanceChart({ entries }) {
     </ResponsiveContainer>
   );
 }
+// ── 😊 check-in emocional: aparece 1x por dia pro aluno, antes de começar a codar — rapidinho,
+// sem nota nem cobrança, só pro professor ter mais contexto sobre a turma naquele dia ──
+const CHECKIN_MOODS = [
+  { id: "otimo",   emoji: "😄", label: "Empolgado" },
+  { id: "bem",     emoji: "🙂", label: "Bem" },
+  { id: "neutro",  emoji: "😐", label: "Neutro" },
+  { id: "cansado", emoji: "😴", label: "Cansado" },
+  { id: "dificil", emoji: "😣", label: "Dia difícil" },
+];
+function checkinMoodInfo(id) {
+  return CHECKIN_MOODS.find(m => m.id === id) || null;
+}
+function CheckinModal({ shift, studentName, onDone }) {
+  const [saving, setSaving] = useState(false);
+  const pick = async (mood) => {
+    if (saving) return;
+    setSaving(true);
+    await setCheckin(shift, studentName, todayKey(), mood);
+    onDone();
+  };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"26px 24px", maxWidth:420, width:"100%", boxShadow:"0 24px 70px rgba(0,0,0,.55)", textAlign:"center" }}>
+        <h2 style={{ margin:"0 0 6px", fontSize:19, fontWeight:900, background:"linear-gradient(135deg,#c084fc,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Como você tá chegando hoje?</h2>
+        <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 18px" }}>Só o professor vê isso. Não vale nota, é rapidinho :)</p>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(76px,1fr))", gap:8 }}>
+          {CHECKIN_MOODS.map(m => (
+            <button key={m.id} onClick={()=>pick(m.id)} disabled={saving}
+              style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:14, padding:"12px 6px", cursor:saving?"default":"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:6, opacity:saving?0.6:1 }}
+              onMouseEnter={e=>{ if(!saving) e.currentTarget.style.borderColor = "#c084fc"; }}
+              onMouseLeave={e=>{ e.currentTarget.style.borderColor = "#3b2a58"; }}>
+              <span style={{ fontSize:26 }}>{m.emoji}</span>
+              <span style={{ color:"#e6ddf5", fontSize:11, fontWeight:700 }}>{m.label}</span>
+            </button>
+          ))}
+        </div>
+        <button onClick={onDone} disabled={saving} style={{ background:"transparent", border:"none", color:"#776798", fontSize:12, marginTop:16, cursor:"pointer", textDecoration:"underline" }}>Pular hoje</button>
+      </div>
+    </div>
+  );
+}
 function PerformanceModal({ studentName, scoreHistory, achievements, duelWins, typingBest, streakCount, onClose }) {
   const entries = Object.entries(scoreHistory || {}).sort(([a], [b]) => a.localeCompare(b));
   const scores = entries.map(([, n]) => n);
@@ -4614,6 +4655,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [recapDismissed, setRecapDismissed] = useState(() => {
     try { return localStorage.getItem(`nyx_recap_${todayKey()}_${shift}_${studentName}`) === "1"; } catch { return false; }
   });
+  // 😊 check-in emocional: mesmo esquema de dispensa por dia+turno+aluno dos outros avisos (notebook
+  // compartilhado entre vários alunos no mesmo dia)
+  const [checkinDismissed, setCheckinDismissed] = useState(() => {
+    try { return localStorage.getItem(`nyx_checkin_${todayKey()}_${shift}_${studentName}`) === "1"; } catch { return false; }
+  });
+  const dismissCheckin = () => { setCheckinDismissed(true); try { localStorage.setItem(`nyx_checkin_${todayKey()}_${shift}_${studentName}`, "1"); } catch {} };
   const [breakEndMsg, setBreakEndMsg] = useState("");
   const breakEndNotifiedRef = useRef(null);
   const breakStartNotifiedRef = useRef(null);
@@ -7820,6 +7867,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <KeyboardTutorialModal onClose={()=>setShowKeyboard(false)} onFinish={finishKeyboardTutorial} speak={speak} stopSpeech={stopSpeech} accessMode={accessMode} onEggFound={triggerEgg} playSound={playSound} />
         </Suspense>
       )}
+      {!checkinDismissed && phase==="coding" && !showJustify && !showNyxPrefs && !showIntro && tourStep < 0 && (
+        <CheckinModal shift={shift} studentName={studentName} onDone={dismissCheckin} />
+      )}
       {showJustify && <JustifyModal absences={pendingAbsences} onSubmit={submitJustification} onClose={()=>setShowJustify(false)} />}
       {showHallOfFame && <HallOfFameModal entries={hallEntries} onClose={()=>setShowHallOfFame(false)} />}
       {showPerformance && <PerformanceModal studentName={studentName} scoreHistory={scoreHistory} achievements={achievements} duelWins={duelWins} typingBest={typingBest} streakCount={streakCount} onClose={()=>setShowPerformance(false)} />}
@@ -8119,6 +8169,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // perfis de apoio (educação inclusiva) do aluno selecionado + mapa geral pros tiles
   const [selSupport, setSelSupport] = useState({});
   const [supportMap, setSupportMap] = useState({});
+  const [checkinMap, setCheckinMap] = useState({}); // 😊 check-in emocional do dia: "turno:nome" → { mood, at }
   useEffect(() => { setRenameVal(""); setScoreVal(""); setConfirmDelete(false); }, [selected]);
   const [resetting, setResetting] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -8313,6 +8364,14 @@ function TeacherView({ onLogout, teacherAuth }) {
     const loadSupport = async () => { const m = await listAllSupport(); if (active) setSupportMap(m); };
     loadSupport();
     const iv = setInterval(loadSupport, 20000);
+    return () => { active = false; clearInterval(iv); };
+  }, []);
+  // 😊 mapa de check-in emocional do dia (indicador nos tiles) — mesma cadência do apoio, não precisa ser ao vivo
+  useEffect(() => {
+    let active = true;
+    const loadCheckin = async () => { const m = await listCheckinsForDate(todayKey()); if (active) setCheckinMap(m); };
+    loadCheckin();
+    const iv = setInterval(loadCheckin, 20000);
     return () => { active = false; clearInterval(iv); };
   }, []);
   // ✨ nome do conteúdo automático: quando TODOS os alunos de um turno (que apareceram hoje) já
@@ -10199,6 +10258,10 @@ function TeacherView({ onLogout, teacherAuth }) {
                       {Object.values(supportMap[`${s.shift||"sem-turno"}:${s.name}`] || {}).some(Boolean) && (
                         <span title="Aluno com perfil de apoio ativo (clique pra ver no detalhe)" style={{ position:"absolute", bottom:6, left:6, fontSize:11 }}>💙</span>
                       )}
+                      {checkinMap[`${s.shift||"sem-turno"}:${s.name}`] && (() => {
+                        const mood = checkinMoodInfo(checkinMap[`${s.shift||"sem-turno"}:${s.name}`].mood);
+                        return mood ? <span title={`Chegou hoje: ${mood.label}`} style={{ position:"absolute", bottom:6, right:6, fontSize:13 }}>{mood.emoji}</span> : null;
+                      })()}
                       <span style={{ position:"absolute", top:8, right:8 }}>{dot(isOnline(s))}</span>
                       <div style={{ marginTop:s.score!=null?16:4 }}>
                         <Avatar cfg={s.avatar} size={44} />
@@ -10381,6 +10444,20 @@ function TeacherView({ onLogout, teacherAuth }) {
                       </button>
                       <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>{selAccessMode ? "O editor de código deste aluno vira uma montagem de blocos clicáveis, com narração por voz." : "Troca o editor de código por blocos clicáveis + narração por voz, para alunos com dificuldade de ler/escrever/digitar."}</span>
                     </div>
+                    {(() => {
+                      const c = checkinMap[`${sel.shift||"sem-turno"}:${sel.name}`];
+                      const mood = c ? checkinMoodInfo(c.mood) : null;
+                      return (
+                        <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
+                          <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>😊 Chegou hoje:</span>
+                          {mood ? (
+                            <span style={{ ...styles.badge("#c084fc"), fontSize:12.5 }}>{mood.emoji} {mood.label} <span style={{ color:"#776798", fontWeight:400 }}>· {new Date(c.at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span></span>
+                          ) : (
+                            <span style={{ color:"#776798", fontSize:12 }}>Ainda não fez o check-in de hoje.</span>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"flex-start", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
                       <span style={{ color:"#a99ac9", fontSize:13, minWidth:88, paddingTop:6 }}>💙 Apoio:</span>
                       <div style={{ flex:1, minWidth:220 }}>
