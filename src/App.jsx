@@ -2943,6 +2943,20 @@ const TOURNEY_FALLBACK_QUESTIONS = [
   { pergunta:"O que o Console.ReadLine faz?", alternativas:["Lê o que a pessoa digitou","Escreve na tela","Soma dois números","Toca um som"], correta:0 },
   { pergunta:"Qual símbolo compara se dois valores são iguais?", alternativas:["==","=","!=",">="], correta:0 },
   { pergunta:"Qual tipo aceita números com vírgula?", alternativas:["double","int","bool","char"], correta:0 },
+  { pergunta:"O que o if faz no código?", alternativas:["Testa uma condição e escolhe um caminho","Repete um bloco várias vezes","Cria uma nova variável","Encerra o programa"], correta:0 },
+  { pergunta:"O que o else faz?", alternativas:["Executa quando o if é falso","Executa sempre, junto com o if","Cria um método novo","Compara dois textos"], correta:0 },
+  { pergunta:"Para que serve o laço for?", alternativas:["Repetir um bloco um número certo de vezes","Guardar um texto","Comparar dois números","Ler o teclado"], correta:0 },
+  { pergunta:"Para que serve o laço while?", alternativas:["Repetir ENQUANTO uma condição for verdadeira","Escrever na tela uma única vez","Somar dois números","Criar uma classe"], correta:0 },
+  { pergunta:"O que é um método em C#?", alternativas:["Um pedaço de código com nome, que pode ser chamado","Um tipo de variável","Um símbolo de comparação","Um jeito de comentar o código"], correta:0 },
+  { pergunta:"Para que serve uma List<>?", alternativas:["Guardar vários valores juntos","Guardar só um número","Comparar dois textos","Repetir um bloco de código"], correta:0 },
+  { pergunta:"O que $\"Oi {nome}\" faz (interpolação de string)?", alternativas:["Coloca o valor da variável dentro do texto","Cria uma lista","Repete o texto duas vezes","Apaga a variável"], correta:0 },
+  { pergunta:"O que int.Parse(texto) faz?", alternativas:["Converte um texto digitado em número inteiro","Escreve um número na tela","Cria uma lista de números","Compara dois números"], correta:0 },
+  { pergunta:"Qual símbolo representa 'diferente de' em C#?", alternativas:["!=","==","<>","=!"], correta:0 },
+  { pergunta:"O que faz x++ (incremento)?", alternativas:["Soma 1 ao valor de x","Subtrai 1 do valor de x","Zera o valor de x","Dobra o valor de x"], correta:0 },
+  { pergunta:"O que uma classe representa em C#?", alternativas:["Um molde que descreve algo do programa","Um número decimal","Um comentário no código","Um símbolo de comparação"], correta:0 },
+  { pergunta:"Para que serve o foreach?", alternativas:["Passar por cada item de uma lista, um de cada vez","Criar uma variável nova","Ler o teclado","Comparar dois booleanos"], correta:0 },
+  { pergunta:"O que os { } (chaves) delimitam em C#?", alternativas:["O início e o fim de um bloco de código","Um comentário","Um número decimal","Uma lista de textos"], correta:0 },
+  { pergunta:"O que o operador && (e) faz numa condição?", alternativas:["Só é verdadeiro se as duas partes forem verdadeiras","É verdadeiro se qualquer uma das partes for verdadeira","Inverte o valor da condição","Soma os dois valores"], correta:0 },
 ];
 const BOSS_PRESETS = [
   { name: "Bugzilla", emoji: "👾" },
@@ -3046,17 +3060,23 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
     const iv = setInterval(load, 8000);
     return () => { alive = false; clearInterval(iv); };
   }, []);
-  const genTourneyQuestions = async () => {
+  // usedQuestions guarda o texto de TODAS as perguntas já usadas nesse torneio (acumulado rodada a
+  // rodada) — tanto o pedido à IA quanto o banco de reserva evitam repetir qualquer uma delas
+  const genTourneyQuestions = async (usedQuestions = []) => {
+    const usedList = usedQuestions.length ? `\n\nEstas perguntas JÁ foram usadas neste mesmo torneio — NÃO repita nenhuma delas, nem uma versão reformulada da mesma pergunta:\n${usedQuestions.map(q=>`- ${q}`).join("\n")}` : "";
     try {
       const data = await askClaudeJson(
-        `Crie EXATAMENTE 5 perguntas de múltipla escolha bem rápidas sobre C# básico para um torneio entre alunos iniciantes (Console.WriteLine, variáveis, tipos, ponto e vírgula, comparações). Cada uma com 4 alternativas curtas.\nResponda APENAS JSON puro: { "perguntas": [ { "pergunta": "...", "alternativas": ["a","b","c","d"], "correta": 0 } ] }`,
-        "Você cria quizzes de C# para iniciantes. Português simples. Responda APENAS JSON puro válido.",
+        `Crie EXATAMENTE 5 perguntas de múltipla escolha bem rápidas e VARIADAS sobre C# básico para um torneio entre alunos iniciantes, cobrindo temas diferentes entre si (ex: Console.WriteLine/ReadLine, variáveis e tipos, operadores e comparações, if/else, for, while, métodos, listas, interpolação de string). Cada uma com 4 alternativas curtas.${usedList}\nResponda APENAS JSON puro: { "perguntas": [ { "pergunta": "...", "alternativas": ["a","b","c","d"], "correta": 0 } ] }`,
+        "Você cria quizzes de C# para iniciantes, sempre variando o tema e nunca repetindo (nem reformulando) uma pergunta já usada antes. Português simples. Responda APENAS JSON puro válido.",
         { temperature: 1 }
       );
-      const qs = Array.isArray(data?.perguntas) ? data.perguntas.filter(q => q && q.pergunta && Array.isArray(q.alternativas) && q.alternativas.length >= 2 && q.alternativas[q.correta] != null).slice(0, 5) : [];
+      const qs = Array.isArray(data?.perguntas) ? data.perguntas.filter(q => q && q.pergunta && Array.isArray(q.alternativas) && q.alternativas.length >= 2 && q.alternativas[q.correta] != null && !usedQuestions.includes(q.pergunta)).slice(0, 5) : [];
       if (qs.length >= 3) return qs;
     } catch {}
-    return [...TOURNEY_FALLBACK_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 5);
+    // banco de reserva: prioriza perguntas ainda não usadas neste torneio; só repete se esgotar o banco
+    const unused = TOURNEY_FALLBACK_QUESTIONS.filter(q => !usedQuestions.includes(q.pergunta));
+    const pool = unused.length >= 5 ? unused : [...unused, ...TOURNEY_FALLBACK_QUESTIONS.filter(q => usedQuestions.includes(q.pergunta))];
+    return [...pool].sort(() => Math.random() - 0.5).slice(0, 5);
   };
   const startTourney = async () => {
     setTourneyBusy(true); setTourneyMsg("");
@@ -3070,7 +3090,7 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
     const matches = [];
     for (let i = 0; i < ordem.length; i += 2) matches.push({ round: 1, a: ordem[i], b: ordem[i + 1] ?? null });
     const questions = await genTourneyQuestions();
-    const t = { status: "active", shift: telaoShift, id: Date.now(), round: 1, questions: { 1: questions }, matches };
+    const t = { status: "active", shift: telaoShift, id: Date.now(), round: 1, questions: { 1: questions }, matches, usedQuestions: questions.map(q=>q.pergunta) };
     await setTourney(t, teacherAuth);
     setTourneyState(t);
     setTourneyBusy(false);
@@ -3103,8 +3123,8 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
       const nextRound = tourney.round + 1;
       const newMatches = [];
       for (let i = 0; i < winners.length; i += 2) newMatches.push({ round: nextRound, a: winners[i], b: winners[i + 1] ?? null });
-      const qs = await genTourneyQuestions();
-      t2 = { ...tourney, matches: [...resolvedMatches, ...newMatches], round: nextRound, questions: { ...tourney.questions, [nextRound]: qs } };
+      const qs = await genTourneyQuestions(tourney.usedQuestions || []);
+      t2 = { ...tourney, matches: [...resolvedMatches, ...newMatches], round: nextRound, questions: { ...tourney.questions, [nextRound]: qs }, usedQuestions: [...(tourney.usedQuestions || []), ...qs.map(q=>q.pergunta)] };
     }
     await setTourney(t2, teacherAuth);
     setTourneyState(t2);
