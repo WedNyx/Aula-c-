@@ -9334,7 +9334,8 @@ function TeacherView({ onLogout, teacherAuth }) {
       try {
         return await askClaudeJson(
           `Este é o código C# de exemplo que o professor escreveu para a turma ${sh.label} (pode ter vários arquivos):\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie uma explicação COMPLETA e didática desse código, para iniciantes que vão receber este material por escrito e estudar sozinhos. Percorra o código NA ORDEM em que ele aparece.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 a 2 frases dizendo o que esse código faz como um todo",\n  "secoes": [ { "titulo": "nome curto do conceito/parte", "explicacao": "explicação clara de 2 a 4 frases, em português simples", "exemplo": "trecho C# bem curto ilustrando (opcional — use \\n pra quebrar linha)" } ],\n  "dica": "1 frase final incentivando o estudo"\n}\n\nFaça uma seção para cada parte ou conceito importante (entre 4 e 10 seções). Garanta JSON válido.`,
-          "Você é um professor de C# paciente escrevendo um material de estudo por escrito para iniciantes. Português correto e simples. Responda APENAS JSON puro válido."
+          "Você é um professor de C# paciente escrevendo um material de estudo por escrito para iniciantes. Português correto e simples. Responda APENAS JSON puro válido.",
+          { max_tokens: 4000 }
         );
       } catch { aiOffline = true; return null; }
     }));
