@@ -4777,6 +4777,9 @@ function requestFS(){
 const goFullscreen = () => { requestFS().catch(()=>{}); };
 const todayKey = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 // semana ISO (segunda a domingo) — usada pro desafio livre da semana resetar sozinho toda semana
+// a prova pode ser criada só pra um turno (examShift no painel do professor); alunos do OUTRO
+// turno devem continuar na aula normal, como se não houvesse prova nenhuma agora
+const examForShift = (es, myShift) => (!es || !es.shift || es.shift === "all" || es.shift === myShift) ? es : { status: "idle" };
 const weekKey = (d = new Date()) => {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = date.getUTCDay() || 7;
@@ -5796,7 +5799,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             summarySnapshotRef.current = prev.summarySnapshot;
           }
         }
-        const es = await getExamState();
+        const es = examForShift(await getExamState(), shift);
         if (alive) setExamInfo(es);
       } finally { if (alive) setLoaded(true); }
     })();
@@ -5887,7 +5890,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       setIdleHint(s.phase === "coding" && codeLen < 10 && (Date.now() - sessionStart.current) > 90000);
       // prova: busca estado global
       try {
-        const es = await getExamState();
+        const es = examForShift(await getExamState(), shift);
         if (es.status === 'done' && !s.examDone) {
           // professor encerrou, calcula pontuação parcial
           const qs = es.questions || [];
@@ -11385,7 +11388,9 @@ function TeacherView({ onLogout, teacherAuth }) {
       })()}
 
       {tab==="exam" && (() => {
-        const examStudents = shiftFilter==="all" ? students : students.filter(s=>(s.shift||"sem-turno")===shiftFilter);
+        // sempre pelo turno da PRÓPRIA prova (examConfig.shift), não pelo filtro solto do
+        // Monitoramento — senão o "prontos"/ranking mostra gente de um turno que nem tá fazendo
+        const examStudents = (examConfig.shift && examConfig.shift !== "all") ? students.filter(s=>(s.shift||"sem-turno")===examConfig.shift) : students;
         const readyStudents = examStudents.filter(s => s.examReady);
         const doneStudents  = examStudents.filter(s => s.examDone);
         const ranking = [...examStudents].filter(s=>s.examScore!=null).sort((a,b)=>(b.examScore||0)-(a.examScore||0));
