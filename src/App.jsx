@@ -3780,6 +3780,68 @@ function PerformanceChart({ entries }) {
     </ResponsiveContainer>
   );
 }
+// mesmo visual do PerformanceChart (gradiente roxo, Recharts), mas pra média da TURMA por dia
+// (em vez da nota de um aluno só) — usado em "Evolução da turma nas últimas aulas"
+function ClassTrendChart({ trend }) {
+  const [RC, setRC] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    import("recharts").then(mod => { if (alive) setRC(mod); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const data = trend.map(({ date, avg, count }) => {
+    const [, m, dd] = date.split("-");
+    return { date: `${dd}/${m}`, avg, count };
+  });
+
+  if (!RC) {
+    return (
+      <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:110, overflowX:"auto", paddingBottom:4 }}>
+        {data.map(({ date, avg }) => {
+          const g = gradeInfo(avg);
+          return (
+            <div key={date} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
+              <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{avg}</span>
+              <div style={{ width:24, height:Math.max(4, Math.round(avg*0.7)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color,-0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${date}: média ${avg} pts`} />
+              <span style={{ color:"#776798", fontSize:10 }}>{date}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } = RC;
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    const { avg, count } = payload[0].payload;
+    const g = gradeInfo(avg);
+    return (
+      <div style={{ background:"#1e1430", border:`1px solid ${g.color}`, borderRadius:10, padding:"6px 10px", fontSize:12, boxShadow:"0 6px 18px rgba(0,0,0,.4)" }}>
+        <div style={{ color:"#a99ac9" }}>{label}</div>
+        <div style={{ color:g.color, fontWeight:900 }}>{avg} pts</div>
+        <div style={{ color:"#776798", fontSize:11 }}>{count} aluno{count>1?"s":""}</div>
+      </div>
+    );
+  };
+  return (
+    <ResponsiveContainer width="100%" height={140}>
+      <AreaChart data={data} margin={{ top:8, right:8, left:-20, bottom:0 }}>
+        <defs>
+          <linearGradient id="classTrendGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#c084fc" stopOpacity={0.5} />
+            <stop offset="100%" stopColor="#c084fc" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid stroke="#3b2a58" strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="date" stroke="#776798" fontSize={10} tickLine={false} axisLine={false} />
+        <YAxis domain={[0, 100]} stroke="#776798" fontSize={10} tickLine={false} axisLine={false} width={26} />
+        <Tooltip content={<CustomTooltip />} />
+        <Area type="monotone" dataKey="avg" stroke="#c084fc" strokeWidth={2.5} fill="url(#classTrendGrad)" dot={{ r:3, fill:"#c084fc", strokeWidth:0 }} activeDot={{ r:5 }} animationDuration={700} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
 // ── 😊 check-in emocional: aparece 1x por dia pro aluno, antes de começar a codar — rapidinho,
 // sem nota nem cobrança, só pro professor ter mais contexto sobre a turma naquele dia ──
 const CHECKIN_MOODS = [
@@ -6551,11 +6613,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     if (found) { setRobotState("ok"); setRobotMsg(found[0]); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, found[1]); }
   };
 
-  // 🏴‍☠️ baú do tesouro escondido: só concede os 200 pontos uma única vez por aluno
+  // 🏴‍☠️ baú do tesouro escondido: só concede os 500 pontos uma única vez por aluno
   const findTreasure = () => {
     if (treasureFound) return;
     setTreasureFound(true);
-    const np = nyxPoints + 200;
+    const np = nyxPoints + 500;
     setNyxPoints(np);
     playSound("achievement");
     persist({ treasureFound: true, nyxPoints: np });
@@ -6563,7 +6625,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     checkAllEggsFound();
     checkPointsAchievements(np);
     setRobotState("ok");
-    setRobotMsg("🏴‍☠️ VOCÊ ACHOU O TESOURO ESCONDIDO! +200 pontos do Nyx! Muito bem, caçador(a)!");
+    setRobotMsg("🏴‍☠️ VOCÊ ACHOU O TESOURO ESCONDIDO! +500 pontos do Nyx! Muito bem, caçador(a)!");
     setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 8000);
   };
 
@@ -10999,19 +11061,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                     <span style={{ ...styles.badge(trendLabel.color) }}>{trendLabel.text}</span>
                   </div>
                   <p style={{ color:"#776798", fontSize:12, margin:"0 0 12px" }}>Média da nota de atividade de todos os alunos, dia a dia — ajuda a ver se a turma está indo melhor ou pior de uma aula pra outra.</p>
-                  <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:110, overflowX:"auto", paddingBottom:4 }}>
-                    {trend.map(({date, avg, count}) => {
-                      const [, m, dd] = date.split("-");
-                      const g = gradeInfo(avg);
-                      return (
-                        <div key={date} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
-                          <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{avg}</span>
-                          <div style={{ width:24, height:Math.max(4, Math.round(avg*0.7)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color,-0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${dd}/${m}: média ${avg} pts (${count} aluno${count>1?"s":""})`} />
-                          <span style={{ color:"#776798", fontSize:10 }}>{dd}/{m}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <ClassTrendChart trend={trend} />
                 </div>
               );
             })()}
