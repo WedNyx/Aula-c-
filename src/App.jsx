@@ -4990,6 +4990,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [examExits, setExamExits] = useState(0);
   const [examScoreRaw, setExamScoreRaw] = useState(null);
   const [examAppeal, setExamAppeal] = useState(null);
+  // aluno já viu a tela de nota da prova e voltou pra plataforma (não mexe em examDone)
+  const [examScoreSeen, setExamScoreSeen] = useState(false);
   // ✋ pedir ajuda: acende o tile do aluno no monitoramento do professor
   const [helpAt, setHelpAt] = useState(null);
   // 🤝 parceiro de código: pareamento sugerido/aprovado pelo professor entre um aluno com dificuldade
@@ -5171,7 +5173,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, helpAt, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, helpAt, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -5245,6 +5247,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       examExits: s.examExits || 0,
       examScoreRaw: s.examScoreRaw ?? null,
       examAppeal: s.examAppeal || null,
+      examScoreSeen: s.examScoreSeen || false,
       helpAt: s.helpAt || null,
       errorAt: s.errorAt || null,
       errorMsg: s.errorMsg || "",
@@ -5718,6 +5721,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.examExits) setExamExits(prev.examExits);
           if (prev.examScoreRaw != null) setExamScoreRaw(prev.examScoreRaw);
           if (prev.examAppeal) setExamAppeal(prev.examAppeal);
+          if (prev.examScoreSeen) setExamScoreSeen(true);
           if (prev.helpAt) setHelpAt(prev.helpAt);
           if (prev.errorAt) { setErrorAt(prev.errorAt); setErrorMsg(prev.errorMsg || ""); }
           if (prev.typingBest) setTypingBest(prev.typingBest);
@@ -5911,9 +5915,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         } else if (es.status === 'idle' && s.examDone) {
           // professor resetou a prova
           setExamReady(false); setExamScore(null); setExamAnswers({}); setExamDone(false); setExamCurrentQ(0);
-          setExamExits(0); setExamScoreRaw(null); setExamAppeal(null);
+          setExamExits(0); setExamScoreRaw(null); setExamAppeal(null); setExamScoreSeen(false);
           try { sessionStorage.removeItem("nyx_exam_open"); } catch {}
-          await persist({ examReady: false, examScore: null, examAnswers: {}, examDone: false, examExits: 0, examScoreRaw: null, examAppeal: null });
+          await persist({ examReady: false, examScore: null, examAnswers: {}, examDone: false, examExits: 0, examScoreRaw: null, examAppeal: null, examScoreSeen: false });
         }
         setExamInfo(es);
       } catch {}
@@ -6945,7 +6949,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   })() : null;
 
   // ── PROVA: telas de exame têm prioridade ──
-  if (examDone) return (
+  if (examDone && !examScoreSeen) return (
     <div className={supportClass} style={styles.container}>
       <AchievementToast achievement={newAchievement} />
         {goalParty && !calmMode && <ConfettiParty level={goalParty} />}
@@ -6973,7 +6977,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             {examAppeal?.status === "rejected" && <p style={{ color:"#a99ac9", fontSize:13, margin:"10px 0 0", fontWeight:700 }}>O professor analisou e manteve o desconto.</p>}
           </div>
         )}
-        <p style={{ color:"#a99ac9", marginTop:20, fontSize:14, lineHeight:1.6 }}>Aguarde o professor encerrar a prova para ver o ranking da turma!</p>
+        <p style={{ color:"#a99ac9", marginTop:20, fontSize:14, lineHeight:1.6 }}>Aguarde o professor encerrar a prova para ver o ranking da turma! Ou, se preferir, já pode voltar pra plataforma — sua nota fica salva.</p>
+        <button onClick={async ()=>{ setExamScoreSeen(true); await persist({ examScoreSeen: true }); }}
+          style={{ ...styles.btn("#8b5cf6"), width:"100%", marginTop:14, padding:"11px 0", fontSize:14 }}>
+          ← Voltar à tela inicial
+        </button>
       </div>
     </div>
   );
