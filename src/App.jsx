@@ -5013,6 +5013,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [errorAt, setErrorAt] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const lastErrorReportRef = useRef(0);
+  // evita que dois ticks (12s cada) processem o código enviado pelo professor ao mesmo tempo
+  // enquanto a mesclagem por IA do tick anterior ainda está em andamento
+  const codeSendHandledRef = useRef(false);
   // 📋 retomada da aula passada (dispensável; lembrada por dia no navegador, por ALUNO — o
   // notebook da carreta é compartilhado entre vários alunos no mesmo dia, então a chave não pode
   // valer só pra data, senão o primeiro que dispensar esconde o aviso dos próximos também)
@@ -6020,34 +6023,54 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         }
       } catch {}
       // professor selecionou este aluno e enviou o código da turma → completa só o que falta e
-      // corrige o que já existia, sem apagar o que o aluno mesmo escreveu (nunca sobrescreve tudo)
-      try {
-        const sent = await getCodeSend(shift, studentName);
-        if (sent && Array.isArray(sent.files) && sent.files.length) {
-          const currentFiles = stateRef.current.files || files;
-          const hasOwnCode = currentFiles.some(f => (f.code||"").trim().length >= 10);
-          let mergedFiles = sent.files;
-          if (hasOwnCode) {
-            try {
-              const merged = await askClaudeJson(
-                `O professor passou este código pra turma copiar:\n${sent.files.map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n")}\n\nEste aluno JÁ tinha escrito isto no perfil dele (pode estar incompleto ou ter pequenos erros):\n${currentFiles.map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n")}\n\nCrie a versão final dos arquivos: MANTENHA tudo que o aluno já escreveu (não reescreva do zero nem mude o estilo do que já está certo), só ACRESCENTE o que estiver faltando (comparando com o código do professor) e CORRIJA erros de sintaxe/digitação que já existiam no que ele tinha.\n\nResponda APENAS em JSON puro, sem markdown: {"files":[{"name":"nome do arquivo","code":"código final"}]}`,
-                "Você funde com cuidado o código de um aluno com o material novo do professor, sem apagar o esforço dele. Responda APENAS JSON puro.",
-                { max_tokens: 4000 }
-              );
-              if (Array.isArray(merged.files) && merged.files.length) mergedFiles = merged.files;
-            } catch {}
-          }
-          setFiles(mergedFiles);
-          setActive(0);
-          await clearCodeSend(shift, studentName);
-          setRobotMsg(hasOwnCode
-            ? "✅ O professor enviou código novo — completei o que faltava no seu, sem apagar o que você já tinha feito!"
-            : "✅ O professor enviou um código novo pra você! Você pode modificar como quiser.");
-          setRobotState("ok");
-          await persist({ files: mergedFiles });
-          setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 5000);
-        }
-      } catch {}
+      // corrige o que já existia, sem apagar o que o aluno mesmo escreveu (nunca sobrescreve tudo).
+      // Roda em segundo plano (sem "await" aqui) porque a mesclagem por IA pode demorar alguns
+      // segundos — sem isso, o tick() inteiro ficava travado esperando, atrasando TODO o resto
+      // (avisos do professor, chefão, torneio, nota corrigida etc.) até a IA responder, e se o tick
+      // demorasse mais de 12s o próximo já disparava por cima, duplicando efeitos.
+      if (!codeSendHandledRef.current) {
+        codeSendHandledRef.current = true;
+        (async () => {
+          try {
+            const sent = await getCodeSend(shift, studentName);
+            if (sent && Array.isArray(sent.files) && sent.files.length) {
+              const currentFiles = stateRef.current.files || files;
+              const hasOwnCode = currentFiles.some(f => (f.code||"").trim().length >= 10);
+              let mergedFiles = sent.files;
+              let mergeSucceeded = false;
+              if (hasOwnCode) {
+                setRobotMsg("🤖 O professor enviou código novo — só um instante enquanto completo o que falta no seu, sem apagar nada...");
+                setRobotState("thinking");
+                try {
+                  // teto de 12s pra mesclagem: se a IA travar ou demorar demais, aplica o código
+                  // do professor puro em vez de deixar o aluno esperando indefinidamente
+                  const merged = await Promise.race([
+                    askClaudeJson(
+                      `O professor passou este código pra turma copiar:\n${sent.files.map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n")}\n\nEste aluno JÁ tinha escrito isto no perfil dele (pode estar incompleto ou ter pequenos erros):\n${currentFiles.map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n")}\n\nCrie a versão final dos arquivos: MANTENHA tudo que o aluno já escreveu (não reescreva do zero nem mude o estilo do que já está certo), só ACRESCENTE o que estiver faltando (comparando com o código do professor) e CORRIJA erros de sintaxe/digitação que já existiam no que ele tinha.\n\nResponda APENAS em JSON puro, sem markdown: {"files":[{"name":"nome do arquivo","code":"código final"}]}`,
+                      "Você funde com cuidado o código de um aluno com o material novo do professor, sem apagar o esforço dele. Responda APENAS JSON puro.",
+                      { max_tokens: 4000 }
+                    ),
+                    new Promise((_, rej) => setTimeout(() => rej(new Error("merge_timeout")), 12000)),
+                  ]);
+                  if (Array.isArray(merged.files) && merged.files.length) { mergedFiles = merged.files; mergeSucceeded = true; }
+                } catch {}
+              }
+              setFiles(mergedFiles);
+              setActive(0);
+              await clearCodeSend(shift, studentName);
+              setRobotMsg(mergeSucceeded
+                ? "✅ O professor enviou código novo — completei o que faltava no seu, sem apagar o que você já tinha feito!"
+                : hasOwnCode
+                  ? "✅ O professor enviou código novo! Não consegui mesclar automaticamente a tempo, então apliquei o código dele direto."
+                  : "✅ O professor enviou um código novo pra você! Você pode modificar como quiser.");
+              setRobotState("ok");
+              await persist({ files: mergedFiles });
+              setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 5000);
+            }
+          } catch {}
+          codeSendHandledRef.current = false;
+        })();
+      }
       await persist();
       const streak = computeStreak(attendanceRef.current, currentClassDays);
       setStreakCount(streak);
