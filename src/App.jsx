@@ -4992,6 +4992,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [examAppeal, setExamAppeal] = useState(null);
   // aluno já viu a tela de nota da prova e voltou pra plataforma (não mexe em examDone)
   const [examScoreSeen, setExamScoreSeen] = useState(false);
+  // alunos do Modo Guiado escolhem se querem fazer a prova ou continuar no Modo Guiado —
+  // null = ainda não escolheu, true = vai fazer, false = prefere não fazer
+  const [examOptIn, setExamOptIn] = useState(null);
   // ✋ pedir ajuda: acende o tile do aluno no monitoramento do professor
   const [helpAt, setHelpAt] = useState(null);
   // 🤝 parceiro de código: pareamento sugerido/aprovado pelo professor entre um aluno com dificuldade
@@ -5173,7 +5176,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, helpAt, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, helpAt, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -5248,6 +5251,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       examScoreRaw: s.examScoreRaw ?? null,
       examAppeal: s.examAppeal || null,
       examScoreSeen: s.examScoreSeen || false,
+      examOptIn: typeof s.examOptIn === "boolean" ? s.examOptIn : null,
       helpAt: s.helpAt || null,
       errorAt: s.errorAt || null,
       errorMsg: s.errorMsg || "",
@@ -5585,7 +5589,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   };
 
   // ── anti-cola: durante a prova ativa, cada saída da aba é contada (e desconta 10 pts no fim) ──
-  const examActive = examInfo.status === 'active' && !examDone;
+  // quem tá no Modo Guiado e escolheu não fazer a prova não é penalizado por trocar de aba —
+  // ele nem está vendo a tela da prova, então "trocar de aba" não significa nada pra ele aqui
+  const examActive = examInfo.status === 'active' && !examDone && !(accessMode && examOptIn === false);
   useEffect(() => {
     if (!examActive) return;
     const registerExit = () => setExamExits(n => {
@@ -5722,6 +5728,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.examScoreRaw != null) setExamScoreRaw(prev.examScoreRaw);
           if (prev.examAppeal) setExamAppeal(prev.examAppeal);
           if (prev.examScoreSeen) setExamScoreSeen(true);
+          if (typeof prev.examOptIn === "boolean") setExamOptIn(prev.examOptIn);
           if (prev.helpAt) setHelpAt(prev.helpAt);
           if (prev.errorAt) { setErrorAt(prev.errorAt); setErrorMsg(prev.errorMsg || ""); }
           if (prev.typingBest) setTypingBest(prev.typingBest);
@@ -5895,7 +5902,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       // prova: busca estado global
       try {
         const es = examForShift(await getExamState(), shift);
-        if (es.status === 'done' && !s.examDone) {
+        // alunos do Modo Guiado que escolheram NÃO fazer a prova ficam de fora do cálculo de nota
+        // (senão levariam zero quando o professor encerrasse, mesmo sem nunca ter entrado na prova)
+        const isGuidedNow = await getAccessMode(shift, studentName).catch(() => false);
+        const optedOutOfExam = isGuidedNow && s.examOptIn === false;
+        if (es.status === 'done' && !s.examDone && !optedOutOfExam) {
           // professor encerrou, calcula pontuação parcial
           const qs = es.questions || [];
           const curA = s.examAnswers || {};
@@ -5912,12 +5923,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           checkPointsAchievements(newNyxPoints);
           if (qs.length && pts / qs.length >= 0.8) unlockAchievement("prova-mestre");
           if (qs.length && pts === qs.length) unlockAchievement("prova-100");
-        } else if (es.status === 'idle' && s.examDone) {
-          // professor resetou a prova
+        } else if (es.status === 'idle' && (s.examDone || s.examOptIn != null)) {
+          // professor resetou a prova (ou encerrou uma que o aluno tinha optado por não fazer)
           setExamReady(false); setExamScore(null); setExamAnswers({}); setExamDone(false); setExamCurrentQ(0);
-          setExamExits(0); setExamScoreRaw(null); setExamAppeal(null); setExamScoreSeen(false);
+          setExamExits(0); setExamScoreRaw(null); setExamAppeal(null); setExamScoreSeen(false); setExamOptIn(null);
           try { sessionStorage.removeItem("nyx_exam_open"); } catch {}
-          await persist({ examReady: false, examScore: null, examAnswers: {}, examDone: false, examExits: 0, examScoreRaw: null, examAppeal: null, examScoreSeen: false });
+          await persist({ examReady: false, examScore: null, examAnswers: {}, examDone: false, examExits: 0, examScoreRaw: null, examAppeal: null, examScoreSeen: false, examOptIn: null });
         }
         setExamInfo(es);
       } catch {}
@@ -6986,7 +6997,34 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     </div>
   );
 
-  if (examInfo.status === 'review') return (
+  const examHappening = examInfo.status === 'review' || examInfo.status === 'active';
+  // alunos do Modo Guiado escolhem se querem entrar na prova junto com a turma, ou continuar no
+  // Modo Guiado normalmente — só perguntamos uma vez por prova (examOptIn começa null a cada nova)
+  if (accessMode && examHappening && examOptIn == null) return (
+    <div className={supportClass} style={styles.container}>
+      <div style={styles.header}><span>📝 Prova da Turma — {studentName}</span></div>
+      <div style={{ maxWidth:520, margin:"60px auto", textAlign:"center", padding:"0 16px" }}>
+        <div style={{ background:"linear-gradient(135deg,#c084fc,#8b5cf6)", borderRadius:18, padding:32, boxShadow:"0 12px 30px #c084fc55" }}>
+          <div style={{ fontSize:48 }}>🤔</div>
+          <h1 style={{ color:"#fff", fontSize:22, margin:"12px 0" }}>A turma vai fazer uma prova!</h1>
+          <p style={{ color:"#e0e7ff", fontSize:14.5, lineHeight:1.7 }}>Você quer participar da prova junto com a turma, ou prefere continuar no Modo Guiado enquanto os outros fazem a prova?</p>
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginTop:18 }}>
+          <button onClick={async ()=>{ setExamOptIn(true); await persist({ examOptIn: true }); }}
+            style={{ ...styles.btn("#34d399"), padding:"14px 0", fontSize:15 }}>
+            ✅ Sim, quero fazer a prova
+          </button>
+          <button onClick={async ()=>{ setExamOptIn(false); await persist({ examOptIn: false }); }}
+            style={{ ...styles.btn("#8b5cf6"), padding:"14px 0", fontSize:15 }}>
+            🧩 Não, prefiro continuar no Modo Guiado
+          </button>
+        </div>
+        <p style={{ color:"#a99ac9", marginTop:16, fontSize:12.5, lineHeight:1.6 }}>Não tem problema nenhum escolher não fazer — isso não desconta pontos nem nada.</p>
+      </div>
+    </div>
+  );
+
+  if (examInfo.status === 'review' && !(accessMode && examOptIn === false)) return (
     <div className={supportClass} style={styles.container}>
       <div style={styles.header}><span>📝 Revisão — {studentName}</span></div>
       <div style={{ maxWidth:700, margin:"0 auto", padding:"22px 16px 36px" }}>
@@ -7025,7 +7063,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     </div>
   );
 
-  if (examInfo.status === 'active') {
+  if (examInfo.status === 'active' && !(accessMode && examOptIn === false)) {
     const qs = examInfo.questions || [];
     const q = qs[examCurrentQ];
     return (
