@@ -2330,12 +2330,30 @@ const TOUR_STEPS = [
   { sel:'[data-tour="chat"]',     emoji:"💬", title:"Fale comigo!",          text:"Qualquer dúvida de C#, abre este botão e conversa comigo. Estou sempre por aqui. Bora programar? 🚀" },
 ];
 
-function TourOverlay({ step, onNext }) {
+// tour do painel do professor — acionado por um botão (🧭 Tour), não aparece sozinho. Mantenho essa
+// lista atualizada manualmente sempre que uma função nova entra no painel do professor.
+const TEACHER_TOUR_STEPS = [
+  { sel:'[data-tour-prof="monitor"]',  emoji:"👥", title:"Monitoramento",       text:"Acompanhe a turma em tempo real: fase de cada aluno, notas, erros no código e pedidos de ajuda acesos na hora." },
+  { sel:'[data-tour-prof="code"]',     emoji:"👨‍💻", title:"Meu código",          text:"Escreva aqui o código de exemplo do dia. Depois é só enviar pro painel de cada aluno — isso vira o \"código da turma\" que eles recebem." },
+  { sel:'[data-tour-prof="calendar"]', emoji:"🗓️", title:"Calendário",          text:"Marque os dias de aula, feriados e o horário de início/fim de cada turno." },
+  { sel:'[data-tour-prof="feedback"]', emoji:"💬", title:"Feedback",            text:"As avaliações que os alunos deixam sobre cada aula (nota + comentário) aparecem aqui." },
+  { sel:'[data-tour-prof="exam"]',     emoji:"🏆", title:"Prova",               text:"Gere uma prova com a IA a partir do código que a turma escreveu. Cada turno tem sua prova própria e independente — pode ter uma rolando de manhã e criar outra bem diferente à tarde, sem uma bagunçar a outra." },
+  { sel:'[data-tour-prof="quiz"]',     emoji:"🎉", title:"Quiz",                text:"Monte um quiz estilo Kahoot e jogue com a turma inteira ao vivo, com placar na hora." },
+  { sel:'[data-tour-prof="situacao"]', emoji:"👀", title:"Situação",            text:"Veja rapidinho quem está indo bem e quem está com dificuldade agora, sem precisar trocar de aba." },
+  { sel:'[data-tour-prof="telao"]',    emoji:"🖥️", title:"Telão",               text:"Modo tela cheia pra projetar pra turma: ranking, meta coletiva e combos ao vivo." },
+  { sel:'[data-tour-prof="turma"]',    emoji:"🔀", title:"Filtro de turma",     text:"Filtra praticamente tudo — monitoramento, chamada, prova — por turno: Manhã, Tarde, Turma de Teste ou Sala de Linguagens." },
+  { sel:'[data-tour-prof="reset"]',    emoji:"🔄", title:"Resetar",             text:"Zera o dia da turma selecionada no filtro acima, pra começar uma aula nova do zero." },
+  { sel:'[data-tour="saude-ia"]',      emoji:"📡", title:"Saúde da IA",          text:"As bolinhas mostram se o Nemotron e o Laguna (os modelos gratuitos) estão respondendo bem agora — verde tudo certo, vermelho não respondeu na última tentativa." },
+  { sel:'[data-tour="chat-prof"]',     emoji:"💬", title:"Fale comigo!",         text:"Dúvidas rápidas sobre a turma, ou comandos especiais como zek (chama atenção geral) e zeker (bloqueia duelos) — é só conversar comigo aqui." },
+  { sel:'[data-tour-prof="sair"]',     emoji:"🚪", title:"Sair",                text:"Esse tour eu mantenho sempre atualizado conforme novas funções chegam ao painel — pode chamar de novo quando quiser relembrar algo. Bom trabalho! 🚀" },
+];
+
+function TourOverlay({ step, onNext, steps = TOUR_STEPS }) {
   const [rect, setRect] = useState(null);
   // "smooth" só na troca de passo (anel desliza bonito de um elemento pro outro);
   // depois disso vira instantâneo, pro anel ficar GRUDADO no elemento quando a página rola
   const [smooth, setSmooth] = useState(true);
-  const s = TOUR_STEPS[step];
+  const s = steps[step];
   useEffect(() => {
     const el = document.querySelector(s.sel);
     if (!el) { setRect(null); return; }
@@ -2373,10 +2391,10 @@ function TourOverlay({ step, onNext }) {
             <p style={{ color:"#d6c9ec", fontSize:13, lineHeight:1.6, margin:"6px 0 0" }}>{s.text}</p>
           </div>
         </div>
-        {/* sem botão de pular: aluno novo conhece a sala inteira, passo a passo */}
+        {/* sem botão de pular: quem inicia o tour vê a sala inteira, passo a passo */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12 }}>
-          <span style={{ color:"#776798", fontSize:12 }}>{step+1}/{TOUR_STEPS.length}</span>
-          <button onClick={onNext} style={{ background:"linear-gradient(135deg,#c084fc,#9333ea)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"7px 16px", cursor:"pointer", fontSize:13 }}>{step === TOUR_STEPS.length-1 ? "Entendi! 🚀" : "Próximo →"}</button>
+          <span style={{ color:"#776798", fontSize:12 }}>{step+1}/{steps.length}</span>
+          <button onClick={onNext} style={{ background:"linear-gradient(135deg,#c084fc,#9333ea)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"7px 16px", cursor:"pointer", fontSize:13 }}>{step === steps.length-1 ? "Entendi! 🚀" : "Próximo →"}</button>
         </div>
       </div>
     </div>
@@ -8896,6 +8914,8 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [showTripOverview, setShowTripOverview] = useState(false);
   const [tripHallEntries, setTripHallEntries] = useState([]);
   const [shiftFilter, setShiftFilter] = useState("all");
+  // tour guiado do painel do professor — só começa se o professor clicar em "🧭 Tour" (não some sozinho)
+  const [profTourStep, setProfTourStep] = useState(-1);
   const [genName, setGenName] = useState(false);
   const [nameMsg, setNameMsg] = useState("");
   const [autoNameMsg, setAutoNameMsg] = useState("");
@@ -10545,22 +10565,23 @@ function TeacherView({ onLogout, teacherAuth }) {
           )}
         </div>
         <div style={{ display:"flex", gap: tab==="code" ? 5 : 8, flexWrap:"wrap" }}>
-          <button style={{ ...styles.tab(tab==="monitor"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("monitor")}>👥 Monitoramento</button>
-          <button style={{ ...styles.tab(tab==="code"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
-          <button style={{ ...styles.tab(tab==="calendar"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
-          <button style={{ ...styles.tab(tab==="feedback"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
-          <button style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle' && tab!=="exam" ? {borderColor:"#fbbf24",color:"#fbbf24"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
-          <button style={{ ...styles.tab(tab==="quiz"), ...(quizRoom && tab!=="quiz" ? {borderColor:"#c084fc",color:"#c084fc"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?' ●':''}</button>
-          <button style={{ ...styles.btn(needHelp.length>0 ? "#f87171" : "#34d399"), ...(tab==="code"?{padding:"4px 10px",fontSize:12}:{}) }} onClick={()=>setShowQuickStatus(true)} title="Veja rapidinho quem está com dificuldade, sem sair desta tela">👀 Situação{needHelp.length>0 ? ` (${needHelp.length})` : ""}</button>
-          {tab!=="code" && <button style={styles.btn("#22d3ee")} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
-          {tab!=="code" && <button style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
-          <button style={{ ...styles.btn("#776798"), fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
+          <button data-tour-prof="monitor" style={{ ...styles.tab(tab==="monitor"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("monitor")}>👥 Monitoramento</button>
+          <button data-tour-prof="code" style={{ ...styles.tab(tab==="code"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
+          <button data-tour-prof="calendar" style={{ ...styles.tab(tab==="calendar"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
+          <button data-tour-prof="feedback" style={{ ...styles.tab(tab==="feedback"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
+          <button data-tour-prof="exam" style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle' && tab!=="exam" ? {borderColor:"#fbbf24",color:"#fbbf24"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
+          <button data-tour-prof="quiz" style={{ ...styles.tab(tab==="quiz"), ...(quizRoom && tab!=="quiz" ? {borderColor:"#c084fc",color:"#c084fc"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?' ●':''}</button>
+          <button data-tour-prof="situacao" style={{ ...styles.btn(needHelp.length>0 ? "#f87171" : "#34d399"), ...(tab==="code"?{padding:"4px 10px",fontSize:12}:{}) }} onClick={()=>setShowQuickStatus(true)} title="Veja rapidinho quem está com dificuldade, sem sair desta tela">👀 Situação{needHelp.length>0 ? ` (${needHelp.length})` : ""}</button>
+          {tab!=="code" && <button data-tour-prof="telao" style={styles.btn("#22d3ee")} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
+          {tab!=="code" && <button data-tour-prof="reset" style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
+          {tab!=="code" && <button style={styles.btn("#22d3ee")} onClick={()=>{ setTab("monitor"); setProfTourStep(0); }} title="Tour guiado por todas as funções do painel do professor">🧭 Tour</button>}
+          <button data-tour-prof="sair" style={{ ...styles.btn("#776798"), fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
         </div>
       </div>
 
       {/* filtro de turno (vale para monitoramento, chamada, situação e feedback) */}
       {tab!=="code" && (
-        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+        <div data-tour-prof="turma" style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
           <span style={{ color:"#a99ac9", fontSize:13 }}>Turma:</span>
           <button onClick={()=>setShiftFilter("all")} style={styles.tab(shiftFilter==="all")}>Todas ({students.length})</button>
           {SHIFTS.map(sh => (
@@ -11822,8 +11843,13 @@ function TeacherView({ onLogout, teacherAuth }) {
         );
       })()}
 
+      {profTourStep >= 0 && profTourStep < TEACHER_TOUR_STEPS.length && (
+        <TourOverlay steps={TEACHER_TOUR_STEPS} step={profTourStep} onNext={()=>setProfTourStep(s => (s+1 >= TEACHER_TOUR_STEPS.length ? -1 : s+1))} />
+      )}
+
       <NyxChat
         who="teacher"
+        dataTour="chat-prof"
         accent="#fbbf24"
         onCommand={async (t) => {
           const cmd = t.toLowerCase();
