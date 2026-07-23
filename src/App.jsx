@@ -4,7 +4,7 @@ import confetti from "canvas-confetti";
 import { Toaster, toast } from "sonner";
 import { createAvatar } from "@dicebear/core";
 import { lorelei } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 
 // ── tema ──
@@ -4782,7 +4782,7 @@ async function askClaudeJson(prompt, system, opts = {}) {
 }
 // monta o pedido de resumo da aula pro Nyx — "simples" (padrão, frases curtas) ou "detalhado"
 // (mais completo, pra quem quer entender o porquê de cada coisa, não só o quê)
-function buildSummaryRequest(detail, hasTodayDiff, todayCode, fullCode, lang) {
+function buildSummaryRequest(detail, hasTodayDiff, todayCode, fullCode, lang, nyxPrefs) {
   const langName = lang ? lang.label : "C#";
   const fence = lang ? lang.codeLang : "csharp";
   const contextPart = hasTodayDiff
@@ -4793,23 +4793,23 @@ function buildSummaryRequest(detail, hasTodayDiff, todayCode, fullCode, lang) {
   if (detail === "detalhado") {
     return {
       prompt: contextPart + ` bem organizado e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 ou 2 frases curtas e acolhedoras dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação bem simples, de 1 a 3 frases, do que isso faz e por quê", "exemplo": "um trecho de código ${langName} curto e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta, útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${codeScope} (ex: ${exemploConceitos}). Linguagem bem de iniciante. Exemplos curtos, corretos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
-      system: `Você é um professor de ${langName} paciente e organizado, para iniciantes. Português correto e simples. Responda APENAS JSON puro válido.`,
+      system: `Você é um professor de ${langName} paciente e organizado, para iniciantes. Português correto e simples. Responda APENAS JSON puro válido.` + nyxPrefsInstruction(nyxPrefs),
     };
   }
   return {
     prompt: contextPart + ` bem organizado, SIMPLES e didático, em português brasileiro CORRETO (sem erros de digitação), para quem está começando agora.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 frase curta e acolhedora dizendo o que esta aula ensinou, com base no código dele",\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito (ex: Mostrar texto na tela)", "explicacao": "explicação BEM simples, em NO MÁXIMO 2 frases curtas, do que isso faz — sem jargão técnico, como se explicasse para alguém de 13 anos que nunca programou", "exemplo": "um trecho de código ${langName} BEM curto (1 a 3 linhas) e correto mostrando o uso (use \\n para quebrar linhas)" }\n  ],\n  "dica": "uma dica final curta (1 frase), útil e motivadora para o aluno"\n}\n\nFaça uma seção (entre 3 e 7) para cada conceito, palavra-chave ou símbolo importante que aparece no ${codeScope} (ex: ${exemploConceitos}). Frases curtas e diretas, uma ideia por vez. Nada de explicações longas ou com vários porquês encadeados. Exemplos curtos e fáceis de copiar. Garanta JSON válido (aspas escapadas corretamente).`,
-    system: `Você é um professor de ${langName} paciente, para iniciantes de 13-14 anos que nunca programaram. Explique tudo do jeito MAIS SIMPLES possível: frases curtas, uma ideia por frase, sem jargão técnico desnecessário e sem explicações longas. Português correto e simples. Responda APENAS JSON puro válido.`,
+    system: `Você é um professor de ${langName} paciente, para iniciantes de 13-14 anos que nunca programaram. Explique tudo do jeito MAIS SIMPLES possível: frases curtas, uma ideia por frase, sem jargão técnico desnecessário e sem explicações longas. Português correto e simples. Responda APENAS JSON puro válido.` + nyxPrefsInstruction(nyxPrefs),
   };
 }
 // monta o pedido de CONTINUAÇÃO do resumo — usado quando o aluno já tinha um resumo pronto hoje e o
 // professor passou mais código depois; pede só as seções NOVAS, sem repetir o que já foi explicado
-function buildContinuationSummaryRequest(existingSummary, novoCode, fullCode, lang) {
+function buildContinuationSummaryRequest(existingSummary, novoCode, fullCode, lang, nyxPrefs) {
   const langName = lang ? lang.label : "C#";
   const fence = lang ? lang.codeLang : "csharp";
   const jaExplicado = (existingSummary.secoes || []).map(s => s.titulo).filter(Boolean).join(", ") || "(nada ainda)";
   return {
     prompt: `Um aluno iniciante de ${langName} já tinha um resumo de aula pronto, cobrindo estes conceitos: ${jaExplicado}.\n\nDepois disso, o professor passou MAIS código pra turma copiar, e isto é o que o aluno escreveu a mais:\n\`\`\`${fence}\n${novoCode}\n\`\`\`\n\nCódigo completo do projeto até agora (contexto, pode repetir trechos de antes):\n\`\`\`${fence}\n${fullCode}\n\`\`\`\n\nCrie a CONTINUAÇÃO do resumo: só seções sobre conceitos NOVOS que aparecem no código escrito depois. NÃO repita nenhum dos conceitos já listados acima.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "secoes": [\n    { "emoji": "um emoji que combine com o conceito", "titulo": "nome curto e claro do conceito", "explicacao": "explicação BEM simples, em NO MÁXIMO 2 frases curtas, sem jargão técnico", "exemplo": "um trecho de código ${langName} BEM curto (1 a 3 linhas) mostrando o uso (use \\n para quebrar linha)" }\n  ],\n  "dica": "uma dica final curta (1 frase), sobre o que aprendeu de novo"\n}\n\nSe não houver nenhum conceito realmente novo, devolva "secoes": [] mesmo assim. Frases curtas, simples, para quem começou a programar agora. Garanta JSON válido.`,
-    system: `Você é um professor de ${langName} continuando um resumo de aula já começado — só acrescenta o que é novo, nunca repete o que já foi explicado antes. Português correto e simples. Responda APENAS JSON puro válido.`,
+    system: `Você é um professor de ${langName} continuando um resumo de aula já começado — só acrescenta o que é novo, nunca repete o que já foi explicado antes. Português correto e simples. Responda APENAS JSON puro válido.` + nyxPrefsInstruction(nyxPrefs),
   };
 }
 // junta o resumo novo (só as seções novas) ao resumo que já existia, sem perder o que já tinha
@@ -4853,9 +4853,6 @@ function requestFS(){
 const goFullscreen = () => { requestFS().catch(()=>{}); };
 const todayKey = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 // semana ISO (segunda a domingo) — usada pro desafio livre da semana resetar sozinho toda semana
-// a prova pode ser criada só pra um turno (examShift no painel do professor); alunos do OUTRO
-// turno devem continuar na aula normal, como se não houvesse prova nenhuma agora
-const examForShift = (es, myShift) => (!es || !es.shift || es.shift === "all" || es.shift === myShift) ? es : { status: "idle" };
 const weekKey = (d = new Date()) => {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = date.getUTCDay() || 7;
@@ -5908,7 +5905,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             summarySnapshotRef.current = prev.summarySnapshot;
           }
         }
-        const es = examForShift(await getExamState(), shift);
+        const es = await getExamStateForStudent(shift);
         if (alive) setExamInfo(es);
       } finally { if (alive) setLoaded(true); }
     })();
@@ -5997,9 +5994,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const s = stateRef.current;
       const codeLen = (s.code || "").trim().length;
       setIdleHint(s.phase === "coding" && codeLen < 10 && (Date.now() - sessionStart.current) > 90000);
-      // prova: busca estado global
+      // prova: busca o estado do turno deste aluno (ou a prova combinada, se houver uma)
       try {
-        const es = examForShift(await getExamState(), shift);
+        const es = await getExamStateForStudent(shift);
         // alunos do Modo Guiado que escolheram NÃO fazer a prova ficam de fora do cálculo de nota
         // (senão levariam zero quando o professor encerrasse, mesmo sem nunca ter entrado na prova)
         const isGuidedNow = await getAccessMode(shift, studentName).catch(() => false);
@@ -6769,8 +6766,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const isContinuation = existingSummary && typeof existingSummary === "object" && Array.isArray(existingSummary.secoes) && existingSummary.secoes.length > 0;
       const novoCode = isContinuation ? codeWrittenSinceLastSummary() : "";
       const simpleReq = isContinuation
-        ? buildContinuationSummaryRequest(existingSummary, novoCode.trim() ? novoCode : todayCode, fullCode, studyLang)
-        : buildSummaryRequest("simples", hasTodayDiff, todayCode, fullCode, studyLang);
+        ? buildContinuationSummaryRequest(existingSummary, novoCode.trim() ? novoCode : todayCode, fullCode, studyLang, nyxPrefs)
+        : buildSummaryRequest("simples", hasTodayDiff, todayCode, fullCode, studyLang, nyxPrefs);
       const difficultyHint = recentDifficultyHint(scoreHistory);
       // 🎯 dificuldade adaptativa: quem está com dificuldade ganha uma "dica" em cada questão (ajuda
       // a pensar no conceito certo sem entregar a resposta); quem está indo muito bem ganha uma
@@ -6843,7 +6840,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const fullCode = allCodeToday();
       const todayCode = codeWrittenToday();
       const hasTodayDiff = todayCode.trim().length >= 10 && todayCode.trim() !== fullCode.trim();
-      const { prompt, system } = buildSummaryRequest("detalhado", hasTodayDiff, todayCode, fullCode, studyLang);
+      const { prompt, system } = buildSummaryRequest("detalhado", hasTodayDiff, todayCode, fullCode, studyLang, nyxPrefs);
       const data = await askClaudeJson(prompt, system);
       setDetailedSummary(data);
       const newDetailedHistory = { ...detailedSummaryHistory, [todayKey()]: data };
@@ -8932,7 +8929,17 @@ function TeacherView({ onLogout, teacherAuth }) {
   // relógio pra contar o tempo de estudo restante na fase de revisão da prova
   const [examNow, setExamNow] = useState(() => Date.now());
   useEffect(() => { const iv = setInterval(() => setExamNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
-  const [examShift, setExamShift] = useState("all");
+  // cada turno tem sua própria prova independente (ver storage.js) — reaproveita o mesmo filtro de
+  // turma (shiftFilter) que já existe pra Monitoramento/Calendário/Feedback, em vez de criar outro
+  // seletor: trocar o filtro busca na hora o estado da prova DAQUELE turno, sem esperar o próximo
+  // ciclo do polling normal (8s)
+  const shiftFilterRef = useRef(shiftFilter);
+  useEffect(() => { shiftFilterRef.current = shiftFilter; }, [shiftFilter]);
+  useEffect(() => {
+    let alive = true;
+    (async () => { try { const ec = await getExamState(shiftFilter); if (alive) setExamConfig(ec); } catch {} })();
+    return () => { alive = false; };
+  }, [shiftFilter]);
   const [confirmEndExam, setConfirmEndExam] = useState(false);
   // 🎉 quiz estilo Kahoot: temas salvos + sala ativa (o professor é o único que escreve; os alunos
   // respondem no próprio perfil e o placar é apurado aqui a partir do polling da turma)
@@ -9018,7 +9025,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     const arr = await listStudents();
     setStudents(arr);
     setLastUpdate(new Date().toLocaleTimeString("pt-BR"));
-    try { const ec = await getExamState(); setExamConfig(ec); } catch {}
+    try { const ec = await getExamState(shiftFilterRef.current); setExamConfig(ec); } catch {}
     // marca o dia de hoje como aula se houver alunos — não conta fim de semana
     // como aula por padrão (só se o professor liberar em allowWeekend)
     const dowNow = new Date().getDay();
@@ -10080,9 +10087,9 @@ function TeacherView({ onLogout, teacherAuth }) {
 
 
   const startExam = async () => {
-    const examShifts = examShift === "all" ? ["matutino","vespertino"] : [examShift];
+    const examShifts = shiftFilter === "all" ? ["matutino","vespertino"] : [shiftFilter];
     const proCode = examShifts.flatMap(sh => proFilesByShift[sh]||[]).map(f => (f.code||"")).join("\n").trim();
-    const examStudents = examShift === "all" ? students : students.filter(s=>(s.shift||"sem-turno")===examShift);
+    const examStudents = shiftFilter === "all" ? students : students.filter(s=>(s.shift||"sem-turno")===shiftFilter);
     // pega o código de TODOS os arquivos que cada aluno escreveu ao longo da aula (não só um trecho) —
     // o teto é bem mais generoso que o de outras chamadas porque aqui é o CONTEXTO de entrada (não a
     // resposta), e o resumo da prova precisa enxergar o código de todo mundo, não só uma amostra
@@ -10092,7 +10099,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       .join("\n\n")
       .slice(0, 30000);
     const codeCtx = [proCode, studentCodes].filter(Boolean).join("\n\n");
-    if (!codeCtx) { setExamMsg(`Escreva o código de exemplo na aba Meu código (turma ${examShift==="all"?"Manhã ou Tarde":shiftMeta(examShift).label}) primeiro!`); return; }
+    if (!codeCtx) { setExamMsg(`Escreva o código de exemplo na aba Meu código (turma ${shiftFilter==="all"?"Manhã ou Tarde":shiftMeta(shiftFilter).label}) primeiro!`); return; }
     setExamGenerating(true); setExamMsg("Gerando resumo...");
     try {
       const summaryResult = await askClaude(
@@ -10112,8 +10119,8 @@ function TeacherView({ onLogout, teacherAuth }) {
       // ⏳ 30min de estudo antes da prova poder ser iniciada de verdade — mesmo espírito do
       // chefão: dá tempo pra turma revisar o resumo com calma antes de valer a nota
       const EXAM_STUDY_MS = 30 * 60 * 1000;
-      const newConfig = { status: 'review', questions: shuffleQuestions(parsed.questions), summary: summaryResult.trim(), shift: examShift, startedAt: Date.now(), studyUntil: Date.now() + EXAM_STUDY_MS };
-      await setExamState(newConfig, teacherAuth);
+      const newConfig = { status: 'review', questions: shuffleQuestions(parsed.questions), summary: summaryResult.trim(), shift: shiftFilter, startedAt: Date.now(), studyUntil: Date.now() + EXAM_STUDY_MS };
+      await setExamState(newConfig, teacherAuth, shiftFilter);
       setExamConfig(newConfig);
       setExamMsg("✅ Prova criada! Os alunos têm 30min pra estudar. Quando todos estiverem prontos, clique em Iniciar Agora (ou espere o tempo passar).");
     } catch(e) { setExamMsg("Erro ao gerar a prova. Tente de novo."); }
@@ -10122,7 +10129,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
   const activateExam = async () => {
     const newConfig = { ...examConfig, status: 'active', activatedAt: Date.now() };
-    await setExamState(newConfig, teacherAuth);
+    await setExamState(newConfig, teacherAuth, examConfig.shift || shiftFilter);
     setExamConfig(newConfig);
     setExamMsg("✅ Prova iniciada! Os alunos estão respondendo.");
   };
@@ -10139,14 +10146,14 @@ function TeacherView({ onLogout, teacherAuth }) {
 
   const endExam = async () => {
     const newConfig = { ...examConfig, status: 'done', endedAt: Date.now() };
-    await setExamState(newConfig, teacherAuth);
+    await setExamState(newConfig, teacherAuth, examConfig.shift || shiftFilter);
     setExamConfig(newConfig);
     setExamMsg("✅ Prova encerrada! Veja o ranking abaixo.");
     setConfirmEndExam(false);
   };
 
   const resetExam = async () => {
-    await setExamState({ status: 'idle' }, teacherAuth);
+    await setExamState({ status: 'idle' }, teacherAuth, examConfig.shift || shiftFilter);
     setExamConfig({ status: 'idle' });
     setExamMsg("");
   };
@@ -11629,8 +11636,8 @@ function TeacherView({ onLogout, teacherAuth }) {
       })()}
 
       {tab==="exam" && (() => {
-        // sempre pelo turno da PRÓPRIA prova (examConfig.shift), não pelo filtro solto do
-        // Monitoramento — senão o "prontos"/ranking mostra gente de um turno que nem tá fazendo
+        // cada turma tem sua própria prova independente (ver storage.js) — usa o mesmo filtro de
+        // turma (shiftFilter) do topo da tela pra saber qual prova mostrar/gerenciar aqui
         const examStudents = (examConfig.shift && examConfig.shift !== "all") ? students.filter(s=>(s.shift||"sem-turno")===examConfig.shift) : students;
         const readyStudents = examStudents.filter(s => s.examReady);
         const doneStudents  = examStudents.filter(s => s.examDone);
@@ -11639,6 +11646,8 @@ function TeacherView({ onLogout, teacherAuth }) {
         const medal = (i) => i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
         return (
           <div style={{ padding:14, maxWidth:900, margin:"0 auto" }}>
+            <p style={{ color:"#776798", fontSize:11.5, margin:"-4px 0 14px" }}>💡 Cada turma (filtro "Turma" lá em cima) tem sua própria prova, independente das outras — pode ter uma em andamento pra manhã e criar outra diferente pra tarde ao mesmo tempo.</p>
+
             {/* confirmação de encerrar */}
             {confirmEndExam && (
               <div style={{ position:"fixed", inset:0, background:"#000000aa", display:"flex", alignItems:"center", justifyContent:"center", zIndex:999, padding:16 }}>
@@ -11659,13 +11668,6 @@ function TeacherView({ onLogout, teacherAuth }) {
               <div className="cardfx" style={styles.card}>
                 <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🏆 Criar Prova</h3>
                 <p style={{ color:"#a99ac9", fontSize:13, marginBottom:14, lineHeight:1.6 }}>A IA gera automaticamente um resumo de revisão e 10 questões de múltipla escolha com base no código de hoje. Os alunos revisam, entram na sala e então você inicia.</p>
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>
-                  <span style={{ color:"#a99ac9", fontSize:13, alignSelf:"center" }}>Turma:</span>
-                  <button onClick={()=>setExamShift("all")} style={styles.tab(examShift==="all")}>Todas</button>
-                  {SHIFTS.map(sh=>(
-                    <button key={sh.id} onClick={()=>setExamShift(sh.id)} style={styles.tab(examShift===sh.id)}>{sh.emoji} {sh.label}</button>
-                  ))}
-                </div>
                 <p style={{ color:"#a99ac9", fontSize:12, marginBottom:10 }}>As questões são geradas a partir do código que você escreveu na aba <b>Meu código</b>. Se não houver, usa o código dos alunos.</p>
                 <button onClick={startExam} disabled={examGenerating} style={{ ...styles.btn("#c084fc"), opacity:examGenerating?0.6:1, padding:"12px 24px", fontSize:15 }}>
                   {examGenerating ? "Gerando..." : "🚀 Gerar e Iniciar Prova"}

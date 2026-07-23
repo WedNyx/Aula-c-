@@ -605,18 +605,30 @@ export async function listPartners(shift) {
   } catch { return [] }
 }
 
-export async function getExamState() {
+// cada turno tem sua PRÓPRIA prova, guardada numa chave separada (exam:config:matutino,
+// exam:config:teste, etc.) — assim o professor pode ter uma prova da manhã em andamento e criar
+// uma prova diferente pra tarde sem uma apagar a outra. "all" ("Todos os turnos") é só mais um
+// turno possível aqui, usado quando o professor quer uma prova única valendo pra manhã+tarde juntas.
+export async function getExamState(shift) {
   try {
-    const r = await kvCall({ action: 'get', key: 'exam:config' })
+    const r = await kvCall({ action: 'get', key: `exam:config:${shift || 'all'}` })
     return r.value ? JSON.parse(r.value) : { status: 'idle' }
   } catch { return { status: 'idle' } }
 }
 
-export async function setExamState(state, auth) {
+export async function setExamState(state, auth, shift) {
   try {
-    await kvCall({ action: 'set', key: 'exam:config', value: JSON.stringify(state), auth })
+    await kvCall({ action: 'set', key: `exam:config:${shift || 'all'}`, value: JSON.stringify(state), auth })
     return true
   } catch { return false }
+}
+
+// aluno: confere primeiro se tem uma prova só pro turno dele; se não tiver, cai pra prova
+// combinada ("Todos os turnos") — essa é a única forma de uma prova valer pra mais de um turno
+export async function getExamStateForStudent(shift) {
+  const own = await getExamState(shift)
+  if (own && own.status && own.status !== 'idle') return own
+  return getExamState('all')
 }
 
 // sinais de texto que costumam aparecer quando o Supabase free tier estourou a cota (armazenamento,
