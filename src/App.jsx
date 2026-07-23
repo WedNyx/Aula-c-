@@ -6314,7 +6314,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       setAnalyzing(false);
       return;
     }
-    const order = [lastProviderRef.current, ANALYZE_PROVIDERS.find(p => p !== lastProviderRef.current)];
+    // tenta os dois modelos gratuitos primeiro (na ordem de sempre) e, só se os DOIS falharem de
+    // verdade (é aí que aparece "Reconectando Nyx"), usa a Anthropic (Sonnet 5) como último recurso —
+    // assim o aluno não fica travado esperando o gratuito voltar, mas o gasto pago só entra quando precisa
+    const order = [lastProviderRef.current, ANALYZE_PROVIDERS.find(p => p !== lastProviderRef.current), "anthropic"];
     let lastErr = null;
     for (const provider of order) {
       try {
@@ -6323,7 +6326,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           (studyLang ? studyLang.system : CS_SYSTEM) + "\nResponda APENAS JSON puro, sem markdown." + nyxPrefsInstruction(nyxPrefs),
           { temperature: 0, provider }
         );
-        lastProviderRef.current = provider; // o modelo que funcionou vira o preferido pras próximas análises (inclusive as silenciosas)
+        // só lembra o modelo GRATUITO que funcionou (pra próxima vez tentar ele primeiro de novo) —
+        // o Sonnet 5 é só reserva de emergência, não deve virar o preferido
+        if (provider !== "anthropic") lastProviderRef.current = provider;
         setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
         await persist({ feedback:parsed, hasError:!parsed.ok });
         if (parsed.ok) {
@@ -6335,7 +6340,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (errs.length > 0) { setErrorWalkStep(0); setShowErrorWalkthrough(true); }
         }
         lastErr = null;
-        break; // deu certo — não precisa tentar o outro modelo
+        break; // deu certo — não precisa tentar o próximo modelo
       } catch (e) {
         lastErr = e; // guarda e tenta o próximo modelo da lista, sem avisar o aluno ainda
       }
@@ -6350,7 +6355,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         pendingAnalyzeRef.current = true;
       } else {
         setRobotState("error");
-        setRobotMsg(`😵 Nyx tentou analisar com os dois modelos disponíveis e nenhum respondeu agora. Tente de novo em instantes.\n\n🔧 Detalhe técnico (pra mostrar ao Vegapunk): ${lastErr.message || lastErr}`);
+        setRobotMsg(`😵 Nyx tentou analisar com todos os modelos disponíveis e nenhum respondeu agora. Tente de novo em instantes.\n\n🔧 Detalhe técnico (pra mostrar ao Vegapunk): ${lastErr.message || lastErr}`);
       }
     }
     setAnalyzing(false);

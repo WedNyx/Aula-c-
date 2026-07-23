@@ -175,12 +175,28 @@ export default async function handler(req, res) {
   const { prompt, system, temperature, max_tokens, provider } = req.body || {}
 
   // botão Nemotron ou botão Laguna: modelo específico escolhido pela pessoa, sem troca automática
+  // (o cliente é quem decide se/quando recorre à Anthropic como último recurso — ver provider === 'anthropic')
   if (provider === 'nvidia' || provider === 'laguna') {
     try {
       const data = await callExplicitProvider(provider, { prompt, system, temperature, max_tokens })
       return res.json(data)
     } catch (e) {
       if (e.missingKey) return res.status(503).json({ error: 'missing_api_key', message: e.message })
+      return res.status(e.status || 500).json({ error: String(e.message || e) })
+    }
+  }
+
+  // último recurso explícito (Sonnet 5): só usado pelo cliente depois que Nemotron E Laguna já
+  // falharam de verdade — assim o aluno não fica travado com o Nyx "reconectando" esperando os
+  // modelos gratuitos voltarem, mas o gasto pago só entra quando os gratuitos realmente caem juntos
+  if (provider === 'anthropic') {
+    if (!ANTHROPIC_KEY) {
+      return res.status(503).json({ error: 'missing_api_key', message: 'ANTHROPIC_API_KEY ainda não está configurada no Vercel.' })
+    }
+    try {
+      const data = await callAnthropic({ prompt, system, temperature, max_tokens })
+      return res.json(data)
+    } catch (e) {
       return res.status(e.status || 500).json({ error: String(e.message || e) })
     }
   }
