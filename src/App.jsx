@@ -9847,6 +9847,16 @@ function TeacherView({ onLogout, teacherAuth }) {
     setExamConfig(newConfig);
     setExamMsg("✅ Prova iniciada! Os alunos estão respondendo.");
   };
+  // ⏳ igual ao chefão: quando o tempo de estudo acaba, a prova começa sozinha — não fica travada
+  // esperando o professor lembrar de clicar em "Iniciar Agora". A ref evita disparar de novo a cada
+  // tick do relógio (1s) enquanto o activateExam ainda está em andamento (chamada assíncrona).
+  const examAutoStartedRef = useRef(null);
+  useEffect(() => {
+    if (examConfig.status !== 'review' || !examConfig.studyUntil || examNow < examConfig.studyUntil) return;
+    if (examAutoStartedRef.current === examConfig.startedAt) return;
+    examAutoStartedRef.current = examConfig.startedAt;
+    activateExam();
+  }, [examConfig.status, examConfig.studyUntil, examConfig.startedAt, examNow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const endExam = async () => {
     const newConfig = { ...examConfig, status: 'done', endedAt: Date.now() };
