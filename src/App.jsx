@@ -9841,20 +9841,22 @@ function TeacherView({ onLogout, teacherAuth }) {
     const examShifts = examShift === "all" ? ["matutino","vespertino"] : [examShift];
     const proCode = examShifts.flatMap(sh => proFilesByShift[sh]||[]).map(f => (f.code||"")).join("\n").trim();
     const examStudents = examShift === "all" ? students : students.filter(s=>(s.shift||"sem-turno")===examShift);
-    // pega o código de TODOS os arquivos que cada aluno escreveu ao longo da aula (não só um trecho)
+    // pega o código de TODOS os arquivos que cada aluno escreveu ao longo da aula (não só um trecho) —
+    // o teto é bem mais generoso que o de outras chamadas porque aqui é o CONTEXTO de entrada (não a
+    // resposta), e o resumo da prova precisa enxergar o código de todo mundo, não só uma amostra
     const studentCodes = examStudents
       .map(s => (Array.isArray(s.files) && s.files.length) ? s.files.map(f=>f.code||"").join("\n") : (s.code||""))
       .filter(c => c.trim().length > 5)
       .join("\n\n")
-      .slice(0, 8000);
+      .slice(0, 30000);
     const codeCtx = [proCode, studentCodes].filter(Boolean).join("\n\n");
     if (!codeCtx) { setExamMsg(`Escreva o código de exemplo na aba Meu código (turma ${examShift==="all"?"Manhã ou Tarde":shiftMeta(examShift).label}) primeiro!`); return; }
     setExamGenerating(true); setExamMsg("Gerando resumo...");
     try {
       const summaryResult = await askClaude(
-        `Aqui está o código C# que a turma escreveu ao longo de toda a aula de hoje (exemplo do professor e/ou código dos alunos):\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie um RESUMO DE REVISÃO em tópicos claros (máximo 8 tópicos) cobrindo os principais conceitos vistos durante a aula, para os alunos estudarem antes de uma prova. Cada tópico: emoji + nome do conceito + explicação simples de 1 frase + exemplo curto. Português simples. Sem markdown pesado, use • para tópicos.`,
-        "Você cria resumos de revisão de C# para alunos iniciantes. Português simples.",
-        { max_tokens: 3000 }
+        `Aqui está o código C# que a turma inteira escreveu ao longo de TODA a aula de hoje (exemplo do professor e o código de cada aluno, do começo ao fim):\n\`\`\`csharp\n${codeCtx}\n\`\`\`\n\nCrie um RESUMO DE REVISÃO completo e bem elaborado, cobrindo TODOS os conceitos, palavras-chave e estruturas que aparecem nesse código inteiro (não resuma demais nem pule partes só porque parecem simples — se apareceu no código de algum aluno, deve entrar no resumo). Não tem número fixo de tópicos: crie quantos forem necessários pra cobrir de verdade tudo que foi visto, mesmo que passe de 15-20.\n\nPara cada tópico use: emoji + nome do conceito + explicação clara de 2 a 4 frases (contexto de quando/por que se usa, não só uma definição seca) + um exemplo curto tirado do próprio código da turma sempre que possível. Organize os tópicos numa ordem que faça sentido para estudar (do mais básico ao mais avançado). Português simples, direto ao ponto. Sem markdown pesado, use • para cada tópico.`,
+        "Você cria resumos de revisão de C# para alunos iniciantes, sendo completo e detalhado — cobre tudo que foi visto, sem cortar conteúdo pra deixar o resumo curto. Português simples.",
+        { max_tokens: 4000 }
       );
       setExamMsg("Gerando questões...");
       // 28-32 questões em JSON é a maior resposta pedida em todo o app — precisa de um teto de
