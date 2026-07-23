@@ -8890,6 +8890,26 @@ const LESSON_LIBRARY = [
   { title:"Aula 9 · Mini projeto: jogo de adivinhação", desc:"Junta tudo: variáveis, while, if e Random.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // Random sorteia um número secreto de 1 a 20\n        Random sorteio = new Random();\n        int secreto = sorteio.Next(1, 21);\n        int tentativas = 0;\n        int chute = 0;\n\n        Console.WriteLine("Adivinhe o número secreto (1 a 20)!");\n\n        while (chute != secreto)\n        {\n            Console.WriteLine("Seu chute:");\n            chute = int.Parse(Console.ReadLine());\n            tentativas++;\n\n            if (chute < secreto)\n            {\n                Console.WriteLine("É MAIOR! Tente de novo.");\n            }\n            else if (chute > secreto)\n            {\n                Console.WriteLine("É menor! Tente de novo.");\n            }\n        }\n\n        Console.WriteLine($"🎉 Acertou em {tentativas} tentativa(s)!");\n    }\n}' }] },
 ];
 
+// card que começa fechado (só o título) e abre com um clique — usado pra esconder as ferramentas menos
+// usadas do painel do professor (diagnóstico, boletim, retrospectiva...) sem tirar nada do ar, só do
+// primeiro olhar. O conteúdo (children) só é montado quando aberto, então nada roda escondido à toa.
+function CollapsibleCard({ title, color = "#fbbf24", defaultOpen = false, alertOpen = false, dataTourProf, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  // se alertOpen virar true (ex: banco ou IA com problema de verdade), abre sozinho — decluttered
+  // quando tá tudo bem, mas não esconde um alerta real atrás de um card fechado
+  useEffect(() => { if (alertOpen) setOpen(true); }, [alertOpen]);
+  const cardStyle = { background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:16, margin:"10px 0", border:"1px solid #3a2a55", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both", fontSize:12, padding: open ? 16 : "10px 16px" };
+  return (
+    <div data-tour-prof={dataTourProf} className="cardfx" style={cardStyle}>
+      <button onClick={()=>setOpen(o=>!o)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", background:"transparent", border:"none", cursor:"pointer", padding:0, margin: open ? "0 0 6px" : 0 }}>
+        <h4 style={{ color, fontSize:13, margin:0 }}>{title}</h4>
+        <span style={{ color:"#776798", fontSize:12, transform: open ? "rotate(180deg)" : "none", transition:"transform .15s ease" }}>▼</span>
+      </button>
+      {open && children}
+    </div>
+  );
+}
+
 function TeacherView({ onLogout, teacherAuth }) {
   const [students, setStudents] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -10842,8 +10862,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               </button>
             </div>
 
-            <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
-              <h4 style={{ color:"#fbbf24", fontSize:13, marginBottom:6 }}>🔧 Conexão</h4>
+            <CollapsibleCard title="🔧 Conexão" alertOpen={!!diag && (diag.hasStorage === false || diag.hasAI === false)}>
               {diag ? (
                 <div style={{ color:"#d6c9ec", lineHeight:1.7 }}>
                   <div>
@@ -10921,10 +10940,9 @@ function TeacherView({ onLogout, teacherAuth }) {
               {dbSetupMsg && (
                 <p style={{color:dbSetupMsg.startsWith("✅")?"#34d399":dbSetupMsg.startsWith("Cole")?"#93c5fd":"#f87171",fontSize:12,marginTop:6}}>{dbSetupMsg}</p>
               )}
-            </div>
+            </CollapsibleCard>
 
-            <div data-tour-prof="conteudo-auto" className="cardfx" style={{ ...styles.card, fontSize:12 }}>
-              <h4 style={{ color:"#fbbf24", fontSize:13, marginBottom:6 }}>📖 Conteúdo de hoje</h4>
+            <CollapsibleCard title="📖 Conteúdo de hoje" dataTourProf="conteudo-auto">
               {todayContentM
                 ? <p style={{ color:"#34d399", fontSize:13, fontWeight:600, lineHeight:1.5, margin:0 }}>☀️ Manhã: {todayContentM}</p>
                 : <p style={{ color:"#a99ac9", fontSize:12.5, lineHeight:1.5, margin:0 }}>☀️ Manhã: ainda não definido</p>}
@@ -10934,10 +10952,9 @@ function TeacherView({ onLogout, teacherAuth }) {
               <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"8px 0 0" }}>Programe o exemplo na aba <b>Meu código</b> e gere um nome automático. (Se ainda não programou, uso o código dos alunos.)</p>
               <button style={{ ...styles.btn("#c084fc"), padding:"6px 12px", fontSize:13, marginTop:8, width:"100%", opacity:genName?0.6:1 }} onClick={generateContentNameFiltered} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo"}</button>
               {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12, marginTop:8, lineHeight:1.5 }}>{nameMsg}</p>}
-            </div>
+            </CollapsibleCard>
 
-            <div data-tour-prof="boletim" className="cardfx" style={{ ...styles.card, fontSize:12 }}>
-              <h4 style={{ color:"#f9a8d4", fontSize:13, marginBottom:6 }}>💌 Boletim pros responsáveis</h4>
+            <CollapsibleCard title="💌 Boletim pros responsáveis" color="#f9a8d4" dataTourProf="boletim">
               <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Um PDF com uma página por aluno, em linguagem simples pra família: presenças, o que aprendeu, medalhas e um recado do Nyx. Bom pra mandar pra casa no fim do mês.</p>
               {SHIFTS.map(sh => (
                 <button key={sh.id} onClick={()=>exportBoletins(sh.id)} disabled={boletimBusy}
@@ -10946,10 +10963,9 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </button>
               ))}
               {boletimMsg && <p style={{ color: boletimMsg.startsWith("✅") ? "#34d399" : boletimMsg.startsWith("❌") ? "#f87171" : "#fbbf24", fontSize:12, marginTop:8, lineHeight:1.5 }}>{boletimMsg}</p>}
-            </div>
+            </CollapsibleCard>
 
-            <div data-tour-prof="retro" className="cardfx" style={{ ...styles.card, fontSize:12 }}>
-              <h4 style={{ color:"#c4b5fd", fontSize:13, marginBottom:6 }}>🎁 Retrospectiva do mês</h4>
+            <CollapsibleCard title="🎁 Retrospectiva do mês" color="#c4b5fd" dataTourProf="retro">
               <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Libere no fim do mês: cada aluno vê uma tela especial com os números dele (linhas de código, presenças, conquistas...). Cada um vê a sua uma vez só.</p>
               {SHIFTS.map(sh => {
                 const on = !!(meta.retro || {})[sh.id];
@@ -10960,7 +10976,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   </button>
                 );
               })}
-            </div>
+            </CollapsibleCard>
 
             {commonErrorsToday.length > 0 && (
               <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
