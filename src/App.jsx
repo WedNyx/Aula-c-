@@ -8346,7 +8346,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 {room.status==="question" && <span style={{ fontSize:22, fontWeight:900, color: remaining<=5?"#f87171":"#34d399", fontVariantNumeric:"tabular-nums" }}>⏱ {remaining}s</span>}
               </div>
               {room.status==="question" && (
-                <div style={{ height:6, background:"#171026", borderRadius:4, overflow:"hidden", marginBottom:12 }}>
+                <div className="bar-glow" style={{ height:10, background:"#171026", border:"1px solid #3b2a58", borderRadius:20, overflow:"hidden", marginBottom:12 }}>
                   <div style={{ height:"100%", width:`${Math.max(0, Math.min(100, (remaining/quizSecsOf(room))*100))}%`, background: remaining<=5?"#f87171":"#34d399", transition:"width 1s linear" }} />
                 </div>
               )}
