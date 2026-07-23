@@ -2330,22 +2330,36 @@ const TOUR_STEPS = [
   { sel:'[data-tour="chat"]',     emoji:"💬", title:"Fale comigo!",          text:"Qualquer dúvida de C#, abre este botão e conversa comigo. Estou sempre por aqui. Bora programar? 🚀" },
 ];
 
-// tour do painel do professor — acionado por um botão (🧭 Tour), não aparece sozinho. Mantenho essa
-// lista atualizada manualmente sempre que uma função nova entra no painel do professor.
+// tour do painel do professor — acionado por um botão (🧭 Tour), não aparece sozinho. Cada passo diz
+// em qual aba (tab) o professor precisa estar: ao avançar, o painel MUDA de aba sozinho antes de
+// destacar o elemento, então quem faz o tour vê o conteúdo de verdade, não só o botão de fora. Mantenho
+// essa lista atualizada manualmente sempre que uma função nova entra no painel do professor.
 const TEACHER_TOUR_STEPS = [
-  { sel:'[data-tour-prof="monitor"]',  emoji:"👥", title:"Monitoramento",       text:"Acompanhe a turma em tempo real: fase de cada aluno, notas, erros no código e pedidos de ajuda acesos na hora." },
-  { sel:'[data-tour-prof="code"]',     emoji:"👨‍💻", title:"Meu código",          text:"Escreva aqui o código de exemplo do dia. Depois é só enviar pro painel de cada aluno — isso vira o \"código da turma\" que eles recebem." },
-  { sel:'[data-tour-prof="calendar"]', emoji:"🗓️", title:"Calendário",          text:"Marque os dias de aula, feriados e o horário de início/fim de cada turno." },
-  { sel:'[data-tour-prof="feedback"]', emoji:"💬", title:"Feedback",            text:"As avaliações que os alunos deixam sobre cada aula (nota + comentário) aparecem aqui." },
-  { sel:'[data-tour-prof="exam"]',     emoji:"🏆", title:"Prova",               text:"Gere uma prova com a IA a partir do código que a turma escreveu. Cada turno tem sua prova própria e independente — pode ter uma rolando de manhã e criar outra bem diferente à tarde, sem uma bagunçar a outra." },
-  { sel:'[data-tour-prof="quiz"]',     emoji:"🎉", title:"Quiz",                text:"Monte um quiz estilo Kahoot e jogue com a turma inteira ao vivo, com placar na hora." },
-  { sel:'[data-tour-prof="situacao"]', emoji:"👀", title:"Situação",            text:"Veja rapidinho quem está indo bem e quem está com dificuldade agora, sem precisar trocar de aba." },
-  { sel:'[data-tour-prof="telao"]',    emoji:"🖥️", title:"Telão",               text:"Modo tela cheia pra projetar pra turma: ranking, meta coletiva e combos ao vivo." },
-  { sel:'[data-tour-prof="turma"]',    emoji:"🔀", title:"Filtro de turma",     text:"Filtra praticamente tudo — monitoramento, chamada, prova — por turno: Manhã, Tarde, Turma de Teste ou Sala de Linguagens." },
-  { sel:'[data-tour-prof="reset"]',    emoji:"🔄", title:"Resetar",             text:"Zera o dia da turma selecionada no filtro acima, pra começar uma aula nova do zero." },
-  { sel:'[data-tour="saude-ia"]',      emoji:"📡", title:"Saúde da IA",          text:"As bolinhas mostram se o Nemotron e o Laguna (os modelos gratuitos) estão respondendo bem agora — verde tudo certo, vermelho não respondeu na última tentativa." },
-  { sel:'[data-tour="chat-prof"]',     emoji:"💬", title:"Fale comigo!",         text:"Dúvidas rápidas sobre a turma, ou comandos especiais como zek (chama atenção geral) e zeker (bloqueia duelos) — é só conversar comigo aqui." },
-  { sel:'[data-tour-prof="sair"]',     emoji:"🚪", title:"Sair",                text:"Esse tour eu mantenho sempre atualizado conforme novas funções chegam ao painel — pode chamar de novo quando quiser relembrar algo. Bom trabalho! 🚀" },
+  { tab:"monitor", sel:'[data-tour-prof="monitor"]',      emoji:"👥", title:"Monitoramento",        text:"Sua tela principal: acompanhe a turma em tempo real, fase de cada aluno, notas, erros no código e pedidos de ajuda acesos na hora." },
+  { tab:"monitor", sel:'[data-tour-prof="monitor-grid"]', emoji:"🧩", title:"Grade de alunos",       text:"Cada quadradinho é um aluno — clique em um pra abrir o painel de gerenciar (renomear, corrigir nota, ver o código, enviar mensagem ou excluir)." },
+  { tab:"monitor", sel:'[data-tour-prof="chamada"]',      emoji:"📋", title:"Lista de Chamada",      text:"Presença separada por turno, atualizada sozinha. Dá pra marcar presença na mão (dia de filme, sem computador) e abrir o tutorial de teclado pra todo mundo de uma vez." },
+  { tab:"monitor", sel:'[data-tour-prof="exportar"]',     emoji:"📊", title:"Exportar dados",        text:"Planilha colorida (Excel) com notas e presenças, PDF com o código + explicações do dia, e um backup completo da turma inteira — tudo daqui." },
+  { tab:"monitor", sel:'[data-tour-prof="conteudo-auto"]',emoji:"📖", title:"Conteúdo do dia",       text:"O nome do conteúdo de hoje (o que aparece no calendário) pode ser gerado sozinho pela IA, com base no código que você escreveu." },
+  { tab:"monitor", sel:'[data-tour-prof="boletim"]',      emoji:"💌", title:"Boletim pros responsáveis", text:"Gera um PDF, uma página por aluno, em linguagem simples pra família: presenças, o que aprendeu e um recado do Nyx. Bom pra mandar pra casa no fim do mês." },
+  { tab:"monitor", sel:'[data-tour-prof="retro"]',        emoji:"🎁", title:"Retrospectiva do mês",  text:"Libere e cada aluno vê uma tela especial com os números dele (linhas de código, presenças, conquistas) — estilo Wrapped." },
+  { tab:"code", sel:'[data-tour-prof="code"]',            emoji:"👨‍💻", title:"Meu código",           text:"Aqui você escreve o código de exemplo do dia — é ele que vira o \"código da turma\" que os alunos recebem, no painel de Gerenciar aluno." },
+  { tab:"code", sel:'[data-tour-prof="code-info"]',       emoji:"⚙️", title:"Turno, aulas prontas e nome do conteúdo", text:"Cada turno (Manhã/Tarde) tem seu próprio exemplo. Reaproveite uma aula salva em \"Minhas aulas\", ou gere o nome do conteúdo automaticamente a partir do que você escreveu." },
+  { tab:"calendar", sel:'[data-tour-prof="calendar"]',       emoji:"🗓️", title:"Calendário",           text:"Marca os dias de aula sozinho (quando há alunos online) e você também pode clicar pra marcar/desmarcar na mão." },
+  { tab:"calendar", sel:'[data-tour-prof="calendar-body"]',  emoji:"📅", title:"Dias de aula",         text:"Dias em verde tiveram aula. O 📖 mostra os que já têm conteúdo gerado — passe o mouse pra ver o tema daquele dia." },
+  { tab:"calendar", sel:'[data-tour-prof="cidade"]',         emoji:"📍", title:"Cidade e Hall da Fama", text:"Registre em qual cidade do DF a carreta está agora. Quando for mudar de cidade, encerre aqui: guarda uma placa de destaque + relatório de despedida em PDF, sem apagar os dados da turma (só CPF e data de nascimento somem pra sempre)." },
+  { tab:"calendar", sel:'[data-tour-prof="horario"]',        emoji:"🕐", title:"Horário da turma",     text:"Defina início, fim e intervalo de cada turno — o Nyx libera e bloqueia o perfil dos alunos sozinho, na hora certa." },
+  { tab:"feedback", sel:'[data-tour-prof="feedback"]',       emoji:"💬", title:"Feedback",             text:"As avaliações (nota de 1 a 5 + comentário) que os alunos deixam sobre cada aula aparecem aqui, mais recentes primeiro." },
+  { tab:"feedback", sel:'[data-tour-prof="feedback-body"]',  emoji:"⭐", title:"Avaliações da turma",  text:"Bom pra saber o clima da aula na visão de quem participou — cada card mostra o aluno, o turno e o que ele escreveu." },
+  { tab:"exam", sel:'[data-tour-prof="exam"]',              emoji:"🏆", title:"Prova",                text:"Gere uma prova com a IA a partir do código que a turma escreveu. Cada turno (incluindo Turma de Teste e Sala de Linguagens) tem sua prova própria e independente — pode ter uma rolando de manhã e criar outra bem diferente à tarde, sem uma bagunçar a outra." },
+  { tab:"quiz", sel:'[data-tour-prof="quiz"]',              emoji:"🎉", title:"Quiz",                 text:"Monte um quiz estilo Kahoot e jogue com a turma inteira ao vivo, com placar na hora." },
+  { tab:"quiz", sel:'[data-tour-prof="quiz-body"]',         emoji:"🎮", title:"Temas e salas",        text:"Escolha um tema pronto ou crie o seu, defina o tempo por pergunta e clique em Criar sala: um código aparece pra você, e os alunos entram com ele." },
+  { tab:"monitor", sel:'[data-tour-prof="situacao"]',     emoji:"👀", title:"Situação",              text:"Veja rapidinho quem está indo bem e quem está com dificuldade agora, sem precisar trocar de aba." },
+  { tab:"monitor", sel:'[data-tour-prof="telao"]',        emoji:"🖥️", title:"Telão",                 text:"Modo tela cheia pra projetar pra turma: ranking, meta coletiva e combos ao vivo." },
+  { tab:"monitor", sel:'[data-tour-prof="turma"]',        emoji:"🔀", title:"Filtro de turma",       text:"Filtra praticamente tudo — monitoramento, chamada, prova — por turno: Manhã, Tarde, Turma de Teste ou Sala de Linguagens." },
+  { tab:"monitor", sel:'[data-tour-prof="reset"]',        emoji:"🔄", title:"Resetar",               text:"Zera o dia da turma selecionada no filtro acima, pra começar uma aula nova do zero." },
+  { tab:"monitor", sel:'[data-tour="saude-ia"]',          emoji:"📡", title:"Saúde da IA",           text:"As bolinhas mostram se o Nemotron e o Laguna (os modelos gratuitos) estão respondendo bem agora — verde tudo certo, vermelho não respondeu na última tentativa." },
+  { tab:"monitor", sel:'[data-tour="chat-prof"]',         emoji:"💬", title:"Fale comigo!",          text:"Dúvidas rápidas sobre a turma, ou comandos especiais como zek (chama atenção geral) e zeker (bloqueia duelos) — é só conversar comigo aqui." },
+  { tab:"monitor", sel:'[data-tour-prof="sair"]',         emoji:"🚪", title:"Sair",                  text:"Esse tour eu mantenho sempre atualizado conforme novas funções chegam ao painel — pode chamar de novo quando quiser relembrar algo. Bom trabalho! 🚀" },
 ];
 
 function TourOverlay({ step, onNext, steps = TOUR_STEPS }) {
@@ -10574,7 +10588,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           <button data-tour-prof="situacao" style={{ ...styles.btn(needHelp.length>0 ? "#f87171" : "#34d399"), ...(tab==="code"?{padding:"4px 10px",fontSize:12}:{}) }} onClick={()=>setShowQuickStatus(true)} title="Veja rapidinho quem está com dificuldade, sem sair desta tela">👀 Situação{needHelp.length>0 ? ` (${needHelp.length})` : ""}</button>
           {tab!=="code" && <button data-tour-prof="telao" style={styles.btn("#22d3ee")} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
           {tab!=="code" && <button data-tour-prof="reset" style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
-          {tab!=="code" && <button style={styles.btn("#22d3ee")} onClick={()=>{ setTab("monitor"); setProfTourStep(0); }} title="Tour guiado por todas as funções do painel do professor">🧭 Tour</button>}
+          {tab!=="code" && <button style={styles.btn("#22d3ee")} onClick={()=>{ const first = TEACHER_TOUR_STEPS[0]; if (first.tab) setTab(first.tab); setProfTourStep(0); }} title="Tour guiado por todas as funções do painel do professor, entrando em cada aba pra mostrar de verdade">🧭 Tour</button>}
           <button data-tour-prof="sair" style={{ ...styles.btn("#776798"), fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
         </div>
       </div>
@@ -10739,7 +10753,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             </div>
 
             {/* Chamada — separada por turno */}
-            <div className="cardfx" style={styles.card}>
+            <div data-tour-prof="chamada" className="cardfx" style={styles.card}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
                 <h3 style={{ color:"#fbbf24" }}>📋 Lista de Chamada</h3>
                 <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
@@ -10799,7 +10813,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               )}
             </div>
 
-            <div className="cardfx" style={styles.card}>
+            <div data-tour-prof="exportar" className="cardfx" style={styles.card}>
               <h4 style={{ color:"#fbbf24", marginBottom:10, fontSize:14 }}>📊 Turma hoje</h4>
               {/* conta só quem entrou HOJE — no dia seguinte, antes de alguém entrar, fica tudo no 0 */}
               {["coding","summary","activity","done"].map(p=>(
@@ -10909,7 +10923,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               )}
             </div>
 
-            <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
+            <div data-tour-prof="conteudo-auto" className="cardfx" style={{ ...styles.card, fontSize:12 }}>
               <h4 style={{ color:"#fbbf24", fontSize:13, marginBottom:6 }}>📖 Conteúdo de hoje</h4>
               {todayContentM
                 ? <p style={{ color:"#34d399", fontSize:13, fontWeight:600, lineHeight:1.5, margin:0 }}>☀️ Manhã: {todayContentM}</p>
@@ -10922,7 +10936,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12, marginTop:8, lineHeight:1.5 }}>{nameMsg}</p>}
             </div>
 
-            <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
+            <div data-tour-prof="boletim" className="cardfx" style={{ ...styles.card, fontSize:12 }}>
               <h4 style={{ color:"#f9a8d4", fontSize:13, marginBottom:6 }}>💌 Boletim pros responsáveis</h4>
               <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Um PDF com uma página por aluno, em linguagem simples pra família: presenças, o que aprendeu, medalhas e um recado do Nyx. Bom pra mandar pra casa no fim do mês.</p>
               {SHIFTS.map(sh => (
@@ -10934,7 +10948,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               {boletimMsg && <p style={{ color: boletimMsg.startsWith("✅") ? "#34d399" : boletimMsg.startsWith("❌") ? "#f87171" : "#fbbf24", fontSize:12, marginTop:8, lineHeight:1.5 }}>{boletimMsg}</p>}
             </div>
 
-            <div className="cardfx" style={{ ...styles.card, fontSize:12 }}>
+            <div data-tour-prof="retro" className="cardfx" style={{ ...styles.card, fontSize:12 }}>
               <h4 style={{ color:"#c4b5fd", fontSize:13, marginBottom:6 }}>🎁 Retrospectiva do mês</h4>
               <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Libere no fim do mês: cada aluno vê uma tela especial com os números dele (linhas de código, presenças, conquistas...). Cada um vê a sua uma vez só.</p>
               {SHIFTS.map(sh => {
@@ -10966,7 +10980,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
           {/* direita */}
           <div style={{ flex:"1 1 420px", minWidth:300 }}>
-            <div className="cardfx" style={styles.card}>
+            <div data-tour-prof="monitor-grid" className="cardfx" style={styles.card}>
               <h3 style={{ color:"#fbbf24", marginBottom:12, display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                 <span>👥 Monitoramento ({shown.length})</span>
                 {duplicateGroups.length > 0 && (
@@ -11331,7 +11345,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       {/* ─────────── MEU CÓDIGO (exemplo da aula, do professor) — layout expandido tipo "tela cheia" ─────────── */}
       {tab==="code" && (
           <div style={{ padding:"8px 14px 14px" }}>
-            <div className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
+            <div data-tour-prof="code-info" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, flexWrap:"wrap" }}>
                 <div style={{ flex:"1 1 260px" }}>
                   <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>👨‍💻 Meu código</h3>
@@ -11357,7 +11371,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       {/* ─────────── CALENDÁRIO ─────────── */}
       {tab==="calendar" && (
         <div style={{ display:"flex", gap:14, padding:14, maxWidth:900, margin:"0 auto", alignItems:"flex-start", flexWrap:"wrap" }}>
-          <div className="cardfx" style={{ ...styles.card, flex:"1 1 380px" }}>
+          <div data-tour-prof="calendar-body" className="cardfx" style={{ ...styles.card, flex:"1 1 380px" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8, marginBottom:12 }}>
               <h3 style={{ color:"#fbbf24", margin:0 }}>🗓️ Calendário de aulas</h3>
               <div style={{ display:"flex", gap:8 }}>
@@ -11369,7 +11383,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             <p style={{ color:"#a99ac9", fontSize:13, marginBottom:12 }}>Os dias com aula ficam em verde (são marcados sozinhos quando há alunos online, e você também pode clicar para marcar/desmarcar). O 📖 indica os dias que já têm conteúdo gerado para a turma {shiftMeta(codeShift).label} — passe o mouse para ver o tema.</p>
             <Calendar classDays={meta.classDays||[]} contentNames={calContentNames} onToggle={toggleClassDay} />
           </div>
-          <div className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
+          <div data-tour-prof="cidade" className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:12 }}>📍 Sua cidade no DF</h3>
             <input list="df-cities" value={cityInput} onChange={e=>setCityInput(e.target.value)} onBlur={saveCity} placeholder="Ex: Ceilândia"
               style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"10px 12px", color:"#f0e9fb", fontSize:15, boxSizing:"border-box" }} />
@@ -11392,7 +11406,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             {hallMsg && <p style={{ color: hallMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:8, lineHeight:1.5 }}>{hallMsg}</p>}
             <button style={{ ...styles.btn("#06b6d4"), width:"100%", marginTop:10 }} onClick={()=>{ getHallOfFame().then(setTripHallEntries); setShowTripOverview(true); }}>📊 Visão da Viagem</button>
           </div>
-          <div className="cardfx" style={{ ...styles.card, flex:"1 1 300px" }}>
+          <div data-tour-prof="horario" className="cardfx" style={{ ...styles.card, flex:"1 1 300px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🕐 Horário da turma ({shiftMeta(codeShift).label})</h3>
             <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 12px", lineHeight:1.6 }}>Defina o horário e o Nyx libera/bloqueia o perfil dos alunos sozinho. Deixe em branco pra não restringir nada.</p>
             {(() => {
@@ -11444,7 +11458,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       {/* ─────────── FEEDBACK DOS ALUNOS ─────────── */}
       {tab==="feedback" && (
         <div style={{ padding:14, maxWidth:760, margin:"0 auto" }}>
-          <div className="cardfx" style={styles.card}>
+          <div data-tour-prof="feedback-body" className="cardfx" style={styles.card}>
             <h3 style={{ color:"#fbbf24", marginBottom:12 }}>💬 Feedback dos alunos sobre as aulas</h3>
             <p style={{ color:"#a99ac9", fontSize:12.5, margin:"-4px 0 12px" }}>Do mais recente para o mais antigo, com a turma de cada aluno.</p>
             {feedbacks.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum aluno enviou feedback ainda. Eles podem avaliar ao terminar a aula.</p> : (
@@ -11474,7 +11488,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         // ── sem sala aberta: lista de temas + editor de tema ──
         if (!room) return (
           <div style={{ padding:14, maxWidth:900, margin:"0 auto" }}>
-            <div className="cardfx" style={{ ...styles.card, borderColor:"#c084fc" }}>
+            <div data-tour-prof="quiz-body" className="cardfx" style={{ ...styles.card, borderColor:"#c084fc" }}>
               <h3 style={{ color:"#c084fc", marginBottom:6 }}>🎉 Quiz da Turma (estilo Kahoot)</h3>
               <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, margin:"0 0 14px" }}>Escolha um tema e crie uma sala: um código aparece na sua tela, e na tela dos alunos acende um botão pra entrar com esse código. Cada pergunta vale até 1000 pontos — quanto mais rápido responder, mais pontos (difíceis valem em dobro).</p>
               <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:14 }}>
@@ -11844,7 +11858,14 @@ function TeacherView({ onLogout, teacherAuth }) {
       })()}
 
       {profTourStep >= 0 && profTourStep < TEACHER_TOUR_STEPS.length && (
-        <TourOverlay steps={TEACHER_TOUR_STEPS} step={profTourStep} onNext={()=>setProfTourStep(s => (s+1 >= TEACHER_TOUR_STEPS.length ? -1 : s+1))} />
+        <TourOverlay steps={TEACHER_TOUR_STEPS} step={profTourStep} onNext={()=>setProfTourStep(s => {
+          const next = s+1 >= TEACHER_TOUR_STEPS.length ? -1 : s+1;
+          // muda de aba ANTES do próximo passo aparecer, pra quem faz o tour ver o conteúdo de
+          // verdade daquela aba (não só o botão) — as duas mudanças de estado ficam no mesmo clique,
+          // então o React já renderiza a aba nova junto com o passo novo, sem piscar vazio
+          if (next >= 0) { const wantTab = TEACHER_TOUR_STEPS[next].tab; if (wantTab) setTab(wantTab); }
+          return next;
+        })} />
       )}
 
       <NyxChat
