@@ -9530,13 +9530,13 @@ function TeacherView({ onLogout, teacherAuth }) {
       const notas = [...Object.values(s.scoreHistory||{}), s.score, s.examScore].filter(n => typeof n === "number");
       return notas.length ? Math.max(...notas) : null;
     };
-    // quem tirou a maior nota em cada turma é quem "se destacou mais" nessa planilha
-    const melhorNotaPorTurno = {};
+    // quem tirou a maior nota entre TODOS os alunos (os dois turnos juntos) é o destaque da turma —
+    // só 1 estrela na planilha inteira, não 1 por turno
+    let melhorNotaGeral = null;
     rows.forEach(s => {
       const nota = maiorNotaOf(s);
       if (nota == null) return;
-      const key = s.shift || "sem-turno";
-      if (melhorNotaPorTurno[key] == null || nota > melhorNotaPorTurno[key]) melhorNotaPorTurno[key] = nota;
+      if (melhorNotaGeral == null || nota > melhorNotaGeral) melhorNotaGeral = nota;
     });
     const groups = SHIFTS.map(sh => ({ ...sh, list: rows.filter(s => (s.shift||"sem-turno")===sh.id) })).filter(g => g.list.length > 0);
 
@@ -9555,7 +9555,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     // NASCIMENTO e CPF só entram na planilha (nunca no perfil do aluno) — dados sensíveis pro professor
     // usar no certificado; a formatação de data e o "não sei" do CPF acontecem no cadastro do aluno
     const fmtBirth = (b) => { if (!b) return "—"; const [y,m,d] = String(b).split("-"); return (y&&m&&d) ? `${d}/${m}/${y}` : "—"; };
-    const totalCols = 7 + classDays.length; // ALUNO + dias + DIAS PRESENTES + MAIOR NOTA + SITUAÇÃO + DESTAQUE + NASCIMENTO + CPF
+    const totalCols = 8 + classDays.length; // ALUNO + dias + DIAS PRESENTES + MAIOR NOTA + NOTA DA PROVA + SITUAÇÃO + DESTAQUE + NASCIMENTO + CPF
     const xlsRows = [];
     const merges = [];
     const wide = (st) => Array.from({ length: totalCols }, () => ({ v: "", st })); // linha inteira com o mesmo estilo (pra faixa colorida cobrir a planilha toda)
@@ -9579,14 +9579,14 @@ function TeacherView({ onLogout, teacherAuth }) {
       xlsRows.push({ cells, ht: 22 }); mergeRow();
 
       const dayHeaders = classDays.map(d => { const [, m, dd] = d.split("-"); return `${dd}/${m}`; });
-      xlsRows.push({ cells: ["ALUNO", ...dayHeaders, "DIAS PRESENTES","MAIOR NOTA","SITUAÇÃO","DESTAQUE","NASCIMENTO","CPF"].map((h,i)=>({
+      xlsRows.push({ cells: ["ALUNO", ...dayHeaders, "DIAS PRESENTES","MAIOR NOTA","NOTA DA PROVA","SITUAÇÃO","DESTAQUE","NASCIMENTO","CPF"].map((h,i)=>({
         v: h, st: { b:1, sz: i>0&&i<=classDays.length?9:11, color:"FFFFFF", fill:"303869", border:1, align: i>0 ? "center" : "left" },
       })) });
 
       g.list.forEach((s, i) => {
         const att = Object.values(s.attendance||{}).filter(v=>v==="present").length;
         const maiorNota = maiorNotaOf(s);
-        const isDestaque = maiorNota != null && maiorNota === melhorNotaPorTurno[g.id];
+        const isDestaque = maiorNota != null && maiorNota === melhorNotaGeral;
         const fill = isDestaque ? "FFF6D6" : (i % 2 ? "F5F6FB" : undefined);
         const situacao = maiorNota == null
           ? { v:"Sem nota ainda", st:{ color:"8A8FA8", fill, border:1, align:"center" } }
@@ -9603,8 +9603,9 @@ function TeacherView({ onLogout, teacherAuth }) {
           ...dayCells,
           { v: att, st:{ fill, border:1, align:"center" } },
           { v: maiorNota ?? "—", st:{ b:1, sz:12, color:"303869", fill, border:1, align:"center" } },
+          { v: s.examScore ?? "—", st:{ b:1, sz:12, color:"6b3fd1", fill, border:1, align:"center" } },
           situacao,
-          { v: isDestaque ? "🌟 Aluno destaque da turma" : "", st:{ color:"8A6D1A", fill, border:1, align:"center" } },
+          { v: isDestaque ? "🌟 Aluno destaque (Manhã + Tarde)" : "", st:{ color:"8A6D1A", fill, border:1, align:"center" } },
           { v: fmtBirth(s.birthDate), st:{ color:"5A6183", fill, border:1, align:"center" } },
           { v: s.cpf || "—", st:{ color:"5A6183", fill, border:1, align:"center" } },
         ] });
@@ -9618,7 +9619,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       xlsRows.push({ cells: [] });
     });
 
-    const colWidths = [34, ...classDays.map(()=>6), 16, 12, 18, 28, 14, 18];
+    const colWidths = [34, ...classDays.map(()=>6), 16, 12, 14, 18, 28, 14, 18];
     const blob = xlsxBlob({ sheetName:"Turma", colWidths, rows:xlsRows, merges });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
