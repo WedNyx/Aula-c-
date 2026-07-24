@@ -3,7 +3,7 @@ import gsap from "gsap";
 import confetti from "canvas-confetti";
 import { Toaster, toast } from "sonner";
 import { createAvatar } from "@dicebear/core";
-import { lorelei } from "@dicebear/collection";
+import { adventurer } from "@dicebear/collection";
 import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 
@@ -1654,15 +1654,14 @@ const AVATAR_OPTS = {
   skin: ["#ffe0bd","#ffd6c0","#f1c27d","#e0ac69","#c68642","#a86b3c","#8d5524","#5c3a21"],
   hair: ["#2b2b2b","#3b2417","#6b3e26","#a0522d","#c2410c","#d9a441","#f0d58c","#cbd5e1","#ec4899","#a855f7","#3b82f6","#06b6d4","#34d399","#f87171"],
   hairV: [
-    ["variant11","Repicado"],["variant04","Arrepiado"],["variant01","Curto"],["variant05","Cachinhos"],
-    ["variant12","Franja"],["variant42","Ondulado"],["variant16","Longo"],["variant17","Longo repicado"],
-    ["variant19","Chanel"],["variant23","Franjinha"],["variant24","Cacheado"],["variant39","Crespo"],
-    ["variant26","Coquinhos"],["variant36","Coque"],["variant45","Coque solto"],["variant40","Lateral"],
-    ["variant27","Moicano"],["variant47","Raspado"],
+    ["short01","Curto"],["short06","Raspado nas laterais"],["short14","Social"],["short16","Arrepiado"],
+    ["short03","Cacheado curto"],["short10","Franjinha"],["long09","Longo liso"],["long07","Longo simples"],
+    ["long17","Repicado"],["long12","Ondulado"],["long15","Maria-chiquinha"],["long13","Coque"],
+    ["long24","Rabo de cavalo"],["long11","Cacheado longo"],["long03","Com flor"],["long10","Coroa de flores"],
   ],
-  eyesV: [["variant09","Brilhantes"],["variant04","Grandes"],["variant06","Curiosos"],["variant13","Felizes"],["variant15","Piscada"],["variant24","Sonhadores"]],
-  mouthV: [["happy05","Feliz"],["happy01","Sorriso"],["happy02","Sorrisinho"],["happy03","Contente"],["happy07","Sorrisão"],["happy09","Dentinho"]],
-  glassesV: [["","Nenhum"],["variant01","Óculos 1"],["variant02","Óculos 2"],["variant03","Óculos 3"],["variant04","Óculos 4"],["variant05","Óculos 5"]],
+  eyesV: [["variant01","Curiosos"],["variant04","Brilhantes"],["variant07","Atentos"],["variant12","Sonhadores"],["variant14","Piscadinha"],["variant26","Felizes"]],
+  mouthV: [["variant01","Neutra"],["variant05","Sorriso"],["variant08","Sorrisão"],["variant13","Contente"],["variant16","Dentinho"],["variant20","Feliz"]],
+  glassesV: [["","Nenhum"],["variant01","Óculos de sol"],["variant02","Óculos 1"],["variant03","Óculos 2"],["variant04","Óculos 3"],["variant05","Óculos 4"]],
   earringsV: [["","Nenhum"],["variant01","Brinco 1"],["variant02","Brinco 2"],["variant03","Brinco 3"]],
   pet: [
     { e:"", label:"Nenhum" },
@@ -1680,7 +1679,7 @@ const AVATAR_OPTS = {
     { e:"🐢", label:"Tartaruga" },
   ],
 };
-const DEFAULT_AVATAR = { bg:"#c084fc", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"variant11", eyesV:"variant09", mouthV:"happy05", glassesV:"", earringsV:"", flores:false, freckles:false, pet:"", roupa:"" };
+const DEFAULT_AVATAR = { bg:"#c084fc", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"short14", eyesV:"variant01", mouthV:"variant05", glassesV:"", earringsV:"", flores:false, freckles:false, pet:"", roupa:"" };
 
 // ── roupas e acessórios do avatar (escolhidos na criação do perfil) ──
 const ROUPA_ITEMS = [
@@ -1694,7 +1693,7 @@ const ROUPA_ITEMS = [
 ];
 
 // compatibilidade: converte perfis salvos no formato antigo para o novo estilo
-const OLD_HAIR_MAP = { curto:"variant04", longo:"variant16", espetado:"variant27", cacheado:"variant24", afro:"variant39", moicano:"variant27", coque:"variant36", rabo:"variant45", chanel:"variant23", topete:"variant01", careca:"variant47" };
+const OLD_HAIR_MAP = { curto:"short01", longo:"long09", espetado:"short16", cacheado:"short03", afro:"long11", moicano:"short02", coque:"long13", rabo:"long24", chanel:"long20", topete:"short14", careca:"short01" };
 function normalizeAvatar(cfg) {
   const c = { ...DEFAULT_AVATAR, ...(cfg||{}) };
   // o dragãozinho 🐲 virou T-Rex 🦖 quando os pets ganharam a arte animada (a biblioteca do
@@ -1702,8 +1701,8 @@ function normalizeAvatar(cfg) {
   if (c.pet === "🐲") c.pet = "🦖";
   if (cfg && cfg.hairStyle && !cfg.hairV) {
     c.hairV = OLD_HAIR_MAP[cfg.hairStyle] || DEFAULT_AVATAR.hairV;
-    if (cfg.eyewear === "oculos") c.glassesV = "variant01";
-    if (cfg.eyewear === "oculos_sol") c.glassesV = "variant04";
+    if (cfg.eyewear === "oculos") c.glassesV = "variant03";
+    if (cfg.eyewear === "oculos_sol") c.glassesV = "variant01";
     if (cfg.extra === "brinco") c.earringsV = "variant01";
     if (cfg.headwear === "flores" || cfg.extra === "flor") c.flores = true;
   }
@@ -1712,20 +1711,18 @@ function normalizeAvatar(cfg) {
 
 const hx = (h) => String(h||"").replace("#","");
 
-// gera o rosto no estilo anime (Lorelei, por Lisa Wischofsky — CC BY 4.0, via DiceBear)
-function loreleiSvg(c) {
-  return createAvatar(lorelei, {
+// gera o rosto no estilo desenhado à mão (Adventurer, por Lisa Wischofsky — CC BY 4.0, via DiceBear)
+function avatarSvg(c) {
+  return createAvatar(adventurer, {
     seed: "aluno",
     hair: [c.hairV], hairColor: [hx(c.hair)],
     skinColor: [hx(c.skin)],
     eyes: [c.eyesV],
     mouth: [c.mouthV],
-    eyebrows: ["variant03"], nose: ["variant01"], head: ["variant01"],
-    beardProbability: 0,
-    freckles: ["variant01"], frecklesProbability: c.freckles ? 100 : 0,
+    eyebrows: ["variant02"],
+    features: ["freckles"], featuresProbability: c.freckles ? 100 : 0,
     glasses: c.glassesV ? [c.glassesV] : ["variant01"], glassesProbability: c.glassesV ? 100 : 0,
     earrings: c.earringsV ? [c.earringsV] : ["variant01"], earringsProbability: c.earringsV ? 100 : 0,
-    hairAccessories: ["flowers"], hairAccessoriesProbability: c.flores ? 100 : 0,
   }).toString();
 }
 
@@ -1801,12 +1798,12 @@ function RoupaSvg({ tipo, cor }) {
 // 🎭 vida no boneco (estilo perfil animado do Discord): de tempos em tempos o rosto troca por
 // alguns instantes a variante de olhos/boca do gerador — piscada rápida e expressões ocasionais.
 // Só é visual e momentâneo; o perfil salvo do aluno nunca muda.
-const BLINK_EYES = "variant19"; // os dois olhos fechados num arco feliz — a "piscada"
+const BLINK_EYES = "variant20"; // os dois olhos fechados num arco feliz — a "piscada"
 const AVATAR_EXPRESSIONS = [
-  { eyesV:"variant15", mouthV:"happy07" }, // piscadela marota + sorrisão
-  { eyesV:"variant22", mouthV:"happy16" }, // olhos espremidos de alegria + sorriso de dente
-  { eyesV:"variant05" },                   // olhando pro lado, curioso
-  { mouthV:"happy07" },                    // só abre um sorrisão maior
+  { eyesV:"variant15", mouthV:"variant16" }, // piscadela marota + sorriso de dente
+  { eyesV:"variant22", mouthV:"variant08" }, // olhos espremidos de alegria + sorrisão
+  { eyesV:"variant05" },                     // olhando pro lado, curioso
+  { mouthV:"variant16" },                    // só abre um sorriso maior
 ];
 // 🎨 arte de verdade pros pets (Google Noto Animated Emoji, licença gratuita — os mesmos
 // bichinhos animados do teclado do Android): cada pet tem o .webp animado (usado nos lugares
@@ -1845,7 +1842,7 @@ function Avatar({ cfg, size=72, animated=false }) {
   }, [animated]);
   const draw = faceOverride ? { ...c, ...faceOverride } : c;
   const key = JSON.stringify(draw);
-  const uri = useMemo(() => "data:image/svg+xml;utf8," + encodeURIComponent(loreleiSvg(draw)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const uri = useMemo(() => "data:image/svg+xml;utf8," + encodeURIComponent(avatarSvg(draw)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const roupa = ROUPA_ITEMS.find(r => r.id && r.id === c.roupa);
   return (
     <div className={`avatar-pop${animated ? " avatar-idle" : ""}`} style={{ position:"relative", width:size, height:size, display:"inline-block", lineHeight:0, flexShrink:0 }}>
@@ -1880,7 +1877,6 @@ function AvatarPreview({ value, onChange }) {
       hairV:pick(AVATAR_OPTS.hairV)[0], eyesV:pick(AVATAR_OPTS.eyesV)[0], mouthV:pick(AVATAR_OPTS.mouthV)[0],
       glassesV: Math.random()<0.7 ? "" : pick(AVATAR_OPTS.glassesV.slice(1))[0],
       earringsV: Math.random()<0.7 ? "" : pick(AVATAR_OPTS.earringsV.slice(1))[0],
-      flores: Math.random()<0.85,
       freckles: Math.random()>=0.75,
       roupa: Math.random()<0.35 ? "" : pick(ROUPA_ITEMS.slice(1)).id,
     });
@@ -1968,7 +1964,7 @@ function AvatarControls({ value, onChange, part = "all" }) {
           <Row label="Boca"><Thumbs k="mouthV" field="mouthV" /></Row>
           <Row label="Óculos"><Thumbs k="glassesV" field="glassesV" /></Row>
           <Row label="Brincos"><Thumbs k="earringsV" field="earringsV" /></Row>
-          <Row label="Detalhes"><div style={{ display:"flex", gap:6, flexWrap:"wrap" }}><Toggle field="freckles" label="Sardas" /><Toggle field="flores" label="Flores no cabelo" /></div></Row>
+          <Row label="Detalhes"><div style={{ display:"flex", gap:6, flexWrap:"wrap" }}><Toggle field="freckles" label="Sardas" /></div></Row>
           <Row label="👕 Roupa"><ItemThumbs items={ROUPA_ITEMS} field="roupa" /></Row>
           <Row label="🐉 Pet / Animal mitológico"><Pets /></Row>
         </>
