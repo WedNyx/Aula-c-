@@ -9073,6 +9073,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // 💌 boletim pros responsáveis (PDF com uma página por aluno do turno)
   const [boletimBusy, setBoletimBusy] = useState(false);
   const [boletimMsg, setBoletimMsg] = useState("");
+  const [boletimScope, setBoletimScope] = useState("all"); // "all" | "matutino" | "vespertino" — pra quem vai o boletim em lote
   const [dailyPdfModal, setDailyPdfModal] = useState(null); // { shift, studentName } | null
   const [dailyPdfCode, setDailyPdfCode] = useState("");
   // biblioteca de aulas (as SUAS aulas salvas + modelos de exemplo) + backup completo
@@ -9951,29 +9952,40 @@ function TeacherView({ onLogout, teacherAuth }) {
 
   // ── 💌 boletim pros responsáveis: UM PDF com uma página por aluno do turno, em linguagem
   // simples pra família — presenças, o que aprendeu (sem termo técnico), conquistas e recado do Nyx ──
-  const exportBoletins = async (sh) => {
+  // scope: "all" (todos os alunos dos dois turnos) | id de turno ("matutino"/"vespertino") | um
+  // objeto aluno único (gerado direto do painel de Gerenciar aluno) — os três casos viram 1 PDF
+  const exportBoletins = async (scope) => {
     setBoletimBusy(true); setBoletimMsg("");
-    const turma = students.filter(s => (s.shift||"") === sh && (s.name||"").trim())
-      .sort((a,b)=>(a.name||"").localeCompare(b.name||"","pt-BR"));
+    const isSingleStudent = scope && typeof scope === "object";
+    const turma = isSingleStudent
+      ? [scope]
+      : students
+          .filter(s => (s.name||"").trim() && (scope === "all" ? SHIFTS.some(sh=>sh.id===(s.shift||"")) : (s.shift||"") === scope))
+          .sort((a,b)=>((a.shift||"")+a.name).localeCompare((b.shift||"")+b.name,"pt-BR"));
     if (!turma.length) { setBoletimMsg("⚠ Nenhum aluno nessa turma ainda."); setBoletimBusy(false); return; }
     const classDays = [...new Set(meta.classDays || [])].sort();
-    const conteudos = [...new Set(Object.values(meta.contentNames || {}).map(v => contentNameFor(v, sh)).filter(Boolean))];
 
-    // UMA chamada de IA por turma: traduz o conteúdo do mês pra linguagem de responsável (leigo)
-    setBoletimMsg("🧠 O Nyx está escrevendo a parte 'o que seu filho aprendeu'...");
-    let aprendeu = null;
-    if (conteudos.length) {
-      try {
-        const r = await askClaudeJson(
-          `Numa carreta-escola itinerante, adolescentes tiveram aulas de programação C# este mês. Os conteúdos foram:\n${conteudos.map(c=>`- ${c}`).join("\n")}\n\nEscreva de 3 a 5 frases curtas explicando O QUE os alunos aprenderam, para os PAIS/RESPONSÁVEIS lerem — pessoas que não sabem nada de programação. Zero termo técnico sem explicar; foco no que o aluno agora sabe FAZER e por que isso é valioso.\n\nResponda APENAS JSON puro: { "frases": ["...", "..."] }`,
-          "Você escreve boletins escolares carinhosos e claros para famílias. Português simples e correto. Responda APENAS JSON puro válido."
-        );
-        if (Array.isArray(r?.frases) && r.frases.length) aprendeu = r.frases.map(f => String(f));
-      } catch {}
-    }
-    if (!aprendeu) aprendeu = conteudos.length ? conteudos.map(c => `Estudou: ${c}.`) : ["Participou das aulas de introdução à programação em C#, dando os primeiros passos no mundo da tecnologia."];
+    // "Todos" pode misturar Manhã e Tarde — o conteúdo do mês é por turno, então gera "o que
+    // aprendeu" 1 vez PARA CADA turno que aparece na lista, e cada aluno usa o do seu próprio turno
+    const turnosPresentes = [...new Set(turma.map(s => s.shift))].filter(sh => SHIFTS.some(x=>x.id===sh));
+    setBoletimMsg(turma.length > 1 ? "🧠 O Nyx está escrevendo a parte 'o que seu filho aprendeu'..." : "🧠 O Nyx está escrevendo o boletim...");
+    const aprendeuPorTurno = {};
+    await Promise.all((turnosPresentes.length ? turnosPresentes : [turma[0].shift]).map(async (sh) => {
+      const conteudos = [...new Set(Object.values(meta.contentNames || {}).map(v => contentNameFor(v, sh)).filter(Boolean))];
+      let aprendeu = null;
+      if (conteudos.length) {
+        try {
+          const r = await askClaudeJson(
+            `Numa carreta-escola itinerante, adolescentes tiveram aulas de programação C# este mês. Os conteúdos foram:\n${conteudos.map(c=>`- ${c}`).join("\n")}\n\nEscreva de 3 a 5 frases curtas explicando O QUE os alunos aprenderam, para os PAIS/RESPONSÁVEIS lerem — pessoas que não sabem nada de programação. Zero termo técnico sem explicar; foco no que o aluno agora sabe FAZER e por que isso é valioso.\n\nResponda APENAS JSON puro: { "frases": ["...", "..."] }`,
+            "Você escreve boletins escolares carinhosos e claros para famílias. Português simples e correto. Responda APENAS JSON puro válido."
+          );
+          if (Array.isArray(r?.frases) && r.frases.length) aprendeu = r.frases.map(f => String(f));
+        } catch {}
+      }
+      aprendeuPorTurno[sh] = aprendeu || (conteudos.length ? conteudos.map(c => `Estudou: ${c}.`) : ["Participou das aulas de introdução à programação em C#, dando os primeiros passos no mundo da tecnologia."]);
+    }));
 
-    setBoletimMsg("📄 Montando os boletins...");
+    setBoletimMsg(turma.length > 1 ? "📄 Montando os boletins..." : "📄 Montando o boletim...");
     try {
       const { jsPDF } = await import("jspdf");
       const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -9983,12 +9995,13 @@ function TeacherView({ onLogout, teacherAuth }) {
       const maxW = pageW - margin * 2;
       const hexRgb = (hex) => { const h = hex.replace("#",""); const n = parseInt(h.length===3?h.split("").map(c=>c+c).join(""):h,16); return [(n>>16)&255,(n>>8)&255,n&255]; };
       const clean = (t) => String(t || "").replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}️]/gu, "").replace(/\s+/g, " ").trim();
-      const accent = sh === "matutino" ? "#f59e0b" : "#c084fc";
       const mesBr = new Date().toLocaleDateString("pt-BR", { month:"long", year:"numeric" });
 
       turma.forEach((s, idx) => {
         if (idx > 0) doc.addPage();
         let y = margin;
+        const accent = s.shift === "matutino" ? "#f59e0b" : "#c084fc";
+        const aprendeu = aprendeuPorTurno[s.shift] || aprendeuPorTurno[turnosPresentes[0]] || ["Participou das aulas de introdução à programação em C#."];
         // cabeçalho
         doc.setFillColor(...hexRgb(accent)); doc.roundedRect(margin, y - 8, maxW, 64, 10, 10, "F");
         doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(255,255,255);
@@ -10054,8 +10067,14 @@ function TeacherView({ onLogout, teacherAuth }) {
         doc.text(`${idx + 1} / ${turma.length}`, pageW - margin, pageH - 24, { align:"right" });
       });
 
-      doc.save(`boletins-${sh}-${todayKey()}.pdf`);
-      setBoletimMsg(`✅ Boletins gerados (${turma.length} aluno${turma.length===1?"":"s"}, uma página cada).`);
+      if (isSingleStudent) {
+        const slug = (turma[0].name||"aluno").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+        doc.save(`boletim-${slug}-${todayKey()}.pdf`);
+        setBoletimMsg(`✅ Boletim de ${turma[0].name} gerado!`);
+      } else {
+        doc.save(`boletins-${scope}-${todayKey()}.pdf`);
+        setBoletimMsg(`✅ Boletins gerados (${turma.length} aluno${turma.length===1?"":"s"}, uma página cada).`);
+      }
     } catch {
       setBoletimMsg("❌ Não consegui gerar os boletins agora. Tente de novo.");
     }
@@ -10969,13 +10988,17 @@ function TeacherView({ onLogout, teacherAuth }) {
             </CollapsibleCard>
 
             <CollapsibleCard title="💌 Boletim pros responsáveis" color="#f9a8d4" dataTourProf="boletim">
-              <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Um PDF com uma página por aluno, em linguagem simples pra família: presenças, o que aprendeu, medalhas e um recado do Nyx. Bom pra mandar pra casa no fim do mês.</p>
-              {SHIFTS.map(sh => (
-                <button key={sh.id} onClick={()=>exportBoletins(sh.id)} disabled={boletimBusy}
-                  style={{ ...styles.btn("#ec4899"), padding:"6px 12px", fontSize:12.5, width:"100%", marginTop:6, opacity: boletimBusy ? 0.6 : 1 }}>
-                  {boletimBusy ? "Gerando..." : `💌 Gerar boletins da turma ${sh.label}`}
-                </button>
-              ))}
+              <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Um PDF com uma página por aluno, em linguagem simples pra família: presenças, o que aprendeu, medalhas e um recado do Nyx. Bom pra mandar pra casa no fim do mês. Pra gerar de 1 aluno só, selecione ele no Monitoramento e use o botão no painel de Gerenciar aluno.</p>
+              <div style={{ display:"flex", gap:5, flexWrap:"wrap", alignItems:"center", marginBottom:8 }}>
+                <span style={{ color:"#776798", fontSize:11 }}>Boletim de:</span>
+                {[{ id:"all", emoji:"🏫", label:"Todos" }, ...SHIFTS].map(sh => (
+                  <button key={sh.id} onClick={()=>setBoletimScope(sh.id)} style={{ background: boletimScope===sh.id ? "linear-gradient(135deg,#ec4899,#be185d)" : "#171026", color: boletimScope===sh.id ? "#fff" : "#a99ac9", border:`1px solid ${boletimScope===sh.id?"#ec4899":"#3b2a58"}`, borderRadius:8, padding:"3px 8px", fontSize:11, fontWeight:700, cursor:"pointer" }}>{sh.emoji} {sh.label}</button>
+                ))}
+              </div>
+              <button onClick={()=>exportBoletins(boletimScope)} disabled={boletimBusy}
+                style={{ ...styles.btn("#ec4899"), padding:"6px 12px", fontSize:12.5, width:"100%", opacity: boletimBusy ? 0.6 : 1 }}>
+                {boletimBusy ? "Gerando..." : "💌 Gerar boletins"}
+              </button>
               {boletimMsg && <p style={{ color: boletimMsg.startsWith("✅") ? "#34d399" : boletimMsg.startsWith("❌") ? "#f87171" : "#fbbf24", fontSize:12, marginTop:8, lineHeight:1.5 }}>{boletimMsg}</p>}
             </CollapsibleCard>
 
@@ -11219,6 +11242,11 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <input type="number" min={0} max={100} value={scoreVal} onChange={e=>setScoreVal(e.target.value)} placeholder={sel.score!=null?String(sel.score):"—"}
                         style={{ width:90, background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 10px", color:"#f0e9fb", fontSize:13, outline:"none" }} />
                       <button onClick={()=>doSetScore(sel)} disabled={scoreVal===""} style={{ ...styles.btn("#34d399"), padding:"6px 14px", fontSize:12.5, opacity:scoreVal!==""?1:0.5 }}>Alterar nota da atividade</button>
+                    </div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>💌 Boletim:</span>
+                      <button onClick={()=>exportBoletins(sel)} disabled={boletimBusy} style={{ ...styles.btn("#ec4899"), padding:"6px 14px", fontSize:12.5, opacity:boletimBusy?0.6:1 }}>{boletimBusy ? "Gerando..." : `Gerar boletim de ${sel.name.split(" ")[0]}`}</button>
+                      {boletimMsg && <span style={{ color: boletimMsg.startsWith("✅") ? "#34d399" : boletimMsg.startsWith("❌") ? "#f87171" : "#fbbf24", fontSize:11.5, flex:"1 1 160px" }}>{boletimMsg}</span>}
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
                       <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>🧩 Acessibilidade:</span>
