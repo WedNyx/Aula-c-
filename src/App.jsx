@@ -9064,6 +9064,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // PDF com o código e o resumo de cada aluno (pra guardar/enviar ao fim do curso)
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [pdfMsg, setPdfMsg] = useState("");
+  const [pdfScope, setPdfScope] = useState("all"); // "all" | "matutino" | "vespertino" — qual turno vai no PDF de códigos
   // 📄 PDF do dia: resumo curto do código de HOJE pra mandar pra um aluno específico (ex: quem vai
   // faltar) — o professor confirma/edita o código antes de gerar, pra não depender de "Meu código"
   // estar necessariamente atualizado com o que foi passado hoje
@@ -9631,11 +9632,13 @@ function TeacherView({ onLogout, teacherAuth }) {
   // ── PDF do curso: o código do PROFESSOR (o exemplo da turma) + explicações do Nyx ──
   // sem nome de aluno nenhum — é um material de estudo pra enviar pra todo mundo.
   // jsPDF é importado sob demanda (só quando o professor clica) pra não pesar o app dos alunos
-  const exportPDF = async () => {
+  const exportPDF = async (scope = "all") => {
     setPdfGenerating(true);
 
-    // junta o código do professor por turno (só turnos que têm código)
+    // junta o código do professor por turno (só turnos que têm código) — scope filtra pra só o
+    // turno escolhido, pra dar pra mandar o PDF certo pro grupo certo em vez de sempre os dois juntos
     const shiftsWithCode = SHIFTS
+      .filter(sh => scope === "all" || sh.id === scope)
       .map(sh => ({ ...sh, files: (proFilesByShift[sh.id]||[]).filter(f => (f.code||"").trim()) }))
       .filter(sh => sh.files.length > 0);
     if (shiftsWithCode.length === 0) {
@@ -9645,15 +9648,17 @@ function TeacherView({ onLogout, teacherAuth }) {
     }
 
     setPdfMsg("🧠 O Nyx está escrevendo as explicações dos códigos...");
-    // explicação de todos os códigos, pedida ao Nyx (um pedido por turno, em paralelo)
+    // explicação de todos os códigos, pedida ao Nyx (um pedido por turno, em paralelo) — o código é
+    // CUMULATIVO desde o início do curso (não reseta por dia), então não tem número fixo de seções:
+    // cobre tudo que existir, por menor ou maior que seja, sem resumir demais
     let aiOffline = false;
     const explains = await Promise.all(shiftsWithCode.map(async (sh) => {
       const code = sh.files.map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n");
       try {
         return await askClaudeJson(
-          `Este é o código C# de exemplo que o professor escreveu para a turma ${sh.label} (pode ter vários arquivos):\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie uma explicação COMPLETA e didática desse código, para iniciantes que vão receber este material por escrito e estudar sozinhos. Percorra o código NA ORDEM em que ele aparece.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 a 2 frases dizendo o que esse código faz como um todo",\n  "secoes": [ { "titulo": "nome curto do conceito/parte", "explicacao": "explicação clara de 2 a 4 frases, em português simples", "exemplo": "trecho C# bem curto ilustrando (opcional — use \\n pra quebrar linha)" } ],\n  "dica": "1 frase final incentivando o estudo"\n}\n\nFaça uma seção para cada parte ou conceito importante (entre 4 e 10 seções). Garanta JSON válido.`,
-          "Você é um professor de C# paciente escrevendo um material de estudo por escrito para iniciantes. Português correto e simples. Responda APENAS JSON puro válido.",
-          { max_tokens: 4000 }
+          `Este é o código C# completo que o professor escreveu para a turma ${sh.label} ao longo de todo o curso até agora (pode ter vários arquivos e vários conceitos diferentes, de aulas diferentes):\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie uma explicação COMPLETA e didática desse código, para iniciantes que vão receber este material por escrito e estudar sozinhos. Percorra o código NA ORDEM em que ele aparece. NÃO resuma demais nem pule partes só porque parecem simples — se apareceu no código, precisa ter uma seção explicando.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 a 2 frases dizendo o que esse código faz como um todo",\n  "secoes": [ { "titulo": "nome curto do conceito/parte", "explicacao": "explicação clara de 2 a 4 frases, em português simples", "exemplo": "trecho C# bem curto ilustrando (opcional — use \\n pra quebrar linha)" } ],\n  "dica": "1 frase final incentivando o estudo"\n}\n\nNão tem número fixo de seções: crie quantas forem necessárias pra cobrir TODOS os conceitos e partes importantes de verdade, mesmo que passe de 10. Garanta JSON válido.`,
+          "Você é um professor de C# paciente escrevendo um material de estudo completo por escrito para iniciantes — cobre tudo que foi visto, sem cortar conteúdo pra deixar o material curto. Português correto e simples. Responda APENAS JSON puro válido.",
+          { max_tokens: 6000 }
         );
       } catch { aiOffline = true; return null; }
     }));
@@ -9789,7 +9794,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         doc.text(`${p - 1} / ${total - 1}`, pageW - margin, pageH - 24, { align: "right" });
       }
 
-      doc.save(`codigos-do-curso-${todayKey()}.pdf`);
+      doc.save(`codigos-do-curso-${scope}-${todayKey()}.pdf`);
       setPdfMsg(aiOffline ? "✅ PDF gerado (sem as explicações — o Nyx estava offline)." : "✅ PDF gerado!");
     } catch {
       setPdfMsg("❌ Não consegui gerar o PDF agora. Tente de novo.");
@@ -10856,7 +10861,13 @@ function TeacherView({ onLogout, teacherAuth }) {
               <button onClick={exportCSV} style={{ ...styles.btn("#3b2a58"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Baixa uma planilha colorida e organizada por turno (abre no Excel), com presenças, notas e situação de cada aluno (sem a turma de teste)">
                 ⬇️ Exportar planilha (Excel)
               </button>
-              <button onClick={exportPDF} disabled={pdfGenerating} style={{ ...styles.btn("#c084fc"), width:"100%", marginTop:8, padding:"7px 0", fontSize:12.5, opacity: pdfGenerating ? 0.7 : 1 }} title="Gera um material de estudo em PDF: o código do professor (aba Meu código) com as explicações do Nyx — sem nome de aluno, pronto pra enviar pra turma toda">
+              <div style={{ display:"flex", gap:5, flexWrap:"wrap", alignItems:"center", marginTop:8 }}>
+                <span style={{ color:"#776798", fontSize:11 }}>PDF de:</span>
+                {[{ id:"all", emoji:"🏫", label:"Ambos" }, ...SHIFTS].map(sh => (
+                  <button key={sh.id} onClick={()=>setPdfScope(sh.id)} style={{ background: pdfScope===sh.id ? "linear-gradient(135deg,#c084fc,#9333ea)" : "#171026", color: pdfScope===sh.id ? "#fff" : "#a99ac9", border:`1px solid ${pdfScope===sh.id?"#c084fc":"#3b2a58"}`, borderRadius:8, padding:"3px 8px", fontSize:11, fontWeight:700, cursor:"pointer" }}>{sh.emoji} {sh.label}</button>
+                ))}
+              </div>
+              <button onClick={()=>exportPDF(pdfScope)} disabled={pdfGenerating} style={{ ...styles.btn("#c084fc"), width:"100%", marginTop:6, padding:"7px 0", fontSize:12.5, opacity: pdfGenerating ? 0.7 : 1 }} title="Gera um material de estudo em PDF: o código do professor (aba Meu código) com as explicações do Nyx — sem nome de aluno, pronto pra enviar pro turno escolhido">
                 {pdfGenerating ? "⏳ Gerando PDF..." : "📄 Exportar PDF (códigos + explicações)"}
               </button>
               {pdfMsg && <p style={{ color: pdfMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:11.5, marginTop:6 }}>{pdfMsg}</p>}
