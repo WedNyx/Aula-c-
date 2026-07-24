@@ -2336,8 +2336,8 @@ const TOUR_STEPS = [
 // essa lista atualizada manualmente sempre que uma função nova entra no painel do professor.
 const TEACHER_TOUR_STEPS = [
   { tab:"monitor", sel:'[data-tour-prof="monitor"]',      emoji:"👥", title:"Monitoramento",        text:"Sua tela principal: acompanhe a turma em tempo real, fase de cada aluno, notas, erros no código e pedidos de ajuda acesos na hora." },
-  { tab:"monitor", sel:'[data-tour-prof="monitor-grid"]', emoji:"🧩", title:"Grade de alunos",       text:"Cada quadradinho é um aluno — clique em um pra abrir o painel de gerenciar (renomear, corrigir nota, ver o código, enviar mensagem ou excluir)." },
-  { tab:"monitor", sel:'[data-tour-prof="chamada"]',      emoji:"📋", title:"Lista de Chamada",      text:"Presença separada por turno, atualizada sozinha. Dá pra marcar presença na mão (dia de filme, sem computador) e abrir o tutorial de teclado pra todo mundo de uma vez." },
+  { tab:"monitor", sel:'[data-tour-prof="monitor-grid"]', emoji:"🧩", title:"Grade de alunos",       text:"Passe o mouse aqui pra ver os alunos (fica escondido pra não poluir a tela). Cada quadradinho é um aluno — clique em um pra abrir o painel de gerenciar (renomear, corrigir nota, ver o código, enviar mensagem ou excluir)." },
+  { tab:"monitor", sel:'[data-tour-prof="chamada"]',      emoji:"📋", title:"Lista de Chamada",      text:"Clique pra abrir: presença separada por turno, atualizada sozinha. Dá pra marcar presença na mão (dia de filme, sem computador) e abrir o tutorial de teclado pra todo mundo de uma vez." },
   { tab:"monitor", sel:'[data-tour-prof="exportar"]',     emoji:"📊", title:"Exportar dados",        text:"Planilha colorida (Excel) com notas e presenças, PDF com o código + explicações do dia, e um backup completo da turma inteira — tudo daqui." },
   { tab:"monitor", sel:'[data-tour-prof="conteudo-auto"]',emoji:"📖", title:"Conteúdo do dia",       text:"O nome do conteúdo de hoje (o que aparece no calendário) pode ser gerado sozinho pela IA, com base no código que você escreveu." },
   { tab:"monitor", sel:'[data-tour-prof="boletim"]',      emoji:"💌", title:"Boletim pros responsáveis", text:"Gera um PDF, uma página por aluno, em linguagem simples pra família: presenças, o que aprendeu e um recado do Nyx. Bom pra mandar pra casa no fim do mês." },
@@ -8893,7 +8893,7 @@ const LESSON_LIBRARY = [
 // card que começa fechado (só o título) e abre com um clique — usado pra esconder as ferramentas menos
 // usadas do painel do professor (diagnóstico, boletim, retrospectiva...) sem tirar nada do ar, só do
 // primeiro olhar. O conteúdo (children) só é montado quando aberto, então nada roda escondido à toa.
-function CollapsibleCard({ title, color = "#fbbf24", defaultOpen = false, alertOpen = false, dataTourProf, children }) {
+function CollapsibleCard({ title, color = "#fbbf24", defaultOpen = false, alertOpen = false, dataTourProf, headerRight, children }) {
   const [open, setOpen] = useState(defaultOpen);
   // se alertOpen virar true (ex: banco ou IA com problema de verdade), abre sozinho — decluttered
   // quando tá tudo bem, mas não esconde um alerta real atrás de um card fechado
@@ -8901,10 +8901,13 @@ function CollapsibleCard({ title, color = "#fbbf24", defaultOpen = false, alertO
   const cardStyle = { background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:16, margin:"10px 0", border:"1px solid #3a2a55", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both", fontSize:12, padding: open ? 16 : "10px 16px" };
   return (
     <div data-tour-prof={dataTourProf} className="cardfx" style={cardStyle}>
-      <button onClick={()=>setOpen(o=>!o)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", background:"transparent", border:"none", cursor:"pointer", padding:0, margin: open ? "0 0 6px" : 0 }}>
-        <h4 style={{ color, fontSize:13, margin:0 }}>{title}</h4>
-        <span style={{ color:"#776798", fontSize:12, transform: open ? "rotate(180deg)" : "none", transition:"transform .15s ease" }}>▼</span>
-      </button>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, flexWrap:"wrap", margin: open ? "0 0 6px" : 0 }}>
+        <button onClick={()=>setOpen(o=>!o)} style={{ display:"flex", alignItems:"center", gap:6, background:"transparent", border:"none", cursor:"pointer", padding:0 }}>
+          <h4 style={{ color, fontSize:13, margin:0 }}>{title}</h4>
+          <span style={{ color:"#776798", fontSize:12, transform: open ? "rotate(180deg)" : "none", transition:"transform .15s ease" }}>▼</span>
+        </button>
+        {headerRight && <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>{headerRight}</div>}
+      </div>
       {open && children}
     </div>
   );
@@ -8950,6 +8953,9 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [shiftFilter, setShiftFilter] = useState("all");
   // tour guiado do painel do professor — só começa se o professor clicar em "🧭 Tour" (não some sozinho)
   const [profTourStep, setProfTourStep] = useState(-1);
+  // grade de alunos do Monitoramento só aparece com o mouse em cima — menos poluído de cara, mas
+  // não esconde nada crítico: ajuda/erro continuam avisados via "Nyx de olho" e "👀 Situação"
+  const [monitorHover, setMonitorHover] = useState(false);
   const [genName, setGenName] = useState(false);
   const [nameMsg, setNameMsg] = useState("");
   const [autoNameMsg, setAutoNameMsg] = useState("");
@@ -10773,14 +10779,10 @@ function TeacherView({ onLogout, teacherAuth }) {
             </div>
 
             {/* Chamada — separada por turno */}
-            <div data-tour-prof="chamada" className="cardfx" style={styles.card}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
-                <h3 style={{ color:"#fbbf24" }}>📋 Lista de Chamada</h3>
-                <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                  <span style={styles.badge("#34d399")}>{present} online / {shown.length}</span>
-                  <button onClick={async ()=>{ await Promise.all(shown.map(s=>setKeyboardLaunch(s.shift, s.name, teacherAuth))); flashMgmt(`⌨️ Tutorial de teclado aberto pra ${shown.length} aluno(s).`); }} style={{ ...styles.btn("#22d3ee"), padding:"5px 10px", fontSize:12 }} title="Abre o tutorial de teclado na tela de todos os alunos filtrados">⌨️ Abrir teclado pra todos</button>
-                </div>
-              </div>
+            <CollapsibleCard title="📋 Lista de Chamada" dataTourProf="chamada" headerRight={<>
+              <span style={styles.badge("#34d399")}>{present} online / {shown.length}</span>
+              <button onClick={async ()=>{ await Promise.all(shown.map(s=>setKeyboardLaunch(s.shift, s.name, teacherAuth))); flashMgmt(`⌨️ Tutorial de teclado aberto pra ${shown.length} aluno(s).`); }} style={{ ...styles.btn("#22d3ee"), padding:"5px 10px", fontSize:12 }} title="Abre o tutorial de teclado na tela de todos os alunos filtrados">⌨️ Abrir teclado pra todos</button>
+            </>}>
               {shown.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum aluno na chamada ainda.</p> : (
                 chamadaGroups.map((g, gi) => (
                   <div key={g.shift.id} style={{ marginTop: gi>0 ? 18 : 0, paddingTop: gi>0 ? 16 : 0, borderTop: gi>0 ? "1px solid #3b2a58" : "none" }}>
@@ -10831,7 +10833,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   </div>
                 ))
               )}
-            </div>
+            </CollapsibleCard>
 
             <div data-tour-prof="exportar" className="cardfx" style={styles.card}>
               <h4 style={{ color:"#fbbf24", marginBottom:10, fontSize:14 }}>📊 Turma hoje</h4>
@@ -10996,7 +10998,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
           {/* direita */}
           <div style={{ flex:"1 1 420px", minWidth:300 }}>
-            <div data-tour-prof="monitor-grid" className="cardfx" style={styles.card}>
+            <div data-tour-prof="monitor-grid" className="cardfx" style={styles.card} onMouseEnter={()=>setMonitorHover(true)} onMouseLeave={()=>setMonitorHover(false)}>
               <h3 style={{ color:"#fbbf24", marginBottom:12, display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                 <span>👥 Monitoramento ({shown.length})</span>
                 {duplicateGroups.length > 0 && (
@@ -11021,6 +11023,10 @@ function TeacherView({ onLogout, teacherAuth }) {
                 )}
               </h3>
               {shown.length===0 && <p style={{ color:"#776798", fontSize:13 }}>{students.length===0 ? "Aguardando alunos entrarem..." : "Nenhum aluno nesta turma. Veja outra turma no filtro acima."}</p>}
+              {shown.length > 0 && !monitorHover && (
+                <div style={{ padding:"36px 0", textAlign:"center", color:"#776798", fontSize:13 }}>🖱️ Passe o mouse aqui pra ver os {shown.length} aluno{shown.length!==1?"s":""}</div>
+              )}
+              {shown.length > 0 && monitorHover && (
               <div style={{ maxHeight:400, overflowY:"auto", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(128px,1fr))", gap:8 }}>
                 {sorted.map((s, tileIdx)=>{
                   const d = difficultyOf(s);
@@ -11054,6 +11060,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   );
                 })}
               </div>
+              )}
             </div>
 
             {/* Resumo automático (sem clicar em nada — só agregação dos dados) */}
