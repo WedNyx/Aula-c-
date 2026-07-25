@@ -3,7 +3,7 @@ import gsap from "gsap";
 import confetti from "canvas-confetti";
 import { Toaster, toast } from "sonner";
 import { createAvatar } from "@dicebear/core";
-import { notionists } from "@dicebear/collection";
+import { bigSmile } from "@dicebear/collection";
 import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 
@@ -1651,16 +1651,16 @@ function isLight(hex){ const [r,g,b]=hexToRgb(hex); return (0.299*r+0.587*g+0.11
 
 const AVATAR_OPTS = {
   bg:   ["#c084fc","#34d399","#fbbf24","#f87171","#06b6d4","#ec4899","#8b5cf6","#3b82f6","#14b8a6","#0ea5e9","#f43f5e","#64748b"],
+  skin: ["#ffe0bd","#ffd6c0","#f1c27d","#e0ac69","#c68642","#a86b3c","#8d5524","#5c3a21"],
+  hair: ["#2b2b2b","#3b2417","#6b3e26","#a0522d","#c2410c","#d9a441","#f0d58c","#cbd5e1","#ec4899","#a855f7","#3b82f6","#06b6d4","#34d399","#f87171"],
   hairV: [
-    ["variant01","Repicado"],["variant04","Social"],["variant06","Curto"],["variant18","Raspado"],
-    ["variant19","Cacheado"],["variant35","Afro"],["variant08","Longo liso"],["variant11","Ondulado"],
-    ["variant22","Longo repicado"],["variant28","Chanel"],["variant37","Cacheado longo"],["variant42","Long bob"],
-    ["variant45","Maria-chiquinha"],["variant47","Rabo de lado"],["variant50","Moicano"],["variant57","Coque"],
-    ["variant59","Coque com flor"],["hat","Boné"],
+    ["shortHair","Curto"],["shavedHead","Raspado"],["halfShavedHead","Meio raspado"],["mohawk","Moicano"],
+    ["curlyShortHair","Cacheado curto"],["curlyBob","Cacheado"],["bangs","Franjinha"],["straightHair","Liso"],
+    ["wavyBob","Ondulado"],["bowlCutHair","Bob reto"],["braids","Tranças"],["bunHair","Coque"],["froBun","Coque afro"],
   ],
-  eyesV: [["variant01","Atentos"],["variant02","Tranquilos"],["variant03","Curiosos"],["variant04","Sonhadores"],["variant05","Vidrados"]],
-  mouthV: [["variant02","Sorriso"],["variant05","Sorrisinho"],["variant08","Sorrisão"],["variant13","Contente"],["variant19","Feliz"],["variant24","Dentinho"]],
-  glassesV: [["","Nenhum"],["variant01","Óculos de sol"],["variant03","Óculos 1"],["variant05","Óculos 2"],["variant07","Óculos 3"],["variant09","Óculos 4"]],
+  eyesV: [["cheery","Alegres"],["normal","Normais"],["confused","Confusos"],["starstruck","Encantados"],["winking","Piscando"],["sleepy","Sonolentos"],["angry","Bravo"]],
+  mouthV: [["openedSmile","Sorriso"],["teethSmile","Sorrisão"],["gapSmile","Banguela"],["awkwardSmile","Tímido"],["kawaii","Fofo"],["braces","Aparelho"],["unimpressed","Sem graça"]],
+  glassesV: [["","Nenhum"],["glasses","Óculos"],["sunglasses","Óculos de sol"],["catEars","Orelhas de gato"],["sailormoonCrown","Coroa"],["clownNose","Nariz de palhaço"],["mustache","Bigode"],["faceMask","Máscara"],["sleepMask","Máscara de dormir"]],
   pet: [
     { e:"", label:"Nenhum" },
     { e:"🐉", label:"Dragão" },
@@ -1677,7 +1677,7 @@ const AVATAR_OPTS = {
     { e:"🐢", label:"Tartaruga" },
   ],
 };
-const DEFAULT_AVATAR = { bg:"#c084fc", hairV:"variant04", eyesV:"variant01", mouthV:"variant05", glassesV:"", pet:"", roupa:"" };
+const DEFAULT_AVATAR = { bg:"#c084fc", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"shortHair", eyesV:"cheery", mouthV:"openedSmile", glassesV:"", pet:"", roupa:"" };
 
 // ── roupas e acessórios do avatar (escolhidos na criação do perfil) ──
 const ROUPA_ITEMS = [
@@ -1690,42 +1690,45 @@ const ROUPA_ITEMS = [
   { id:"casaco",   label:"Casaco",           cor:"#ec4899" },
 ];
 
-// compatibilidade: converte perfis salvos no formato antigo para o novo estilo
-const OLD_HAIR_MAP = { curto:"variant06", longo:"variant08", espetado:"variant50", cacheado:"variant19", afro:"variant35", moicano:"variant50", coque:"variant57", rabo:"variant47", chanel:"variant28", topete:"variant04", careca:"variant06" };
-// perfis criados durante a semana em que o avatar usou o Adventurer (antes do Notionists) salvam
-// hairV no formato "shortNN"/"longNN", que não existe no Notionists (o cabelo sumia, ficava careca)
-const ADVENTURER_HAIR_MAP = { short01:"variant06", short02:"variant50", short03:"variant19", short06:"variant18", short10:"variant04", short14:"variant04", short16:"variant01", long03:"variant59", long07:"variant08", long09:"variant08", long10:"variant59", long11:"variant37", long12:"variant11", long13:"variant57", long15:"variant45", long17:"variant22", long24:"variant47" };
+// compatibilidade: converte perfis salvos no formato antigo para o novo estilo (Big Smile)
+const OLD_HAIR_MAP = { curto:"shortHair", longo:"straightHair", espetado:"mohawk", cacheado:"curlyShortHair", afro:"froBun", moicano:"mohawk", coque:"bunHair", rabo:"braids", chanel:"wavyBob", topete:"bangs", careca:"shavedHead" };
+// perfis criados na semana do Adventurer (hairV tipo "shortNN"/"longNN") e na semana do
+// Notionists (hairV tipo "variantNN"/"hat") usam formatos que não existem no Big Smile — detecta
+// pelo padrão do hairV e converte pro equivalente mais parecido, resetando olhos/boca/acessório
+// pro padrão (as faixas de variantes de cada estilo não batem, um valor antigo pode não existir mais)
+const ADVENTURER_HAIR_MAP = { short01:"shortHair", short02:"mohawk", short03:"curlyShortHair", short06:"shavedHead", short10:"bangs", short14:"shortHair", short16:"mohawk", long03:"froBun", long07:"straightHair", long09:"straightHair", long10:"froBun", long11:"curlyBob", long12:"wavyBob", long13:"bunHair", long15:"braids", long17:"bangs", long24:"braids" };
+const NOTIONISTS_HAIR_MAP = { variant01:"shortHair", variant04:"shortHair", variant06:"shortHair", variant18:"shavedHead", variant19:"curlyShortHair", variant35:"froBun", variant08:"straightHair", variant11:"wavyBob", variant22:"straightHair", variant28:"wavyBob", variant37:"curlyBob", variant42:"bowlCutHair", variant45:"braids", variant47:"braids", variant50:"mohawk", variant57:"bunHair", variant59:"froBun", hat:"shortHair" };
 function normalizeAvatar(cfg) {
   const c = { ...DEFAULT_AVATAR, ...(cfg||{}) };
   // o dragãozinho 🐲 virou T-Rex 🦖 quando os pets ganharam a arte animada (a biblioteca do
   // Google não tem dragão pequeno) — perfis antigos passam a mostrar o T-Rex sem precisar reeditar
   if (c.pet === "🐲") c.pet = "🦖";
-  if (/^(short|long)\d+$/.test(c.hairV)) {
-    // formato do Adventurer: troca o cabelo e reseta olhos/boca/óculos pro padrão do Notionists
-    // (as faixas de variantes são bem menores nesse estilo, um valor antigo pode não existir mais)
-    c.hairV = ADVENTURER_HAIR_MAP[c.hairV] || DEFAULT_AVATAR.hairV;
+  const legacyMap = /^(short|long)\d+$/.test(c.hairV) ? ADVENTURER_HAIR_MAP : /^(variant\d+|hat)$/.test(c.hairV) ? NOTIONISTS_HAIR_MAP : null;
+  if (legacyMap) {
+    c.hairV = legacyMap[c.hairV] || DEFAULT_AVATAR.hairV;
     c.eyesV = DEFAULT_AVATAR.eyesV;
     c.mouthV = DEFAULT_AVATAR.mouthV;
     c.glassesV = "";
   }
   if (cfg && cfg.hairStyle && !cfg.hairV) {
     c.hairV = OLD_HAIR_MAP[cfg.hairStyle] || DEFAULT_AVATAR.hairV;
-    if (cfg.eyewear === "oculos") c.glassesV = "variant03";
-    if (cfg.eyewear === "oculos_sol") c.glassesV = "variant01";
+    if (cfg.eyewear === "oculos") c.glassesV = "glasses";
+    if (cfg.eyewear === "oculos_sol") c.glassesV = "sunglasses";
   }
   return c;
 }
 
-// gera o rosto desenhado à mão, estilo Notion (Notionists, por Zoish — CC BY 4.0, via DiceBear)
+const hx = (h) => String(h||"").replace("#","");
+
+// gera o rosto no estilo bem sorridente e colorido (Big Smile, por Pablo Stanley — CC0, via DiceBear)
 function avatarSvg(c) {
-  return createAvatar(notionists, {
+  return createAvatar(bigSmile, {
     seed: "aluno",
-    hair: [c.hairV],
+    hair: [c.hairV], hairColor: [hx(c.hair)],
+    skinColor: [hx(c.skin)],
     eyes: [c.eyesV],
-    lips: [c.mouthV],
-    brows: ["variant05"], nose: ["variant05"],
-    body: [], beardProbability: 0, gestureProbability: 0,
-    glasses: c.glassesV ? [c.glassesV] : ["variant01"], glassesProbability: c.glassesV ? 100 : 0,
+    mouth: [c.mouthV],
+    accessories: c.glassesV ? [c.glassesV] : ["glasses"], accessoriesProbability: c.glassesV ? 100 : 0,
   }).toString();
 }
 
@@ -1734,64 +1737,55 @@ function avatarSvg(c) {
 const ROUPA_OUT = "#16162a"; // cor do contorno, igual ao traço do boneco
 function RoupaSvg({ tipo, cor }) {
   const dark = shade(cor, -0.32), light = shade(cor, 0.35);
-  const torso = "M 15 100 Q 14 76 33 69.5 Q 41.5 66.5 50 66.5 Q 58.5 66.5 67 69.5 Q 86 76 85 100 Z";
-  const base = <path d={torso} fill={cor} stroke={ROUPA_OUT} strokeWidth="2.6" strokeLinejoin="round" />;
-  const sombra = <path d="M 67 69.5 Q 86 76 85 100 L 71 100 Q 73 83 66 70 Z" fill="#000" opacity="0.14" />;
-  const brilho = <path d="M 22 81 Q 26 72.5 35 69.5" fill="none" stroke="#fff" strokeWidth="2.4" opacity="0.4" strokeLinecap="round" />;
+  // o Big Smile é uma cabeça enorme sem pescoço (cobre quase o círculo inteiro), então a roupa
+  // vira só uma golinha baixa espiando embaixo do queixo — nada de ombros subindo pelos lados
+  const torso = "M 12 100 Q 12 92 30 89 Q 40 87 50 87 Q 60 87 70 89 Q 88 92 88 100 Z";
+  const base = <path d={torso} fill={cor} stroke={ROUPA_OUT} strokeWidth="2.2" strokeLinejoin="round" />;
+  const brilho = <path d="M 18 96 Q 20 91.5 27 89.5" fill="none" stroke="#fff" strokeWidth="1.6" opacity="0.4" strokeLinecap="round" />;
   if (tipo === "camiseta") return (
-    <g>{base}{sombra}{brilho}
-      <path d="M 40 67.5 Q 50 76.5 60 67.5" fill="none" stroke={ROUPA_OUT} strokeWidth="2.6" strokeLinecap="round" />
-      <path d="M 42 67 Q 50 74 58 67" fill="none" stroke={dark} strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M 27 91 q 3 2.5 6 0 M 67 91 q 3 2.5 6 0" stroke={dark} strokeWidth="1.6" fill="none" strokeLinecap="round" />
+    <g>{base}
+      <path d="M 43 87.5 Q 50 91.5 57 87.5" fill="none" stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M 44 87.2 Q 50 90 56 87.2" fill="none" stroke={dark} strokeWidth="1.1" strokeLinecap="round" />
+      {brilho}
     </g>
   );
   if (tipo === "moletom") return (
     <g>
-      <path d="M 20 100 Q 18 70 50 63 Q 82 70 80 100 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="2.6" strokeLinejoin="round" />
-      {base}{sombra}{brilho}
-      <path d="M 45.5 70.5 Q 44 78 42.5 85.5" fill="none" stroke={light} strokeWidth="1.9" strokeLinecap="round" />
-      <path d="M 54.5 70.5 Q 56 78 57.5 85.5" fill="none" stroke={light} strokeWidth="1.9" strokeLinecap="round" />
-      <path d="M 37 90 L 63 90 L 59 100 L 41 100 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M 15 100 Q 14 88 30 85.5 Q 40 84 50 84 Q 60 84 70 85.5 Q 86 88 85 100 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="2.2" strokeLinejoin="round" />
+      {base}
+      <path d="M 40 88.5 Q 39.5 93 39 97" stroke={light} strokeWidth="1.1" fill="none" strokeLinecap="round" />
+      <path d="M 60 88.5 Q 60.5 93 61 97" stroke={light} strokeWidth="1.1" fill="none" strokeLinecap="round" />
     </g>
   );
   if (tipo === "jaqueta") return (
-    <g>{base}{sombra}{brilho}
-      <line x1="50" y1="67" x2="50" y2="100" stroke={ROUPA_OUT} strokeWidth="3" />
-      <line x1="50" y1="69" x2="50" y2="100" stroke={light} strokeWidth="1.2" strokeDasharray="1.6 1.6" />
-      <path d="M 41 67.5 L 50 79 L 49.5 66.5 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M 59 67.5 L 50 79 L 50.5 66.5 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
-      <rect x="48.6" y="81" width="2.8" height="5" rx="1.2" fill={light} stroke={ROUPA_OUT} strokeWidth="0.9" />
-      <path d="M 26 88 l 9 2 M 74 88 l -9 2" stroke={ROUPA_OUT} strokeWidth="2" strokeLinecap="round" />
+    <g>{base}
+      <line x1="50" y1="88" x2="50" y2="100" stroke={ROUPA_OUT} strokeWidth="1.6" />
+      <path d="M 45 87.5 L 50 92.5 L 49.7 87 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1" strokeLinejoin="round" />
+      <path d="M 55 87.5 L 50 92.5 L 50.3 87 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1" strokeLinejoin="round" />
+      {brilho}
     </g>
   );
   if (tipo === "camisa") return (
-    <g>{base}{sombra}
-      <path d="M 47.6 76 Q 47.2 88 47.2 100 M 52.4 76 Q 52.8 88 52.8 100" fill="none" stroke={dark} strokeWidth="1.4" />
-      <path d="M 41 66.8 L 50 77 L 44.6 64.6 Z" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M 59 66.8 L 50 77 L 55.4 64.6 Z" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
-      <circle cx="50" cy="82" r="1.7" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="0.9" />
-      <circle cx="50" cy="89" r="1.7" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="0.9" />
-      <circle cx="50" cy="96" r="1.7" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="0.9" />
+    <g>{base}
+      <path d="M 45.5 88 Q 45.2 94 45.2 100 M 54.5 88 Q 54.8 94 54.8 100" fill="none" stroke={dark} strokeWidth="0.9" />
+      <path d="M 45 87.3 L 50 91 L 47 86.8 Z" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="1" strokeLinejoin="round" />
+      <path d="M 55 87.3 L 50 91 L 53 86.8 Z" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="1" strokeLinejoin="round" />
+      <circle cx="50" cy="94" r="0.9" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="0.5" />
+      <circle cx="50" cy="98" r="0.9" fill="#f6f7fb" stroke={ROUPA_OUT} strokeWidth="0.5" />
       {brilho}
     </g>
   );
   if (tipo === "regata") return (
     <g>
-      <path d="M 26 100 Q 24 84 32 72.5 L 38.5 68 Q 50 79 61.5 68 L 68 72.5 Q 76 84 74 100 Z" fill={cor} stroke={ROUPA_OUT} strokeWidth="2.6" strokeLinejoin="round" />
-      <path d="M 40 69.5 Q 50 77.5 60 69.5" fill="none" stroke={dark} strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M 33 74 Q 27 84 28 100 M 67 74 Q 73 84 72 100" fill="none" stroke={dark} strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M 68 72.5 Q 76 84 74 100 L 66 100 Q 68 84 64 72 Z" fill="#000" opacity="0.14" />
-      <path d="M 30 80 Q 32 74.5 36 71" fill="none" stroke="#fff" strokeWidth="2.2" opacity="0.4" strokeLinecap="round" />
+      <path d="M 18 100 Q 17 91 24 88 L 30 86.5 Q 40 90.5 50 90.5 Q 60 90.5 70 86.5 L 76 88 Q 83 91 82 100 Z" fill={cor} stroke={ROUPA_OUT} strokeWidth="2.2" strokeLinejoin="round" />
+      <path d="M 43 89 Q 50 92 57 89" fill="none" stroke={dark} strokeWidth="1" strokeLinecap="round" />
+      {brilho}
     </g>
   );
   if (tipo === "casaco") return (
-    <g>{base}{sombra}
-      <path d="M 43 67.5 Q 46.5 80 47 100 L 40 100 Q 37.5 81 43 67.5 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M 57 67.5 Q 53.5 80 53 100 L 60 100 Q 62.5 81 57 67.5 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1.8" strokeLinejoin="round" />
-      <circle cx="44" cy="84" r="1.7" fill={light} stroke={ROUPA_OUT} strokeWidth="0.9" />
-      <circle cx="44" cy="92" r="1.7" fill={light} stroke={ROUPA_OUT} strokeWidth="0.9" />
-      <circle cx="56" cy="84" r="1.7" fill={light} stroke={ROUPA_OUT} strokeWidth="0.9" />
-      <circle cx="56" cy="92" r="1.7" fill={light} stroke={ROUPA_OUT} strokeWidth="0.9" />
+    <g>{base}
+      <path d="M 44 87.3 Q 46 92 46.3 100 L 42.5 100 Q 41.5 92.5 44 87.3 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1" strokeLinejoin="round" />
+      <path d="M 56 87.3 Q 54 92 53.7 100 L 57.5 100 Q 58.5 92.5 56 87.3 Z" fill={dark} stroke={ROUPA_OUT} strokeWidth="1" strokeLinejoin="round" />
       {brilho}
     </g>
   );
@@ -1801,12 +1795,12 @@ function RoupaSvg({ tipo, cor }) {
 // 🎭 vida no boneco (estilo perfil animado do Discord): de tempos em tempos o rosto troca por
 // alguns instantes a variante de olhos/boca do gerador — piscada rápida e expressões ocasionais.
 // Só é visual e momentâneo; o perfil salvo do aluno nunca muda.
-const BLINK_EYES = "variant05"; // "piscada" — a variante mais fechada/semicerrada dos olhos
+const BLINK_EYES = "sleepy"; // "piscada" — a variante mais fechada/sonolenta dos olhos
 const AVATAR_EXPRESSIONS = [
-  { eyesV:"variant03", mouthV:"variant19" }, // curioso + sorriso feliz
-  { eyesV:"variant02", mouthV:"variant08" }, // tranquilo + sorrisão
-  { eyesV:"variant04" },                     // sonhador, olhando pro lado
-  { mouthV:"variant24" },                    // só abre um sorriso de dente maior
+  { eyesV:"winking", mouthV:"teethSmile" }, // piscadela marota + sorrisão
+  { eyesV:"starstruck", mouthV:"openedSmile" }, // olhos brilhando de alegria + sorriso
+  { eyesV:"confused" },                     // cara de dúvida
+  { mouthV:"kawaii" },                      // só abre uma carinha fofa
 ];
 // 🎨 arte de verdade pros pets (Google Noto Animated Emoji, licença gratuita — os mesmos
 // bichinhos animados do teclado do Android): cada pet tem o .webp animado (usado nos lugares
@@ -1858,12 +1852,17 @@ function Avatar({ cfg, size=72, animated=false }) {
         )}
         <img src={uri} width={size} height={size} alt="" draggable={false} className={animated ? "avatar-face" : undefined} style={{ display:"block", position:"relative", zIndex:1 }} />
       </div>
-      {c.pet && (PET_FILES[c.pet] ? (
-        <img src={`/pets/${PET_FILES[c.pet]}.${animated ? "webp" : "png"}`} alt="" draggable={false}
-          style={{ position:"absolute", right:Math.round(size*-0.2), bottom:Math.round(size*-0.12), width:Math.round(size*0.68), height:Math.round(size*0.68), filter:"drop-shadow(0 2px 3px rgba(0,0,0,.55))", pointerEvents:"none" }} />
-      ) : (
-        <span className={animated ? "avatar-pet" : undefined} style={{ position:"absolute", right:Math.round(size*-0.14), bottom:Math.round(size*-0.08), fontSize:Math.max(10, Math.round(size*0.34)), lineHeight:1, filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.6))", pointerEvents:"none" }}>{c.pet}</span>
-      ))}
+      {/* o pet vira uma medalha à parte, encostada na borda do círculo — fica pertinho mas fora
+          do rosto, então nunca mais "engole" a boca do personagem (problema do jeito antigo) */}
+      {c.pet && (
+        <div className={animated ? "avatar-pet" : undefined} style={{ position:"absolute", right:Math.round(size*-0.06), bottom:Math.round(size*-0.06), width:Math.round(size*0.42), height:Math.round(size*0.42), borderRadius:"50%", background:"#171026", border:`2px solid ${shade(c.bg,-0.1)}`, boxShadow:"0 2px 5px rgba(0,0,0,.45)", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", pointerEvents:"none" }}>
+          {PET_FILES[c.pet] ? (
+            <img src={`/pets/${PET_FILES[c.pet]}.${animated ? "webp" : "png"}`} alt="" draggable={false} style={{ width:"78%", height:"78%", objectFit:"contain" }} />
+          ) : (
+            <span style={{ fontSize:Math.max(9, Math.round(size*0.22)), lineHeight:1 }}>{c.pet}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1876,7 +1875,7 @@ function AvatarPreview({ value, onChange }) {
     const pick = a => a[Math.floor(Math.random()*a.length)];
     onChange({
       ...v,
-      bg:pick(AVATAR_OPTS.bg),
+      bg:pick(AVATAR_OPTS.bg), skin:pick(AVATAR_OPTS.skin), hair:pick(AVATAR_OPTS.hair),
       hairV:pick(AVATAR_OPTS.hairV)[0], eyesV:pick(AVATAR_OPTS.eyesV)[0], mouthV:pick(AVATAR_OPTS.mouthV)[0],
       glassesV: Math.random()<0.7 ? "" : pick(AVATAR_OPTS.glassesV.slice(1))[0],
       roupa: Math.random()<0.35 ? "" : pick(ROUPA_ITEMS.slice(1)).id,
@@ -1946,14 +1945,18 @@ function AvatarControls({ value, onChange, part = "all" }) {
   return (
     <div style={{ minWidth:240 }}>
       {showBasic && (
-        <Row label="Cor de fundo"><Swatches k="bg" /></Row>
+        <>
+          <Row label="Cor de fundo"><Swatches k="bg" /></Row>
+          <Row label="Tom de pele"><Swatches k="skin" /></Row>
+        </>
       )}
       {showRest && (
         <>
+          <Row label="Cor do cabelo"><Swatches k="hair" /></Row>
           <Row label="Estilo do cabelo"><Thumbs k="hairV" field="hairV" /></Row>
           <Row label="Olhos"><Thumbs k="eyesV" field="eyesV" /></Row>
           <Row label="Boca"><Thumbs k="mouthV" field="mouthV" /></Row>
-          <Row label="Óculos"><Thumbs k="glassesV" field="glassesV" /></Row>
+          <Row label="Acessório"><Thumbs k="glassesV" field="glassesV" /></Row>
           <Row label="👕 Roupa"><ItemThumbs items={ROUPA_ITEMS} field="roupa" /></Row>
           <Row label="🐉 Pet / Animal mitológico"><Pets /></Row>
         </>
