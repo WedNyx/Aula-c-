@@ -1810,6 +1810,37 @@ const PET_FILES = {
   "🦉":"coruja", "🐺":"lobo", "🦊":"raposa", "🐱":"gato",
   "🐶":"cachorro", "🐰":"coelho", "🦁":"leao", "🐢":"tartaruga",
 };
+// posição/tamanho pensados pro formato de cada bicho (sem moldura/círculo): quem tem corpo
+// inteiro em pé (trex/cachorro/coelho/tartaruga) fica "no chão" embaixo; quem é só rosto/busto
+// (unicórnio/coruja/raposa/gato/leão) fica "pousado" num canto; os maiores/mais assimétricos
+// (dragão/águia/lobo) ficam ao lado da bochecha, sem tampar boca nem cabelo
+const PET_POS = {
+  dragao:    { w:0.50, left:-0.10, bottom:-0.08, rotate:-8 },
+  unicornio: { w:0.40, left:-0.10, top:-0.06, rotate:-8 },
+  trex:      { w:0.48, center:true, bottom:-0.10, rotate:0 },
+  aguia:     { w:0.44, right:-0.09, bottom:0.30, rotate:-12, flip:true },
+  coruja:    { w:0.36, right:-0.08, top:-0.05, rotate:8 },
+  lobo:      { w:0.46, left:-0.08, bottom:0.02, rotate:4 },
+  raposa:    { w:0.36, right:-0.08, bottom:-0.06, rotate:6 },
+  gato:      { w:0.34, right:-0.07, bottom:-0.07, rotate:-4 },
+  cachorro:  { w:0.46, left:0.02, bottom:-0.14, rotate:0 },
+  coelho:    { w:0.38, left:-0.06, bottom:-0.10, rotate:-3 },
+  leao:      { w:0.44, left:-0.09, top:-0.07, rotate:6 },
+  tartaruga: { w:0.42, right:0.0, bottom:-0.13, rotate:0 },
+};
+function petStyle(file, size) {
+  const p = PET_POS[file] || { w:0.4, right:-0.08, bottom:-0.08, rotate:0 };
+  const w = Math.round(size * p.w);
+  const flip = p.flip ? " scaleX(-1)" : "";
+  const style = { position:"absolute", width:w, height:w, filter:"drop-shadow(0 2px 4px rgba(0,0,0,.5))", pointerEvents:"none" };
+  if (p.center) { style.left = "50%"; style.transform = `translateX(-50%) rotate(${p.rotate||0}deg)${flip}`; }
+  else {
+    style.transform = `rotate(${p.rotate||0}deg)${flip}`;
+    if (p.left != null) style.left = Math.round(size*p.left); else style.right = Math.round(size*p.right);
+  }
+  if (p.top != null) style.top = Math.round(size*p.top); else style.bottom = Math.round(size*p.bottom);
+  return style;
+}
 function Avatar({ cfg, size=72, animated=false }) {
   const c = normalizeAvatar(cfg);
   const [faceOverride, setFaceOverride] = useState(null);
@@ -1852,17 +1883,14 @@ function Avatar({ cfg, size=72, animated=false }) {
         )}
         <img src={uri} width={size} height={size} alt="" draggable={false} className={animated ? "avatar-face" : undefined} style={{ display:"block", position:"relative", zIndex:1 }} />
       </div>
-      {/* o pet vira uma medalha à parte, encostada na borda do círculo — fica pertinho mas fora
-          do rosto, então nunca mais "engole" a boca do personagem (problema do jeito antigo) */}
-      {c.pet && (
-        <div className={animated ? "avatar-pet" : undefined} style={{ position:"absolute", right:Math.round(size*-0.06), bottom:Math.round(size*-0.06), width:Math.round(size*0.42), height:Math.round(size*0.42), borderRadius:"50%", background:"#171026", border:`2px solid ${shade(c.bg,-0.1)}`, boxShadow:"0 2px 5px rgba(0,0,0,.45)", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", pointerEvents:"none" }}>
-          {PET_FILES[c.pet] ? (
-            <img src={`/pets/${PET_FILES[c.pet]}.${animated ? "webp" : "png"}`} alt="" draggable={false} style={{ width:"78%", height:"78%", objectFit:"contain" }} />
-          ) : (
-            <span style={{ fontSize:Math.max(9, Math.round(size*0.22)), lineHeight:1 }}>{c.pet}</span>
-          )}
-        </div>
-      )}
+      {/* cada bicho tem uma posição própria pensada pro formato dele (sem moldura/círculo por
+          trás) — assim nunca mais tampa a boca ou o cabelo do personagem, do jeito que ficava
+          ruim antes com todos os bichos numa medalha única e uniforme */}
+      {c.pet && (PET_FILES[c.pet] ? (
+        <img className={animated ? "avatar-pet" : undefined} src={`/pets/${PET_FILES[c.pet]}.${animated ? "webp" : "png"}`} alt="" draggable={false} style={petStyle(PET_FILES[c.pet], size)} />
+      ) : (
+        <span className={animated ? "avatar-pet" : undefined} style={{ ...petStyle(null, size), fontSize:Math.max(9, Math.round(size*0.3)), lineHeight:1 }}>{c.pet}</span>
+      ))}
     </div>
   );
 }
