@@ -3772,6 +3772,54 @@ function LearningTrailModal({ history, onClose }) {
   );
 }
 
+// ── "próximos passos": lista curada de recursos gratuitos pra quem quer continuar aprendendo
+// depois da aula (a carreta passa e segue viagem, mas o aprendizado não precisa parar por aqui) ──
+const NEXT_STEPS_RESOURCES = [
+  { category: "📘 Continue com C# e .NET", items: [
+    { title: "Microsoft Learn — trilha de C#", desc: "Curso oficial da Microsoft, 100% gratuito, com certificado de conclusão em cada módulo.", url: "https://learn.microsoft.com/pt-br/training/paths/csharp-first-steps/" },
+  ]},
+  { category: "🌐 Outras linguagens e programação web", items: [
+    { title: "Curso em Vídeo", desc: "Aulas gratuitas em português — lógica de programação, Python, HTML/CSS, JavaScript e mais.", url: "https://www.cursoemvideo.com" },
+    { title: "freeCodeCamp", desc: "Cursos gratuitos e baseados em projetos, com certificado — programação web do zero ao avançado.", url: "https://www.freecodecamp.org" },
+    { title: "W3Schools", desc: "Referência e tutoriais gratuitos pra consultar sempre que tiver uma dúvida de código.", url: "https://www.w3schools.com" },
+  ]},
+  { category: "🎓 Cursos e certificados gratuitos", items: [
+    { title: "Rocketseat Discover", desc: "Trilha gratuita em português pra quem está começando na programação.", url: "https://www.rocketseat.com.br/discover" },
+    { title: "Escola Virtual (Fundação Bradesco)", desc: "Cursos gratuitos com certificado, incluindo programação e tecnologia.", url: "https://www.ev.org.br" },
+  ]},
+  { category: "💪 Pratique programando", items: [
+    { title: "Exercism", desc: "Exercícios de código gratuitos em várias linguagens (incluindo C#), com mentoria da comunidade.", url: "https://exercism.org" },
+    { title: "GitHub", desc: "Crie uma conta gratuita e comece a guardar seus projetos lá — é o seu portfólio pra mostrar pro mundo.", url: "https://github.com" },
+  ]},
+];
+function NextStepsModal({ onClose }) {
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:600, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🚀 Próximos passos</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 18px" }}>A carreta segue viagem, mas seu aprendizado não precisa parar por aqui! Recursos gratuitos pra continuar evoluindo:</p>
+        {NEXT_STEPS_RESOURCES.map(group => (
+          <div key={group.category} style={{ marginBottom:16 }}>
+            <p style={{ color:"#fbbf24", fontWeight:800, fontSize:13, margin:"0 0 8px" }}>{group.category}</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {group.items.map(r => (
+                <a key={r.title} href={r.url} target="_blank" rel="noopener noreferrer"
+                  style={{ display:"block", background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"10px 14px", textDecoration:"none" }}>
+                  <div style={{ color:"#f0e9fb", fontWeight:800, fontSize:13.5 }}>{r.title} <span style={{ color:"#22d3ee", fontSize:12 }}>↗</span></div>
+                  <div style={{ color:"#a99ac9", fontSize:12, marginTop:2, lineHeight:1.5 }}>{r.desc}</div>
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function NotebookModal({ history, detailedHistory, onClose }) {
   const dates = Object.keys(history || {}).sort((a,b)=>b.localeCompare(a));
   const [sel, setSel] = useState(dates[0] || null);
@@ -5314,6 +5362,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [detailFailMsg, setDetailFailMsg] = useState("");
   const [showNotebook, setShowNotebook] = useState(false);
   const [showTrail, setShowTrail] = useState(false);
+  const [showNextSteps, setShowNextSteps] = useState(false);
   // seletor de voz da leitura em voz alta (🗣️ no cabeçalho)
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   // festa quando a turma sobe de nível na meta coletiva
@@ -8285,6 +8334,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btn("#a855f7"), fontSize:12, padding:"7px 0" }}>🎖️ Conquistas · {achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/{visibleAchievements(isLangRoom).length}</button>
               <button onClick={()=>setShowNotebook(true)} style={{ ...styles.btn("#34d399"), fontSize:12, padding:"7px 0" }}>📒 Caderno de resumos</button>
               <button onClick={()=>setShowTrail(true)} style={{ ...styles.btn("#fbbf24"), fontSize:12, padding:"7px 0" }}>🗺️ Trilha de aprendizado</button>
+              <button onClick={()=>setShowNextSteps(true)} style={{ ...styles.btn("#34d399"), fontSize:12, padding:"7px 0" }}>🚀 Próximos passos</button>
               <button onClick={()=>setShowPerformance(true)} style={{ ...styles.btn("#06b6d4"), fontSize:12, padding:"7px 0" }}>📊 Meu Desempenho</button>
               {!focusMode && <button onClick={()=>{ if (!nyxLocks.zeker) setShowDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : ""}
                 style={{ ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:nyxLocks.zeker?0.45:1, cursor:nyxLocks.zeker?"not-allowed":"pointer" }}>
@@ -8652,6 +8702,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       )}
       {showNotebook && <NotebookModal history={summaryHistory} detailedHistory={detailedSummaryHistory} onClose={()=>setShowNotebook(false)} />}
       {showTrail && <LearningTrailModal history={summaryHistory} onClose={()=>setShowTrail(false)} />}
+      {showNextSteps && <NextStepsModal onClose={()=>setShowNextSteps(false)} />}
       {showVoicePicker && <VoicePickerModal onClose={()=>setShowVoicePicker(false)} />}
       {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
       {showKnowledgeTest && (
