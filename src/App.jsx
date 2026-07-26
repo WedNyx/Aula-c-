@@ -12341,10 +12341,145 @@ function Login({ onJoin }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  📊 PÁGINA PÚBLICA DE IMPACTO (/impacto) — sem login, pra mostrar pra prefeitura/patrocinador.
+//  Só números agregados (nenhum nome de aluno) — pensada especificamente pra evitar qualquer
+//  dado pessoal numa página que qualquer pessoa da internet pode abrir.
+// ════════════════════════════════════════════════════════════════════════════
+function useImpactStats() {
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [hall, meta, liveStudents] = await Promise.all([getHallOfFame(), getTeacherMeta(), listStudents()]);
+      if (!alive) return;
+      const activeStudents = liveStudents.filter(s => (s.shift||"") !== TEST_SHIFT.id && (s.shift||"") !== LANG_SHIFT.id);
+      const highlightOf = (s) => { const notas = [...Object.values(s.scoreHistory||{}), s.score, s.examScore].filter(n=>typeof n==="number"); return notas.length ? Math.max(...notas) : 0; };
+      const liveNotas = activeStudents.map(highlightOf).filter(n=>n>0);
+      const liveAvg = liveNotas.length ? Math.round(liveNotas.reduce((a,b)=>a+b,0)/liveNotas.length) : 0;
+      const lastSnapshot = hall.length ? (hall[hall.length-1].classDaysSnapshot||0) : 0;
+      const liveClasses = Math.max(0, (meta.classDays||[]).length - lastSnapshot);
+      const cities = [
+        ...hall.map(h => ({ city: h.city, students: h.totalStudents||0, classes: h.totalClasses||0, avg: h.avgScore||0, active:false })),
+        ...(meta.city && activeStudents.length ? [{ city: meta.city, students: activeStudents.length, classes: liveClasses, avg: liveAvg, active:true }] : []),
+      ];
+      const totalStudents = cities.reduce((a,c)=>a+c.students, 0);
+      const totalClasses = cities.reduce((a,c)=>a+c.classes, 0);
+      const scored = cities.filter(c=>c.avg>0 && c.students>0);
+      const overallAvg = scored.length ? Math.round(scored.reduce((a,c)=>a+c.avg*c.students, 0) / scored.reduce((a,c)=>a+c.students, 0)) : null;
+      setStats({ cities, totalStudents, totalCities: cities.length, totalClasses, overallAvg });
+    })().catch(() => { if (alive) setStats({ cities:[], totalStudents:0, totalCities:0, totalClasses:0, overallAvg:null }); });
+    return () => { alive = false; };
+  }, []);
+  return stats;
+}
+function ImpactBarChart({ cities }) {
+  const [RC, setRC] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    import("recharts").then(mod => { if (alive) setRC(mod); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const data = cities.filter(c => c.avg > 0).map(c => ({ city: c.city, avg: c.avg }));
+  if (!data.length) return null;
+  if (!RC) {
+    return (
+      <div style={{ display:"flex", alignItems:"flex-end", gap:14, height:140, overflowX:"auto", padding:"0 4px" }}>
+        {data.map(({ city, avg }) => (
+          <div key={city} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, minWidth:56 }}>
+            <span style={{ color:"#c084fc", fontSize:13, fontWeight:800 }}>{avg}</span>
+            <div style={{ width:30, height:Math.max(6, Math.round(avg*1.1)), background:"linear-gradient(180deg,#c084fc,#7c3aed)", borderRadius:"6px 6px 2px 2px" }} />
+            <span style={{ color:"#a99ac9", fontSize:11, textAlign:"center" }}>{city}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } = RC;
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div style={{ background:"#1e1430", border:"1px solid #c084fc", borderRadius:10, padding:"6px 10px", fontSize:12, boxShadow:"0 6px 18px rgba(0,0,0,.4)" }}>
+        <div style={{ color:"#a99ac9" }}>{label}</div>
+        <div style={{ color:"#c084fc", fontWeight:900 }}>{payload[0].value} pts de média</div>
+      </div>
+    );
+  };
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={data} margin={{ top:8, right:8, left:-20, bottom:0 }}>
+        <CartesianGrid stroke="#3b2a58" strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="city" stroke="#a99ac9" fontSize={11} tickLine={false} axisLine={false} />
+        <YAxis domain={[0,100]} stroke="#776798" fontSize={10} tickLine={false} axisLine={false} width={28} />
+        <Tooltip content={<CustomTooltip />} cursor={{ fill:"#c084fc11" }} />
+        <Bar dataKey="avg" radius={[6,6,2,2]} maxBarSize={40}>
+          {data.map((d,i) => <Cell key={i} fill="#c084fc" />)}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+function StatTile({ n, label, color }) {
+  return (
+    <div style={{ flex:"1 1 160px", background:"linear-gradient(160deg,#231636,#1a1029)", border:"1px solid #3b2a58", borderRadius:18, padding:"20px 18px", textAlign:"center" }}>
+      <div style={{ fontSize:"clamp(28px,5vw,40px)", fontWeight:900, color, lineHeight:1.1 }}>{n}</div>
+      <div style={{ color:"#a99ac9", fontSize:13, marginTop:6 }}>{label}</div>
+    </div>
+  );
+}
+function ImpactPage() {
+  const stats = useImpactStats();
+  return (
+    <div style={{ minHeight:"100vh", background:PAGE_BG, color:"#f0e9fb", fontFamily:FONT, padding:"48px 20px 60px" }}>
+      <div style={{ maxWidth:880, margin:"0 auto" }}>
+        <div style={{ textAlign:"center", marginBottom:40 }}>
+          <NyxRobot state="idle" size={72} showName={false} />
+          <h1 className="shine" style={{ fontSize:"clamp(26px,5vw,38px)", fontWeight:900, margin:"14px 0 8px", background:"linear-gradient(120deg,#c084fc,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Aula de C# na estrada</h1>
+          <p style={{ color:"#a99ac9", fontSize:15.5, maxWidth:520, margin:"0 auto", lineHeight:1.6 }}>Uma sala de aula que viaja pelo Distrito Federal ensinando programação de verdade a adolescentes — de graça, cidade após cidade.</p>
+        </div>
+
+        {!stats ? (
+          <p style={{ textAlign:"center", color:"#776798" }}>Carregando números...</p>
+        ) : (
+          <>
+            <div style={{ display:"flex", gap:14, flexWrap:"wrap", marginBottom:28 }}>
+              <StatTile n={stats.totalStudents} label="Alunos impactados" color="#c084fc" />
+              <StatTile n={stats.totalCities} label="Cidades visitadas" color="#22d3ee" />
+              <StatTile n={stats.totalClasses} label="Aulas dadas" color="#fbbf24" />
+              <StatTile n={stats.overallAvg != null ? stats.overallAvg : "—"} label="Nota média da turma" color="#34d399" />
+            </div>
+
+            {stats.cities.length > 0 && (
+              <div className="cardfx" style={{ background:"linear-gradient(160deg,#231636,#1a1029)", border:"1px solid #3b2a58", borderRadius:18, padding:"20px 22px", marginBottom:28 }}>
+                <h2 style={{ color:"#f0e9fb", fontSize:17, margin:"0 0 4px" }}>Nota média por cidade</h2>
+                <p style={{ color:"#776798", fontSize:12.5, margin:"0 0 14px" }}>Só números agregados — nenhum nome de aluno aparece nesta página.</p>
+                <ImpactBarChart cities={stats.cities} />
+              </div>
+            )}
+
+            <div style={{ display:"flex", flexWrap:"wrap", gap:10, justifyContent:"center" }}>
+              {stats.cities.map(c => (
+                <span key={c.city} style={{ background:"#171026", border:`1px solid ${c.active ? "#34d399" : "#3b2a58"}`, borderRadius:999, padding:"6px 14px", fontSize:12.5, color: c.active ? "#34d399" : "#d6c9ec" }}>
+                  {c.active ? "🟢 " : ""}{c.city}{c.active ? " (em andamento)" : ""}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+
+        <p style={{ textAlign:"center", color:"#56407e", fontSize:11.5, marginTop:48 }}>Plataforma "Aula de C#" · com o robô Nyx</p>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  APP
 // ════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [session, setSession] = useState(null);
+  // /impacto é pública (sem login) — pensada pra mostrar pra prefeitura/patrocinador, só números
+  // agregados, nenhum dado de aluno específico
+  if (typeof window !== "undefined" && window.location.pathname === "/impacto") return <ImpactPage />;
   if (!session) return <Login onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} />;
   if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} />;
   return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} />;
