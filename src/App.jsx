@@ -3720,6 +3720,58 @@ function TypingRaceModal({ onClose, onFinish }) {
   );
 }
 
+// ── 🗺️ Trilha de aprendizado: transforma o caderno de resumos (já existia) numa trilha visual —
+// um "checkpoint" por dia de aula, com os conceitos aprendidos naquele dia, ligados por uma linha.
+// Não junta dado novo nenhum, só dá uma cara de progresso pro que já tava guardado.
+const TRAIL_NODE_COLORS = ["#c084fc","#22d3ee","#34d399","#fbbf24","#f472b6","#818cf8"];
+function LearningTrailModal({ history, onClose }) {
+  const dates = Object.keys(history || {}).sort((a,b)=>a.localeCompare(b));
+  const fmt = (d) => { const [,m,dd] = d.split("-"); return `${dd}/${m}`; };
+  const totalConceitos = dates.reduce((n,d) => n + ((history[d]?.secoes||[]).length), 0);
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:560, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#c084fc,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🗺️ Trilha de aprendizado</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 18px" }}>{dates.length === 0 ? "Sua trilha começa na sua primeira aula salva!" : `${dates.length} aula${dates.length===1?"":"s"} · ${totalConceitos} conceito${totalConceitos===1?"":"s"} aprendido${totalConceitos===1?"":"s"} até aqui.`}</p>
+        {dates.length === 0 ? (
+          <p style={{ color:"#776798", fontSize:13 }}>Salve e finalize uma aula pra começar a ver seu caminho aqui.</p>
+        ) : (
+          <div style={{ position:"relative", paddingLeft:28 }}>
+            <div style={{ position:"absolute", left:9, top:8, bottom:8, width:2, background:"linear-gradient(180deg,#3b2a58,#3b2a58 90%,transparent)" }} />
+            {dates.map((d, i) => {
+              const sum = history[d] || {};
+              const secoes = sum.secoes || [];
+              const color = TRAIL_NODE_COLORS[i % TRAIL_NODE_COLORS.length];
+              return (
+                <div key={d} style={{ position:"relative", marginBottom:18 }}>
+                  <div style={{ position:"absolute", left:-28, top:2, width:20, height:20, borderRadius:"50%", background:color, border:"3px solid #1a1029", boxShadow:`0 0 0 2px ${color}66`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:900, color:"#1a1029" }}>{i+1}</div>
+                  <div style={{ background:"#171026", border:`1px solid ${color}44`, borderRadius:14, padding:"10px 14px" }}>
+                    <div style={{ color, fontWeight:800, fontSize:12.5, marginBottom: secoes.length ? 8 : 0 }}>📅 {fmt(d)}</div>
+                    {secoes.length > 0 && (
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                        {secoes.map((s,j) => (
+                          <span key={j} title={s.explicacao||""} style={{ background:`${color}18`, border:`1px solid ${color}55`, color:"#f0e9fb", borderRadius:999, padding:"3px 10px", fontSize:11.5 }}>{s.emoji||"✨"} {s.titulo}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{ position:"relative" }}>
+              <div className="avatar-idle" style={{ position:"absolute", left:-28, top:2, width:20, height:20, borderRadius:"50%", background:"#3b2a58", border:"3px dashed #56407e", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11 }}>🚀</div>
+              <p style={{ color:"#776798", fontSize:12.5, paddingTop:2 }}>Sua próxima aula continua a trilha daqui!</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function NotebookModal({ history, detailedHistory, onClose }) {
   const dates = Object.keys(history || {}).sort((a,b)=>b.localeCompare(a));
   const [sel, setSel] = useState(dates[0] || null);
@@ -5257,6 +5309,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailFailMsg, setDetailFailMsg] = useState("");
   const [showNotebook, setShowNotebook] = useState(false);
+  const [showTrail, setShowTrail] = useState(false);
   // seletor de voz da leitura em voz alta (🗣️ no cabeçalho)
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   // festa quando a turma sobe de nível na meta coletiva
@@ -8216,6 +8269,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               {!focusMode && <button onClick={()=>setShowRanking(true)} style={{ ...styles.btn("#22d3ee"), fontSize:12, padding:"7px 0" }}>📊 Ranking da turma</button>}
               <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btn("#a855f7"), fontSize:12, padding:"7px 0" }}>🎖️ Conquistas · {achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/{visibleAchievements(isLangRoom).length}</button>
               <button onClick={()=>setShowNotebook(true)} style={{ ...styles.btn("#34d399"), fontSize:12, padding:"7px 0" }}>📒 Caderno de resumos</button>
+              <button onClick={()=>setShowTrail(true)} style={{ ...styles.btn("#fbbf24"), fontSize:12, padding:"7px 0" }}>🗺️ Trilha de aprendizado</button>
               <button onClick={()=>setShowPerformance(true)} style={{ ...styles.btn("#06b6d4"), fontSize:12, padding:"7px 0" }}>📊 Meu Desempenho</button>
               {!focusMode && <button onClick={()=>{ if (!nyxLocks.zeker) setShowDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : ""}
                 style={{ ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:nyxLocks.zeker?0.45:1, cursor:nyxLocks.zeker?"not-allowed":"pointer" }}>
@@ -8570,6 +8624,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         </div>
       )}
       {showNotebook && <NotebookModal history={summaryHistory} detailedHistory={detailedSummaryHistory} onClose={()=>setShowNotebook(false)} />}
+      {showTrail && <LearningTrailModal history={summaryHistory} onClose={()=>setShowTrail(false)} />}
       {showVoicePicker && <VoicePickerModal onClose={()=>setShowVoicePicker(false)} />}
       {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
       {showKnowledgeTest && (
