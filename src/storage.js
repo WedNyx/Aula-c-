@@ -194,6 +194,23 @@ export async function exportAllData() {
   return data
 }
 
+// backup automático agendado — o Vercel Cron dispara sozinho todo dia (veja vercel.json), e o
+// professor também pode forçar um na hora aqui. Fica endpoint próprio (/api/backup), não passa
+// pelo /api/kv normal.
+export async function triggerBackupNow(auth) {
+  try {
+    const r = await fetch('/api/backup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auth }) })
+    return await r.json()
+  } catch (e) { return { ok: false, reason: String(e?.message || e) } }
+}
+export async function getBackupList() {
+  try {
+    const r = await fetch('/api/backup?list=1')
+    const d = await r.json()
+    return d.backups || []
+  } catch { return [] }
+}
+
 // todos os perfis de apoio de uma vez (pro indicador 💙 nos tiles do monitoramento)
 export async function listAllSupport() {
   try {

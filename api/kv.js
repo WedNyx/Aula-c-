@@ -8,8 +8,8 @@ const TABLE = 'kv_store'
 // si aceitava qualquer pedido. Agora, as ações que só o professor deveria poder fazer
 // (apagar tudo, mexer nas configurações da turma) exigem a senha de verdade aqui no
 // servidor, verificada no campo "auth" do pedido.
-const SET_PROTECTED_PREFIXES = ['teachercode:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'quiz:']
-const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'nyxlocks:', 'exam:config', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'teachermeta:', 'classroom_reset_flag', 'hall:', 'kblaunch:', 'quiz:']
+const SET_PROTECTED_PREFIXES = ['teachercode:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'quiz:', 'backup:']
+const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'nyxlocks:', 'exam:config', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'teachermeta:', 'classroom_reset_flag', 'hall:', 'kblaunch:', 'quiz:', 'backup:']
 
 function needsTeacherAuth(action, key) {
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
@@ -214,6 +214,64 @@ export async function rateLimitCheck(bucketKey, max, windowSeconds) {
   } catch {
     return true // se o próprio rate limit falhar por algum motivo, não trava o uso normal por causa disso
   }
+}
+
+// ─── tentativas de login do professor — NÃO tranca de vez (a carreta inteira às vezes divide um
+// único IP/roteador com a turma toda, então um bloqueio duro podia deixar o professor de verdade
+// trancado fora por causa de criança curiosa chutando senha). Em vez disso, cada erro seguido
+// AUMENTA o atraso da próxima tentativa, o que já torna adivinhação automatizada inviável ──
+export async function loginFailCount(bucketKey) {
+  if (!BACKEND) return 0
+  try {
+    const raw = await store.get(bucketKey)
+    const data = raw ? JSON.parse(raw) : null
+    if (!data || Date.now() > data.resetAt) return 0
+    return data.count
+  } catch {
+    return 0
+  }
+}
+export async function recordLoginFailure(bucketKey, windowSeconds) {
+  if (!BACKEND) return
+  try {
+    const now = Date.now()
+    const raw = await store.get(bucketKey)
+    let data = raw ? JSON.parse(raw) : null
+    if (!data || now > data.resetAt) data = { count: 0, resetAt: now + windowSeconds * 1000 }
+    data.count++
+    await store.set(bucketKey, JSON.stringify(data))
+  } catch {}
+}
+export async function clearLoginFailures(bucketKey) {
+  if (!BACKEND) return
+  try { await store.delete(bucketKey) } catch {}
+}
+
+// ─── backup automático agendado (chamado pelo Vercel Cron via api/backup.js) — grava uma cópia
+// de tudo dentro do MESMO banco, sob uma chave própria por data, e apaga sozinho os snapshots
+// mais antigos além do limite. Não é backup "fora do banco" (se o banco inteiro sumir, o backup
+// some junto), mas já protege contra bug/ação errada apagando ou corrompendo chaves específicas ──
+const BACKUP_PREFIX = 'backup:'
+const BACKUP_EXCLUDE = /^(ratelimit:|aihealth|loginfail:|backup:)/
+export async function createBackupSnapshot(keep = 14) {
+  if (!BACKEND) return { ok: false, reason: 'no_backend' }
+  const items = await store.listWithValues('')
+  const data = {}
+  for (const item of items) {
+    if (BACKUP_EXCLUDE.test(item.key)) continue
+    data[item.key] = item.value
+  }
+  const key = `${BACKUP_PREFIX}${new Date().toISOString()}`
+  await store.set(key, JSON.stringify(data))
+  const backups = (await store.listWithValues(BACKUP_PREFIX)).map(b => b.key).sort()
+  const toDelete = backups.slice(0, Math.max(0, backups.length - keep))
+  for (const k of toDelete) await store.delete(k)
+  return { ok: true, key, keys: Object.keys(data).length, deleted: toDelete.length }
+}
+export async function listBackups() {
+  if (!BACKEND) return []
+  const items = await store.listWithValues(BACKUP_PREFIX)
+  return items.map(i => ({ key: i.key, size: (i.value || '').length })).sort((a, b) => b.key.localeCompare(a.key))
 }
 
 // ─── Handler ─────────────────────────────────────────────────────────────────

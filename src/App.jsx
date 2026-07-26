@@ -4,7 +4,7 @@ import confetti from "canvas-confetti";
 import { Toaster, toast } from "sonner";
 import { createAvatar } from "@dicebear/core";
 import { bigSmile } from "@dicebear/collection";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 
 // ── tema ──
@@ -8964,6 +8964,12 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [hallMsg, setHallMsg] = useState("");
   const [confirmCloseCity, setConfirmCloseCity] = useState(false);
   const [farewellBusy, setFarewellBusy] = useState(false);
+  // 💾 backup AUTOMÁTICO agendado (roda sozinho todo dia via Vercel Cron, fica guardado no próprio
+  // banco) — diferente do botão "Baixar backup completo" mais abaixo, que baixa um arquivo pro seu
+  // computador na hora; aqui só mostra o status do agendado e permite forçar um na hora também
+  const [autoBackupList, setAutoBackupList] = useState(null);
+  const [autoBackupBusy, setAutoBackupBusy] = useState(false);
+  const [autoBackupMsg, setAutoBackupMsg] = useState("");
   const [showTripOverview, setShowTripOverview] = useState(false);
   const [tripHallEntries, setTripHallEntries] = useState([]);
   const [shiftFilter, setShiftFilter] = useState("all");
@@ -9443,6 +9449,15 @@ function TeacherView({ onLogout, teacherAuth }) {
     }
     setFarewellBusy(false);
     setTimeout(()=>setHallMsg(""), 9000);
+  };
+  const loadAutoBackups = async () => { setAutoBackupList(await getBackupList()); };
+  const doAutoBackupNow = async () => {
+    setAutoBackupBusy(true); setAutoBackupMsg("");
+    const r = await triggerBackupNow(teacherAuth);
+    setAutoBackupMsg(r.ok ? `✅ Backup feito agora (${r.keys} chaves salvas).` : `❌ Não consegui fazer o backup agora. Tente de novo.`);
+    if (r.ok) await loadAutoBackups();
+    setAutoBackupBusy(false);
+    setTimeout(()=>setAutoBackupMsg(""), 6000);
   };
   const saveSchedule = async () => {
     const nm = { ...metaRef.current, schedule };
@@ -11484,6 +11499,25 @@ function TeacherView({ onLogout, teacherAuth }) {
             )}
             {hallMsg && <p style={{ color: hallMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:8, lineHeight:1.5 }}>{hallMsg}</p>}
             <button style={{ ...styles.btn("#06b6d4"), width:"100%", marginTop:10 }} onClick={()=>{ getHallOfFame().then(setTripHallEntries); setShowTripOverview(true); }}>📊 Visão da Viagem</button>
+          </div>
+          <div data-tour-prof="backup" className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
+            <h3 style={{ color:"#fbbf24", marginBottom:4 }}>💾 Backup automático</h3>
+            <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 12px", lineHeight:1.6 }}>Todo dia de madrugada o Nyx guarda uma cópia de segurança de tudo sozinho, sem precisar fazer nada. Aqui você confere quando foi o último e pode forçar um agora se quiser.</p>
+            {autoBackupList === null ? (
+              <button style={{ ...styles.btn("#3b2a58"), width:"100%" }} onClick={loadAutoBackups}>Ver backups</button>
+            ) : autoBackupList.length === 0 ? (
+              <p style={{ color:"#776798", fontSize:12.5 }}>Nenhum backup ainda — o primeiro roda sozinho na próxima madrugada, ou clique abaixo pra fazer um agora.</p>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:4, maxHeight:120, overflowY:"auto", marginBottom:10 }}>
+                {autoBackupList.slice(0,6).map(b => {
+                  const dt = b.key.replace("backup:","");
+                  const d = new Date(dt);
+                  return <span key={b.key} style={{ color:"#a99ac9", fontSize:11.5 }}>🗓️ {isNaN(d) ? dt : d.toLocaleString("pt-BR")} · {(b.size/1024).toFixed(0)}KB</span>;
+                })}
+              </div>
+            )}
+            <button style={{ ...styles.btn("#c084fc"), width:"100%", marginTop:8, opacity:autoBackupBusy?0.6:1 }} onClick={doAutoBackupNow} disabled={autoBackupBusy}>{autoBackupBusy ? "Fazendo backup..." : "💾 Fazer backup agora"}</button>
+            {autoBackupMsg && <p style={{ color: autoBackupMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:8 }}>{autoBackupMsg}</p>}
           </div>
           <div data-tour-prof="horario" className="cardfx" style={{ ...styles.card, flex:"1 1 300px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🕐 Horário da turma ({shiftMeta(codeShift).label})</h3>

@@ -3,11 +3,27 @@
 // Se a variável não estiver configurada, usa a senha padrão — configure TEACHER_PASSWORD no Vercel para trocá-la.
 
 import { isValidTeacherPassword } from './_teacherAuth.js'
+import { loginFailCount, recordLoginFailure, clearLoginFailures } from './kv.js'
+
+const WINDOW_SECONDS = 600 // 10 minutos — depois disso o contador de erros seguidos zera sozinho
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const { password } = req.body || {}
-  // pequena espera fixa para dificultar adivinhação por tentativa e erro
-  await new Promise(r => setTimeout(r, 400))
-  return res.json({ ok: isValidTeacherPassword(password) })
+
+  const ip = String((req.headers && req.headers['x-forwarded-for']) || req.socket?.remoteAddress || 'unknown').split(',')[0].trim()
+  const bucketKey = `loginfail:teacher:${ip}`
+
+  // atraso cresce a cada erro seguido desse IP (400ms → ... → até 6s) em vez de travar de vez —
+  // pensado pra carreta inteira poder compartilhar um único IP/roteador sem um professor de
+  // verdade ficar trancado fora por causa de aluno curioso chutando senha
+  const fails = await loginFailCount(bucketKey)
+  const delay = Math.min(400 + fails * 500, 6000)
+  await new Promise(r => setTimeout(r, delay))
+
+  const ok = isValidTeacherPassword(password)
+  if (ok) await clearLoginFailures(bucketKey)
+  else await recordLoginFailure(bucketKey, WINDOW_SECONDS)
+
+  return res.json({ ok })
 }
