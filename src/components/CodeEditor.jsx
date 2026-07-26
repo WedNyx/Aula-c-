@@ -1,0 +1,161 @@
+import { useRef } from "react";
+import { highlight } from "../lib/highlight.jsx";
+
+// ════════════════════════════════════════════════════════════════════════════
+//  EDITOR ESTILO VS CODE
+// ════════════════════════════════════════════════════════════════════════════
+export function VSEditor({ value, onChange, filename, errorLines, locked }) {
+  const textareaRef = useRef(null);
+  const highlightRef = useRef(null);
+  const gutterRef = useRef(null);
+
+  const syncScroll = () => {
+    if (highlightRef.current && textareaRef.current) {
+      highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+      highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
+    if (gutterRef.current && textareaRef.current) {
+      gutterRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (locked) { e.preventDefault(); return; } // Nyx está analisando: código congelado até terminar
+    const ta = textareaRef.current;
+    const start = ta.selectionStart, end = ta.selectionEnd, v = ta.value;
+    const pairs = { "{":"}","(":")",'"':'"',"[":"]","'":"'" };
+    if (pairs[e.key]) {
+      e.preventDefault();
+      const newVal = v.slice(0,start) + e.key + pairs[e.key] + v.slice(end);
+      onChange(newVal);
+      setTimeout(() => { ta.selectionStart = ta.selectionEnd = start+1; }, 0);
+      return;
+    }
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const newVal = v.slice(0,start) + "    " + v.slice(end);
+      onChange(newVal);
+      setTimeout(() => { ta.selectionStart = ta.selectionEnd = start+4; }, 0);
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const lineStart = v.lastIndexOf("\n", start-1)+1;
+      const indent = v.slice(lineStart, start).match(/^(\s*)/)[1];
+      const prevChar = v[start-1], nextChar = v[start];
+      if (prevChar === "{" && nextChar === "}") {
+        const newVal = v.slice(0,start) + "\n" + indent+"    " + "\n" + indent + v.slice(end);
+        onChange(newVal);
+        setTimeout(() => { ta.selectionStart = ta.selectionEnd = start+1+indent.length+4; }, 0);
+      } else {
+        const extra = prevChar === "{" ? "    " : "";
+        const newVal = v.slice(0,start) + "\n" + indent + extra + v.slice(end);
+        onChange(newVal);
+        setTimeout(() => { ta.selectionStart = ta.selectionEnd = start+1+indent.length+extra.length; }, 0);
+      }
+      return;
+    }
+    if (e.key === "Backspace" && start === end && start > 0) {
+      const prev = v[start-1], next = v[start];
+      const pairs2 = {"(":")","{":"}","[":"]",'"':'"',"'":"'"};
+      if (pairs2[prev] === next) {
+        e.preventDefault();
+        const newVal = v.slice(0,start-1) + v.slice(start+1);
+        onChange(newVal);
+        setTimeout(() => { ta.selectionStart = ta.selectionEnd = start-1; }, 0);
+      }
+    }
+  };
+
+  const lineNums = Array.from({length: value.split("\n").length}, (_,i) => i+1);
+  const shared = { fontFamily:"'Courier New','Consolas',monospace", fontSize:14, lineHeight:"1.5em", tabSize:4, whiteSpace:"pre", overflowWrap:"normal", padding:"12px 12px 12px 0", margin:0 };
+
+  return (
+    <div style={{ background:"#1e1e1e", borderRadius:8, border:"1px solid #3e3e42", overflow:"hidden", display:"flex", flexDirection:"column", boxShadow:"0 12px 32px rgba(0,0,0,.45)" }}>
+      <div style={{ background:"linear-gradient(180deg,#333336,#2d2d30)", padding:"6px 14px", display:"flex", alignItems:"center", gap:8, borderBottom:"1px solid #3e3e42" }}>
+        <span style={{width:11,height:11,borderRadius:"50%",background:"#ff5f56",display:"inline-block"}}/>
+        <span style={{width:11,height:11,borderRadius:"50%",background:"#ffbd2e",display:"inline-block"}}/>
+        <span style={{width:11,height:11,borderRadius:"50%",background:"#27c93f",display:"inline-block"}}/>
+        <span style={{color:"#cccccc", fontSize:13, marginLeft:10}}>📄 {filename || "Program.cs"}</span>
+      </div>
+      <div style={{ display:"flex", minHeight:300, maxHeight:420, overflow:"hidden" }}>
+        {/* gutter acompanha o scroll do textarea: o número fica sempre ao lado da linha de código dele */}
+        <div ref={gutterRef} style={{ background:"#1e1e1e", textAlign:"right", userSelect:"none", minWidth:42, color:"#858585", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:"1.5em", borderRight:"1px solid #3e3e42", flexShrink:0, overflow:"hidden" }}>
+          <div style={{ padding:"12px 8px 12px 14px" }}>
+            {lineNums.map(n => <div key={n} style={{ minHeight:"1.5em" }}>{n}</div>)}
+            {/* espaço extra igual ao overscroll do textarea para o fim do arquivo alinhar */}
+            <div style={{ height:120 }} />
+          </div>
+        </div>
+        <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
+          <div ref={highlightRef} style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, color:"#d4d4d4", pointerEvents:"none", overflow:"hidden", paddingLeft:14 }}>
+            {highlight(value, errorLines, filename)}
+          </div>
+          {/* tira \r de código colado (ex: do Windows/Visual Studio, que usa quebra de linha \r\n) —
+              sem isso, esse caractere invisível sobra escondido no texto e a camada colorida (que só
+              existe pra pintar as palavras) desenha uma letra a mais que o cursor de verdade não tem,
+              indo empurrando a marcação visual pra direita conforme a linha afetada cresce */}
+          <textarea ref={textareaRef} value={value} readOnly={locked} onChange={e => { if (!locked) onChange(e.target.value.replace(/\r/g, "")); }} onKeyDown={handleKeyDown} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
+            style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, background:"transparent", color:"transparent", caretColor: locked ? "transparent" : "#aeafad", border:"none", outline:"none", resize:"none", zIndex:1, paddingLeft:14, overflow:"auto", cursor: locked ? "not-allowed" : "text" }} />
+          {/* congela o código enquanto o Nyx analisa — evita que o aluno mude algo bem na hora que
+              o Nyx está lendo, o que faria a análise apontar pra um código que já nem existe mais */}
+          {locked && (
+            <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(10,6,20,.35)", display:"flex", alignItems:"flex-start", justifyContent:"center", pointerEvents:"none" }}>
+              <div className="pop" style={{ marginTop:14, background:"#171026", border:"1px solid #c084fc66", borderRadius:20, padding:"6px 14px", fontSize:12.5, fontWeight:700, color:"#e8ebfa", display:"flex", alignItems:"center", gap:8, boxShadow:"0 6px 18px rgba(0,0,0,.4)" }}>
+                <span style={{ animation:"nyx-spin 1.1s linear infinite", display:"inline-block" }}>🔍</span>
+                Nyx analisando... o código fica congelado até terminar
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      {/* barra de status azul, igual à do VS Code de verdade */}
+      <div style={{ background:"#007acc", padding:"3px 12px", display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:11, color:"#ffffff", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
+        <span>⚡ C#</span>
+        <span style={{ opacity:.9 }}>{value.split("\n").length} linhas · UTF-8 · Aula de C#</span>
+      </div>
+    </div>
+  );
+}
+
+// bloco de código colorido (para os exemplos do resumo)
+export function CodeBlock({ code }) {
+  return (
+    <div style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:8, overflow:"hidden", margin:"10px 0 2px" }}>
+      <div style={{ background:"#2d2d30", padding:"4px 12px", fontSize:11, color:"#9aa0a6", borderBottom:"1px solid #3e3e42", display:"flex", alignItems:"center", gap:6 }}>
+        <span style={{width:9,height:9,borderRadius:"50%",background:"#ff5f56",display:"inline-block"}}/>
+        <span style={{width:9,height:9,borderRadius:"50%",background:"#ffbd2e",display:"inline-block"}}/>
+        <span style={{width:9,height:9,borderRadius:"50%",background:"#27c93f",display:"inline-block"}}/>
+        <span style={{ marginLeft:6 }}>exemplo</span>
+      </div>
+      <div style={{ padding:"10px 14px", fontFamily:"'Courier New','Consolas',monospace", fontSize:13.5, lineHeight:"1.6em", overflowX:"auto", whiteSpace:"pre" }}>{highlight(String(code||""))}</div>
+    </div>
+  );
+}
+
+// ── modo guiado (acessibilidade): blocos prontos de código C# que o aluno monta clicando, sem precisar digitar ──
+export const GUIDED_BLOCKS = [
+  { id:"greet",  emoji:"👋", label:"Dizer um Oi",            needsInput:false, template:()=>`Console.WriteLine("Oi! Eu adoro programar!");`, speak:()=>"Isso mostra uma saudação na tela do computador." },
+  { id:"print",  emoji:"💬", label:"Mostrar uma mensagem",   needsInput:true,  inputLabel:"O que você quer mostrar na tela?", placeholder:"Ex: Eu sou incrível!", template:(v)=>`Console.WriteLine("${String(v||"").replace(/"/g,"")}");`, speak:(v)=>`Isso vai mostrar a mensagem: ${v}` },
+  { id:"ask",    emoji:"❓", label:"Fazer uma pergunta",      needsInput:true,  inputLabel:"O que você quer perguntar?", placeholder:"Ex: Qual é o seu nome?", template:(v)=>`Console.WriteLine("${String(v||"").replace(/"/g,"")}");\nstring resposta = Console.ReadLine();`, speak:(v)=>`Isso vai perguntar: ${v}, e guardar a resposta de quem está usando o programa.` },
+  { id:"number", emoji:"🔢", label:"Guardar um número",      needsInput:true,  inputLabel:"Qual número você quer guardar?", placeholder:"Ex: 10", template:(v)=>`int numero = ${parseInt(v)||0};`, speak:(v)=>`Isso guarda o número ${v} numa caixinha chamada numero.` },
+  { id:"text",   emoji:"📝", label:"Guardar um texto",        needsInput:true,  inputLabel:"Qual texto você quer guardar?", placeholder:"Ex: Maria", template:(v)=>`string texto = "${String(v||"").replace(/"/g,"")}";`, speak:(v)=>`Isso guarda o texto ${v} numa caixinha chamada texto.` },
+  { id:"sum",    emoji:"➕", label:"Somar dois números",      needsInput:false, template:()=>`int soma = 5 + 3;\nConsole.WriteLine(soma);`, speak:()=>"Isso soma o número 5 com o número 3 e mostra o resultado na tela." },
+  { id:"loop",   emoji:"🔁", label:"Repetir uma mensagem",    needsInput:true,  inputLabel:"Quantas vezes repetir?", placeholder:"Ex: 3", template:(v)=>`for (int i = 0; i < ${parseInt(v)||3}; i++)\n{\n    Console.WriteLine("Repetindo!");\n}`, speak:(v)=>`Isso repete a mensagem ${v} vezes seguidas.` },
+  { id:"if",     emoji:"❔", label:"Fazer uma escolha",       needsInput:false, template:()=>`int numero = 10;\nif (numero > 5)\n{\n    Console.WriteLine("O número é grande!");\n}\nelse\n{\n    Console.WriteLine("O número é pequeno!");\n}`, speak:()=>"Isso faz o programa escolher o que mostrar, dependendo do número." },
+];
+
+// prova simplificada de PARTICIPAÇÃO (sem nota oficial) pra quem está no Modo Guiado e topa
+// entrar na prova — perguntas fixas e bem simples, sobre os PRÓPRIOS blocos do Modo Guiado
+// (não sobre sintaxe de C# escrita à mão, que eles talvez nunca tenham praticado)
+export const GUIDED_PARTICIPATION_QUIZ = [
+  { q: "Qual bloco faz o computador dizer um Oi e mostrar uma saudação na tela?", opts: ["Dizer um Oi", "Guardar um número", "Fazer uma escolha", "Somar dois números"], correct: 0 },
+  { q: "Se você quer que o computador mostre uma mensagem que VOCÊ escreveu, qual bloco usa?", opts: ["Mostrar uma mensagem", "Fazer uma pergunta", "Repetir uma mensagem", "Guardar um texto"], correct: 0 },
+  { q: "Qual bloco faz o computador perguntar algo e guardar a resposta de quem está usando?", opts: ["Fazer uma pergunta", "Dizer um Oi", "Somar dois números", "Guardar um número"], correct: 0 },
+  { q: "Qual bloco guarda um número numa 'caixinha' pra usar depois?", opts: ["Guardar um número", "Guardar um texto", "Fazer uma escolha", "Repetir uma mensagem"], correct: 0 },
+  { q: "Qual bloco guarda uma palavra ou frase numa 'caixinha' pra usar depois?", opts: ["Guardar um texto", "Guardar um número", "Somar dois números", "Fazer uma pergunta"], correct: 0 },
+  { q: "Qual bloco faz o computador somar dois números e mostrar o resultado?", opts: ["Somar dois números", "Repetir uma mensagem", "Fazer uma escolha", "Dizer um Oi"], correct: 0 },
+  { q: "Qual bloco faz o computador repetir a mesma mensagem várias vezes seguidas?", opts: ["Repetir uma mensagem", "Fazer uma escolha", "Guardar um número", "Mostrar uma mensagem"], correct: 0 },
+  { q: "Qual bloco faz o computador escolher o que mostrar, dependendo de um número?", opts: ["Fazer uma escolha", "Somar dois números", "Dizer um Oi", "Guardar um texto"], correct: 0 },
+];
+
