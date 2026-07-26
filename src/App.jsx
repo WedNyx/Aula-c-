@@ -9109,7 +9109,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [backupBusy, setBackupBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const arr = await listStudents();
+    const arr = await listStudents(teacherAuth);
     setStudents(arr);
     setLastUpdate(new Date().toLocaleTimeString("pt-BR"));
     try { const ec = await getExamState(shiftFilterRef.current); setExamConfig(ec); } catch {}
@@ -10478,7 +10478,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const exportBackup = async () => {
     setBackupBusy(true);
     try {
-      const data = await exportAllData();
+      const data = await exportAllData(teacherAuth);
       const payload = { app: "aula-csharp", exportedAt: new Date().toISOString(), city: meta.city || "", totalKeys: Object.keys(data).length, data };
       const blob = new Blob([JSON.stringify(payload, null, 1)], { type: "application/json" });
       const url = URL.createObjectURL(blob);

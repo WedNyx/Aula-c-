@@ -19,6 +19,28 @@ function needsTeacherAuth(action, key) {
   return false
 }
 
+// ─── dado sensível de aluno (data de nascimento, CPF) some das LISTAGENS sem senha do professor ──
+// antes disso, qualquer um que soubesse o formato da API dava list_with_values com prefix
+// "student:" e baixava data de nascimento/CPF de toda a turma, sem senha nenhuma. A leitura
+// pontual (action "get", 1 chave só) continua sem essa proteção DE PROPÓSITO: patchStudent() lê o
+// registro inteiro, mistura com o patch e regrava tudo — se o "get" tivesse os campos sensíveis
+// escondidos, cada patch (nota, fase, código...) apagaria a data de nascimento/CPF do aluno sem
+// querer. list_with_values não tem esse problema (só listagens/relatórios usam ela).
+const SENSITIVE_STUDENT_FIELDS = ['birthDate', 'cpf']
+function redactStudentValue(key, value, authorized) {
+  if (authorized || value == null || !String(key).startsWith('student:')) return value
+  try {
+    const obj = JSON.parse(value)
+    let changed = false
+    for (const f of SENSITIVE_STUDENT_FIELDS) {
+      if (obj[f]) { delete obj[f]; changed = true }
+    }
+    return changed ? JSON.stringify(obj) : value
+  } catch {
+    return value
+  }
+}
+
 // ─── Supabase JS Client ───────────────────────────────────────────────────────
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '')
 const SUPABASE_KEY =
@@ -308,7 +330,11 @@ export default async function handler(req, res) {
     switch (action) {
       case 'set':              await store.set(key, value);           return res.json({ ok: true })
       case 'get':              return res.json({ value: await store.get(key) })
-      case 'list_with_values': return res.json({ items: await store.listWithValues(prefix) })
+      case 'list_with_values': {
+        const items = await store.listWithValues(prefix)
+        const authorized = isValidTeacherPassword(auth)
+        return res.json({ items: items.map(i => ({ key: i.key, value: redactStudentValue(i.key, i.value, authorized) })) })
+      }
       case 'delete':           await store.delete(key);               return res.json({ ok: true })
       case 'delete_by_prefix': await store.deleteByPrefix(prefix);    return res.json({ ok: true })
       default: return res.status(400).json({ error: `Unknown action: ${action}` })

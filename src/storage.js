@@ -183,9 +183,10 @@ export async function clearQuizRoom(auth) {
 }
 
 // backup completo: baixa TODAS as chaves do banco (menos as técnicas) num JSON —
-// seguro contra acidente e histórico permanente antes de resetar a turma de uma cidade
-export async function exportAllData() {
-  const r = await kvCall({ action: 'list_with_values', prefix: '' })
+// seguro contra acidente e histórico permanente antes de resetar a turma de uma cidade.
+// precisa de auth: sem ela, o servidor esconde data de nascimento/CPF dos alunos da resposta
+export async function exportAllData(auth) {
+  const r = await kvCall({ action: 'list_with_values', prefix: '', auth })
   const data = {}
   for (const item of r.items || []) {
     if (/^(ratelimit:|aihealth)/.test(item.key)) continue // contadores técnicos não interessam
@@ -451,9 +452,11 @@ export async function listTeamDuels(shift) {
   } catch { return [] }
 }
 
-export async function listStudents() {
+// passa auth quando quem chama precisa dos campos sensíveis (data de nascimento/CPF, usados na
+// planilha pra gerar certificado) — sem isso o servidor esconde esses dois campos da resposta
+export async function listStudents(auth) {
   try {
-    const r = await kvCall({ action: 'list_with_values', prefix: PREFIX })
+    const r = await kvCall({ action: 'list_with_values', prefix: PREFIX, auth })
     return (r.items || [])
       .map(item => { try { return JSON.parse(item.value) } catch { return null } })
       .filter(Boolean)
