@@ -5231,6 +5231,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [keyboardDone, setKeyboardDone] = useState(false);
   const kbLaunchSeenRef = useRef(null);
+  // 🌟 portfólio público: opt-in do próprio aluno — gera um link (sem dados sensíveis) pra
+  // compartilhar avatar/conquistas/progresso com a família; o professor pode desativar se precisar
+  const [portfolioPublic, setPortfolioPublic] = useState(false);
+  const [portfolioCopyMsg, setPortfolioCopyMsg] = useState("");
   // 🏆 hall da fama: placas de cidades anteriores
   const [showHallOfFame, setShowHallOfFame] = useState(false);
   const [hallEntries, setHallEntries] = useState([]);
@@ -5360,7 +5364,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -5416,6 +5420,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       attendanceFirst: attendanceFirstRef.current,
       justifications: s.justifications || {},
       keyboardDone: s.keyboardDone || false,
+      portfolioPublic: s.portfolioPublic || false,
       files: s.files || [{name:"Program.cs",code:""}],
       code: s.code || "",
       phase: s.phase,
@@ -5974,6 +5979,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.attendanceFirst) attendanceFirstRef.current = prev.attendanceFirst;
           if (prev.justifications) setJustifications(prev.justifications);
           if (prev.keyboardDone) setKeyboardDone(true);
+          if (prev.portfolioPublic) setPortfolioPublic(true);
         }
         // rede de segurança: se um backup local recente tem MAIS código do que o servidor, uma queda de
         // conexão bem na hora de salvar deve ter perdido esse trecho — restaura e resalva pra reconciliar
@@ -6615,6 +6621,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
   const setThemeAndSave = (t) => { setTheme(t); persist({ theme: t }); };
   const handleNyxTheme = (t) => { setThemeAndSave(t); if (String(t).startsWith("#")) unlockAchievement("artista"); };
+
+  // 🌟 portfólio público: só o próprio aluno liga (opt-in) — o professor pode desligar se precisar
+  const togglePortfolioPublic = () => { const next = !portfolioPublic; setPortfolioPublic(next); persist({ portfolioPublic: next }); };
+  const portfolioLink = `${typeof window !== "undefined" ? window.location.origin : ""}/portfolio/${encodeURIComponent(shift || "matutino")}/${encodeURIComponent(studentName)}`;
+  const copyPortfolioLink = async () => {
+    try { await navigator.clipboard.writeText(portfolioLink); setPortfolioCopyMsg("🔗 Link copiado!"); }
+    catch { setPortfolioCopyMsg(portfolioLink); }
+    setTimeout(() => setPortfolioCopyMsg(""), 4000);
+  };
 
   // desbloqueia as conquistas de pontos acumulados (nyxPoints é o total GANHO, nunca diminui)
   const checkPointsAchievements = (total) => {
@@ -8285,6 +8300,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 style={{ ...styles.btn("#6366f1"), fontSize:12, padding:"7px 0" }}>🧠 Testar Conhecimento</button>}
               {!focusMode && <button onClick={()=>setShowFreeBuild(true)} title="Proponha algo que você quer construir e o Nyx te ajuda a planejar como chegar lá"
                 style={{ ...styles.btn("#34d399"), fontSize:12, padding:"7px 0" }}>🏗️ Desafio Livre da Semana{weeklyChallenge && weeklyChallenge.weekKey===weekKey() && weeklyChallenge.status==="done" ? " ✅" : ""}</button>}
+            </div>
+            <div style={{ borderTop:"1px solid #3b2a58", marginTop:10, paddingTop:10 }}>
+              <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer" }}>
+                <input type="checkbox" checked={portfolioPublic} onChange={togglePortfolioPublic} style={{ width:16, height:16, accentColor:"#c084fc", cursor:"pointer" }} />
+                <span style={{ color:"#a99ac9", fontSize:12 }}>🌟 Criar link público do meu progresso (pra mandar pra família)</span>
+              </label>
+              {portfolioPublic && (
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8, flexWrap:"wrap" }}>
+                  <button onClick={copyPortfolioLink} style={{ ...styles.btn("#c084fc"), fontSize:11.5, padding:"6px 12px", width:"auto" }}>📋 Copiar link</button>
+                  {portfolioCopyMsg && <span style={{ color:"#34d399", fontSize:11.5 }}>{portfolioCopyMsg}</span>}
+                </div>
+              )}
             </div>
             {!focusMode && <ClassGoalBar sum={classPointsSum} />}
           </div>
@@ -10491,6 +10518,13 @@ function TeacherView({ onLogout, teacherAuth }) {
     setSelInspection(next);
     flashMgmt(next ? `🔍 Vistoria aberta pra ${s.name} — ele pode entrar mesmo fora do horário.` : "✅ Vistoria concluída.");
   };
+  // 🌟 portfólio público: o aluno liga por conta própria (opt-in), mas o professor pode desligar
+  // se precisar (moderação) — nunca liga no lugar do aluno
+  const doDisablePortfolio = async (s) => {
+    await patchStudent(s.shift, s.name, { portfolioPublic: false });
+    flashMgmt(`Portfólio público de ${s.name} desativado.`);
+    load();
+  };
   // 👀 anti-cola: decide a defesa do aluno (aceitar devolve os pontos; recusar mantém o desconto)
   const decideAppeal = async (s, accept) => {
     if (accept) await setScoreFix(s.shift, s.name, { kind: "exam", score: s.examScoreRaw ?? s.examScore ?? 0 }, teacherAuth);
@@ -11453,6 +11487,14 @@ function TeacherView({ onLogout, teacherAuth }) {
                       </button>
                       <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>{selInspection ? "Esse aluno consegue entrar agora, mesmo fora do horário configurado." : "Se o horário automático estiver fechado, isso libera só ESTE aluno pra você inspecionar o trabalho dele."}</span>
                     </div>
+                    {sel.portfolioPublic && (
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
+                        <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>🌟 Portfólio:</span>
+                        <span style={{ ...styles.badge("#c084fc"), fontSize:12.5 }}>✅ Link público ativo (ligado pelo aluno)</span>
+                        <button onClick={()=>doDisablePortfolio(sel)} style={{ ...styles.btn("#f87171"), padding:"6px 14px", fontSize:12.5 }}>Desativar</button>
+                        <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>Qualquer um com o link vê avatar, conquistas e progresso — sem nota comparada, sem dados sensíveis.</span>
+                      </div>
+                    )}
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
                       <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>📤 Código:</span>
                       <button onClick={()=>doSendClassCode(sel)} style={{ ...styles.btn("#22d3ee"), padding:"6px 14px", fontSize:12.5 }}>Enviar código da turma</button>
@@ -12527,6 +12569,81 @@ function ImpactPage() {
   );
 }
 
+// ── portfólio público de um aluno (/portfolio/<turno>/<nome>) — só existe se o PRÓPRIO aluno
+// ligou o opt-in (portfolioPublic); mostra avatar/conquistas/progresso, nunca birthDate/cpf nem
+// comparação com colegas (cada campo é escolhido a dedo, nunca um dump do registro inteiro) ──
+function usePortfolioData(shift, name) {
+  const [state, setState] = useState({ loading: true, student: null, classDays: [] });
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [student, meta] = await Promise.all([getStudent(shift, name), getTeacherMeta()]);
+      if (!alive) return;
+      setState({ loading: false, student, classDays: meta?.classDays || [] });
+    })().catch(() => { if (alive) setState({ loading: false, student: null, classDays: [] }); });
+    return () => { alive = false; };
+  }, [shift, name]);
+  return state;
+}
+function PortfolioPage({ shift, name }) {
+  const { loading, student, classDays } = usePortfolioData(shift, name);
+  if (loading) {
+    return <div style={{ minHeight:"100vh", background:PAGE_BG, color:"#776798", fontFamily:FONT, display:"flex", alignItems:"center", justifyContent:"center" }}>Carregando...</div>;
+  }
+  if (!student || !student.portfolioPublic) {
+    return (
+      <div style={{ minHeight:"100vh", background:PAGE_BG, color:"#f0e9fb", fontFamily:FONT, display:"flex", alignItems:"center", justifyContent:"center", padding:24, textAlign:"center" }}>
+        <div>
+          <NyxRobot state="idle" size={64} showName={false} />
+          <p style={{ color:"#a99ac9", marginTop:16, maxWidth:360, lineHeight:1.6 }}>Esse link não está disponível — o aluno pode não ter ativado o portfólio público ainda.</p>
+        </div>
+      </div>
+    );
+  }
+  const isLangRoom = shift === LANG_SHIFT.id;
+  const unlocked = (student.achievements || []).map(achievementInfo).filter(Boolean).filter(a => visibleAchievements(isLangRoom).some(v => v.id === a.id));
+  const totalPossible = visibleAchievements(isLangRoom).length;
+  const presencas = Object.values(student.attendance || {}).filter(v => v === "present").length;
+  const streak = computeStreak(student.attendance, classDays);
+  const notas = [...Object.values(student.scoreHistory || {}), student.score, student.examScore].filter(n => typeof n === "number");
+  const bestScore = notas.length ? Math.max(...notas) : null;
+  const conceitos = Object.values(student.summaryHistory || {}).reduce((n, d) => n + ((d?.secoes || []).length), 0);
+  return (
+    <div style={{ minHeight:"100vh", background:PAGE_BG, color:"#f0e9fb", fontFamily:FONT, padding:"48px 20px 60px" }}>
+      <div style={{ maxWidth:720, margin:"0 auto" }}>
+        <div style={{ textAlign:"center", marginBottom:32 }}>
+          <Avatar cfg={student.avatar} size={104} />
+          <h1 className="shine" style={{ fontSize:"clamp(24px,5vw,32px)", fontWeight:900, margin:"14px 0 4px", background:"linear-gradient(120deg,#c084fc,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>{student.name}</h1>
+          <p style={{ color:"#776798", fontSize:13.5 }}>Turma {shiftMeta(shift).label} · Aula de C# na estrada</p>
+        </div>
+
+        <div style={{ display:"flex", gap:14, flexWrap:"wrap", marginBottom:28, justifyContent:"center" }}>
+          <StatTile n={`${unlocked.length}/${totalPossible}`} label="Conquistas" color="#a855f7" />
+          <StatTile n={presencas} label="Aulas participadas" color="#22d3ee" />
+          <StatTile n={conceitos} label="Conceitos aprendidos" color="#34d399" />
+          {streak > 1 && <StatTile n={streak} label="Dias seguidos" color="#fb923c" />}
+          {bestScore != null && <StatTile n={bestScore} label="Melhor nota" color="#fbbf24" />}
+        </div>
+
+        {unlocked.length > 0 && (
+          <div className="cardfx" style={{ background:"linear-gradient(160deg,#231636,#1a1029)", border:"1px solid #3b2a58", borderRadius:18, padding:"20px 22px", marginBottom:24 }}>
+            <h2 style={{ color:"#f0e9fb", fontSize:16, margin:"0 0 12px" }}>🎖️ Conquistas desbloqueadas</h2>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+              {unlocked.map(a => (
+                <span key={a.id} title={a.desc} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"8px 12px", fontSize:12.5, display:"flex", alignItems:"center", gap:6 }}>
+                  <span style={{ fontSize:16 }}>{a.emoji}</span> {a.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <p style={{ textAlign:"center", color:"#56407e", fontSize:11.5, marginTop:40 }}>Plataforma "Aula de C#" · com o robô Nyx · link compartilhado pelo próprio aluno</p>
+      </div>
+    </div>
+  );
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 //  APP
 // ════════════════════════════════════════════════════════════════════════════
@@ -12535,6 +12652,12 @@ export default function App() {
   // /impacto é pública (sem login) — pensada pra mostrar pra prefeitura/patrocinador, só números
   // agregados, nenhum dado de aluno específico
   if (typeof window !== "undefined" && window.location.pathname === "/impacto") return <ImpactPage />;
+  // /portfolio/<turno>/<nome> é pública (sem login) — só existe conteúdo se o próprio aluno ligou
+  // o opt-in "portfolioPublic" no painel dele
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/portfolio/")) {
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    return <PortfolioPage shift={decodeURIComponent(parts[1] || "")} name={decodeURIComponent(parts[2] || "")} />;
+  }
   if (!session) return <Login onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} />;
   if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} />;
   return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} />;
