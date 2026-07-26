@@ -3828,9 +3828,11 @@ function PerformanceChart({ entries }) {
     </ResponsiveContainer>
   );
 }
-// mesmo visual do PerformanceChart (gradiente roxo, Recharts), mas pra média da TURMA por dia
-// (em vez da nota de um aluno só) — usado em "Evolução da turma nas últimas aulas"
-function ClassTrendChart({ trend }) {
+// mesmo visual do PerformanceChart (gradiente, Recharts), mas pra média/taxa da TURMA por dia
+// (em vez da nota de um aluno só) — usado em "Evolução da turma" (nota) e "Evolução da presença".
+// gradId precisa ser único quando os dois gráficos aparecem juntos na mesma tela (ids de <svg>
+// duplicados fazem o navegador aplicar sempre o PRIMEIRO gradiente a todas as cópias)
+function ClassTrendChart({ trend, unit = "pts", gradId = "classTrendGrad", color = "#c084fc" }) {
   const [RC, setRC] = useState(null);
   useEffect(() => {
     let alive = true;
@@ -3841,6 +3843,7 @@ function ClassTrendChart({ trend }) {
     const [, m, dd] = date.split("-");
     return { date: `${dd}/${m}`, avg, count };
   });
+  const fmtVal = (n) => unit === "%" ? `${n}%` : `${n} ${unit}`;
 
   if (!RC) {
     return (
@@ -3850,7 +3853,7 @@ function ClassTrendChart({ trend }) {
           return (
             <div key={date} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
               <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{avg}</span>
-              <div style={{ width:24, height:Math.max(4, Math.round(avg*0.7)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color,-0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${date}: média ${avg} pts`} />
+              <div style={{ width:24, height:Math.max(4, Math.round(avg*0.7)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color,-0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${date}: média ${fmtVal(avg)}`} />
               <span style={{ color:"#776798", fontSize:10 }}>{date}</span>
             </div>
           );
@@ -3867,7 +3870,7 @@ function ClassTrendChart({ trend }) {
     return (
       <div style={{ background:"#1e1430", border:`1px solid ${g.color}`, borderRadius:10, padding:"6px 10px", fontSize:12, boxShadow:"0 6px 18px rgba(0,0,0,.4)" }}>
         <div style={{ color:"#a99ac9" }}>{label}</div>
-        <div style={{ color:g.color, fontWeight:900 }}>{avg} pts</div>
+        <div style={{ color:g.color, fontWeight:900 }}>{fmtVal(avg)}</div>
         <div style={{ color:"#776798", fontSize:11 }}>{count} aluno{count>1?"s":""}</div>
       </div>
     );
@@ -3876,16 +3879,16 @@ function ClassTrendChart({ trend }) {
     <ResponsiveContainer width="100%" height={140}>
       <AreaChart data={data} margin={{ top:8, right:8, left:-20, bottom:0 }}>
         <defs>
-          <linearGradient id="classTrendGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#c084fc" stopOpacity={0.5} />
-            <stop offset="100%" stopColor="#c084fc" stopOpacity={0} />
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.5} />
+            <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid stroke="#3b2a58" strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="date" stroke="#776798" fontSize={10} tickLine={false} axisLine={false} />
         <YAxis domain={[0, 100]} stroke="#776798" fontSize={10} tickLine={false} axisLine={false} width={26} />
         <Tooltip content={<CustomTooltip />} />
-        <Area type="monotone" dataKey="avg" stroke="#c084fc" strokeWidth={2.5} fill="url(#classTrendGrad)" dot={{ r:3, fill:"#c084fc", strokeWidth:0 }} activeDot={{ r:5 }} animationDuration={700} />
+        <Area type="monotone" dataKey="avg" stroke={color} strokeWidth={2.5} fill={`url(#${gradId})`} dot={{ r:3, fill:color, strokeWidth:0 }} activeDot={{ r:5 }} animationDuration={700} />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -11193,6 +11196,43 @@ function TeacherView({ onLogout, teacherAuth }) {
                   </div>
                   <p style={{ color:"#776798", fontSize:12, margin:"0 0 12px" }}>Média da nota de atividade de todos os alunos, dia a dia — ajuda a ver se a turma está indo melhor ou pior de uma aula pra outra.</p>
                   <ClassTrendChart trend={trend} />
+                </div>
+              );
+            })()}
+
+            {/* Evolução da PRESENÇA ao longo das aulas — % de quem já tinha entrado na turma
+                naquele dia e foi marcado presente, juntando todo mundo (mesmo cálculo usado na
+                planilha e no boletim: só conta quem já era da turma naquele dia) */}
+            {(() => {
+              const relevant = shown.filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id);
+              const classDaysList = [...new Set(meta.classDays || [])].sort();
+              const byDate = {};
+              relevant.forEach(s => {
+                const enrollFrom = s.createdAt ? dateKeyOf(s.createdAt) : (Object.keys(s.attendance||{}).sort()[0] || null);
+                classDaysList.forEach(d => {
+                  if (enrollFrom && d < enrollFrom) return; // ainda não tinha entrado na turma
+                  if (d >= todayKey() && !(s.attendance||{})[d]) return; // hoje sem presença marcada ainda não conta como falta
+                  const bucket = (byDate[d] = byDate[d] || { present:0, total:0 });
+                  bucket.total++;
+                  if ((s.attendance||{})[d] === "present") bucket.present++;
+                });
+              });
+              const trend = Object.entries(byDate)
+                .filter(([,b]) => b.total > 0)
+                .map(([date, b]) => ({ date, avg: Math.round((b.present / b.total) * 100), count: b.total }))
+                .sort((a,b) => a.date.localeCompare(b.date))
+                .slice(-14);
+              if (trend.length < 2) return null;
+              const delta = trend[trend.length-1].avg - trend[0].avg;
+              const trendLabel = delta >= 8 ? { text:"📈 Melhorando", color:"#34d399" } : delta <= -8 ? { text:"📉 Caindo", color:"#f87171" } : { text:"➡ Estável", color:"#a99ac9" };
+              return (
+                <div className="cardfx" style={styles.card}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10, flexWrap:"wrap", gap:8 }}>
+                    <h3 style={{ color:"#199e70", margin:0 }}>🗓️ Evolução da presença nas últimas aulas</h3>
+                    <span style={{ ...styles.badge(trendLabel.color) }}>{trendLabel.text}</span>
+                  </div>
+                  <p style={{ color:"#776798", fontSize:12, margin:"0 0 12px" }}>Porcentagem de alunos presentes a cada aula (só conta quem já tinha entrado na turma naquele dia) — ajuda a perceber cedo se a frequência está caindo.</p>
+                  <ClassTrendChart trend={trend} unit="%" gradId="attendanceTrendGrad" color="#199e70" />
                 </div>
               );
             })()}
