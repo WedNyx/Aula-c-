@@ -14,8 +14,54 @@ export const NYX_ITEMS = [
   { id:"arco",   label:"Arco e flecha",  emoji:"🏹", slot:"hand", cost:50 },
   // secreto: só aparece na loja depois de desbloqueado com o comando "nyx pirata" no terminal (de graça, não se compra)
   { id:"chapeuPirata", label:"Chapéu Pirata", emoji:"🏴‍☠️", slot:"head", cost:0, secret:true },
+  // cabeça
+  { id:"touca",        label:"Touca de Lã",        emoji:"🧶", slot:"head", cost:6 },
+  { id:"bone",         label:"Boné",               emoji:"🧢", slot:"head", cost:8 },
+  { id:"chapeuFesta",  label:"Chapéu de Festa",    emoji:"🥳", slot:"head", cost:10 },
+  { id:"bandana",      label:"Bandana Ninja",      emoji:"🥷", slot:"head", cost:12 },
+  { id:"gorroNatal",   label:"Gorro de Papai Noel",emoji:"🎅", slot:"head", cost:12 },
+  { id:"orelhinhas",   label:"Orelhinhas de Gato", emoji:"🐱", slot:"head", cost:10 },
+  { id:"tiara",        label:"Tiara",              emoji:"💎", slot:"head", cost:16 },
+  { id:"capaceteObra", label:"Capacete de Obra",   emoji:"⛑️", slot:"head", cost:14 },
+  { id:"foneDJ",       label:"Fone de DJ",         emoji:"🪩", slot:"head", cost:18 },
+  { id:"chapeuMago",   label:"Chapéu de Mago",     emoji:"🧙", slot:"head", cost:22 },
+  { id:"capelo",       label:"Capelo de Formatura",emoji:"🎓", slot:"head", cost:45 },
+  // rosto
+  { id:"oculosNerd",    label:"Óculos de Nerd",     emoji:"🤓", slot:"face", cost:8 },
+  { id:"vendaPirata",   label:"Venda de Pirata",    emoji:"🩹", slot:"face", cost:10 },
+  { id:"oculosAviador", label:"Óculos de Aviador",  emoji:"😎", slot:"face", cost:12 },
+  { id:"oculos3d",      label:"Óculos 3D",          emoji:"🥽", slot:"face", cost:10 },
+  { id:"monoculo",      label:"Monóculo",           emoji:"🧐", slot:"face", cost:14 },
+  { id:"mascaraHeroi",  label:"Máscara de Herói",   emoji:"🎭", slot:"face", cost:18 },
+  // pescoço
+  { id:"cachecol",       label:"Cachecol",           emoji:"🧣", slot:"neck", cost:10 },
+  { id:"golaSocial",     label:"Gola Social",        emoji:"👕", slot:"neck", cost:10 },
+  { id:"colarHavaiano",  label:"Colar Havaiano",     emoji:"🌺", slot:"neck", cost:12 },
+  { id:"gravataBorboleta", label:"Gravata-Borboleta",emoji:"👔", slot:"neck", cost:12 },
+  { id:"colarDev",       label:"Colar </>",          emoji:"🏷️", slot:"neck", cost:14 },
+  { id:"medalha",        label:"Medalha",            emoji:"🏅", slot:"neck", cost:25 },
+  // mão
+  { id:"sorvete",       label:"Sorvete",            emoji:"🍦", slot:"hand", cost:8 },
+  { id:"guardaChuva",   label:"Guarda-chuva",       emoji:"☂️", slot:"hand", cost:10 },
+  { id:"chaveInglesa",  label:"Chave Inglesa",      emoji:"🔧", slot:"hand", cost:14 },
+  { id:"bandeiraCorrida", label:"Bandeira de Corrida", emoji:"🏁", slot:"hand", cost:15 },
+  { id:"microfone",     label:"Microfone",          emoji:"🎤", slot:"hand", cost:16 },
+  { id:"martelo",       label:"Martelo de Dev",     emoji:"🔨", slot:"hand", cost:18 },
+  { id:"grimorio",      label:"Grimório Mágico",    emoji:"📖", slot:"hand", cost:18 },
+  { id:"varinha",       label:"Varinha Mágica",     emoji:"🪄", slot:"hand", cost:20 },
+  { id:"tecladoMini",   label:"Teclado Mecânico",   emoji:"⌨️", slot:"hand", cost:20 },
+  { id:"controle",      label:"Controle de Videogame", emoji:"🎮", slot:"hand", cost:22 },
+  { id:"trofeu",        label:"Taça de Troféu",     emoji:"🏆", slot:"hand", cost:30 },
+  // escudo
+  { id:"tampaPanela", label:"Tampa de Panela", emoji:"🥘", slot:"shield", cost:12 },
+  { id:"placaStop",   label:"Placa de Stop",   emoji:"🛑", slot:"shield", cost:16 },
+  { id:"livroGrosso", label:"Livro Grosso",    emoji:"📚", slot:"shield", cost:20 },
 ];
 export const DEFAULT_NYX_GEAR = { head:null, face:null, neck:null, hand:null, shield:null };
+// item equipado num slot que não tem desenho próprio (os itens acima, todos novos) cai aqui: em vez
+// de desenhar um SVG à mão pra cada um, mostra o emoji do item já usado como ícone dele na loja —
+// mantém a arte consistente com o que o aluno vê na hora de comprar, sem precisar ilustrar 37 itens
+const emojiFor = (slot, id) => NYX_ITEMS.find(i => i.slot === slot && i.id === id)?.emoji || "";
 
 // ── NYX: o robô assistente da turma (SVG + GSAP) ──
 let __nyxSeq = 0;
@@ -280,6 +326,9 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
                   <path d="M55.5 13.5 L58 13.5 M62 13.5 L64.5 13.5" stroke="#111" strokeWidth="0.8" strokeLinecap="round" />
                 </g>
               )}
+              {G.head && !["fone","chapeu","coroa","chapeuPirata"].includes(G.head) && (
+                <text x="60" y="13" fontSize="24" textAnchor="middle" dominantBaseline="central" style={{ filter:"drop-shadow(0 1px 1.5px rgba(0,0,0,.5))" }}>{emojiFor("head", G.head)}</text>
+              )}
             </>
           )}
 
@@ -340,6 +389,9 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
               <path d="M67 39 q4 -3.5 9 0" stroke="#8be9fd" strokeWidth="1.6" opacity="0.55" fill="none" strokeLinecap="round" />
             </g>
           )}
+          {G.face && G.face !== "oculos" && (
+            <text x="60" y="41" fontSize="22" textAnchor="middle" dominantBaseline="central" style={{ filter:"drop-shadow(0 1px 1.5px rgba(0,0,0,.5))" }}>{emojiFor("face", G.face)}</text>
+          )}
 
           </g>
 
@@ -359,6 +411,9 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
               <circle cx="60" cy="66" r="3.2" fill="#db2777" stroke="#a8135c" strokeWidth="0.8" />
               <circle cx="58.8" cy="64.8" r="0.9" fill="#fff" opacity="0.6" />
             </g>
+          )}
+          {G.neck && G.neck !== "laco" && (
+            <text x="60" y="67" fontSize="15" textAnchor="middle" dominantBaseline="central" style={{ filter:"drop-shadow(0 1px 1.5px rgba(0,0,0,.5))" }}>{emojiFor("neck", G.neck)}</text>
           )}
 
           {/* capa Espartana (atrás de tudo — braços, mão e corpo ficam por cima dela) */}
@@ -393,6 +448,9 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
               <circle cx="21.6" cy="80.1" r="0.5" fill="#fff" opacity="0.6" />
             </g>
           )}
+          {G.shield && G.shield !== "escudo" && (
+            <text x="22" y="90" fontSize="20" textAnchor="middle" dominantBaseline="central" style={{ filter:"drop-shadow(0 1px 1.5px rgba(0,0,0,.5))" }}>{emojiFor("shield", G.shield)}</text>
+          )}
           {/* arma (sempre na mão direita — espelhada da mesma arte da mão esquerda) */}
           {G.hand === "espada" && (
             <g transform="translate(120,0) scale(-1,1)">
@@ -426,6 +484,11 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
                 <path d="M11 88.3 L13 90 L11 91.7" stroke="#fecaca" strokeWidth="0.9" fill="none" strokeLinecap="round" opacity="0.7" />
               </g>
             </g>
+          )}
+          {/* itens de mão sem desenho próprio: já nasce na posição espelhada (mão direita), sem
+              precisar do transform de espelho — assim o emoji não fica invertido/estranho */}
+          {G.hand && !["espada","arco"].includes(G.hand) && (
+            <text x="98" y="90" fontSize="22" textAnchor="middle" dominantBaseline="central" style={{ filter:"drop-shadow(0 1px 1.5px rgba(0,0,0,.5))" }}>{emojiFor("hand", G.hand)}</text>
           )}
 
           {/* corpo */}
