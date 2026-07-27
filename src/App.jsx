@@ -2610,6 +2610,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [examGuidedCorrect, setExamGuidedCorrect] = useState(0);
   // ✋ pedir ajuda: acende o tile do aluno no monitoramento do professor
   const [helpAt, setHelpAt] = useState(null);
+  // 🙋 pedir um parceiro de código sozinho (sem esperar o professor notar) — o professor ainda faz
+  // o pareamento de verdade (não deixa aluno escolher/parear direto com outro, por segurança)
+  const [wantsPartner, setWantsPartner] = useState(null);
   // 🤝 parceiro de código: pareamento sugerido/aprovado pelo professor entre um aluno com dificuldade
   // (ajudado) e um colega livre (ajudante). partnerHelped = registro em que EU sou o ajudado;
   // partnerHelping = registro em que EU fui escalado pra ajudar um colega (vejo o código dele, só leitura)
@@ -2665,6 +2668,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // compartilhar avatar/conquistas/progresso com a família; o professor pode desativar se precisar
   const [portfolioPublic, setPortfolioPublic] = useState(false);
   const [portfolioCopyMsg, setPortfolioCopyMsg] = useState("");
+  const [showSelfSupport, setShowSelfSupport] = useState(false);
   // 🏆 hall da fama: placas de cidades anteriores
   const [showHallOfFame, setShowHallOfFame] = useState(false);
   const [hallEntries, setHallEntries] = useState([]);
@@ -2764,11 +2768,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // perfis de apoio (educação inclusiva), marcados pelo professor por aluno:
   // sensorial = modo calmo · foco = esconde competição · leitura = texto espaçado · ritmo = atividade reduzida
   const [supportFlags, setSupportFlags] = useState({});
-  const calmMode = !!supportFlags.sensorial;
-  const focusMode = !!supportFlags.foco;
-  const easyRead = !!supportFlags.leitura;
-  const ownPace = !!supportFlags.ritmo;
-  const highContrast = !!supportFlags.visual;
+  // o PRÓPRIO aluno também pode pedir qualquer um desses ajustes pra si mesmo, sem depender do
+  // professor notar — fica guardado no perfil dele (mesmo canal sem senha que já salva nota/fase/
+  // código), então funciona igual ao pedir ajuda: só o aluno decide, o professor só acompanha.
+  // O efeito é sempre a UNIÃO dos dois (professor OU aluno liga = ajuste ativo)
+  const [selfSupport, setSelfSupport] = useState({});
+  const calmMode = !!supportFlags.sensorial || !!selfSupport.sensorial;
+  const focusMode = !!supportFlags.foco || !!selfSupport.foco;
+  const easyRead = !!supportFlags.leitura || !!selfSupport.leitura;
+  const ownPace = !!supportFlags.ritmo || !!selfSupport.ritmo;
+  const highContrast = !!supportFlags.visual || !!selfSupport.visual;
   useEffect(() => { setSoundsCalm(calmMode); return () => setSoundsCalm(false); }, [calmMode]);
   const [guidedBlocks, setGuidedBlocks] = useState([]);
   const [pendingBlock, setPendingBlock] = useState(null);
@@ -2795,7 +2804,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -2877,6 +2886,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       examGuidedAnswers: s.examGuidedAnswers || {},
       examGuidedCorrect: s.examGuidedCorrect || 0,
       helpAt: s.helpAt || null,
+      wantsPartner: s.wantsPartner || null,
+      selfSupport: s.selfSupport || {},
       errorAt: s.errorAt || null,
       errorMsg: s.errorMsg || "",
       typingBest: s.typingBest || null,
@@ -3246,6 +3257,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // ── ✋ pedir ajuda: acende o tile do aluno no monitoramento do professor (expira em 15 min lá) ──
   const askHelp = async () => { const t = Date.now(); setHelpAt(t); await persist({ helpAt: t }); };
   const cancelHelp = async () => { setHelpAt(null); await persist({ helpAt: null }); };
+  // 🙋 pedir um parceiro sozinho — o professor decide quem pareia (não é o aluno que escolhe),
+  // por isso isso só "levanta a mão"; quem realmente pareia é sempre o professor
+  const askPartner = async () => { const t = Date.now(); setWantsPartner(t); await persist({ wantsPartner: t }); };
+  const cancelPartnerRequest = async () => { setWantsPartner(null); await persist({ wantsPartner: null }); };
+  // 🧩 o próprio aluno liga/desliga um ajuste de apoio pra si mesmo — some com o professor, é a
+  // UNIÃO dos dois (se qualquer um dos dois ligar, o ajuste vale)
+  const toggleSelfSupport = (flag) => { const next = { ...selfSupport, [flag]: !selfSupport[flag] }; setSelfSupport(next); persist({ selfSupport: next }); };
 
   // ── ⚠️ erro em produção: se a tela do aluno der um erro de JS de verdade, avisa o professor
   // sozinho (mesmo painel de Monitoramento), sem o aluno precisar levantar a mão e reclamar.
@@ -3365,6 +3383,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.examGuidedAnswers) setExamGuidedAnswers(prev.examGuidedAnswers);
           if (prev.examGuidedCorrect) setExamGuidedCorrect(prev.examGuidedCorrect);
           if (prev.helpAt) setHelpAt(prev.helpAt);
+          if (prev.wantsPartner) setWantsPartner(prev.wantsPartner);
+          if (prev.selfSupport) setSelfSupport(prev.selfSupport);
           if (prev.errorAt) { setErrorAt(prev.errorAt); setErrorMsg(prev.errorMsg || ""); }
           if (prev.typingBest) setTypingBest(prev.typingBest);
           if (prev.typingRewardDay) setTypingRewardDay(prev.typingRewardDay);
@@ -3666,6 +3686,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           setHelpAt(null);
           await clearScoreFix(shift, studentName);
           await persist({ helpAt: null });
+        } else if (fix && fix.kind === "partner-request-cleared") {
+          // professor pareou (ou dispensou) o pedido de parceiro — desliga o "levantei a mão"
+          setWantsPartner(null);
+          await clearScoreFix(shift, studentName);
+          await persist({ wantsPartner: null });
         } else if (fix && fix.kind === "exam-appeal-rejected") {
           // professor RECUSOU a defesa: desconto mantido
           const ap = { ...(stateRef.current.examAppeal || {}), status: "rejected" };
@@ -5447,7 +5472,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         </div>
       )}
 
-      {!kbSuggestDismissed && !keyboardDone && (supportFlags.leitura || supportFlags.motora) && phase==="coding" && (
+      {!kbSuggestDismissed && !keyboardDone && (easyRead || supportFlags.motora || selfSupport.motora) && phase==="coding" && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
           <div style={{ background:"linear-gradient(90deg,#0e749922,#22d3ee22)", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:20 }}>⌨️</span>
@@ -5679,6 +5704,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             {helpAt
               ? <button data-tour="ajuda" onClick={cancelHelp} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="O professor já foi avisado — clique pra cancelar o pedido">✋ Professor avisado! (cancelar)</button>
               : <button data-tour="ajuda" onClick={askHelp} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Acende seu nome no painel do professor pra ele vir te ajudar">✋ Pedir ajuda do professor</button>}
+            {!partnerHelped && (wantsPartner
+              ? <button onClick={cancelPartnerRequest} style={{ ...styles.btn("#22d3ee"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Clique pra cancelar o pedido">🙋 Parceiro pedido! (cancelar)</button>
+              : <button onClick={askPartner} style={{ ...styles.btn("#3b2a58"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Avisa o professor que você quer um colega pra ajudar você — ele escolhe quem, por segurança">🤝 Pedir um parceiro pra me ajudar</button>)}
             {partnerHelping && (
               <button onClick={()=>{ setPartnerViewActive(0); setShowPartnerHelp(true); }} style={{ ...styles.btn("#22d3ee"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja o código dele(a) (só leitura) e marque como resolvido quando ajudar">
                 🤝 Ajudar {partnerHelping.helped} · ver código
@@ -5742,6 +5770,31 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8, flexWrap:"wrap" }}>
                   <button onClick={copyPortfolioLink} style={{ ...styles.btn("#c084fc"), fontSize:11.5, padding:"6px 12px", width:"auto" }}>📋 Copiar link</button>
                   {portfolioCopyMsg && <span style={{ color:"#34d399", fontSize:11.5 }}>{portfolioCopyMsg}</span>}
+                </div>
+              )}
+            </div>
+            <div style={{ borderTop:"1px solid #3b2a58", marginTop:10, paddingTop:10 }}>
+              <button onClick={()=>setShowSelfSupport(v=>!v)} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:12, cursor:"pointer", padding:0, textAlign:"left" }}>
+                🧩 Preciso de um ajuste hoje? {showSelfSupport ? "▴" : "▾"}
+              </button>
+              {showSelfSupport && (
+                <div style={{ marginTop:8 }}>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {[
+                      ["sensorial", "🧘 Sensorial", "Desliga sons, confete e animações de festa — pra quando os estímulos estão demais."],
+                      ["foco", "🎯 Foco", "Some com ranking, loja, duelos e curiosidade — sobra só o essencial pra você se concentrar."],
+                      ["leitura", "📖 Leitura", "Deixa as letras e linhas mais espaçadas na sua tela."],
+                      ["ritmo", "🐢 Ritmo próprio", "A atividade do dia fica com 4 questões em vez de 8."],
+                      ["motora", "🖐️ Motora", "Te sugere o tutorial de teclado, pra ajudar a digitar."],
+                      ["visual", "👁️ Visual", "Alto contraste + letras maiores na sua tela."],
+                    ].map(([flag, label, hint]) => (
+                      <button key={flag} onClick={()=>toggleSelfSupport(flag)} title={hint}
+                        style={{ background: selfSupport[flag] ? "#3b82f6" : "#171026", color: selfSupport[flag] ? "#fff" : "#a99ac9", border:`1px solid ${selfSupport[flag] ? "#3b82f6" : "#3b2a58"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:11.5 }}>
+                        {selfSupport[flag] ? "✓ " : ""}{label}
+                      </button>
+                    ))}
+                  </div>
+                  <p style={{ color:"#776798", fontSize:11, margin:"6px 0 0" }}>Só você decide — liga e desliga quando quiser, sem precisar pedir pro professor.</p>
                 </div>
               )}
             </div>
@@ -6407,9 +6460,20 @@ function difficultyOf(s) {
   if (s.phase==="activity") return { level:"bem", text:"Está fazendo a atividade." };
   if (s.phase==="summary") return { level:"bem", text:"Está lendo o resumo." };
   if (s.feedback && s.feedback.ok) return { level:"bem", text:"Código sem erros até agora." };
+  // 🕰️ travado: já faz um tempo bom que entrou, continua online AGORA (não é aba esquecida aberta)
+  // e ainda não escreveu quase nada — o resto da lógica acima só pega quem já ERROU ou já
+  // TERMINOU com nota baixa; quem trava sem nem começar nunca aparecia como "precisa de ajuda"
+  const onlineNow = s.lastSeen && (Date.now() - s.lastSeen) < 30000;
+  const longSession = s.joinedAt && (Date.now() - s.joinedAt) > STUCK_MINUTES * 60000;
+  const codeLen = (s.code || "").trim().length;
+  if (onlineNow && longSession && codeLen < 10) {
+    const mins = Math.round((Date.now() - s.joinedAt) / 60000);
+    return { level:"dif", text:`Parece travado(a) — já está há ${mins} min na aula e ainda não escreveu nada.` };
+  }
   if (!s.code || s.code.trim().length < 10) return { level:"neutro", text:"Ainda não começou a escrever." };
   return { level:"neutro", text:"Está escrevendo o código." };
 }
+const STUCK_MINUTES = 8; // quanto tempo sem escrever nada (com a aba online) até o professor ser avisado
 
 // ── biblioteca de aulas prontas: exemplos completos que o professor carrega com 1 clique ──
 const LESSON_LIBRARY = [
@@ -7970,7 +8034,14 @@ function TeacherView({ onLogout, teacherAuth }) {
     const rec = { helper: helperName, helped: helped.name, shift: helped.shift, status: "active", startedAt: Date.now() };
     await setPartner(helped.shift, helped.name, rec);
     setPartners(prev => [...prev.filter(p => !(p.helped===helped.name && p.shift===helped.shift)), rec]);
+    // se o pareamento veio de um pedido do próprio aluno (🙋), avisa o cliente dele pra desligar o "levantei a mão"
+    if (helped.wantsPartner) await setScoreFix(helped.shift, helped.name, { kind: "partner-request-cleared" }, teacherAuth);
     flashMgmt(`🤝 ${helperName} vai ajudar ${helped.name}!`);
+  };
+  // dispensa um pedido de parceiro sem parear ninguém (ex: o aluno já resolveu sozinho)
+  const dismissPartnerRequest = async (s) => {
+    await setScoreFix(s.shift, s.name, { kind: "partner-request-cleared" }, teacherAuth);
+    flashMgmt(`Pedido de parceiro de ${s.name} dispensado.`);
   };
   const doUnpairPartner = async (helped) => {
     await clearPartner(helped.shift, helped.name);
@@ -8015,6 +8086,9 @@ function TeacherView({ onLogout, teacherAuth }) {
   const present = shown.filter(isOnline).length;
   const goingWell = sorted.filter(s => difficultyOf(s).level==="bem");
   const needHelp  = sorted.filter(s => difficultyOf(s).level==="dif");
+  // 🙋 quem pediu um parceiro sozinho e ainda não foi pareado — fica visível de cara, sem o
+  // professor precisar clicar aluno por aluno pra descobrir quem pediu
+  const wantsPartnerList = sorted.filter(s => s.wantsPartner && !partners.some(p => p.status==="active" && p.helped===s.name && (p.shift||"sem-turno")===(s.shift||"sem-turno")));
   // notificação DE VERDADE na tela do professor (não só um aviso escondido dentro de "Meu código"):
   // toca sempre que um aluno NOVO passa a precisar de ajuda, em qualquer aba que o professor esteja
   const needHelpNames = needHelp.map(s=>s.name).sort().join("|");
@@ -8668,6 +8742,11 @@ function TeacherView({ onLogout, teacherAuth }) {
                     ? <>⚠ <b>{needHelp.length}</b> com dificuldade agora: {needHelp.slice(0,5).map(s=>String(s.name).split(" ")[0]).join(", ")}{needHelp.length>5?` e mais ${needHelp.length-5}`:""}</>
                     : "✅ Ninguém com dificuldade agora"}
                 </div>
+                {wantsPartnerList.length > 0 && (
+                  <div style={{ color:"#a855f7" }}>
+                    🙋 <b>{wantsPartnerList.length}</b> pediu{wantsPartnerList.length>1?"ram":""} um parceiro: {wantsPartnerList.slice(0,5).map(s=>String(s.name).split(" ")[0]).join(", ")}{wantsPartnerList.length>5?` e mais ${wantsPartnerList.length-5}`:""} — clique no aluno pra parear
+                  </div>
+                )}
                 {topToday && (
                   <div style={{ color:"#34d399" }}>🌟 Destaque de hoje: <b>{topToday.name}</b> ({topToday.todayScore} pts)</div>
                 )}
@@ -8772,8 +8851,14 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
 
                 {/* 🤝 Parceiro de código: pareia um colega livre com quem está em dificuldade */}
-                <div className="cardfx" style={{ ...styles.card, borderColor:"#22d3ee" }}>
+                <div className="cardfx" style={{ ...styles.card, borderColor: sel.wantsPartner ? "#a855f7" : "#22d3ee" }}>
                   <h4 style={{ color:"#22d3ee", marginBottom:12 }}>🤝 Parceiro de código</h4>
+                  {sel.wantsPartner && (
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", background:"#a855f710", border:"1px solid #a855f7", borderRadius:8, padding:"8px 10px", marginBottom:10 }}>
+                      <span style={{ color:"#a855f7", fontSize:12.5, fontWeight:800, flex:"1 1 180px" }}>🙋 {sel.name} pediu um parceiro às {new Date(sel.wantsPartner).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}!</span>
+                      <button onClick={()=>dismissPartnerRequest(sel)} style={{ ...styles.btn("#3b2a58"), padding:"4px 10px", fontSize:11.5 }}>Dispensar</button>
+                    </div>
+                  )}
                   {(() => {
                     const selShift = sel.shift || "sem-turno";
                     const selPartner = partners.find(p => p.helped===sel.name && (p.shift||"sem-turno")===selShift && p.status==="active");
@@ -8873,14 +8958,18 @@ function TeacherView({ onLogout, teacherAuth }) {
                             ["ritmo", "🐢 Ritmo próprio", "Atividade do dia com 4 questões bem diretas em vez de 8 — termina junto com a turma."],
                             ["motora", "🖐️ Motora", "Sugere o tutorial de teclado pra esse aluno automaticamente — ajuda quem tem dificuldade motora pra digitar."],
                             ["visual", "👁️ Visual", "Alto contraste + letras maiores em toda a tela do aluno — ajuda quem tem baixa visão."],
-                          ].map(([flag, label, hint]) => (
-                            <button key={flag} onClick={()=>doToggleSupport(sel, flag, label)} title={hint}
-                              style={{ background: selSupport[flag] ? "#3b82f6" : "#171026", color: selSupport[flag] ? "#fff" : "#a99ac9", border:`1px solid ${selSupport[flag] ? "#3b82f6" : "#3b2a58"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:12 }}>
-                              {selSupport[flag] ? "✓ " : ""}{label}
-                            </button>
-                          ))}
+                          ].map(([flag, label, hint]) => {
+                            const bySelf = !!(sel.selfSupport && sel.selfSupport[flag]);
+                            const active = selSupport[flag] || bySelf;
+                            return (
+                              <button key={flag} onClick={()=>doToggleSupport(sel, flag, label)} title={bySelf ? `${hint} (o próprio aluno pediu este)` : hint}
+                                style={{ background: active ? (bySelf && !selSupport[flag] ? "#a855f7" : "#3b82f6") : "#171026", color: active ? "#fff" : "#a99ac9", border:`1px solid ${active ? (bySelf && !selSupport[flag] ? "#a855f7" : "#3b82f6") : "#3b2a58"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:12 }}>
+                                {bySelf && !selSupport[flag] ? "🙋 " : active ? "✓ " : ""}{label}
+                              </button>
+                            );
+                          })}
                         </div>
-                        <p style={{ color:"#776798", fontSize:11.5, margin:"6px 0 0" }}>Perfis de apoio pra educação inclusiva — a tela do aluno se adapta sozinha. Só você vê essas marcações; os colegas não.</p>
+                        <p style={{ color:"#776798", fontSize:11.5, margin:"6px 0 0" }}>Perfis de apoio pra educação inclusiva — a tela do aluno se adapta sozinha. Só você vê essas marcações; os colegas não. <span style={{color:"#a855f7"}}>🙋 roxo</span> = o próprio aluno pediu; clique pra também fixar por sua conta (assim continua ativo mesmo se ele desmarcar).</p>
                       </div>
                     </div>
                     {sel.helpAt && Date.now() - sel.helpAt < 15 * 60 * 1000 && (
