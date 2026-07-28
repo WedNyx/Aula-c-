@@ -6985,9 +6985,10 @@ function TeacherView({ onLogout, teacherAuth }) {
   const doGerarRelatorio = async () => {
     setRelatorioBusy(true); setRelatorioMsg("");
     try {
+      const byName = (a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR");
       const studentsByShift = {
-        matutino: students.filter(s => (s.shift || "matutino") === "matutino"),
-        vespertino: students.filter(s => s.shift === "vespertino"),
+        matutino: students.filter(s => (s.shift || "matutino") === "matutino").sort(byName),
+        vespertino: students.filter(s => s.shift === "vespertino").sort(byName),
       };
       const total = studentsByShift.matutino.length + studentsByShift.vespertino.length;
       if (total === 0) { setRelatorioMsg("❌ Nenhum aluno em Matutino/Vespertino ainda pra gerar o relatório."); setRelatorioBusy(false); return; }

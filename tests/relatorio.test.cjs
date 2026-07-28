@@ -9,6 +9,12 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 
 (async () => {
   const kvStore = baseKvStore({ city: 'Sobradinho', classDays: ['2026-07-20'] });
+  // seedado de propósito FORA de ordem alfabética, pra confirmar que o relatório reordena
+  kvStore.set('student:matutino:ZecaUltimo', JSON.stringify({
+    name: 'Zeca Ultimo', shift: 'matutino', avatar: {}, cpf: '999.999.999-99',
+    files: [{ name: 'Program.cs', code: 'int z = 1;' }],
+    phase: 'coding', lastSeen: Date.now(), nyxPoints: 0, score: 50,
+  }));
   kvStore.set('student:matutino:AlunoBom', JSON.stringify({
     name: 'AlunoBom', shift: 'matutino', avatar: {}, cpf: '111.111.111-11',
     files: [{ name: 'Program.cs', code: 'Console.WriteLine("ola");' }],
@@ -75,9 +81,16 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   check('Aluno da turma de TESTE NÃO aparece no relatório', !documentXml.includes('AlunoTesteNaoDeveAparecer'));
   check('Aluno da sala de LINGUAGENS NÃO aparece no relatório', !documentXml.includes('AlunoLinguagemNaoDeveAparecer'));
 
-  // 3 imagens por aluno de Matutino+Vespertino (3 alunos válidos) = 9 imagens embutidas
+  // alunos do matutino foram seedados FORA de ordem (Zeca Ultimo, AlunoBom, AlunoFraco) — o
+  // relatório precisa reordenar em ordem alfabética
+  const posBom = documentXml.indexOf('ALUNO: AlunoBom');
+  const posFraco = documentXml.indexOf('ALUNO: AlunoFraco');
+  const posZeca = documentXml.indexOf('ALUNO: Zeca Ultimo');
+  check('Alunos do matutino aparecem em ordem alfabética (AlunoBom → AlunoFraco → Zeca Ultimo)', posBom > -1 && posFraco > -1 && posZeca > -1 && posBom < posFraco && posFraco < posZeca, `AlunoBom@${posBom} AlunoFraco@${posFraco} Zeca@${posZeca}`);
+
+  // 3 imagens por aluno de Matutino+Vespertino (4 alunos válidos) = 12 imagens embutidas
   const mediaFiles = Object.keys(zip.files).filter(f => f.startsWith('word/media/relatorioImg'));
-  check('9 imagens embutidas no relatório (3 por aluno × 3 alunos válidos)', mediaFiles.length === 9, `encontrado: ${mediaFiles.length}`);
+  check('12 imagens embutidas no relatório (3 por aluno × 4 alunos válidos)', mediaFiles.length === 12, `encontrado: ${mediaFiles.length}`);
 
   // assinaturas e cabeçalho/rodapé originais continuam intactos
   check('Assinatura "Ana Carolina Santana de Meneses" continua intacta', documentXml.includes('Ana Carolina Santana de Meneses'));
