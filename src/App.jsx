@@ -3286,10 +3286,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   };
 
   // ── 🎁 abre o presente misterioso do dia (sorteio de raridade) ──
+  // lê/escreve via stateRef (não os closures de giftLastClaim/nyxPoints) pelo mesmo motivo do
+  // handleBuyItem: dois toques rápidos seguidos (comum no touch da carreta) passavam os dois pela
+  // checagem com o mesmo "giftLastClaim" ainda desatualizado, e o aluno ganhava o presente 2x
   const openGift = async () => {
-    if (giftLastClaim === todayKey()) return;
+    const s = stateRef.current;
+    if (s.giftLastClaim === todayKey()) return;
     const tier = rollGift();
-    const np = nyxPoints + tier.pts;
+    const np = (s.nyxPoints||0) + tier.pts;
+    stateRef.current = { ...s, nyxPoints: np, giftLastClaim: todayKey() };
     setGiftReveal(tier);
     setGiftLastClaim(todayKey());
     setNyxPoints(np);
