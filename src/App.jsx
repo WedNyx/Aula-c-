@@ -2353,6 +2353,10 @@ function KnowledgeTestModal({ onAward, onFirstToday, onClose }) {
   const [answers, setAnswers] = useState({});
   const [done, setDone] = useState(false);
   const [score, setScore] = useState(0);
+  // clicar "Enviar respostas" 2x bem rápido (antes do "done" virar true no re-render) chamava
+  // submit() de novo e disparava onAward()/onFirstToday() duas vezes — ref é atualizada na hora
+  // (não espera re-render), então a segunda chamada síncrona já vê o bloqueio
+  const submittedRef = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -2369,6 +2373,8 @@ function KnowledgeTestModal({ onAward, onFirstToday, onClose }) {
   const allAnswered = questions.length > 0 && questions.every((_, i) => answers[i] != null);
 
   const submit = async () => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
     let correct = 0;
     questions.forEach((q, i) => { if (answers[i] === q.correct) correct++; });
     setScore(correct);
@@ -3254,11 +3260,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     await persist({ justifications: next });
   };
 
-  // ⌨️ conclui o tutorial de teclado: pontos + conquista, 1x (pode repetir o treino, mas não repontua)
+  // ⌨️ conclui o tutorial de teclado: pontos + conquista, 1x (pode repetir o treino, mas não
+  // repontua) — lê/escreve via stateRef (não os closures de keyboardDone/nyxPoints), mesmo motivo
+  // do handleBuyItem/openGift: dois disparos bem próximos não podem passar os dois pela checagem
+  // com o mesmo estado "antigo" e um pisar no ponto do outro
   const finishKeyboardTutorial = async () => {
-    if (keyboardDone) return;
+    const s = stateRef.current;
+    if (s.keyboardDone) return;
+    const np = (s.nyxPoints||0) + 5;
+    stateRef.current = { ...s, keyboardDone: true, nyxPoints: np };
     setKeyboardDone(true);
-    const np = nyxPoints + 5;
     setNyxPoints(np);
     await persist({ keyboardDone: true, nyxPoints: np });
     unlockAchievement("teclado-mestre");
@@ -3267,19 +3278,24 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
   // ── 🏁 fim da corrida de digitação: pontos 1x por dia (+1 bônus por recorde pessoal) ──
   const finishTypingRace = async (ms) => {
+    const s = stateRef.current;
     const today = todayKey();
-    const firstToday = typingRewardDay !== today;
-    const newRecord = !typingBest || ms < typingBest.ms;
+    const firstToday = s.typingRewardDay !== today;
+    const newRecord = !s.typingBest || ms < s.typingBest.ms;
     const reward = (firstToday ? 2 : 0) + (newRecord ? 1 : 0);
-    const best = newRecord ? { ms, at: Date.now() } : typingBest;
-    if (newRecord) setTypingBest(best);
-    if (firstToday) setTypingRewardDay(today);
+    const best = newRecord ? { ms, at: Date.now() } : s.typingBest;
+    const newTypingRewardDay = firstToday ? today : s.typingRewardDay;
     if (reward > 0) {
-      const np = nyxPoints + reward;
+      const np = (s.nyxPoints||0) + reward;
+      stateRef.current = { ...s, typingBest: best, typingRewardDay: newTypingRewardDay, nyxPoints: np };
+      if (newRecord) setTypingBest(best);
+      if (firstToday) setTypingRewardDay(today);
       setNyxPoints(np);
-      await persist({ nyxPoints: np, typingBest: best, typingRewardDay: firstToday ? today : typingRewardDay });
+      await persist({ nyxPoints: np, typingBest: best, typingRewardDay: newTypingRewardDay });
       checkPointsAchievements(np);
     } else {
+      // reward<=0 só acontece quando newRecord e firstToday são os dois false — nada novo pra
+      // guardar em stateRef/estado além do que já estava lá
       await persist({ typingBest: best });
     }
     return { reward, newRecord };
@@ -4095,10 +4111,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     await persist({ weeklyChallenge: updated });
   };
   const finishWeeklyChallenge = async () => {
-    if (!weeklyChallenge) return;
-    const updated = { ...weeklyChallenge, status: "done", completedAt: Date.now() };
+    const s = stateRef.current;
+    if (!s.weeklyChallenge || s.weeklyChallenge.status === "done") return;
+    const updated = { ...s.weeklyChallenge, status: "done", completedAt: Date.now() };
+    const np = (s.nyxPoints||0) + 10; // bônus generoso — é um desafio da semana inteira, não uma atividade rápida
+    stateRef.current = { ...s, weeklyChallenge: updated, nyxPoints: np };
     setWeeklyChallenge(updated);
-    const np = nyxPoints + 10; // bônus generoso — é um desafio da semana inteira, não uma atividade rápida
     setNyxPoints(np);
     await persist({ weeklyChallenge: updated, nyxPoints: np });
     checkPointsAchievements(np);
@@ -4148,11 +4166,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     if (found) { setRobotState("ok"); setRobotMsg(found[0]); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, found[1]); }
   };
 
-  // 🏴‍☠️ baú do tesouro escondido: só concede os 500 pontos uma única vez por aluno
+  // 🏴‍☠️ baú do tesouro escondido: só concede os 500 pontos uma única vez por aluno — lê/escreve
+  // via stateRef, mesmo motivo do openGift (clique duplo bem rápido no ícone escondido)
   const findTreasure = () => {
-    if (treasureFound) return;
+    const s = stateRef.current;
+    if (s.treasureFound) return;
+    const np = (s.nyxPoints||0) + 500;
+    stateRef.current = { ...s, treasureFound: true, nyxPoints: np };
     setTreasureFound(true);
-    const np = nyxPoints + 500;
     setNyxPoints(np);
     playSound("achievement");
     persist({ treasureFound: true, nyxPoints: np });
@@ -4447,10 +4468,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     fireConfetti("activity");
     setShowFeedbackModal(true);
     setFeedbackLoading(true);
-    const newNyxPoints = nyxPoints + pts + (bonusHit ? 1 : 0);
+    const newNyxPoints = (stateRef.current.nyxPoints||0) + pts + (bonusHit ? 1 : 0);
     setNyxPoints(newNyxPoints);
-    const newScoreHistory = { ...scoreHistory, [todayKey()]: finalScore };
+    const newScoreHistory = { ...stateRef.current.scoreHistory, [todayKey()]: finalScore };
     setScoreHistory(newScoreHistory);
+    stateRef.current = { ...stateRef.current, nyxPoints: newNyxPoints, scoreHistory: newScoreHistory };
     await persist({ phase:"done", score:finalScore, answers, nyxPoints: newNyxPoints, doneAt: completedAt, scoreHistory: newScoreHistory });
     checkPointsAchievements(newNyxPoints);
     unlockAchievement("primeira-atividade");
@@ -4482,6 +4504,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   };
 
   const handleExamAnswer = async (qIdx, optIdx) => {
+    // já concluída (protege contra clicar 2x bem rápido na última resposta e disparar o bloco de
+    // finalização/premiação duas vezes) — lê via stateRef, não o closure de examDone
+    if (stateRef.current.examDone) return;
     const newAnswers = { ...examAnswers, [qIdx]: optIdx };
     setExamAnswers(newAnswers);
     const qs = examInfo.questions || [];
@@ -4490,6 +4515,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     // encerrar a prova sozinho contando as anteriores (ainda não vistas) como erradas
     const allAnswered = qs.every((_, i) => newAnswers[i] != null);
     if (!allAnswered) {
+      stateRef.current = { ...stateRef.current, examAnswers: newAnswers };
       const nextUnanswered = qs.findIndex((_, i) => newAnswers[i] == null);
       setExamCurrentQ(nextUnanswered !== -1 ? nextUnanswered : Math.min(qIdx + 1, qs.length - 1));
       await persist({ examAnswers: newAnswers });
@@ -4502,8 +4528,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const penalty = Math.min(raw, exits * 10);
       const finalScore = raw - penalty;
       try { sessionStorage.removeItem("nyx_exam_open"); } catch {}
+      const newNyxPoints = (stateRef.current.nyxPoints||0) + Math.round(finalScore / 10);
+      stateRef.current = { ...stateRef.current, examAnswers: newAnswers, examDone: true, nyxPoints: newNyxPoints };
       setExamScore(finalScore); setExamScoreRaw(raw); setExamDone(true);
-      const newNyxPoints = nyxPoints + Math.round(finalScore / 10);
       setNyxPoints(newNyxPoints);
       await persist({ examAnswers: newAnswers, examScore: finalScore, examScoreRaw: raw, examExits: exits, examDone: true, nyxPoints: newNyxPoints });
       checkPointsAchievements(newNyxPoints);
@@ -4516,11 +4543,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // oficial (não entra em ranking/boletim), então termina sozinha assim que responder tudo, sem
   // precisar esperar o professor encerrar a prova de verdade
   const handleGuidedAnswer = async (qIdx, optIdx) => {
+    // mesma proteção do handleExamAnswer: sem isso, clicar 2x bem rápido na última resposta
+    // disparava o bloco de finalização/premiação duas vezes
+    if (stateRef.current.examDone) return;
     const newAnswers = { ...examGuidedAnswers, [qIdx]: optIdx };
     setExamGuidedAnswers(newAnswers);
     const gq = examGuidedQuestions || GUIDED_PARTICIPATION_QUIZ;
     const allAnswered = gq.every((_, i) => newAnswers[i] != null);
     if (!allAnswered) {
+      stateRef.current = { ...stateRef.current, examGuidedAnswers: newAnswers };
       const nextUnanswered = gq.findIndex((_, i) => newAnswers[i] == null);
       setExamGuidedCurrentQ(nextUnanswered !== -1 ? nextUnanswered : Math.min(qIdx + 1, gq.length - 1));
       await persist({ examGuidedAnswers: newAnswers });
@@ -4528,8 +4559,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       let gpts = 0;
       gq.forEach((q, i) => { if (newAnswers[i] === q.correct) gpts++; });
       try { sessionStorage.removeItem("nyx_exam_open"); } catch {}
+      const newNyxPoints = (stateRef.current.nyxPoints||0) + 10;
+      stateRef.current = { ...stateRef.current, examGuidedAnswers: newAnswers, examGuidedCorrect: gpts, examGuidedMode: true, examDone: true, nyxPoints: newNyxPoints };
       setExamGuidedCorrect(gpts); setExamGuidedMode(true); setExamDone(true);
-      const newNyxPoints = nyxPoints + 10;
       setNyxPoints(newNyxPoints);
       await persist({ examGuidedAnswers: newAnswers, examGuidedCorrect: gpts, examGuidedMode: true, examDone: true, nyxPoints: newNyxPoints });
     }
@@ -6105,11 +6137,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
       {showKnowledgeTest && (
         <KnowledgeTestModal
-          onAward={async (pts) => { const np = nyxPoints + pts; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); unlockAchievement("autodidata"); }}
+          onAward={async (pts) => { const s=stateRef.current; const np=(s.nyxPoints||0)+pts; stateRef.current={...s,nyxPoints:np}; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); unlockAchievement("autodidata"); }}
           onFirstToday={() => {
             const today = todayKey();
-            const first = knowledgeTestRewardDay !== today;
-            if (first) { setKnowledgeTestRewardDay(today); persist({ knowledgeTestRewardDay: today }); }
+            const first = stateRef.current.knowledgeTestRewardDay !== today;
+            if (first) { stateRef.current = { ...stateRef.current, knowledgeTestRewardDay: today }; setKnowledgeTestRewardDay(today); persist({ knowledgeTestRewardDay: today }); }
             return first;
           }}
           onClose={()=>setShowKnowledgeTest(false)}
@@ -6135,9 +6167,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           shift={shift}
           myName={studentName}
           myAvatar={avatar}
-          onAward={async (pts) => { const np = nyxPoints + pts; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); }}
+          onAward={async (pts) => { const s=stateRef.current; const np=(s.nyxPoints||0)+pts; stateRef.current={...s,nyxPoints:np}; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); }}
           onWin={async () => {
-            const nw = duelWins + 1;
+            const nw = (stateRef.current.duelWins||0) + 1;
+            stateRef.current = { ...stateRef.current, duelWins: nw };
             setDuelWins(nw);
             await persist({ duelWins: nw });
             unlockAchievement("duelista");
@@ -6151,9 +6184,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           shift={shift}
           myName={studentName}
           myAvatar={avatar}
-          onAward={async (pts) => { const np = nyxPoints + pts; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); }}
+          onAward={async (pts) => { const s=stateRef.current; const np=(s.nyxPoints||0)+pts; stateRef.current={...s,nyxPoints:np}; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); }}
           onWin={async () => {
-            const nw = duelWins + 1;
+            const nw = (stateRef.current.duelWins||0) + 1;
+            stateRef.current = { ...stateRef.current, duelWins: nw };
             setDuelWins(nw);
             await persist({ duelWins: nw });
             unlockAchievement("duelista");
