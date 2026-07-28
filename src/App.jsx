@@ -1868,6 +1868,7 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
   const [creating, setCreating] = useState(false);
   const [err, setErr] = useState("");
   const lastDuelKey = useRef(null);
+  const doneAwardedRef = useRef(null);
 
   const refresh = async () => {
     try {
@@ -1893,6 +1894,25 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
     const key = duel ? `${duel.from}__${duel.to}__${duel.createdAt}` : null;
     if (key !== lastDuelKey.current) { setMyAnswers({}); lastDuelKey.current = key; }
   }, [duel]);
+
+  // premia quando o duelo vira "done" — roda uma vez por duelo, pros DOIS jogadores (quem enviou
+  // primeiro e quem enviou por último) detectarem sozinhos na própria sessão. Antes disso o prêmio
+  // só era dado dentro de submitDuelAnswers() na hora que "bothDone" ficava true, o que só
+  // acontecia na sessão de quem enviasse a resposta POR ÚLTIMO — o primeiro a responder nunca
+  // recebia os pontos do Nyx, mesmo com a tela de resultado mostrando "+X pontos".
+  useEffect(() => {
+    if (!duel || duel.status !== "done") return;
+    const key = `${duel.from}__${duel.to}__${duel.createdAt}`;
+    if (doneAwardedRef.current === key) return;
+    doneAwardedRef.current = key;
+    const iAmChallenger = duel.from === myName;
+    const myScore = iAmChallenger ? duel.scoreFrom : duel.scoreTo;
+    const oppScore = iAmChallenger ? duel.scoreTo : duel.scoreFrom;
+    const isDraw = myScore === oppScore;
+    const iWon = myScore > oppScore;
+    onAward(isDraw ? 2 : (iWon ? 3 : 1));
+    if (iWon) onWin();
+  }, [duel?.status, duel?.createdAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isChallenger = duel && duel.from === myName;
   const opponentName = duel ? (isChallenger ? duel.to : duel.from) : null;
@@ -1934,14 +1954,8 @@ function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
     if (bothDone) merged.status = "done";
     await setDuel(shift, duel.from, duel.to, merged);
     setDuelState(merged);
-    if (bothDone) {
-      const myScore = isChallenger ? merged.scoreFrom : merged.scoreTo;
-      const oppScore = isChallenger ? merged.scoreTo : merged.scoreFrom;
-      const isDraw = myScore === oppScore;
-      const iWon = myScore > oppScore;
-      onAward(isDraw ? 2 : (iWon ? 3 : 1));
-      if (iWon) onWin();
-    }
+    // premiação agora fica só no useEffect (chave: duel.status==="done"), que roda pros dois
+    // jogadores igual — inclusive pra este aqui, quando ele for quem completou o duelo por último
   };
 
   const closeResult = async () => {
