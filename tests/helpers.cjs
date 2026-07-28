@@ -55,6 +55,7 @@ async function mockRoutes(page, kvStore) {
     else if (action === 'set') { kvStore.set(key, value); out = { ok: true }; }
     else if (action === 'get') { out = { value: kvStore.has(key) ? kvStore.get(key) : null }; }
     else if (action === 'delete') { kvStore.delete(key); out = { ok: true }; }
+    else if (action === 'delete_by_prefix') { let n = 0; for (const k of [...kvStore.keys()]) if (k.startsWith(prefix || '')) { kvStore.delete(k); n++; } out = { ok: true, deleted: n }; }
     else if (action === 'list_with_values') { out = { items: [...kvStore.entries()].filter(([k]) => k.startsWith(prefix || '')).map(([key, value]) => ({ key, value })) }; }
     else out = { ok: true };
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(out) });

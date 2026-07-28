@@ -7038,11 +7038,15 @@ function TeacherView({ onLogout, teacherAuth }) {
     setConfirmReset(false);
     setResetting(true);
     setResetMsg("");
-    const ok = await resetAll(scope === "all" ? null : scope, teacherAuth);
+    // "Todos os turnos" reseta só Matutino + Vespertino (a turma oficial de C#) — turma de teste e
+    // sala de linguagens NUNCA são apagadas por esse botão, mesmo escolhendo "todos"
+    const ok = scope === "all"
+      ? (await Promise.all([resetAll("matutino", teacherAuth), resetAll("vespertino", teacherAuth)])).every(Boolean)
+      : await resetAll(scope, teacherAuth);
     setSelected(null);
     await load();
     setResetting(false);
-    const alvo = scope === "all" ? "Toda a sala foi resetada" : `Turma ${shiftMeta(scope).label} resetada`;
+    const alvo = scope === "all" ? "Matutino e Vespertino foram resetados" : `Turma ${shiftMeta(scope).label} resetada`;
     setResetMsg(ok
       ? `✅ ${alvo}! Os alunos online desse grupo serão desconectados em alguns segundos.`
       : "⚠ Não foi possível resetar. O armazenamento só funciona no app publicado — teste pelo link publicado.");
@@ -8378,14 +8382,15 @@ function TeacherView({ onLogout, teacherAuth }) {
             </button>
             <p style={{ color:"#a99ac9", fontSize:13, margin:"14px 0 6px" }}>O que você quer resetar?</p>
             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-              <button onClick={()=>setResetScope("all")} style={{ ...styles.tab(resetScope==="all"), flex:"1 1 120px" }}>Todos os turnos</button>
+              <button onClick={()=>setResetScope("all")} style={{ ...styles.tab(resetScope==="all"), flex:"1 1 120px" }}>☀️🌙 Matutino + Vespertino</button>
               {SHIFTS.map(sh => (
                 <button key={sh.id} onClick={()=>setResetScope(sh.id)} style={{ ...styles.tab(resetScope===sh.id), flex:"1 1 120px" }}>Só {sh.emoji} {sh.label}</button>
               ))}
             </div>
+            <p style={{ color:"#776798", fontSize:11.5, margin:"6px 0 0" }}>A turma de teste e a sala de linguagens nunca são apagadas por aqui — se precisar limpar uma delas, é só entrar nela e usar o botão de resetar de dentro dela.</p>
             <div style={{ display:"flex", gap:10, marginTop:18 }}>
               <button onClick={()=>setConfirmReset(false)} style={{ ...styles.btn("#3b2a58"), flex:1 }}>Cancelar</button>
-              <button onClick={doReset} style={{ ...styles.btn("#f87171"), flex:1 }}>{resetScope==="all"?"Resetar todos":`Resetar ${shiftMeta(resetScope).label}`}</button>
+              <button onClick={doReset} style={{ ...styles.btn("#f87171"), flex:1 }}>{resetScope==="all"?"Resetar Matutino + Vespertino":`Resetar ${shiftMeta(resetScope).label}`}</button>
             </div>
           </div>
         </div>
