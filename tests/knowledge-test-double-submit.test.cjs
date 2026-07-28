@@ -14,6 +14,13 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
   const browser = await launchBrowser();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await ctx.newPage();
+  // shuffleQuestions() embaralha as opções (e o índice "correct" junto) com Math.random() de
+  // verdade — sem travar isso, "clicar sempre na opção 0" acerta só ~25% de cada pergunta na
+  // média, o que fazia esse teste falhar aleatoriamente (às vezes as 4 perguntas saíam erradas e
+  // a premiação nunca disparava, dando um falso negativo). Travando Math.random em 0, o
+  // embaralhamento (Fisher-Yates) sempre resulta na MESMA permutação — daí dá pra saber de
+  // antemão qual posição vai ser sempre a certa e responder 100% certo, sem depender de sorte.
+  await page.addInitScript(() => { Math.random = () => 0; });
   const jsErrors = await mockRoutes(page, kvStore);
 
   await page.goto('http://localhost:4173/', { waitUntil: 'domcontentloaded' });
@@ -35,12 +42,13 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
   await page.waitForTimeout(800);
   check('Modal do teste de conhecimento abriu', (await page.locator('text=Testar Conhecimento').count()) > 0);
 
-  // responde a opção 0 (mock do /api/claude sempre marca "correct":0) em todas as perguntas —
-  // garante correct>0 pra ativar a premiação e expor a corrida
+  // com Math.random travado em 0, o embaralhamento de shuffleQuestions() sempre resulta na opção
+  // de índice 3 sendo a certa (ver conta no comentário lá em cima) — respondendo sempre essa,
+  // acerta as 4 de propósito, garantindo correct>0 pra ativar a premiação e expor a corrida
   await page.waitForSelector('div[data-q="0"] button[data-opt="0"]', { timeout: 10000 });
   const qCount = await page.locator('div[data-q]').count();
   for (let i = 0; i < qCount; i++) {
-    await page.click(`div[data-q="${i}"] button[data-opt="0"]`);
+    await page.click(`div[data-q="${i}"] button[data-opt="3"]`);
   }
 
   const before = JSON.parse(kvStore.get('student:matutino:AlunoTeste'));

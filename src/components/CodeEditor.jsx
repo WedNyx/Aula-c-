@@ -26,6 +26,15 @@ export function VSEditor({ value, onChange, filename, errorLines, locked }) {
     const pairs = { "{":"}","(":")",'"':'"',"[":"]","'":"'" };
     if (pairs[e.key]) {
       e.preventDefault();
+      if (start !== end) {
+        // tem texto selecionado: ENVOLVE a seleção com o par (igual ao VS Code), em vez de apagar
+        // o que tava selecionado e sobrar só um par vazio no lugar
+        const selected = v.slice(start, end);
+        const newVal = v.slice(0,start) + e.key + selected + pairs[e.key] + v.slice(end);
+        onChange(newVal);
+        setTimeout(() => { ta.selectionStart = start+1; ta.selectionEnd = end+1; }, 0);
+        return;
+      }
       const newVal = v.slice(0,start) + e.key + pairs[e.key] + v.slice(end);
       onChange(newVal);
       setTimeout(() => { ta.selectionStart = ta.selectionEnd = start+1; }, 0);
@@ -33,6 +42,21 @@ export function VSEditor({ value, onChange, filename, errorLines, locked }) {
     }
     if (e.key === "Tab") {
       e.preventDefault();
+      if (start !== end && v.slice(start, end).includes("\n")) {
+        // seleção espalha por mais de uma linha: indenta CADA linha inteira (igual ao VS Code),
+        // em vez de apagar todo o bloco selecionado e trocar por um único bloco de 4 espaços
+        const selStartLine = v.lastIndexOf("\n", start-1)+1;
+        let selEndLine = end;
+        if (end > selStartLine && v[end-1] === "\n") selEndLine = end-1; // seleção que termina bem na quebra de linha não indenta a linha seguinte, que o aluno nem tocou
+        const before = v.slice(0, selStartLine);
+        const middle = v.slice(selStartLine, selEndLine);
+        const after = v.slice(selEndLine);
+        const indented = middle.split("\n").map(line => "    " + line).join("\n");
+        onChange(before + indented + after);
+        const addedTotal = indented.length - middle.length;
+        setTimeout(() => { ta.selectionStart = start+4; ta.selectionEnd = end+addedTotal; }, 0);
+        return;
+      }
       const newVal = v.slice(0,start) + "    " + v.slice(end);
       onChange(newVal);
       setTimeout(() => { ta.selectionStart = ta.selectionEnd = start+4; }, 0);
