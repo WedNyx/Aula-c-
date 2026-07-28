@@ -11,6 +11,10 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   kvStore.set('student:matutino:AlunoM', JSON.stringify({ name: 'AlunoM', shift: 'matutino', avatar: {}, files: [{ name: 'Program.cs', code: 'int x=1;' }], phase: 'coding', lastSeen: Date.now(), nyxPoints: 0, score: 82 }));
   // vespertino: melhor aluno tira 95 na PROVA (deve ser o destaque geral, maior que os 82 da manhã)
   kvStore.set('student:vespertino:AlunoV', JSON.stringify({ name: 'AlunoV', shift: 'vespertino', avatar: {}, files: [{ name: 'Program.cs', code: 'int y=2;' }], phase: 'coding', lastSeen: Date.now(), nyxPoints: 0, score: 70, examScore: 95 }));
+  // nome com um caractere de controle ilegal em XML (\x0B, tabulação vertical) — algo que pode
+  // vir de um copiar/colar de PDF ou terminal. Sem tirar isso, o .xlsx gerado fica com XML
+  // malformado (Excel recusa abrir o arquivo, "conteúdo com problema")
+  kvStore.set('student:matutino:AlunoCtrl', JSON.stringify({ name: 'Aluno\x0BControle', shift: 'matutino', avatar: {}, files: [{ name: 'Program.cs', code: 'int z=3;' }], phase: 'coding', lastSeen: Date.now(), nyxPoints: 0, score: 40 }));
 
   const browser = await launchBrowser();
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 950 }, acceptDownloads: true });
@@ -42,6 +46,15 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const destaqueCount = (sheetXml.match(/Aluno destaque/g) || []).length;
   check('Só 1 "Aluno destaque" na planilha inteira (geral, não 1 por turno)', destaqueCount === 1, `encontrados: ${destaqueCount}`);
   check('O texto do destaque menciona "Manhã + Tarde" (geral)', sheetXml.includes('Manhã + Tarde'));
+
+  // aluno com caractere de controle (\x0B) no nome: o resto do nome continua aparecendo (só o
+  // caractere ilegal some) e o XML gerado precisa continuar bem-formado
+  check('Nome do aluno com caractere de controle aparece sem o caractere ilegal', sheetXml.includes('AlunoControle'));
+  check('Caractere de controle (\\x0B) NÃO sobrou cru no XML', !sheetXml.includes('\x0B'));
+  let xmllintOk = true, xmllintErr = '';
+  try { execSync(`xmllint --noout "${unzipDir}/xl/worksheets/sheet1.xml"`, { stdio: 'pipe' }); }
+  catch (e) { xmllintOk = false; xmllintErr = String(e.stderr || e.message); }
+  check('XML da planilha é bem-formado (xmllint --noout)', xmllintOk, xmllintErr);
 
   check('SEM erro JS', jsErrors.length === 0, jsErrors.join(' | '));
 

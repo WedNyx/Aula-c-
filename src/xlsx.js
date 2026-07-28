@@ -73,7 +73,13 @@ function makeZip(entries) {
 }
 
 // ── XMLs do Excel ──
-const escXml = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+// caracteres de controle abaixo de 0x20 (fora tab/LF/CR) são ILEGAIS em XML 1.0 — mesmo escapados
+// como entidade numérica, um parser rejeita o arquivo. Se um nome/código/justificativa colado
+// tiver algum desses (comum em texto copiado de PDF ou de um terminal), sem tirar isso aqui o
+// .xlsx gerado vinha corrompido ("não é possível abrir o arquivo porque o conteúdo está com problema")
+const escXml = (v) => String(v ?? '')
+  .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 export const colLetter = (i) => { let s = ''; i++; while (i > 0) { s = String.fromCharCode(65 + ((i - 1) % 26)) + s; i = Math.floor((i - 1) / 26) } return s }
 
 /**
