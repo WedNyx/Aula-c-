@@ -259,12 +259,16 @@ export async function generateRelatorioDocx({ city, studentsByShift, cursoTexto,
   let documentXml = await zip.file("word/document.xml").async("string");
   let relsXml = await zip.file("word/_rels/document.xml.rels").async("string");
 
+  // usa uma FUNÇÃO como segundo argumento de .replace() em vez de string — se fosse string,
+  // sequências como "$&", "$$", "$`", "$'" dentro do nome de um aluno ou da cidade seriam
+  // interpretadas como padrões especiais de substituição do JS (mesmo o padrão de busca sendo
+  // texto puro, não regex) e corromperiam o XML gerado.
   const cidade = (city || "—").toUpperCase();
   documentXml = documentXml
-    .replace("__CIDADE1__", escapeXml(cidade))
-    .replace("__CIDADE2__", escapeXml(cidade))
-    .replace("__MESANO__", escapeXml(formatMesAno(when)))
-    .replace("__DATA_ASSINATURA__", escapeXml(formatDataAssinatura(when)));
+    .replace("__CIDADE1__", () => escapeXml(cidade))
+    .replace("__CIDADE2__", () => escapeXml(cidade))
+    .replace("__MESANO__", () => escapeXml(formatMesAno(when)))
+    .replace("__DATA_ASSINATURA__", () => escapeXml(formatDataAssinatura(when)));
 
   const imgReg = makeImageRegistry(nextFreeRid(relsXml), 5000);
   const matutinoXml = await buildShiftXml("matutino", studentsByShift.matutino || [], { cursoTexto, tipoAvaliacao }, imgReg);
@@ -272,13 +276,13 @@ export async function generateRelatorioDocx({ city, studentsByShift, cursoTexto,
   const turmasXml = matutinoXml + vespertinoXml;
   documentXml = documentXml.replace(
     '<w:p><w:pPr><w:pStyle w:val="Normal"/><w:tabs><w:tab w:val="clear" w:pos="720"/><w:tab w:val="left" w:pos="3119" w:leader="none"/></w:tabs><w:spacing w:lineRule="auto" w:line="360"/><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="pt-BR"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:cs="Times New Roman" w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="pt-BR"/></w:rPr><w:t>__TURMAS__</w:t></w:r></w:p>',
-    turmasXml
+    () => turmasXml
   );
 
   if (imgReg.rels.length) {
     relsXml = relsXml.replace(
       "</Relationships>",
-      imgReg.rels.map(r => `<Relationship Id="${r.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="${r.target}"/>`).join("") + "</Relationships>"
+      () => imgReg.rels.map(r => `<Relationship Id="${r.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="${r.target}"/>`).join("") + "</Relationships>"
     );
   }
 

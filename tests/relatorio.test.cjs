@@ -37,6 +37,14 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     phase: 'coding', lastSeen: Date.now(), nyxPoints: 0, score: 92,
     scoreHistory: { '2026-07-20': 92 }, attendance: presencas5,
   }));
+  // nome com "$&"/"$$" — se o .replace() do gerador ainda usasse string como substituição (em vez
+  // de função), o JS trataria isso como padrão especial de substituição e corromperia o XML
+  kvStore.set('student:matutino:AnaDollar', JSON.stringify({
+    name: 'Ana $& Souza $$', shift: 'matutino', avatar: {}, cpf: '666.666.666-66',
+    files: [{ name: 'Program.cs', code: 'int a = 1;' }],
+    phase: 'coding', lastSeen: Date.now(), nyxPoints: 0, score: 80,
+    scoreHistory: { '2026-07-20': 80 }, attendance: presencas5,
+  }));
   // turma de teste e sala de linguagens: NÃO podem entrar no relatório
   kvStore.set('student:teste:AlunoTeste', JSON.stringify({
     name: 'AlunoTesteNaoDeveAparecer', shift: 'teste', avatar: {}, cpf: '444.444.444-44',
@@ -88,6 +96,11 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   }
   check('Aluno do vespertino aparece', documentXml.includes('ALUNO: AlunoVesp'));
   check('CPF do aluno bom aparece', documentXml.includes('111.111.111-11'));
+
+  // nome com "$&"/"$$" precisa aparecer LITERALMENTE (sem sofrer substituição especial do JS) e
+  // não pode ter corrompido o resto do documento (cidade continua aparecendo só as vezes esperadas)
+  check('Nome com "$&"/"$$" aparece intacto no relatório', documentXml.includes('ALUNO: Ana $&amp; Souza $$') || documentXml.includes('ALUNO: Ana $& Souza $$'));
+  check('Cidade não duplicou/corrompeu por causa do "$&" (aparece só nos 2 lugares esperados)', (documentXml.match(/SOBRADINHO/g) || []).length === 2, `${(documentXml.match(/SOBRADINHO/g) || []).length} ocorrências`);
   check('"Turma Matutina" aparece', documentXml.includes('Turma Matutina'));
   check('"Turma Vespertina" aparece', documentXml.includes('Turma Vespertina'));
   check('Aluno da turma de TESTE NÃO aparece no relatório', !documentXml.includes('AlunoTesteNaoDeveAparecer'));
@@ -100,9 +113,9 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const posZeca = documentXml.indexOf('ALUNO: Zeca Ultimo');
   check('Alunos do matutino aparecem em ordem alfabética (AlunoBom → AlunoFraco → Zeca Ultimo)', posBom > -1 && posFraco > -1 && posZeca > -1 && posBom < posFraco && posFraco < posZeca, `AlunoBom@${posBom} AlunoFraco@${posFraco} Zeca@${posZeca}`);
 
-  // 3 imagens por aluno de Matutino+Vespertino (4 alunos válidos) = 12 imagens embutidas
+  // 3 imagens por aluno de Matutino+Vespertino (5 alunos válidos) = 15 imagens embutidas
   const mediaFiles = Object.keys(zip.files).filter(f => f.startsWith('word/media/relatorioImg'));
-  check('12 imagens embutidas no relatório (3 por aluno × 4 alunos válidos)', mediaFiles.length === 12, `encontrado: ${mediaFiles.length}`);
+  check('15 imagens embutidas no relatório (3 por aluno × 5 alunos válidos)', mediaFiles.length === 15, `encontrado: ${mediaFiles.length}`);
 
   // assinaturas e cabeçalho/rodapé originais continuam intactos
   check('Assinatura "Ana Carolina Santana de Meneses" continua intacta', documentXml.includes('Ana Carolina Santana de Meneses'));
