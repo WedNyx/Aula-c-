@@ -38,6 +38,18 @@ function mockClaudeBody(prompt) {
   if (p.includes('"secoes"')) {
     return JSON.stringify({ intro: 'Você aprendeu bastante hoje!', secoes: [{ emoji: '💡', titulo: 'Variáveis', explicacao: 'Guardam valores.', exemplo: 'int x = 1;' }], dica: 'Continue praticando!', encorajamento: 'Mandou bem!' });
   }
+  // mesclagem do código enviado pelo professor com o que o aluno já tinha escrito (doSendClassCode
+  // + tick() em App.jsx): extrai o trecho "o aluno já tinha escrito" do prompt e devolve ele
+  // MANTIDO (mesmo formato de um merge de verdade), só acrescentando um marcador reconhecível —
+  // simula a IA "completando o que falta sem apagar nada"
+  if (p.includes('"files"')) {
+    const m = p.match(/Este aluno JÁ tinha escrito isto no perfil dele[^:]*:\n([\s\S]*?)\n\nCrie a versão final/);
+    const alunoBlock = m ? m[1] : '';
+    const fm = alunoBlock.match(/\/\/ ===== (.+?) =====\n([\s\S]*)/);
+    const fname = fm ? fm[1] : 'Program.cs';
+    const fcode = (fm ? fm[2] : alunoBlock).trimEnd();
+    return JSON.stringify({ files: [{ name: fname, code: `${fcode}\n// [MOCK] completado pelo Nyx com o que faltava` }] });
+  }
   return JSON.stringify({ ok: true, frases: ['Aprendeu C# de verdade.'] });
 }
 

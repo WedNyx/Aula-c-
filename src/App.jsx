@@ -2808,9 +2808,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     // presença do dia: "present" se já fez algo de verdade hoje, senão "idle" (entrou mas parado)
     const tk = todayKey();
     const didWork = (s.code && s.code.trim().length >= 10) || (s.phase && s.phase !== "coding") || (s.score != null) || (s.answers && Object.keys(s.answers).length > 0);
-    // "present" nunca é rebaixado pra "idle" — protege a presença marcada na mão pelo professor
-    // (dia de filme etc.) caso o aluno chegue a logar sem fazer nada
-    attendanceRef.current = { ...attendanceRef.current, [tk]: (didWork || attendanceRef.current[tk] === "present") ? "present" : "idle" };
+    // o dia em que o perfil foi criado conta como presença automática, mesmo que o aluno não
+    // escreva nada nesse primeiro acesso (ex: dia de apresentação/cadastro) — vale tanto pra quem
+    // começa no primeiro dia de aula quanto pra quem entra na turma depois (dias ANTERIORES ao
+    // cadastro dele já não contam como falta em nenhum lugar — ver dayCell/boletim/tendência —
+    // então a partir do momento que ele entra, o dia de entrada em si também não pode virar falta)
+    const isEnrollmentDay = tk === dateKeyOf(createdAtRef.current);
+    attendanceRef.current = { ...attendanceRef.current, [tk]: (didWork || isEnrollmentDay || attendanceRef.current[tk] === "present") ? "present" : "idle" };
     // guarda o horário do PRIMEIRO acesso de hoje (uma vez só) — usado pra marcar "atrasado" na chamada
     if (!attendanceFirstRef.current[tk]) attendanceFirstRef.current = { ...attendanceFirstRef.current, [tk]: Date.now() };
     const ok = await saveStudent(shift, studentName, {
