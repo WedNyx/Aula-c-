@@ -212,10 +212,11 @@ export async function getBackupList() {
   } catch { return [] }
 }
 
-// todos os perfis de apoio de uma vez (pro indicador 💙 nos tiles do monitoramento)
-export async function listAllSupport() {
+// todos os perfis de apoio de uma vez (pro indicador 💙 nos tiles do monitoramento) — só o
+// professor pode listar em massa (o servidor exige a senha pra essa listagem)
+export async function listAllSupport(auth) {
   try {
-    const r = await kvCall({ action: 'list_with_values', prefix: 'support:' })
+    const r = await kvCall({ action: 'list_with_values', prefix: 'support:', auth })
     const map = {}
     for (const item of r.items || []) {
       const flags = JSON.parse(item.value || '{}')
@@ -365,10 +366,11 @@ export async function getCheckin(shift, name, dateStr) {
     return r.value ? JSON.parse(r.value) : null
   } catch { return null }
 }
-// todos os check-ins de uma data, pro painel do professor (chave: "turno:nome")
-export async function listCheckinsForDate(dateStr) {
+// todos os check-ins de uma data, pro painel do professor (chave: "turno:nome") — listagem em
+// massa exige a senha do professor (o registro individual de cada aluno continua livre)
+export async function listCheckinsForDate(dateStr, auth) {
   try {
-    const r = await kvCall({ action: 'list_with_values', prefix: CHECKIN_PREFIX })
+    const r = await kvCall({ action: 'list_with_values', prefix: CHECKIN_PREFIX, auth })
     const map = {}
     for (const item of r.items || []) {
       if (!item.key.endsWith(`:${dateStr}`)) continue

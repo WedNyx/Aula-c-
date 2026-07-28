@@ -104,6 +104,62 @@ const studentValue = JSON.stringify({ name: 'Fulano', shift: 'matutino', score: 
   check('E o patch em si funcionou (nota atualizada)', after.score === 95);
 }
 
+// 6) list_with_values em prefixos NÃO públicos (support:, checkin:, ou tudo com prefix vazio)
+// precisa exigir a senha do professor — antes dessa correção, qualquer um sem login conseguia
+// listar em massa qualquer chave do banco (inclusive os snapshots de backup:, que guardam um
+// dump completo e não-redigido de todos os alunos)
+{
+  const seedReq = mockReq({ action: 'set', key: 'support:matutino:Fulano', value: JSON.stringify({ focus: true }), auth: 'senha-de-teste-123' });
+  await kvHandler(seedReq, mockRes());
+
+  const req = mockReq({ action: 'list_with_values', prefix: 'support:' });
+  const res = mockRes();
+  await kvHandler(req, res);
+  check('Listar "support:" SEM senha é bloqueado (403)', res._status === 403, JSON.stringify(res._body));
+
+  const req2 = mockReq({ action: 'list_with_values', prefix: 'support:', auth: 'senha-de-teste-123' });
+  const res2 = mockRes();
+  await kvHandler(req2, res2);
+  check('Listar "support:" COM senha do professor funciona', res2._status !== 403 && Array.isArray(res2._body.items));
+}
+{
+  const req = mockReq({ action: 'list_with_values', prefix: 'checkin:' });
+  const res = mockRes();
+  await kvHandler(req, res);
+  check('Listar "checkin:" SEM senha é bloqueado (403)', res._status === 403);
+}
+{
+  // prefix vazio ('') varreria o banco INTEIRO (inclusive backup: com dump não-redigido) — tem
+  // que ser bloqueado sem senha
+  const req = mockReq({ action: 'list_with_values', prefix: '' });
+  const res = mockRes();
+  await kvHandler(req, res);
+  check('Listar TUDO (prefix vazio) SEM senha é bloqueado (403)', res._status === 403);
+
+  const req2 = mockReq({ action: 'list_with_values', prefix: '', auth: 'senha-de-teste-123' });
+  const res2 = mockRes();
+  await kvHandler(req2, res2);
+  check('Listar TUDO (prefix vazio) COM senha do professor funciona', res2._status !== 403);
+}
+{
+  // prefixos legitimamente públicos continuam liberados sem senha (alunos jogando duelo/parceiro
+  // precisam ler isso sem estar logados como professor)
+  for (const prefix of ['duel:matutino:', 'teamduel:matutino:', 'partner:matutino:']) {
+    const req = mockReq({ action: 'list_with_values', prefix });
+    const res = mockRes();
+    await kvHandler(req, res);
+    check(`Listar "${prefix}" SEM senha continua liberado`, res._status !== 403, JSON.stringify(res._body));
+  }
+}
+{
+  // um prefixo "curto demais" (ex: "s") não pode colar carona num prefixo público por acidente —
+  // tem que continuar exigindo senha, mesmo que ele "contenha" prefixos públicos por baixo
+  const req = mockReq({ action: 'list_with_values', prefix: 's' });
+  const res = mockRes();
+  await kvHandler(req, res);
+  check('Prefixo curto demais ("s") continua exigindo senha', res._status === 403);
+}
+
 console.log(`\n=== REDAÇÃO DE DADOS SENSÍVEIS EM /api/kv TEST: ${pass}/${pass + fail} passed ===`);
 server.kill();
 process.exit(fail > 0 ? 1 : 0);

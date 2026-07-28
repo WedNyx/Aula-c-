@@ -10,12 +10,19 @@ const TABLE = 'kv_store'
 // servidor, verificada no campo "auth" do pedido.
 const SET_PROTECTED_PREFIXES = ['teachercode:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'quiz:', 'backup:']
 const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'nyxlocks:', 'exam:config', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'teachermeta:', 'classroom_reset_flag', 'hall:', 'kblaunch:', 'quiz:', 'backup:']
+// list_with_values (listagem em massa) é NEGADA por padrão — só esses prefixos continuam
+// listáveis sem senha, porque são dados que o próprio app precisa ler sem professor logado
+// (seletor de perfil na tela de login, /impacto, portfólio público, estado de duelo/parceiro
+// que os alunos usam pra jogar). "student:" ainda passa pela redação de campo sensível
+// (redactStudentValue) quando não autorizado — as outras três nunca guardam dado sensível.
+const PUBLIC_LIST_PREFIXES = ['student:', 'duel:', 'teamduel:', 'partner:']
 
 function needsTeacherAuth(action, key) {
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
   const k = String(key || '')
   if (action === 'set') return SET_PROTECTED_PREFIXES.some(p => k.startsWith(p))
   if (action === 'delete') return DELETE_PROTECTED_PREFIXES.some(p => k.startsWith(p))
+  if (action === 'list_with_values') return !PUBLIC_LIST_PREFIXES.some(p => k.startsWith(p))
   return false
 }
 
@@ -302,7 +309,8 @@ export default async function handler(req, res) {
 
   const { action, key, value, prefix, auth } = req.body || {}
 
-  if (needsTeacherAuth(action, action === 'delete_by_prefix' ? prefix : key) && !isValidTeacherPassword(auth)) {
+  const authKey = (action === 'delete_by_prefix' || action === 'list_with_values') ? prefix : key
+  if (needsTeacherAuth(action, authKey) && !isValidTeacherPassword(auth)) {
     return res.status(403).json({ error: 'forbidden', message: 'Essa ação é só do professor — senha inválida ou ausente.' })
   }
 

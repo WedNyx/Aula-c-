@@ -6683,19 +6683,19 @@ function TeacherView({ onLogout, teacherAuth }) {
   // mapa de perfis de apoio (indicador 💙 nos tiles) — atualiza de vez em quando, não precisa ser ao vivo
   useEffect(() => {
     let active = true;
-    const loadSupport = async () => { const m = await listAllSupport(); if (active) setSupportMap(m); };
+    const loadSupport = async () => { const m = await listAllSupport(teacherAuth); if (active) setSupportMap(m); };
     loadSupport();
     const iv = setInterval(loadSupport, 20000);
     return () => { active = false; clearInterval(iv); };
-  }, []);
+  }, [teacherAuth]);
   // 😊 mapa de check-in emocional do dia (indicador nos tiles) — mesma cadência do apoio, não precisa ser ao vivo
   useEffect(() => {
     let active = true;
-    const loadCheckin = async () => { const m = await listCheckinsForDate(todayKey()); if (active) setCheckinMap(m); };
+    const loadCheckin = async () => { const m = await listCheckinsForDate(todayKey(), teacherAuth); if (active) setCheckinMap(m); };
     loadCheckin();
     const iv = setInterval(loadCheckin, 20000);
     return () => { active = false; clearInterval(iv); };
-  }, []);
+  }, [teacherAuth]);
   // ✨ nome do conteúdo automático: quando TODOS os alunos de um turno (que apareceram hoje) já
   // passaram da fase de codar (estão no resumo, na atividade ou concluíram), gera o nome sozinho —
   // sem o professor precisar lembrar de clicar. Só tenta 1x por turno por dia.
