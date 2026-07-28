@@ -11,6 +11,7 @@ import { listPtVoices, bestPtVoice, useSpeech } from "./lib/speech.js";
 import { VoicePickerModal } from "./components/VoicePickerModal.jsx";
 import { KEY_IMAGES, KeyVisual } from "./components/KeyVisual.jsx";
 import { NYX_ITEMS, DEFAULT_NYX_GEAR, NyxRobot } from "./components/NyxRobot.jsx";
+import { PerformanceChart } from "./components/PerformanceChart.jsx";
 import { DEFAULT_AVATAR, Avatar, AvatarPreview, AvatarControls, AvatarBuilder } from "./components/Avatar.jsx";
 import { VSEditor, CodeBlock, GUIDED_BLOCKS, GUIDED_PARTICIPATION_QUIZ } from "./components/CodeEditor.jsx";
 import { Terminal } from "./components/Terminal.jsx";
@@ -18,6 +19,7 @@ import { NyxChat } from "./components/NyxChat.jsx";
 import { TOUR_STEPS, TEACHER_TOUR_STEPS, TourOverlay } from "./components/TourOverlay.jsx";
 import { codeForSpeech, useViewportWidth, computeStreak, shuffleQuestions, isDoneActive, gradeInfo, quickCheck } from "./lib/utils.js";
 import { ACHIEVEMENTS, ALL_EGG_ACHIEVEMENT_IDS, achievementInfo, visibleAchievements, CLASS_GOALS, classGoalProgress } from "./lib/achievements.js";
+import { generateRelatorioDocx, downloadRelatorioDocx } from "./lib/reportDocx.js";
 import { CS_SYSTEM, RUN_SYSTEM, nyxPrefsInstruction, NYX_FUN_SYSTEM, NYX_GUIDED_SYSTEM } from "./lib/ai-prompts.js";
 import { STUDY_LANGUAGES, langById, reviewChecklistFor, buildPreviewDoc, otherFilesCtx, findLineIndex } from "./lib/languages.js";
 import { BRACKET_COLORS, highlight, highlightCSharp, highlightJS, highlightPHP, highlightCSS, highlightHTML } from "./lib/highlight.jsx";
@@ -1472,64 +1474,6 @@ function motivationalMessage(avg, name) {
   if (avg >= 60) return `${first}, você está no caminho certo! Continue praticando um pouco mais — assim você vai longe. 👍`;
   if (avg >= 40) return `${first}, programar é difícil no começo pra todo mundo. Não desista — continue estudando um pouquinho todo dia, porque assim você vai longe. 💪`;
   return `${first}, todo programador começou exatamente de onde você está agora. Continue tentando e peça ajuda ao Nyx e ao professor sempre que precisar — continue estudando, porque assim você vai longe! 🌱`;
-}
-// gráfico de "notas ao longo do tempo" — carrega o Recharts sob demanda (chunk separado, só baixa
-// quando esta tela abre) e mostra o gráfico de barras simples como fallback enquanto ele não chega
-function PerformanceChart({ entries }) {
-  const [RC, setRC] = useState(null);
-  useEffect(() => {
-    let alive = true;
-    import("recharts").then(mod => { if (alive) setRC(mod); }).catch(() => {});
-    return () => { alive = false; };
-  }, []);
-  const fmt = (d) => { const [, m, dd] = d.split("-"); return `${dd}/${m}`; };
-  const data = entries.slice(-14).map(([d, n]) => ({ date: fmt(d), nota: n }));
-
-  if (!RC) {
-    return (
-      <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:120, overflowX:"auto", paddingBottom:4, borderBottom:"1px solid #3b2a58" }}>
-        {data.map(({ date, nota }) => {
-          const g = gradeInfo(nota);
-          return (
-            <div key={date} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
-              <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{nota}</span>
-              <div style={{ width:24, height:Math.max(4, Math.round(nota * 0.9)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color, -0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${date}: ${nota} pts`} />
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } = RC;
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-    const n = payload[0].value;
-    const g = gradeInfo(n);
-    return (
-      <div style={{ background:"#1e1430", border:`1px solid ${g.color}`, borderRadius:10, padding:"6px 10px", fontSize:12, boxShadow:"0 6px 18px rgba(0,0,0,.4)" }}>
-        <div style={{ color:"#a99ac9" }}>{label}</div>
-        <div style={{ color:g.color, fontWeight:900 }}>{n} pts</div>
-      </div>
-    );
-  };
-  return (
-    <ResponsiveContainer width="100%" height={140}>
-      <AreaChart data={data} margin={{ top:8, right:8, left:-20, bottom:0 }}>
-        <defs>
-          <linearGradient id="perfDesempGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#c084fc" stopOpacity={0.5} />
-            <stop offset="100%" stopColor="#c084fc" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid stroke="#3b2a58" strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey="date" stroke="#776798" fontSize={10} tickLine={false} axisLine={false} />
-        <YAxis domain={[0, 100]} stroke="#776798" fontSize={10} tickLine={false} axisLine={false} width={26} />
-        <Tooltip content={<CustomTooltip />} />
-        <Area type="monotone" dataKey="nota" stroke="#c084fc" strokeWidth={2.5} fill="url(#perfDesempGrad)" dot={{ r:3, fill:"#c084fc", strokeWidth:0 }} activeDot={{ r:5 }} animationDuration={700} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
 }
 // mesmo visual do PerformanceChart (gradiente, Recharts), mas pra média/taxa da TURMA por dia
 // (em vez da nota de um aluno só) — usado em "Evolução da turma" (nota) e "Evolução da presença".
@@ -7032,6 +6976,35 @@ function TeacherView({ onLogout, teacherAuth }) {
     setFarewellBusy(false);
     setTimeout(()=>setHallMsg(""), 9000);
   };
+  // 📄 Relatório de Comprovação de Aproveitamento de Aprendizado: reaproveita o modelo oficial
+  // (cabeçalho/rodapé/assinaturas intactos), preenchendo cidade/mês e um bloco por turma com
+  // ALUNO/CPF/NOTA/ANEXO de cada aluno — só matutino e vespertino (mesmo recorte da turma oficial
+  // de C# usado no /impacto; turma de teste e sala de linguagens ficam de fora)
+  const [relatorioBusy, setRelatorioBusy] = useState(false);
+  const [relatorioMsg, setRelatorioMsg] = useState("");
+  const doGerarRelatorio = async () => {
+    setRelatorioBusy(true); setRelatorioMsg("");
+    try {
+      const studentsByShift = {
+        matutino: students.filter(s => (s.shift || "matutino") === "matutino"),
+        vespertino: students.filter(s => s.shift === "vespertino"),
+      };
+      const total = studentsByShift.matutino.length + studentsByShift.vespertino.length;
+      if (total === 0) { setRelatorioMsg("❌ Nenhum aluno em Matutino/Vespertino ainda pra gerar o relatório."); setRelatorioBusy(false); return; }
+      const blob = await generateRelatorioDocx({
+        city: meta.city,
+        studentsByShift,
+        cursoTexto: "C# para iniciantes",
+        tipoAvaliacao: "atividades avaliativas e prova sobre C#",
+      });
+      downloadRelatorioDocx(blob, { city: meta.city });
+      setRelatorioMsg(`✅ Relatório gerado com ${total} aluno${total===1?"":"s"} (${studentsByShift.matutino.length} matutino, ${studentsByShift.vespertino.length} vespertino).`);
+    } catch (e) {
+      setRelatorioMsg(`❌ Não consegui gerar o relatório: ${e?.message || e}`);
+    }
+    setRelatorioBusy(false);
+    setTimeout(() => setRelatorioMsg(""), 9000);
+  };
   const loadAutoBackups = async () => { setAutoBackupList(await getBackupList()); };
   const doAutoBackupNow = async () => {
     setAutoBackupBusy(true); setAutoBackupMsg("");
@@ -9177,6 +9150,12 @@ function TeacherView({ onLogout, teacherAuth }) {
             )}
             <button style={{ ...styles.btn("#c084fc"), width:"100%", marginTop:8, opacity:autoBackupBusy?0.6:1 }} onClick={doAutoBackupNow} disabled={autoBackupBusy}>{autoBackupBusy ? "Fazendo backup..." : "💾 Fazer backup agora"}</button>
             {autoBackupMsg && <p style={{ color: autoBackupMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:8 }}>{autoBackupMsg}</p>}
+          </div>
+          <div data-tour-prof="relatorio" className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
+            <h3 style={{ color:"#fbbf24", marginBottom:4 }}>📄 Relatório de Comprovação</h3>
+            <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 12px", lineHeight:1.6 }}>Gera o relatório oficial (mesmo modelo, só preenchido) com todos os alunos de Matutino e Vespertino: nome, CPF, nota e fotos do código/notas/prova de cada um. Baixa como .docx — dá pra editar depois. Clique no fim do mês.</p>
+            <button style={{ ...styles.btn("#fbbf24"), width:"100%", opacity:relatorioBusy?0.6:1 }} onClick={doGerarRelatorio} disabled={relatorioBusy}>{relatorioBusy ? "Gerando relatório..." : "📄 Gerar Relatório de Comprovação"}</button>
+            {relatorioMsg && <p style={{ color: relatorioMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:8 }}>{relatorioMsg}</p>}
           </div>
           <div data-tour-prof="horario" className="cardfx" style={{ ...styles.card, flex:"1 1 300px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🕐 Horário da turma ({shiftMeta(codeShift).label})</h3>
