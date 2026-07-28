@@ -12,6 +12,15 @@ import { PerformanceChart } from "../components/PerformanceChart.jsx";
 
 const MESES_PT = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 const SATISFACTORY_MIN = 30; // nota mínima pra "Satisfatório" (abaixo disso vira "Insatisfatório")
+const MIN_PRESENCAS_SATISFATORIO = 4; // com 2 ou 3 presenças (ou menos) vira "Insatisfatório", mesmo com nota boa
+
+// "Satisfatório" só quando os dois critérios batem: nota mínima E frequência mínima — 2 ou 3
+// presenças já derruba pra "Insatisfatório", nota boa sozinha não segura
+function computeNota(student) {
+  const nota = typeof student.score === "number" ? student.score : 0;
+  const presencas = Object.values(student.attendance || {}).filter(v => v === "present").length;
+  return nota >= SATISFACTORY_MIN && presencas >= MIN_PRESENCAS_SATISFATORIO ? "Satisfatório" : "Insatisfatório";
+}
 
 function formatDataAssinatura(d) {
   const dia = String(d.getDate()).padStart(2, "0");
@@ -195,7 +204,7 @@ async function buildShiftXml(shift, students, { cursoTexto, tipoAvaliacao }, img
     return xml;
   }
   for (const s of students) {
-    const nota = (typeof s.score === "number" ? s.score : 0) >= SATISFACTORY_MIN ? "Satisfatório" : "Insatisfatório";
+    const nota = computeNota(s);
     xml += fieldPara(`ALUNO: ${s.name}`);
     xml += fieldPara(`CPF: ${s.cpf || "—"}`);
     xml += fieldPara(`NOTA: ${nota}`);

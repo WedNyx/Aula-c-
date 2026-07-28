@@ -9,29 +9,33 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 
 (async () => {
   const kvStore = baseKvStore({ city: 'Sobradinho', classDays: ['2026-07-20'] });
+  const presencas5 = { '2026-07-06':'present', '2026-07-08':'present', '2026-07-13':'present', '2026-07-15':'present', '2026-07-20':'present' };
+  const presencas2 = { '2026-07-15':'present', '2026-07-20':'present' };
   // seedado de propósito FORA de ordem alfabética, pra confirmar que o relatório reordena
+  // Zeca: nota boa (50) mas só 2 presenças — tem que dar Insatisfatório mesmo assim
   kvStore.set('student:matutino:ZecaUltimo', JSON.stringify({
     name: 'Zeca Ultimo', shift: 'matutino', avatar: {}, cpf: '999.999.999-99',
     files: [{ name: 'Program.cs', code: 'int z = 1;' }],
-    phase: 'coding', lastSeen: Date.now(), nyxPoints: 0, score: 50,
+    phase: 'coding', lastSeen: Date.now(), nyxPoints: 0, score: 50, attendance: presencas2,
   }));
   kvStore.set('student:matutino:AlunoBom', JSON.stringify({
     name: 'AlunoBom', shift: 'matutino', avatar: {}, cpf: '111.111.111-11',
     files: [{ name: 'Program.cs', code: 'Console.WriteLine("ola");' }],
     phase: 'coding', lastSeen: Date.now(), nyxPoints: 0, score: 85, examScore: 70,
-    scoreHistory: { '2026-07-20': 85 },
+    scoreHistory: { '2026-07-20': 85 }, attendance: presencas5,
   }));
+  // nota baixa MESMO com presença em dia — tem que dar Insatisfatório pela nota
   kvStore.set('student:matutino:AlunoFraco', JSON.stringify({
     name: 'AlunoFraco', shift: 'matutino', avatar: {}, cpf: '222.222.222-22',
     files: [{ name: 'Program.cs', code: 'int x = 1;' }],
     phase: 'coding', lastSeen: Date.now(), nyxPoints: 0, score: 10,
-    scoreHistory: { '2026-07-20': 10 },
+    scoreHistory: { '2026-07-20': 10 }, attendance: presencas5,
   }));
   kvStore.set('student:vespertino:AlunoVesp', JSON.stringify({
     name: 'AlunoVesp', shift: 'vespertino', avatar: {}, cpf: '333.333.333-33',
     files: [{ name: 'Program.cs', code: 'Console.WriteLine("vesp");' }],
     phase: 'coding', lastSeen: Date.now(), nyxPoints: 0, score: 92,
-    scoreHistory: { '2026-07-20': 92 },
+    scoreHistory: { '2026-07-20': 92 }, attendance: presencas5,
   }));
   // turma de teste e sala de linguagens: NÃO podem entrar no relatório
   kvStore.set('student:teste:AlunoTeste', JSON.stringify({
@@ -74,6 +78,14 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 
   check('Aluno bom (matutino) aparece com nota Satisfatório', documentXml.includes('ALUNO: AlunoBom') && documentXml.includes('NOTA: Satisfatório'));
   check('Aluno fraco (matutino) aparece com nota Insatisfatório', documentXml.includes('ALUNO: AlunoFraco') && documentXml.includes('NOTA: Insatisfatório'));
+
+  // Zeca: nota 50 (>= 30) mas só 2 presenças — a REGRA DE FREQUÊNCIA precisa derrubar pra
+  // Insatisfatório mesmo com nota "boa" (menos de 4 presenças nunca é Satisfatório)
+  {
+    const iZeca = documentXml.indexOf('ALUNO: Zeca Ultimo');
+    const trecho = documentXml.slice(iZeca, iZeca + 2000);
+    check('Zeca (nota 50, só 2 presenças) sai Insatisfatório mesmo com nota acima de 30', trecho.includes('NOTA: Insatisfatório'), trecho.slice(0, 200));
+  }
   check('Aluno do vespertino aparece', documentXml.includes('ALUNO: AlunoVesp'));
   check('CPF do aluno bom aparece', documentXml.includes('111.111.111-11'));
   check('"Turma Matutina" aparece', documentXml.includes('Turma Matutina'));
