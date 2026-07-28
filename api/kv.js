@@ -310,8 +310,22 @@ export default async function handler(req, res) {
   const { action, key, value, prefix, auth } = req.body || {}
 
   const authKey = (action === 'delete_by_prefix' || action === 'list_with_values') ? prefix : key
-  if (needsTeacherAuth(action, authKey) && !isValidTeacherPassword(auth)) {
-    return res.status(403).json({ error: 'forbidden', message: 'Essa ação é só do professor — senha inválida ou ausente.' })
+  if (needsTeacherAuth(action, authKey)) {
+    // mesma ideia do /api/auth: sem senha certa não dava pra chamar essas ações mesmo — mas nada
+    // impedia alguém de ficar chutando o campo "auth" direto aqui, sem passar pela tela de login
+    // (que é quem tinha o atraso crescente). Agora cada erro seguido NESSE endpoint também atrasa
+    // a próxima tentativa vinda do mesmo IP — só demora se já teve chute errado antes, então o uso
+    // normal do professor (senha certa, sempre) não fica lento.
+    const ip = String((req.headers && req.headers['x-forwarded-for']) || req.socket?.remoteAddress || 'unknown').split(',')[0].trim()
+    const bucketKey = `loginfail:kvaction:${ip}`
+    const fails = await loginFailCount(bucketKey)
+    if (fails > 0) await new Promise(r => setTimeout(r, Math.min(400 + fails * 500, 6000)))
+
+    if (!isValidTeacherPassword(auth)) {
+      await recordLoginFailure(bucketKey, 600)
+      return res.status(403).json({ error: 'forbidden', message: 'Essa ação é só do professor — senha inválida ou ausente.' })
+    }
+    await clearLoginFailures(bucketKey)
   }
 
   if (action === 'check') {
