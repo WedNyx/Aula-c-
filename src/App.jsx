@@ -3721,15 +3721,21 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 setRobotMsg("🤖 O professor enviou código novo — só um instante enquanto completo o que falta no seu, sem apagar nada...");
                 setRobotState("thinking");
                 try {
-                  // teto de 12s pra mesclagem: se a IA travar ou demorar demais, aplica o código
-                  // do professor puro em vez de deixar o aluno esperando indefinidamente
+                  // teto de 35s pra mesclagem (função do servidor tem 30s de maxDuration — ver
+                  // vercel.json — o cliente espera um pouco mais que isso pra dar tempo do servidor
+                  // responder por conta própria em vez de desistir primeiro por engano). ANTES esse
+                  // teto era de só 12s: como a função do servidor nem tinha maxDuration configurado
+                  // (ficava no padrão de 10s do Vercel) e o prompt de mesclagem é pesado (2 arquivos
+                  // de código inteiros + max_tokens:4000), a mesclagem quase sempre estourava o
+                  // tempo e caía no fallback abaixo — SUBSTITUINDO o código do aluno pelo do
+                  // professor, exatamente o comportamento que essa função inteira existe pra evitar.
                   const merged = await Promise.race([
                     askClaudeJson(
                       `O professor passou este código pra turma copiar:\n${sent.files.map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n")}\n\nEste aluno JÁ tinha escrito isto no perfil dele (pode estar incompleto ou ter pequenos erros):\n${currentFiles.map(f=>`// ===== ${f.name} =====\n${f.code}`).join("\n\n")}\n\nCrie a versão final dos arquivos: MANTENHA tudo que o aluno já escreveu (não reescreva do zero nem mude o estilo do que já está certo), só ACRESCENTE o que estiver faltando (comparando com o código do professor) e CORRIJA erros de sintaxe/digitação que já existiam no que ele tinha.\n\nResponda APENAS em JSON puro, sem markdown: {"files":[{"name":"nome do arquivo","code":"código final"}]}`,
                       "Você funde com cuidado o código de um aluno com o material novo do professor, sem apagar o esforço dele. Responda APENAS JSON puro.",
                       { max_tokens: 4000 }
                     ),
-                    new Promise((_, rej) => setTimeout(() => rej(new Error("merge_timeout")), 12000)),
+                    new Promise((_, rej) => setTimeout(() => rej(new Error("merge_timeout")), 35000)),
                   ]);
                   if (Array.isArray(merged.files) && merged.files.length) { mergedFiles = merged.files; mergeSucceeded = true; }
                 } catch {}
