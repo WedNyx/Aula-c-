@@ -492,6 +492,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const sessionStart = useRef(Date.now());
   const stateRef = useRef({});
   const attendanceRef = useRef({});
+  // "última versão que sabemos que está no servidor" pros campos que outra aba/dispositivo do MESMO
+  // aluno (ou o professor, via ações que não passam pelo setScoreFix) também pode alterar — usado
+  // pelo persist() pra saber se o valor local é uma edição ainda não salva (mantém) ou só uma cópia
+  // desatualizada de quando essa aba carregou (aí busca o mais recente antes de sobrescrever tudo)
+  const lastSyncedRef = useRef({});
   // "foto" do código no primeiro acesso do dia: o resumo da aula cobre só o que foi escrito DEPOIS dela
   const daySnapshotRef = useRef(null);
   // "foto" do código no momento em que o ÚLTIMO resumo foi gerado — se o professor passar mais
@@ -537,7 +542,34 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
 
   const persist = useCallback(async (extra = {}) => {
-    const s = stateRef.current;
+    const s = { ...stateRef.current };
+    // antes de sobrescrever o registro inteiro, busca o que está salvo AGORA no servidor: se outra
+    // aba/dispositivo do MESMO aluno (ou uma correção do professor que não passou pelo setScoreFix)
+    // mudou um desses campos depois que esta aba carregou, e esta aba não tem uma edição própria
+    // pendente neles, adota o valor do servidor — sem isso, o autosave periódico desta aba (a cada
+    // 12s) apagaria silenciosamente o que a outra sessão acabou de salvar
+    try {
+      const latest = await getStudent(shift, studentName);
+      if (latest) {
+        const applyIfUnedited = (field, setter, compareNorm = (v) => v, materialize = compareNorm) => {
+          if (field in extra) return; // esta chamada já está escrevendo um valor novo de propósito
+          if (compareNorm(s[field]) !== lastSyncedRef.current[field]) return; // edição local pendente — não sobrescreve
+          const serverCompare = compareNorm(latest[field]);
+          if (serverCompare === lastSyncedRef.current[field]) return; // servidor não mudou, nada a adotar
+          const val = materialize(latest[field]);
+          s[field] = val;
+          setter(val);
+        };
+        applyIfUnedited("nyxPoints", setNyxPoints, (v) => v || 0);
+        applyIfUnedited("achievements", setAchievements, (v) => JSON.stringify(v || []), (v) => v || []);
+        applyIfUnedited("examScore", setExamScore, (v) => v ?? null);
+        applyIfUnedited("examDone", setExamDone, (v) => !!v);
+        applyIfUnedited("portfolioPublic", setPortfolioPublic, (v) => !!v);
+        applyIfUnedited("score", setScore, (v) => v ?? null);
+        applyIfUnedited("scoreHistory", setScoreHistory, (v) => JSON.stringify(v || {}), (v) => v || {});
+        applyIfUnedited("justifications", setJustifications, (v) => JSON.stringify(v || {}), (v) => v || {});
+      }
+    } catch {} // sem internet ou ainda sem registro salvo: segue só com o que já tinha localmente
     // presença do dia: "present" se já fez algo de verdade hoje, senão "idle" (entrou mas parado)
     const tk = todayKey();
     const didWork = (s.code && s.code.trim().length >= 10) || (s.phase && s.phase !== "coding") || (s.score != null) || (s.answers && Object.keys(s.answers).length > 0);
@@ -628,6 +660,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       quizAnswers: s.quizAnswers || {},
       ...extra,
     });
+    if (ok) {
+      const finalOf = (field, normalize) => normalize(field in extra ? extra[field] : s[field]);
+      lastSyncedRef.current = {
+        nyxPoints: finalOf("nyxPoints", (v) => v || 0),
+        achievements: finalOf("achievements", (v) => JSON.stringify(v || [])),
+        examScore: finalOf("examScore", (v) => v ?? null),
+        examDone: finalOf("examDone", (v) => !!v),
+        portfolioPublic: finalOf("portfolioPublic", (v) => !!v),
+        score: finalOf("score", (v) => v ?? null),
+        scoreHistory: finalOf("scoreHistory", (v) => JSON.stringify(v || {})),
+        justifications: finalOf("justifications", (v) => JSON.stringify(v || {})),
+      };
+    }
     setConnected(ok);
     return ok;
   }, [studentName, shift]);
@@ -1162,6 +1207,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.justifications) setJustifications(prev.justifications);
           if (prev.keyboardDone) setKeyboardDone(true);
           if (prev.portfolioPublic) setPortfolioPublic(true);
+          lastSyncedRef.current = {
+            nyxPoints: prev.nyxPoints || 0,
+            achievements: JSON.stringify(prev.achievements || []),
+            examScore: prev.examScore ?? null,
+            examDone: !!prev.examDone,
+            portfolioPublic: !!prev.portfolioPublic,
+            score: prev.score ?? null,
+            scoreHistory: JSON.stringify(prev.scoreHistory || {}),
+            justifications: JSON.stringify(prev.justifications || {}),
+          };
         }
         // rede de segurança: se um backup local recente tem MAIS código do que o servidor, uma queda de
         // conexão bem na hora de salvar deve ter perdido esse trecho — restaura e resalva pra reconciliar
