@@ -34,6 +34,9 @@ import { STUCK_MINUTES, difficultyOf } from "./lib/studentStatus.js";
 import { SummaryPretty } from "./components/SummaryPretty.jsx";
 import { ClassTrendChart } from "./components/ClassTrendChart.jsx";
 import { ConfettiParty } from "./components/ConfettiParty.jsx";
+import { ErrorHighlightRing, ErrorWalkthroughCard, FloatingErrorBubble, NyxFeedbackModal, ErrorExplainModal } from "./components/ErrorUI.jsx";
+import { NyxShop, RetroOverlay } from "./components/NyxShop.jsx";
+import { AchievementToast, AchievementsModal, RankingModal, ClassGoalBar } from "./components/AchievementUI.jsx";
 
 
 
@@ -43,471 +46,6 @@ import { ConfettiParty } from "./components/ConfettiParty.jsx";
 
 
 
-
-// ════════════════════════════════════════════════════════════════════════════
-//  TOUR DE ERRO DO NYX  (quando "Analisar meu código" encontra erro, aponta pro editor e explica
-//  passo a passo cada erro encontrado, igual ao tour de onboarding — mas com destaque vermelho)
-// ════════════════════════════════════════════════════════════════════════════
-// realça o editor com uma borda vermelha enquanto há erro sinalizado — sem escurecer a tela nem tampar
-// o código (a explicação de verdade fica num card na coluna lateral, ao lado do editor, sempre)
-function ErrorHighlightRing({ active }) {
-  const [rect, setRect] = useState(null);
-  // recalcula a posição a cada quadro enquanto ativo, pra borda acompanhar o editor
-  // ao rolar a página (position:fixed some do lugar se a gente só calcular uma vez)
-  useEffect(() => {
-    if (!active) { setRect(null); return; }
-    let raf;
-    const update = () => {
-      const el = document.querySelector('[data-tour="editor"]');
-      if (el) {
-        const r = el.getBoundingClientRect();
-        setRect(prev => (prev && prev.top===r.top && prev.left===r.left && prev.width===r.width && prev.height===r.height)
-          ? prev : { top:r.top, left:r.left, width:r.width, height:r.height });
-      }
-      raf = requestAnimationFrame(update);
-    };
-    raf = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(raf);
-  }, [active]);
-  if (!active || !rect) return null;
-  return (
-    <div style={{ position:"fixed", top:rect.top-6, left:rect.left-6, width:rect.width+12, height:rect.height+12, borderRadius:14, border:"3px solid #f87171", boxShadow:"0 0 20px #f8717166", pointerEvents:"none", zIndex:990 }} />
-  );
-}
-
-// card com a explicação do erro — sempre renderizado na coluna lateral (ao lado do editor), nunca por cima do código
-function ErrorWalkthroughCard({ errors, step, onNext, onPrev, onVerify, onClose, verifying }) {
-  const e = errors[step];
-  if (!e) return null;
-  return (
-    <div className="pop" key={step} style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #f8717166", borderRadius:16, padding:"14px 16px", boxShadow:"0 10px 28px rgba(0,0,0,.4)", marginBottom:14 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-        <span style={{ color:"#f87171", fontSize:12, fontWeight:800, letterSpacing:0.5 }}>⚠ Erro {step+1} de {errors.length}</span>
-        <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:18, cursor:"pointer", lineHeight:1 }}>✕</button>
-      </div>
-      <div style={{ background:"#171026", border:"1px solid #3e2d5e", borderRadius:8, padding:"6px 10px", fontFamily:"'Courier New',monospace", fontSize:12.5, color:"#f87171", overflowX:"auto", whiteSpace:"pre", marginBottom:8 }}>{e.trecho}</div>
-      <p style={{ color:"#d6c9ec", fontSize:13, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
-      {e.exemplo && <div style={{ marginTop:8 }}><CodeBlock code={e.exemplo} /></div>}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12, gap:8, flexWrap:"wrap" }}>
-        <div style={{ display:"flex", gap:6 }}>
-          {step > 0 && <button onClick={onPrev} style={{ background:"#3b2a58", border:"none", borderRadius:10, color:"#f0e9fb", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>← Anterior</button>}
-          {step < errors.length-1 && <button onClick={onNext} style={{ background:"#3b2a58", border:"none", borderRadius:10, color:"#f0e9fb", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>Próximo →</button>}
-        </div>
-        <button onClick={onVerify} disabled={verifying} style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"8px 14px", cursor:verifying?"default":"pointer", fontSize:12.5, opacity:verifying?0.6:1 }}>
-          {verifying ? "🔍 Verificando..." : "✅ Já corrigi, verificar!"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// balão flutuante com a explicação do erro, ancorado na ALTURA da linha sublinhada no editor (à
-// direita dele) — em vez de um card fixo na barra lateral, o balão "segue" a linha certa conforme
-// o aluno navega entre os erros ou rola o editor. Nunca fica em cima do código (fica ao lado).
-function FloatingErrorBubble({ errors, step, activeCode, onNext, onPrev, onVerify, onClose, verifying }) {
-  const e = errors[step];
-  const [pos, setPos] = useState(null);
-  useEffect(() => {
-    if (!e) { setPos(null); return; }
-    let raf;
-    const LINE_H = 21; // 14px * 1.5 — mesma fonte/altura de linha usada no VSEditor
-    const PAD_TOP = 12;
-    const MARGIN = 12; // respiro mínimo até a borda da tela
-    const update = () => {
-      const wrap = document.querySelector('[data-tour="editor"]');
-      const ta = wrap?.querySelector('textarea');
-      if (wrap && ta) {
-        const li = findLineIndex(activeCode, e.trecho);
-        const wrapRect = wrap.getBoundingClientRect();
-        const lineTop = wrapRect.top + PAD_TOP + (li >= 0 ? li : 0) * LINE_H - ta.scrollTop;
-        // largura encolhe em telas estreitas, e a posição nunca deixa o balão vazar pra fora da
-        // tela (nem em cima do código: sempre começa depois da borda direita do editor)
-        const width = Math.min(300, Math.max(220, window.innerWidth - MARGIN * 2));
-        const left = Math.min(wrapRect.right + 14, window.innerWidth - width - MARGIN);
-        setPos(prev => (prev && prev.top===lineTop && prev.left===left && prev.width===width && prev.wrapBottom===wrapRect.bottom)
-          ? prev : { top:lineTop, left, width, wrapTop:wrapRect.top, wrapBottom:wrapRect.bottom });
-      }
-      raf = requestAnimationFrame(update);
-    };
-    raf = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(raf);
-  }, [e, step, activeCode]);
-  if (!e || !pos) return null;
-  const clampedTop = Math.min(Math.max(pos.top, pos.wrapTop), Math.max(pos.wrapTop, pos.wrapBottom - 60));
-  return (
-    <div className="pop" key={step} style={{ position:"fixed", top:clampedTop, left:pos.left, width:pos.width, maxWidth:"calc(100vw - 24px)", zIndex:995, background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #f8717166", borderRadius:14, padding:"12px 14px", boxShadow:"0 10px 28px rgba(0,0,0,.45)" }}>
-      {/* setinha apontando pra linha do editor */}
-      <div style={{ position:"absolute", left:-7, top:16, width:12, height:12, background:"#231636", borderLeft:"1px solid #f8717166", borderBottom:"1px solid #f8717166", transform:"rotate(45deg)" }} />
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-        <span style={{ color:"#f87171", fontSize:11.5, fontWeight:800, letterSpacing:0.5 }}>⚠ Erro {step+1} de {errors.length}</span>
-        <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:17, cursor:"pointer", lineHeight:1 }}>✕</button>
-      </div>
-      <div style={{ background:"#171026", border:"1px solid #3e2d5e", borderRadius:8, padding:"5px 9px", fontFamily:"'Courier New',monospace", fontSize:12, color:"#f87171", overflowX:"auto", whiteSpace:"pre", marginBottom:8 }}>{e.trecho}</div>
-      <p style={{ color:"#d6c9ec", fontSize:12.5, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
-      {e.exemplo && <div style={{ marginTop:8 }}><CodeBlock code={e.exemplo} /></div>}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:10, gap:6, flexWrap:"wrap" }}>
-        <div style={{ display:"flex", gap:5 }}>
-          {step > 0 && <button onClick={onPrev} style={{ background:"#3b2a58", border:"none", borderRadius:9, color:"#f0e9fb", fontWeight:700, padding:"6px 10px", cursor:"pointer", fontSize:11.5 }}>← Ant.</button>}
-          {step < errors.length-1 && <button onClick={onNext} style={{ background:"#3b2a58", border:"none", borderRadius:9, color:"#f0e9fb", fontWeight:700, padding:"6px 10px", cursor:"pointer", fontSize:11.5 }}>Próx. →</button>}
-        </div>
-        <button onClick={onVerify} disabled={verifying} style={{ background:"linear-gradient(135deg,#34d399,#16a34a)", border:"none", borderRadius:9, color:"#fff", fontWeight:800, padding:"7px 12px", cursor:verifying?"default":"pointer", fontSize:11.5, opacity:verifying?0.6:1 }}>
-          {verifying ? "🔍 Verificando..." : "✅ Corrigi, verificar!"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-//  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
-// ════════════════════════════════════════════════════════════════════════════
-function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onClose }) {
-  // 🥚 o Nyx da loja também entra no personagem: na hora que o chapéu pirata é vestido ou o combo
-  // espartano (espada+escudo) se forma, ele fala a frase do Easter Egg com uma animação própria
-  const [eggTalk, setEggTalk] = useState(null); // { kind:"pirata"|"espartano", msg, color }
-  const prevGearRef = useRef(gear);
-  useEffect(() => {
-    const prev = prevGearRef.current || {};
-    prevGearRef.current = gear;
-    const wasSpartan = prev.hand === "espada" && prev.shield === "escudo";
-    const isSpartanNow = gear.hand === "espada" && gear.shield === "escudo";
-    let talk = null;
-    if (isSpartanNow && !wasSpartan) {
-      talk = { kind:"espartano", color:"#f87171", msg:"🛡️ ISTO... É... C#!! Nenhum erro de compilação assusta um guerreiro Espartano. Vamos à batalha pelo código perfeito!" };
-    } else if (gear.head === "chapeuPirata" && prev.head !== "chapeuPirata") {
-      talk = { kind:"pirata", color:"#fbbf24", msg:"🏴‍☠️ Argh! Olhem só, um chapéu de pirata!\n\n\"Quer o meu tesouro? Procure-o... nele há tudo o que essa plataforma pode oferecer.\"" };
-    }
-    if (talk) {
-      setEggTalk(talk);
-      const t = setTimeout(() => setEggTalk(null), 10000);
-      return () => clearTimeout(t);
-    }
-  }, [gear]);
-  const click = (item) => {
-    const has = isTestShift || owned.includes(item.id);
-    if (has) {
-      const isEquipped = gear[item.slot] === item.id;
-      onEquip({ ...gear, [item.slot]: isEquipped ? null : item.id });
-    } else if (wallet >= item.cost) {
-      onBuy(item); // compra: gasta os pontos, entra pro inventário e já equipa
-    }
-  };
-  return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:560, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#c084fc,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎁 Loja do Nyx</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
-        </div>
-        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>
-          {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa vira 1 ponto. Comprar um item GASTA os pontos — mas o item é seu para sempre! (Seu lugar no ranking não muda: ele conta os pontos que você já ganhou.)"}
-        </p>
-
-        <div style={{ display:"flex", alignItems:"center", gap:16, background:"#171026", border:`1px solid ${eggTalk ? eggTalk.color+"88" : "#3b2a58"}`, borderRadius:16, padding:16, marginBottom:16, transition:"border-color .3s" }}>
-          <div style={{ flexShrink:0, animation: eggTalk ? (eggTalk.kind === "pirata" ? "nyx-pirate-sway 2.2s ease-in-out infinite" : "nyx-spartan-idle 2.6s ease-in-out infinite") : "none" }}>
-            <NyxRobot state="ok" size={72} showName={false} gear={gear} />
-          </div>
-          {eggTalk ? (
-            <div className="pop" style={{ position:"relative", background:"#1e1430", border:`1.5px solid ${eggTalk.color}66`, borderRadius:12, padding:"10px 14px", color:"#f0e9fb", fontSize:13, lineHeight:1.55, fontWeight:600, whiteSpace:"pre-wrap" }}>
-              <span style={{ position:"absolute", left:-8, top:"50%", transform:"translateY(-50%)", width:0, height:0, borderTop:"8px solid transparent", borderBottom:"8px solid transparent", borderRight:`8px solid ${eggTalk.color}66` }} />
-              {eggTalk.msg}
-            </div>
-          ) : (
-            <div>
-              <div style={{ color:"#fbbf24", fontWeight:900, fontSize:22 }}>💰 {wallet} pts</div>
-              <div style={{ color:"#776798", fontSize:12 }}>para gastar · itens comprados: toque para vestir ou tirar</div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
-          {NYX_ITEMS.filter(item => !item.secret || isTestShift || owned.includes(item.id)).map(item => {
-            const has = isTestShift || owned.includes(item.id);
-            const canBuy = !has && wallet >= item.cost;
-            const clickable = has || canBuy;
-            const equipped = gear[item.slot] === item.id;
-            return (
-              <button key={item.id} data-item={item.id} onClick={()=>click(item)} disabled={!clickable}
-                style={{
-                  background: equipped ? "#c084fc26" : "#171026",
-                  border: `2px solid ${equipped ? "#c084fc" : has ? "#34d39966" : canBuy ? "#fbbf2466" : "#241f38"}`,
-                  borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: clickable?"pointer":"default",
-                  opacity: clickable ? 1 : 0.55, position:"relative",
-                }}>
-                <div style={{ fontSize:30, filter: clickable?"none":"grayscale(1)" }}>{item.emoji}</div>
-                <div style={{ color:"#f0e9fb", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
-                {has ? (
-                  equipped
-                    ? <div style={{ color:"#c084fc", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
-                    : <div style={{ color:"#34d399", fontSize:11, fontWeight:700, marginTop:4 }}>✓ Seu · toque para vestir</div>
-                ) : canBuy ? (
-                  <div style={{ color:"#fbbf24", fontSize:11, fontWeight:800, marginTop:4 }}>🛒 Comprar · {item.cost} pts</div>
-                ) : (
-                  <div style={{ color:"#776798", fontSize:11, marginTop:4 }}>🔒 {wallet}/{item.cost} pts</div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-//  🎁 RETROSPECTIVA DO MÊS  (estilo "Wrapped": slides animados com os números do aluno)
-// ════════════════════════════════════════════════════════════════════════════
-function RetroOverlay({ name, stats, gear, onClose }) {
-  const [step, setStep] = useState(0);
-  const first = String(name || "").split(" ")[0];
-  const finalPhrase =
-    stats.totalLines >= 100 ? `Mais de ${stats.totalLines} linhas de código?! ${first}, você não aprendeu a programar — você VIROU programador(a). Foi uma honra!` :
-    stats.best && stats.best.v >= 70 ? `${first}, ver você chegar na nota ${stats.best.v} foi um orgulho enorme. Continue assim que o mundo é seu!` :
-    stats.presencas >= 5 ? `${first}, aparecer ${stats.presencas} dias pra aprender já é uma vitória gigante. O resto vem com o tempo — e você já começou!` :
-    `${first}, todo programador começou exatamente onde você está. O primeiro passo você já deu — nunca pare!`;
-  const slides = [
-    { bg:"linear-gradient(135deg,#1e1b4b,#3b0764)", icon:"🎬", title:`${first}, o seu mês na Aula de C#...`, sub:"foi assim 👇 (toque pra ver)", big:null },
-    { bg:"linear-gradient(135deg,#052e2b,#065f46)", icon:"📝", title:"Você escreveu", big:`${stats.totalLines}`, sub:stats.totalLines === 1 ? "linha de código de verdade" : "linhas de código de verdade" },
-    { bg:"linear-gradient(135deg,#1e3a5f,#0e7490)", icon:"📅", title:"Você esteve aqui em", big:`${stats.presencas}`, sub:stats.presencas === 1 ? "dia de aula" : "dias de aula" },
-    ...(stats.best ? [{ bg:"linear-gradient(135deg,#4c1d95,#7c3aed)", icon:"🏆", title:"Sua melhor nota foi", big:`${stats.best.v}`, sub:`na atividade do dia ${String(stats.best.d).split("-").reverse().slice(0,2).join("/")}` }] : []),
-    { bg:"linear-gradient(135deg,#713f12,#b45309)", icon:"🎖️", title:"Você desbloqueou", big:`${stats.conquistas}`, sub:`conquista${stats.conquistas===1?"":"s"}${stats.eggs > 0 ? ` — e achou ${stats.eggs} segredo${stats.eggs===1?"":"s"} escondido${stats.eggs===1?"":"s"} 🥚` : ""}` },
-    { bg:"linear-gradient(135deg,#7f1d1d,#be123c)", icon:"💰", title:"Você ganhou", big:`${stats.pontos}`, sub:`ponto${stats.pontos===1?"":"s"} do Nyx${stats.duelWins > 0 ? ` — e venceu ${stats.duelWins} duelo${stats.duelWins===1?"":"s"} ⚔️` : ""}` },
-    { bg:"linear-gradient(135deg,#0f172a,#1e1b4b)", icon:"💜", title:"Recado do Nyx", big:null, sub:finalPhrase, last:true },
-  ];
-  const s = slides[Math.min(step, slides.length - 1)];
-  const advance = () => { if (!s.last) setStep(v => v + 1); };
-  return (
-    <div onClick={advance} style={{ position:"fixed", inset:0, background:s.bg, transition:"background .6s ease", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1200, padding:20, cursor: s.last ? "default" : "pointer", overflow:"hidden" }}>
-      <div key={step} className="pop" style={{ textAlign:"center", maxWidth:520, width:"100%" }}>
-        <div style={{ animation:"nyx-float 3s ease-in-out infinite", display:"inline-block" }}>
-          <NyxRobot state="ok" size={s.last ? 110 : 76} showName={false} gear={gear} />
-        </div>
-        <div style={{ fontSize:44, lineHeight:1, margin:"8px 0" }}>{s.icon}</div>
-        <h2 style={{ color:"#fff", fontSize:22, fontWeight:900, margin:"0 0 6px", textShadow:"0 2px 14px rgba(0,0,0,.4)" }}>{s.title}</h2>
-        {s.big != null && (
-          <div className="shine" style={{ fontSize:84, fontWeight:900, lineHeight:1.1, background:"linear-gradient(120deg,#fff,#fde68a,#fff)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>{s.big}</div>
-        )}
-        <p style={{ color:"rgba(255,255,255,.85)", fontSize:s.last ? 16 : 14.5, lineHeight:1.7, margin:"6px auto 0", maxWidth:420, fontWeight:600 }}>{s.sub}</p>
-        {!s.last && (
-          <div style={{ marginTop:22, color:"rgba(255,255,255,.55)", fontSize:12.5 }}>
-            {slides.map((_, i) => <span key={i} style={{ display:"inline-block", width:8, height:8, borderRadius:4, margin:"0 3px", background: i <= step ? "#fff" : "rgba(255,255,255,.25)" }} />)}
-            <div style={{ marginTop:8 }}>toque pra continuar →</div>
-          </div>
-        )}
-        {s.last && (
-          <button onClick={(e)=>{ e.stopPropagation(); onClose(); }} style={{ background:"linear-gradient(135deg,#c084fc,#9333ea)", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", fontWeight:800, boxShadow:"0 4px 18px rgba(124,131,255,.45)", marginTop:22, padding:"13px 28px", fontSize:15 }}>Guardar no coração 💜</button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-//  FEEDBACK ANIMADO DO NYX  (aparece quando o aluno termina a atividade)
-// ════════════════════════════════════════════════════════════════════════════
-function NyxFeedbackModal({ score, loading, feedback, onClose }) {
-  const g = gradeInfo(score);
-  const robotState = score>=75 ? "ok" : score>=40 ? "idle" : "error";
-  const dica = score < 60 ? "Dica: releia com calma as questões que você errou na revisão abaixo — o Nyx te explica cada uma se você pedir!" : "";
-  const structured = feedback && typeof feedback === "object" && Array.isArray(feedback.secoes);
-  const feedbackText = structured ? feedback.intro : (typeof feedback === "string" ? feedback : "");
-  return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:`1px solid ${g.color}55`, borderRadius:22, padding:"28px 24px", maxWidth:440, width:"100%", textAlign:"center", boxShadow:`0 24px 70px rgba(0,0,0,.55), 0 0 50px ${g.color}22` }}>
-        <div style={{ animation:"nyx-float 3s ease-in-out infinite" }}>
-          <NyxRobot state={robotState} size={110} showName={false} />
-        </div>
-        <div style={{ fontSize:44, marginTop:6, lineHeight:1 }}>{g.emoji}</div>
-        <h2 style={{ color:g.color, fontSize:26, margin:"4px 0 2px", fontWeight:900 }}>{g.label}!</h2>
-        <div style={{ color:"#a99ac9", fontSize:14, marginBottom:14 }}>Você fez {score} pontos na atividade</div>
-        <div style={{ background:"#171026", border:"1px solid #3e2d5e", borderRadius:16, padding:"16px 18px", textAlign:"left" }}>
-          {loading
-            ? <p style={{ color:"#a99ac9", fontSize:14, margin:0 }}>Nyx está analisando seu desempenho...</p>
-            : <p style={{ color:"#d6c9ec", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", margin:0 }}>{feedbackText || "Parabéns por concluir a aula de hoje!"}</p>}
-          {!loading && dica && <p style={{ color:"#fbbf24", fontSize:12.5, lineHeight:1.6, marginTop:10, marginBottom:0 }}>{dica}</p>}
-        </div>
-        <button onClick={onClose} disabled={loading}
-          style={{ background:`linear-gradient(135deg, ${g.color}, ${shade(g.color,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:"10px 18px", cursor: loading?"default":"pointer", fontWeight:800, fontSize:14, boxShadow:`0 4px 14px ${g.color}44`, marginTop:18, opacity:loading?0.5:1, width:"100%" }}>
-          {loading ? "Aguarde..." : "Entendi, valeu Nyx! →"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-//  NYX EXPLICA OS ERROS  (revela uma questão errada por vez, com exemplo de código, terminando numa mensagem encorajadora)
-// ════════════════════════════════════════════════════════════════════════════
-function ErrorExplainModal({ sections, encouragement, onClose }) {
-  const [step, setStep] = useState(0);
-  const total = sections.length;
-  const onFinal = step >= total;
-  const s = sections[step];
-  const ACCENTS = ["#c084fc","#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6","#f87171"];
-  const c = ACCENTS[step % ACCENTS.length];
-  const accent = onFinal ? "#34d399" : c;
-
-  return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:`1px solid ${accent}55`, borderRadius:22, padding:"26px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:`0 24px 70px rgba(0,0,0,.55), 0 0 50px ${accent}22` }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-          <span style={{ color:"#776798", fontSize:12, fontWeight:700, letterSpacing:0.5 }}>{onFinal ? "Pronto!" : `Questão ${step+1} de ${total}`}</span>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:20, cursor:"pointer", lineHeight:1 }}>✕</button>
-        </div>
-
-        <div style={{ textAlign:"center" }}>
-          <div style={{ display:"inline-block", animation:"nyx-float 3s ease-in-out infinite" }}>
-            <NyxRobot state={onFinal ? "ok" : "idle"} size={90} showName={false} />
-          </div>
-        </div>
-
-        {onFinal ? (
-          <div style={{ textAlign:"center", marginTop:6 }}>
-            <div style={{ fontSize:40 }}>🎉</div>
-            <p style={{ color:"#d6c9ec", fontSize:16, lineHeight:1.7, margin:"8px 0 0" }}>{encouragement}</p>
-          </div>
-        ) : (
-          <div style={{ marginTop:12, background:"#1e1430", borderRadius:14, padding:18, border:"1px solid #3b2a58", borderLeft:`5px solid ${c}` }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-              <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:40, height:40, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{s.emoji || "📌"}</span>
-              <h3 style={{ color:"#f0e9fb", fontSize:16, margin:0 }}>{s.titulo}</h3>
-            </div>
-            {s.explicacao && <p style={{ color:"#d6c9ec", fontSize:14.5, lineHeight:1.75, margin:"0 0 4px" }}>{s.explicacao}</p>}
-            {s.exemplo && <CodeBlock code={s.exemplo} />}
-          </div>
-        )}
-
-        <div style={{ display:"flex", gap:8, marginTop:18 }}>
-          {step > 0 && !onFinal && (
-            <button onClick={()=>setStep(v=>v-1)} style={{ background:"#3b2a58", color:"#f0e9fb", border:"none", borderRadius:10, padding:"10px 16px", cursor:"pointer", fontWeight:700, fontSize:13.5 }}>← Voltar</button>
-          )}
-          <button onClick={()=> onFinal ? onClose() : setStep(v=>v+1)}
-            style={{ flex:1, background:`linear-gradient(135deg, ${accent}, ${shade(accent,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:"10px 16px", cursor:"pointer", fontWeight:800, fontSize:14 }}>
-            {onFinal ? "Fechar" : (step === total-1 ? "Terminar →" : "Próximo →")}
-          </button>
-        </div>
-
-        {!onFinal && total > 1 && (
-          <div style={{ display:"flex", gap:5, justifyContent:"center", marginTop:14 }}>
-            {sections.map((_,i)=>(
-              <div key={i} style={{ width:7, height:7, borderRadius:"50%", background: i===step ? c : "#3b2a58" }} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-//  CONQUISTAS, RANKING, META DA TURMA, CURIOSIDADE  (gamificação leve)
-// ════════════════════════════════════════════════════════════════════════════
-function AchievementToast({ achievement }) {
-  const boxRef = useRef(null);
-  useEffect(() => {
-    if (!achievement || !boxRef.current) return;
-    gsap.fromTo(boxRef.current,
-      { scale:0.3, opacity:0, rotate:-8 },
-      { scale:1, opacity:1, rotate:0, duration:0.6, ease:"elastic.out(1,0.55)" }
-    );
-  }, [achievement]);
-  if (!achievement) return null;
-  return (
-    <div ref={boxRef} style={{ position:"fixed", top:16, right:16, zIndex:1300, background:"linear-gradient(135deg,#fbbf24,#f59e0b)", color:"#1c1206", borderRadius:16, padding:"14px 18px", boxShadow:"0 14px 40px rgba(0,0,0,.45)", display:"flex", alignItems:"center", gap:12, maxWidth:320 }}>
-      <div style={{ fontSize:34 }}>{achievement.emoji}</div>
-      <div>
-        <div style={{ fontWeight:900, fontSize:13 }}>🎖️ Conquista desbloqueada!</div>
-        <div style={{ fontWeight:800, fontSize:14 }}>{achievement.label}</div>
-        <div style={{ fontSize:11.5, opacity:0.85 }}>{achievement.desc}</div>
-      </div>
-    </div>
-  );
-}
-
-function AchievementsModal({ unlocked, onClose, isLangRoom }) {
-  const list = visibleAchievements(isLangRoom);
-  return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#fbbf24,#f59e0b)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎖️ Conquistas</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
-        </div>
-        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>{unlocked.filter(id=>list.some(a=>a.id===id)).length} de {list.length} desbloqueadas</p>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))", gap:10 }}>
-          {list.map(a => {
-            const got = unlocked.includes(a.id);
-            return (
-              <div key={a.id} style={{ background:got?"#fbbf2418":"#171026", border:`1px solid ${got?"#fbbf24":"#241f38"}`, borderRadius:14, padding:"12px 14px", display:"flex", gap:10, alignItems:"center", opacity:got?1:0.55 }}>
-                <div style={{ fontSize:26, filter:got?"none":"grayscale(1)" }}>{a.secret && !got ? "❓" : a.emoji}</div>
-                <div>
-                  <div style={{ color:"#f0e9fb", fontWeight:800, fontSize:13 }}>{a.secret && !got ? "???" : a.label}</div>
-                  <div style={{ color:"#776798", fontSize:11.5 }}>{a.secret && !got ? "Um segredo espera por quem explora o terminal..." : a.desc}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RankingModal({ shift, myName, onClose }) {
-  const [loading, setLoading] = useState(true);
-  const [top, setTop] = useState([]);
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const all = await listStudents();
-      const mine = all.filter(s => (s.shift || "sem-turno") === (shift || "sem-turno"));
-      const sorted = mine.sort((a,b)=>(b.nyxPoints||0)-(a.nyxPoints||0)).slice(0, 5);
-      if (alive) { setTop(sorted); setLoading(false); }
-    })();
-    return () => { alive = false; };
-  }, [shift]);
-  const medals = ["🥇","🥈","🥉","🏅","🏅"];
-  return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:440, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📊 Ranking da Turma</h2>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
-        </div>
-        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Os 5 com mais pontos do Nyx na sua turma</p>
-        {loading ? <p style={{ color:"#776798", fontSize:13 }}>Carregando...</p> : top.length === 0 ? (
-          <p style={{ color:"#776798", fontSize:13 }}>Ninguém tem pontos ainda — seja o primeiro!</p>
-        ) : (
-          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-            {top.map((s, i) => (
-              <div key={s.name} style={{ display:"flex", alignItems:"center", gap:10, background: s.name===myName ? "#c084fc22" : "#171026", border:`1px solid ${s.name===myName?"#c084fc":"#3b2a58"}`, borderRadius:12, padding:"8px 12px" }}>
-                <span style={{ fontSize:20, width:28, textAlign:"center" }}>{medals[i]}</span>
-                <Avatar cfg={s.avatar} size={32} />
-                <span style={{ flex:1, fontWeight:700, fontSize:13.5, color: s.name===myName ? "#c7d2fe" : "#f0e9fb" }}>{s.name}{s.name===myName?" (você)":""}</span>
-                <span style={{ color:"#fbbf24", fontWeight:900, fontSize:14 }}>{s.nyxPoints||0} pts</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ClassGoalBar({ sum }) {
-  const g = classGoalProgress(sum);
-  return (
-    <div style={{ marginTop:10 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#a99ac9", marginBottom:4 }}>
-        <span>🎯 Meta da turma · nível {g.level}</span>
-        <span>{sum}{g.next ? `/${g.next}` : ""} pts</span>
-      </div>
-      <div className="bar-glow" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:20, height:10, overflow:"hidden" }}>
-        <div style={{ width:`${g.pct}%`, height:"100%", background:"linear-gradient(90deg,#c084fc,#22d3ee)", transition:"width .5s ease" }} />
-      </div>
-    </div>
-  );
-}
 
 // ════════════════════════════════════════════════════════════════════════════
 //  TELÃO DA TURMA — tela cheia só de visualização, pra projetar durante a aula
@@ -6315,6 +5853,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [resetting, setResetting] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetScope, setResetScope] = useState("all");
+  const [resetClearMyCode, setResetClearMyCode] = useState(false);
   const [resetMsg, setResetMsg] = useState("");
   const [lastUpdate, setLastUpdate] = useState(null);
   const [diag, setDiag] = useState(null);
@@ -6484,10 +6023,12 @@ function TeacherView({ onLogout, teacherAuth }) {
     setLastUpdate(new Date().toLocaleTimeString("pt-BR"));
     try { const ec = await getExamState(shiftFilterRef.current, teacherAuth); setExamConfig(ec); } catch {}
     // marca o dia de hoje como aula se houver alunos — não conta fim de semana
-    // como aula por padrão (só se o professor liberar em allowWeekend)
+    // como aula por padrão (só se o professor liberar em allowWeekend). Enquanto a cidade estiver
+    // "encerrada" (ver doCloseCity/saveCity), NÃO conta dia de aula sozinho — só volta a contar
+    // quando o professor definir a próxima cidade
     const dowNow = new Date().getDay();
     const isWeekendNow = dowNow === 0 || dowNow === 6;
-    if (arr.length > 0 && (!isWeekendNow || metaRef.current.allowWeekend)) {
+    if (arr.length > 0 && !metaRef.current.cityClosed && (!isWeekendNow || metaRef.current.allowWeekend)) {
       const tk = todayKey();
       if (!metaRef.current.classDays.includes(tk)) {
         const nm = { ...metaRef.current, classDays:[...metaRef.current.classDays, tk] };
@@ -6662,7 +6203,9 @@ function TeacherView({ onLogout, teacherAuth }) {
     return () => clearTimeout(id);
   }, [proFilesByShift, proLoaded]);
 
-  const saveCity = async () => { const nm = { ...metaRef.current, city:cityInput.trim() }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
+  // definir a cidade aqui é o que "reativa" a viagem depois de uma cidade encerrada — só a partir
+  // daqui volta a contar dia de aula e a mostrar o pino "você está aqui" na Visão da Viagem
+  const saveCity = async () => { const nm = { ...metaRef.current, city:cityInput.trim(), cityClosed:false }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
   // personalização do Nyx do professor (acessórios cosméticos, sem custo — é só o professor mesmo)
   const saveTeacherGear = async (newGear) => { const nm = { ...metaRef.current, nyxGear:newGear }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
   // 📄 relatório de despedida: um PDF-lembrança da cidade que está sendo encerrada, com o
@@ -6804,6 +6347,10 @@ function TeacherView({ onLogout, teacherAuth }) {
     const totalClasses = Math.max(0, cumulativeClassDays - previousCumulative);
     const next = [...entries, { city: meta.city, students: podio, closedAt: Date.now(), totalStudents: active.length, totalClasses, avgScore, classDaysSnapshot: cumulativeClassDays }];
     await saveHallOfFame(next, teacherAuth);
+    // 🚦 encerrar a cidade NÃO define a próxima sozinho — fica marcada como "fechada" até o
+    // professor digitar o nome da cidade seguinte (ver saveCity), pra parar de contar dia de aula
+    // e mostrar o pino "você está aqui" numa cidade que já foi encerrada
+    { const nm = { ...metaRef.current, cityClosed: true }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); }
     // 🔒 fim da turma nesta cidade: os responsáveis já sabiam que isso aconteceria — apaga data de
     // nascimento e CPF de todo mundo (dado sensível só existia pra gerar certificado enquanto durou
     // a turma). Depois disso ninguém mais tem acesso, nem o professor — some da planilha também.
@@ -6890,12 +6437,22 @@ function TeacherView({ onLogout, teacherAuth }) {
     const ok = scope === "all"
       ? (await Promise.all([resetAll("matutino", teacherAuth), resetAll("vespertino", teacherAuth)])).every(Boolean)
       : await resetAll(scope, teacherAuth);
+    // opcional: também limpa o "Meu código" do(s) turno(s) resetado(s) — só mexe no estado local
+    // (não chama saveTeacherCode direto), porque o efeito de autosave já existente (que roda 1s
+    // depois de proFilesByShift mudar) se encarrega de persistir o vazio sozinho
+    if (resetClearMyCode) {
+      const emptyFiles = [{ name:"Program.cs", code:"" }];
+      setProFilesByShift(prev => ({
+        ...prev,
+        ...(scope === "all" ? { matutino: emptyFiles, vespertino: emptyFiles } : { [scope]: emptyFiles }),
+      }));
+    }
     setSelected(null);
     await load();
     setResetting(false);
     const alvo = scope === "all" ? "Matutino e Vespertino foram resetados" : `Turma ${shiftMeta(scope).label} resetada`;
     setResetMsg(ok
-      ? `✅ ${alvo}! Os alunos online desse grupo serão desconectados em alguns segundos.`
+      ? `✅ ${alvo}${resetClearMyCode ? " (e seu código em Meu código também foi limpo)" : ""}! Os alunos online desse grupo serão desconectados em alguns segundos.`
       : "⚠ Não foi possível resetar. O armazenamento só funciona no app publicado — teste pelo link publicado.");
     setTimeout(() => setResetMsg(""), 6000);
   };
@@ -8131,7 +7688,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
       {showTelao && <TelaoModal students={students} shift={shiftFilter} onClose={()=>setShowTelao(false)} teacherAuth={teacherAuth} />}
       {showQuickStatus && <QuickStatusModal students={sorted} onClose={()=>setShowQuickStatus(false)} />}
-      {showTripOverview && <TripOverviewModal entries={tripHallEntries} currentCity={meta.city} onClose={()=>setShowTripOverview(false)} />}
+      {showTripOverview && <TripOverviewModal entries={tripHallEntries} currentCity={meta.cityClosed ? null : meta.city} onClose={()=>setShowTripOverview(false)} />}
 
       {dailyPdfModal && (
         <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
@@ -8235,6 +7792,10 @@ function TeacherView({ onLogout, teacherAuth }) {
               ))}
             </div>
             <p style={{ color:"#776798", fontSize:11.5, margin:"6px 0 0" }}>A turma de teste e a sala de linguagens nunca são apagadas por aqui — se precisar limpar uma delas, é só entrar nela e usar o botão de resetar de dentro dela.</p>
+            <label style={{ display:"flex", alignItems:"center", gap:8, marginTop:14, fontSize:13, color:"#d6c9ec", cursor:"pointer" }}>
+              <input type="checkbox" checked={resetClearMyCode} onChange={e=>setResetClearMyCode(e.target.checked)} />
+              🗑️ Também limpar o meu código (aba "Meu código") do(s) turno(s) escolhido(s)
+            </label>
             <div style={{ display:"flex", gap:10, marginTop:18 }}>
               <button onClick={()=>setConfirmReset(false)} style={{ ...styles.btn("#3b2a58"), flex:1 }}>Cancelar</button>
               <button onClick={doReset} style={{ ...styles.btn("#f87171"), flex:1 }}>{resetScope==="all"?"Resetar Matutino + Vespertino":`Resetar ${shiftMeta(resetScope).label}`}</button>
@@ -8993,13 +8554,18 @@ function TeacherView({ onLogout, teacherAuth }) {
               style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"10px 12px", color:"#f0e9fb", fontSize:15, boxSizing:"border-box" }} />
             <datalist id="df-cities">{DF_CITIES.map(c=><option key={c} value={c} />)}</datalist>
             <button style={{ ...styles.btn("#c084fc"), marginTop:10 }} onClick={saveCity}>Salvar cidade</button>
-            {meta.city && <p style={{ color:"#34d399", fontSize:13, marginTop:10 }}>Cidade salva: {meta.city}</p>}
+            {meta.city && !meta.cityClosed && <p style={{ color:"#34d399", fontSize:13, marginTop:10 }}>Cidade salva: {meta.city}</p>}
+            {meta.cityClosed && (
+              <p style={{ color:"#fbbf24", fontSize:13, marginTop:10, lineHeight:1.6 }}>⏸ {meta.city} foi encerrada. A contagem de dias de aula está pausada — digite a próxima cidade acima para retomar.</p>
+            )}
             <hr style={{ borderColor:"#3b2a58", margin:"14px 0" }}/>
             <p style={{ color:"#a99ac9", fontSize:13 }}>Total de dias de aula registrados: <b style={{ color:"#f0e9fb" }}>{(meta.classDays||[]).length}</b></p>
             <hr style={{ borderColor:"#3b2a58", margin:"14px 0" }}/>
             <p style={{ color:"#fbbf24", fontWeight:700, fontSize:13, marginBottom:6 }}>🏆 Hall da Fama</p>
             <p style={{ color:"#a99ac9", fontSize:12.5, lineHeight:1.6, margin:"0 0 10px" }}>Quando a carreta for mudar de cidade, encerre aqui: guarda uma placa com quem mais se destacou, pros alunos da próxima cidade verem, e baixa um relatório de despedida em PDF pra você guardar. Não apaga nada da turma atual — exceto a data de nascimento e o CPF de todos, que somem pra sempre (nem você mais tem acesso).</p>
-            {confirmCloseCity ? (
+            {meta.cityClosed ? (
+              <p style={{ color:"#776798", fontSize:12.5, lineHeight:1.6 }}>🏆 {meta.city} já foi encerrada — defina a próxima cidade acima antes de encerrar de novo.</p>
+            ) : confirmCloseCity ? (
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 <button style={{ ...styles.btn("#fbbf24"), opacity:farewellBusy?0.6:1 }} onClick={doCloseCity} disabled={farewellBusy}>{farewellBusy ? "Gerando relatório..." : `Sim, encerrar ${meta.city || "a cidade"}`}</button>
                 <button style={styles.btn("#3b2a58")} onClick={()=>setConfirmCloseCity(false)} disabled={farewellBusy}>Cancelar</button>
