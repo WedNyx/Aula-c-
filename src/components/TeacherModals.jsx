@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getBoss, setBoss, clearBoss, setScoreFix, getTourney, setTourney, clearTourney } from "../storage.js";
 import { TEST_SHIFT, SHIFTS } from "../lib/shifts.js";
 import { askClaudeJson } from "../lib/ai.js";
@@ -119,14 +119,25 @@ export function TelaoModal({ students, shift, onClose, teacherAuth }) {
   // 🎁 bônus de participação: todo mundo que causou dano de verdade ganha uns pontos extras
   // quando o chefão é derrotado — recompensa a turma inteira, não só quem terminou por cima
   const BOSS_DEFEAT_BONUS = 3;
+  // ref (não state) porque precisa bloquear um segundo clique ANTES do primeiro terminar — numa
+  // conexão ruim (a carreta inteira divide um wifi só), o botão "🏁 Encerrar festa" continuava
+  // clicável durante toda a ida-e-volta do setScoreFix, e um segundo clique enquanto o primeiro
+  // ainda não voltou dava o bônus de +3 pts em dobro pra quem contribuiu
+  const endingBossRef = useRef(false);
   const endBoss = async () => {
-    if (bossDefeated && boss) {
-      const contributors = (students || []).filter(s => (s.shift||"") !== TEST_SHIFT.id)
-        .filter(s => ((s.nyxPoints || 0) - (boss.baseline?.[`${s.shift||"sem-turno"}:${s.name}`] ?? 0)) > 0);
-      await Promise.all(contributors.map(s => setScoreFix(s.shift, s.name, { kind: "boss-bonus", amount: BOSS_DEFEAT_BONUS }, teacherAuth)));
+    if (endingBossRef.current) return;
+    endingBossRef.current = true;
+    try {
+      if (bossDefeated && boss) {
+        const contributors = (students || []).filter(s => (s.shift||"") !== TEST_SHIFT.id)
+          .filter(s => ((s.nyxPoints || 0) - (boss.baseline?.[`${s.shift||"sem-turno"}:${s.name}`] ?? 0)) > 0);
+        await Promise.all(contributors.map(s => setScoreFix(s.shift, s.name, { kind: "boss-bonus", amount: BOSS_DEFEAT_BONUS }, teacherAuth)));
+      }
+      await clearBoss(teacherAuth);
+      setBossState(null);
+    } finally {
+      endingBossRef.current = false;
     }
-    await clearBoss(teacherAuth);
-    setBossState(null);
   };
 
   // 🏟️ torneio da turma: chaveamento eliminatório iniciado AQUI pelo professor — cada dupla

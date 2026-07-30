@@ -17,12 +17,22 @@ const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'nyxlocks:', 'exa
 // (redactStudentValue) quando não autorizado — as outras três nunca guardam dado sensível.
 const PUBLIC_LIST_PREFIXES = ['student:', 'duel:', 'teamduel:', 'partner:']
 
+// "get" (leitura de UMA chave) nunca teve proteção nenhuma, de propósito, pra não travar as
+// dezenas de leituras anônimas legítimas espalhadas pelo app (aluno lendo o próprio perfil, estado
+// de duelo, sala de quiz, etc. — ver comentário de redactStudentValue mais abaixo pra entender por
+// que "student:" continua assim). MAS isso também deixava "get" ler QUALQUER chave sem senha —
+// incluindo o backup inteiro do banco (que embute todo mundo sem nenhuma redação, já que
+// createBackupSnapshot copia o valor bruto de cada chave) e o log de erros. Essas duas são as
+// únicas onde um "get" direto expõe dado sensível em massa (não é 1 aluno, é a base toda de uma
+// vez), então são as únicas que passam a exigir senha também na leitura.
+const GET_PROTECTED_PREFIXES = ['backup:', 'errorlog:']
 function needsTeacherAuth(action, key) {
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
   const k = String(key || '')
   if (action === 'set') return SET_PROTECTED_PREFIXES.some(p => k.startsWith(p))
   if (action === 'delete') return DELETE_PROTECTED_PREFIXES.some(p => k.startsWith(p))
   if (action === 'list_with_values') return !PUBLIC_LIST_PREFIXES.some(p => k.startsWith(p))
+  if (action === 'get') return GET_PROTECTED_PREFIXES.some(p => k.startsWith(p))
   return false
 }
 

@@ -1292,22 +1292,28 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             setNyxPoints(newNyxPoints);
             await persist({ examGuidedCorrect: gpts, examGuidedMode: true, examDone: true, nyxPoints: newNyxPoints });
           } else {
-            // professor encerrou, calcula pontuação parcial
-            const qs = es.questions || [];
+            // professor encerrou a prova com a atividade ainda em aberto pra esse aluno: calcula a
+            // nota parcial (só o que ele já tinha respondido até agora) — sempre no SERVIDOR, nunca
+            // aqui no cliente, porque o gabarito nem chega até aqui (ver redactExamConfig em
+            // api/kv.js). Comparar localmente com "q.correct" (sempre undefined depois da redação)
+            // era um bug real: marcava questão respondida como errada E questão em branco como
+            // certa — dava nota errada pra todo aluno que não tinha terminado a tempo.
             const curA = s.examAnswers || {};
-            let pts = 0;
-            qs.forEach((q, i) => { if (curA[i] === q.correct) pts++; });
-            const rawPartial = pts * 10;
-            const penalty = Math.min(rawPartial, (s.examExits || 0) * 10);
-            const partial = rawPartial - penalty;
-            try { sessionStorage.removeItem("nyx_exam_open"); } catch {}
-            setExamScore(partial); setExamScoreRaw(rawPartial); setExamDone(true);
-            const newNyxPoints = (s.nyxPoints || 0) + Math.round(partial / 10);
-            setNyxPoints(newNyxPoints);
-            await persist({ examScore: partial, examScoreRaw: rawPartial, examExits: s.examExits || 0, examDone: true, nyxPoints: newNyxPoints });
-            checkPointsAchievements(newNyxPoints);
-            if (qs.length && pts / qs.length >= 0.8) unlockAchievement("prova-mestre");
-            if (qs.length && pts === qs.length) unlockAchievement("prova-100");
+            let result = await gradeExam(es.shift || shift, curA, s.examExits || 0);
+            if (!result) result = await gradeExam(es.shift || shift, curA, s.examExits || 0);
+            if (result) {
+              const { finalScore: partial, raw: rawPartial, total } = result;
+              try { sessionStorage.removeItem("nyx_exam_open"); } catch {}
+              setExamScore(partial); setExamScoreRaw(rawPartial); setExamDone(true);
+              const newNyxPoints = (s.nyxPoints || 0) + Math.round(partial / 10);
+              setNyxPoints(newNyxPoints);
+              await persist({ examScore: partial, examScoreRaw: rawPartial, examExits: s.examExits || 0, examDone: true, nyxPoints: newNyxPoints });
+              checkPointsAchievements(newNyxPoints);
+              const pts = rawPartial / 10;
+              if (total && pts / total >= 0.8) unlockAchievement("prova-mestre");
+              if (total && pts === total) unlockAchievement("prova-100");
+            }
+            // se falhar (rede instável), não marca examDone — o próximo heartbeat (12s) tenta de novo sozinho
           }
         } else if (es.status === 'idle' && (s.examDone || s.examOptIn != null)) {
           // professor resetou a prova (ou encerrou uma que o aluno tinha optado por não fazer)
@@ -1419,6 +1425,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           setJustifications(nextJ);
           await clearScoreFix(shift, studentName);
           await persist({ justifications: nextJ });
+        } else if (fix && fix.kind === "portfolio-disabled") {
+          // professor desativou o portfólio público por moderação — aplica no estado local antes
+          // que o autosave periódico sobrescreva o registro com o "true" que ainda está aqui
+          setPortfolioPublic(false);
+          await clearScoreFix(shift, studentName);
+          await persist({ portfolioPublic: false });
         } else if (fix && fix.kind === "boss-bonus" && typeof fix.amount === "number") {
           // 👾 bônus de pontos por ter causado dano no chefão quando ele foi derrotado
           const np = (stateRef.current.nyxPoints || 0) + fix.amount;
@@ -3212,7 +3224,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             <span style={{ fontSize:22, animation:"nyx-float 3s ease-in-out infinite", flexShrink:0 }}>🔮</span>
             <span style={{ flex:1, color:"#ddd6fe", lineHeight:1.6 }}>
               <b className="shine" style={{ background:"linear-gradient(120deg,#c4b5fd,#f0abfc,#c4b5fd)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Nyx Vidente prevê:</b>{" "}
-              {VIDENTE_PREVISOES[hashStr(studentName + todayKey()) % VIDENTE_PREVISOES.length].replace("{nome}", String(studentName).split(" ")[0])} ✨
+              {VIDENTE_PREVISOES[hashStr(studentName + todayKey()) % VIDENTE_PREVISOES.length].replace("{nome}", () => String(studentName).split(" ")[0])} ✨
             </span>
             <button onClick={()=>{ setVidenteDismissed(true); try { localStorage.setItem(`nyx_vidente_${todayKey()}_${shift}_${studentName}`, "1"); } catch {} }} style={{ background:"transparent", border:"none", color:"#8b5cf6", fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
           </div>
@@ -4368,13 +4380,17 @@ function TeacherView({ onLogout, teacherAuth }) {
     setStudents(arr);
     setLastUpdate(new Date().toLocaleTimeString("pt-BR"));
     try { const ec = await getExamState(shiftFilterRef.current, teacherAuth); setExamConfig(ec); } catch {}
-    // marca o dia de hoje como aula se houver alunos — não conta fim de semana
-    // como aula por padrão (só se o professor liberar em allowWeekend). Enquanto a cidade estiver
+    // marca o dia de hoje como aula se algum aluno foi visto ONLINE hoje (não só se a turma tem
+    // algum aluno cadastrado — isso ficava true pra sempre depois do primeiro aluno criado, e
+    // marcava "teve aula" mesmo em dias sem ninguém online, além de desfazer sozinho em até 10s
+    // quando o professor removia manualmente o dia pelo calendário). Não conta fim de semana como
+    // aula por padrão (só se o professor liberar em allowWeekend). Enquanto a cidade estiver
     // "encerrada" (ver doCloseCity/saveCity), NÃO conta dia de aula sozinho — só volta a contar
     // quando o professor definir a próxima cidade
     const dowNow = new Date().getDay();
     const isWeekendNow = dowNow === 0 || dowNow === 6;
-    if (arr.length > 0 && !metaRef.current.cityClosed && (!isWeekendNow || metaRef.current.allowWeekend)) {
+    const someoneOnlineToday = arr.some(s => isSameDayTs(s.lastSeen));
+    if (someoneOnlineToday && !metaRef.current.cityClosed && (!isWeekendNow || metaRef.current.allowWeekend)) {
       const tk = todayKey();
       if (!metaRef.current.classDays.includes(tk)) {
         const nm = { ...metaRef.current, classDays:[...metaRef.current.classDays, tk] };
@@ -5486,10 +5502,10 @@ function TeacherView({ onLogout, teacherAuth }) {
     const v = parseInt(scoreVal, 10);
     if (!s || isNaN(v)) return;
     const nv = Math.max(0, Math.min(100, v));
-    await patchStudent(s.shift, s.name, { score: nv });
-    await setScoreFix(s.shift, s.name, nv, teacherAuth); // se estiver online, a sessão dele aplica na hora
+    const ok = await patchStudent(s.shift, s.name, { score: nv });
+    if (ok) await setScoreFix(s.shift, s.name, nv, teacherAuth); // se estiver online, a sessão dele aplica na hora
     setScoreVal("");
-    flashMgmt(`✅ Nota da atividade alterada para ${nv}.`);
+    flashMgmt(ok ? `✅ Nota da atividade alterada para ${nv}.` : "❌ Não consegui alterar a nota agora. Tente de novo.");
     load();
   };
 
@@ -5728,12 +5744,12 @@ function TeacherView({ onLogout, teacherAuth }) {
   // 📋 aprova a justificativa de uma falta — vira "justificado" na chamada do aluno
   const doApproveJustification = async (s, dateKey) => {
     const next = { ...(s.justifications || {}), [dateKey]: { ...(s.justifications||{})[dateKey], status: "approved" } };
-    await patchStudent(s.shift, s.name, { justifications: next });
+    const ok = await patchStudent(s.shift, s.name, { justifications: next });
     // se o aluno estiver com a aba aberta na hora, o autosave periódico dele reescreve o registro
     // inteiro a partir do estado local (que ainda não sabe da aprovação) e desfaz o patch acima sem
     // querer — o canal scorefix avisa o cliente online pra atualizar o estado local antes de resalvar
-    await setScoreFix(s.shift, s.name, { kind: "justify-approved", dateKey }, teacherAuth);
-    flashMgmt(`✅ Falta de ${s.name} justificada.`);
+    if (ok) await setScoreFix(s.shift, s.name, { kind: "justify-approved", dateKey }, teacherAuth);
+    flashMgmt(ok ? `✅ Falta de ${s.name} justificada.` : "❌ Não consegui justificar agora. Tente de novo.");
     load();
   };
   // 🔍 vistoria: libera este aluno específico mesmo fora do horário automático
@@ -5746,8 +5762,12 @@ function TeacherView({ onLogout, teacherAuth }) {
   // 🌟 portfólio público: o aluno liga por conta própria (opt-in), mas o professor pode desligar
   // se precisar (moderação) — nunca liga no lugar do aluno
   const doDisablePortfolio = async (s) => {
-    await patchStudent(s.shift, s.name, { portfolioPublic: false });
-    flashMgmt(`Portfólio público de ${s.name} desativado.`);
+    const ok = await patchStudent(s.shift, s.name, { portfolioPublic: false });
+    // mesma proteção do doApproveJustification: se o aluno estiver com a aba aberta, o autosave
+    // dele reescreveria o registro inteiro com o "portfolioPublic: true" que ainda está no estado
+    // local, desfazendo a moderação sem querer — o scorefix avisa o cliente online antes disso
+    if (ok) await setScoreFix(s.shift, s.name, { kind: "portfolio-disabled" }, teacherAuth);
+    flashMgmt(ok ? `Portfólio público de ${s.name} desativado.` : "❌ Não consegui desativar agora. Tente de novo.");
     load();
   };
   // 👀 anti-cola: decide a defesa do aluno (aceitar devolve os pontos; recusar mantém o desconto)
