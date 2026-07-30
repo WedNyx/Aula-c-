@@ -40,6 +40,7 @@ import { AchievementToast, AchievementsModal, RankingModal, ClassGoalBar } from 
 import { QuickStatusModal, TelaoModal, JustifyModal, HallOfFameModal, TripOverviewModal } from "./components/TeacherModals.jsx";
 import { BossStudyModal, LearningTrailModal, NextStepsModal, NotebookModal, CheckinModal, PerformanceModal, CHECKIN_MOODS } from "./components/LearningModals.jsx";
 import { TypingRaceModal, FreeBuildModal, DuelModal, TeamDuelModal, KnowledgeTestModal } from "./components/GameModals.jsx";
+import { MobileMonitorView } from "./components/MobileMonitor.jsx";
 
 
 // caderno: lista os resumos por data e mostra o escolhido
@@ -4194,6 +4195,12 @@ function CollapsibleCard({ title, color = "#fbbf24", defaultOpen = false, alertO
 }
 
 function TeacherView({ onLogout, teacherAuth }) {
+  // 📱 modo simples no celular: o painel completo foi feito pra tela grande (várias abas, tabelas
+  // largas) — numa tela estreita entra sozinho uma lista direta de "como cada aluno está agora"
+  // (ver MobileMonitorView). "🖥️ Modo completo"/"📱 Modo simples" sempre disponíveis pra trocar na mão.
+  const vwTeacher = useViewportWidth();
+  const isMobileScreen = vwTeacher < 720;
+  const [forceFullMode, setForceFullMode] = useState(false);
   const [students, setStudents] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showDupHover, setShowDupHover] = useState(false); // aviso de aluno duplicado — só aparece ao passar o mouse
@@ -5935,6 +5942,20 @@ function TeacherView({ onLogout, teacherAuth }) {
   };
   const dot = (on) => (<span style={{ width:9, height:9, borderRadius:"50%", background:on?"#34d399":"#776798", display:"inline-block", marginRight:6, boxShadow:on?"0 0 6px #34d399":"none", ...(on?{animation:"live-dot 2s ease-in-out infinite"}:{}) }}/>);
 
+  if (isMobileScreen && !forceFullMode) {
+    return (
+      <MobileMonitorView
+        students={students}
+        shiftFilter={shiftFilter}
+        setShiftFilter={setShiftFilter}
+        tk={tk}
+        markPresentToday={markPresentToday}
+        unmarkPresentToday={unmarkPresentToday}
+        onOpenFull={() => setForceFullMode(true)}
+      />
+    );
+  }
+
   return (
     <div style={styles.container}>
       <Toaster theme="dark" position="top-right" richColors closeButton />
@@ -6016,6 +6037,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           <button data-tour-prof="quiz" style={{ ...styles.tab(tab==="quiz"), ...(quizRoom && tab!=="quiz" ? {borderColor:"#c084fc",color:"#c084fc"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?' ●':''}</button>
           <button data-tour-prof="situacao" style={{ ...styles.btn(needHelp.length>0 ? "#f87171" : "#34d399"), ...(tab==="code"?{padding:"4px 10px",fontSize:12}:{}) }} onClick={()=>setShowQuickStatus(true)} title="Veja rapidinho quem está com dificuldade, sem sair desta tela">👀 Situação{needHelp.length>0 ? ` (${needHelp.length})` : ""}</button>
           {tab!=="code" && <button data-tour-prof="telao" style={styles.btn("#22d3ee")} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
+          {isMobileScreen && <button style={styles.btn("#c084fc")} onClick={()=>setForceFullMode(false)} title="Volta pra lista simples de acompanhamento, melhor pro celular">📱 Modo simples</button>}
           {tab!=="code" && <button data-tour-prof="reset" style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
           {tab!=="code" && <button style={styles.btn("#22d3ee")} onClick={()=>{ const first = TEACHER_TOUR_STEPS[0]; if (first.tab) setTab(first.tab); setProfTourStep(0); }} title="Tour guiado por todas as funções do painel do professor, entrando em cada aba pra mostrar de verdade">🧭 Tour</button>}
           <button data-tour-prof="sair" style={{ ...styles.btn("#776798"), fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
