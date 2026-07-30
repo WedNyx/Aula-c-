@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight } from "./lib/colors.js";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.js";
@@ -262,7 +262,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [tourneyQuiz, setTourneyQuiz] = useState(null);   // { id, round, opponent, questions[] } do quiz aberto
   const [tourneyStep, setTourneyStep] = useState(0);
   const [tourneyPicked, setTourneyPicked] = useState(null);
-  const [tourneyCorrect, setTourneyCorrect] = useState(0);
+  const [tourneyPicks, setTourneyPicks] = useState({}); // { passo: índice ORIGINAL da alternativa escolhida } — a correção é sempre no servidor
+  const [tourneySubmitting, setTourneySubmitting] = useState(false);
   const [tourneyAnswer, setTourneyAnswer] = useState(null);   // { id, round, score, at } (persistido — o telão apura)
   const [tourneyClaimed, setTourneyClaimed] = useState(null); // id do torneio cujo prêmio de campeão já foi recebido
   // explicações do Nyx sobre os erros da atividade (passo a passo, num modal)
@@ -887,18 +888,33 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     if (tourneyQuiz && tourneyQuiz.id === tourneyInfo.id && tourneyQuiz.round === tourneyInfo.round) return; // já está aberto
     const qs = (tourneyInfo.questions || {})[tourneyInfo.round];
     if (!Array.isArray(qs) || !qs.length) return;
-    // embaralha as alternativas localmente (guardando onde a certa foi parar)
+    // embaralha as alternativas localmente — não precisa saber qual é a certa pra isso (é só
+    // reordenar o texto), guarda é a permutação usada (origIdx) pra traduzir de volta o índice
+    // ORIGINAL na hora de enviar a resposta. A correção de verdade só acontece no servidor (ver
+    // grade_tourney_round): "correta" nem chega mais aqui enquanto a rodada está valendo.
     const shuffled = qs.map(q => {
       const idx = q.alternativas.map((_, i) => i).sort(() => Math.random() - 0.5);
-      return { pergunta: q.pergunta, alternativas: idx.map(i => q.alternativas[i]), correta: idx.indexOf(q.correta) };
+      return { pergunta: q.pergunta, alternativas: idx.map(i => q.alternativas[i]), origIdx: idx };
     });
     setTourneyQuiz({ id: tourneyInfo.id, round: tourneyInfo.round, opponent: m.a === studentName ? m.b : m.a, questions: shuffled });
-    setTourneyStep(0); setTourneyPicked(null); setTourneyCorrect(0);
+    setTourneyStep(0); setTourneyPicked(null); setTourneyPicks({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, tourneyInfo, tourneyAnswer, studentName]);
   const submitTourneyQuiz = async () => {
-    if (!tourneyQuiz) return;
-    const score = tourneyCorrect;
+    if (!tourneyQuiz || tourneySubmitting) return;
+    setTourneySubmitting(true);
+    // corrige no SERVIDOR: manda só os índices ORIGINAIS escolhidos, nunca o gabarito (que nem
+    // chega até aqui enquanto a rodada está valendo — ver redactTourneyConfig em api/kv.js)
+    let result = await gradeTourneyRound(tourneyQuiz.id, tourneyQuiz.round, tourneyPicks);
+    if (!result) result = await gradeTourneyRound(tourneyQuiz.id, tourneyQuiz.round, tourneyPicks);
+    setTourneySubmitting(false);
+    if (!result) {
+      setRobotState("thinking");
+      setRobotMsg("⚠ Não consegui enviar suas respostas do torneio agora (conexão?). Tente de novo.");
+      setTimeout(() => setRobotMsg(""), 6000);
+      return;
+    }
+    const score = result.score;
     const ans = { id: tourneyQuiz.id, round: tourneyQuiz.round, score, at: Date.now() };
     const newPts = (stateRef.current.nyxPoints || 0) + score; // 1 ponto do Nyx por acerto, como nos duelos
     setTourneyAnswer(ans);
@@ -3598,23 +3614,27 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               {!finished && (
                 <>
                   <p style={{ color:"#f0e9fb", fontSize:15, fontWeight:700, lineHeight:1.6, margin:"6px 0 12px" }}>{q.pergunta}</p>
+                  {/* sem feedback de certo/errado aqui — a correção só acontece no servidor, depois
+                      de enviadas as 5 respostas (ver grade_tourney_round); só marca o que foi escolhido */}
                   <div style={{ display:"grid", gap:8 }}>
                     {q.alternativas.map((alt, i) => {
                       const picked = tourneyPicked != null;
-                      const isRight = i === q.correta;
                       const isMine = tourneyPicked === i;
                       return (
-                        <button key={i} disabled={picked} onClick={() => { setTourneyPicked(i); if (i === q.correta) setTourneyCorrect(c => c + 1); }}
-                          style={{ textAlign:"left", background: picked ? (isRight ? "#34d39922" : isMine ? "#f8717122" : "#171026") : "#171026",
-                            border: `2px solid ${picked ? (isRight ? "#34d399" : isMine ? "#f87171" : "#241f38") : "#3b2a58"}`,
+                        <button key={i} disabled={picked} onClick={() => setTourneyPicked(i)}
+                          style={{ textAlign:"left", background: isMine ? "#22d3ee22" : "#171026",
+                            border: `2px solid ${isMine ? "#22d3ee" : "#3b2a58"}`,
                             borderRadius:12, padding:"11px 14px", color:"#f0e9fb", fontSize:13.5, cursor: picked ? "default" : "pointer" }}>
-                          {picked && isRight ? "✅ " : picked && isMine ? "❌ " : ""}{alt}
+                          {isMine ? "👆 " : ""}{alt}
                         </button>
                       );
                     })}
                   </div>
                   {tourneyPicked != null && (
-                    <button onClick={() => { setTourneyStep(s => s + 1); setTourneyPicked(null); }} style={{ ...styles.btn("#22d3ee"), width:"100%", padding:"11px 0", fontSize:14, marginTop:12 }}>
+                    <button onClick={() => {
+                      setTourneyPicks(p => ({ ...p, [tourneyStep]: q.origIdx[tourneyPicked] }));
+                      setTourneyStep(s => s + 1); setTourneyPicked(null);
+                    }} style={{ ...styles.btn("#22d3ee"), width:"100%", padding:"11px 0", fontSize:14, marginTop:12 }}>
                       {tourneyStep + 1 >= tourneyQuiz.questions.length ? "Finalizar →" : "Próxima →"}
                     </button>
                   )}
@@ -3622,10 +3642,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               )}
               {finished && (
                 <div style={{ textAlign:"center" }}>
-                  <div style={{ fontSize:46, lineHeight:1 }}>{tourneyCorrect >= 4 ? "🔥" : tourneyCorrect >= 2 ? "💪" : "🍀"}</div>
-                  <p style={{ color:"#f0e9fb", fontSize:16, fontWeight:800, margin:"10px 0 4px" }}>{tourneyCorrect} de {tourneyQuiz.questions.length} certas!</p>
-                  <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, margin:"0 0 12px" }}>Agora é torcer: o placar da sua partida aparece no telão. Boa sorte! 🤞</p>
-                  <button onClick={submitTourneyQuiz} style={{ ...styles.btn("#22d3ee"), width:"100%", padding:"12px 0", fontSize:14.5 }}>Enviar respostas 🏟️</button>
+                  <div style={{ fontSize:46, lineHeight:1 }}>🏁</div>
+                  {/* a nota só sai depois de enviar (a correção é sempre no servidor — ninguém, nem
+                      este componente, sabe o resultado antes disso) */}
+                  <p style={{ color:"#f0e9fb", fontSize:16, fontWeight:800, margin:"10px 0 4px" }}>Você respondeu as {tourneyQuiz.questions.length} perguntas!</p>
+                  <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, margin:"0 0 12px" }}>Envie pra ver sua pontuação — o placar da sua partida aparece no telão. Boa sorte! 🤞</p>
+                  <button onClick={submitTourneyQuiz} disabled={tourneySubmitting} style={{ ...styles.btn("#22d3ee"), width:"100%", padding:"12px 0", fontSize:14.5, opacity:tourneySubmitting?0.6:1, cursor:tourneySubmitting?"default":"pointer" }}>{tourneySubmitting ? "Enviando..." : "Enviar respostas 🏟️"}</button>
                 </div>
               )}
             </div>
@@ -4310,7 +4332,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [quizEditingTheme, setQuizEditingTheme] = useState(null); // { id?, title, questions } em edição
   const [quizQDraft, setQuizQDraft] = useState({ q:"", opts:["","","",""], correct:0, hard:false });
   useEffect(() => { getQuizThemes().then(ts => setQuizThemes(Array.isArray(ts) ? ts : [])); }, []);
-  useEffect(() => { getQuizRoom().then(setQuizRoomState); }, []); // retoma sala aberta após recarregar a página
+  useEffect(() => { getQuizRoom(teacherAuth).then(setQuizRoomState); }, []); // retoma sala aberta após recarregar a página, com o gabarito completo (é o professor)
   useEffect(() => {
     if (!quizRoom || quizRoom.status !== "question") return;
     const iv = setInterval(() => setQuizNow(Date.now()), 250);

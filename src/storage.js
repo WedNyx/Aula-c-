@@ -166,9 +166,12 @@ export async function saveQuizThemes(themes, auth) {
     return r.ok === true
   } catch { return false }
 }
-export async function getQuizRoom() {
+// auth é opcional: sem ela (aluno), o servidor já esconde o campo "correct" das perguntas ainda
+// não reveladas — só o professor autenticado enxerga o gabarito completo (ver redactQuizRoom em
+// api/kv.js)
+export async function getQuizRoom(auth) {
   try {
-    const r = await kvCall({ action: 'get', key: QUIZ_ROOM_KEY })
+    const r = await kvCall({ action: 'get', key: QUIZ_ROOM_KEY, auth })
     return r.value ? JSON.parse(r.value) : null
   } catch { return null }
 }
@@ -675,6 +678,15 @@ export async function gradeExam(shift, answers, exits) {
   try {
     const r = await kvCall({ action: 'grade_exam', shift, answers, exits })
     return (r && typeof r.finalScore === 'number') ? r : null
+  } catch { return null }
+}
+
+// corrige uma rodada do torneio no SERVIDOR — o aluno manda só as alternativas escolhidas (em
+// índice ORIGINAL, não da posição embaralhada na tela), nunca o gabarito
+export async function gradeTourneyRound(tourneyId, round, picks) {
+  try {
+    const r = await kvCall({ action: 'grade_tourney_round', tourneyId, round, picks })
+    return (r && typeof r.score === 'number') ? r : null
   } catch { return null }
 }
 

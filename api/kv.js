@@ -83,6 +83,58 @@ function redactExamConfig(key, value, authorized) {
   }
 }
 
+// ─── mesma ideia pro Quiz estilo Kahoot ("quiz:room") — mas aqui, diferente da prova, a resposta
+// certa É pra aparecer pro aluno depois que a pergunta fecha (revelar é o jeito do jogo funcionar).
+// Só esconde "correct" da(s) pergunta(s) que AINDA não fecharam: qualquer índice depois da atual, e
+// a atual enquanto o status ainda é "question" (cronômetro rodando) ou "lobby" (nem começou) — a
+// partir de "reveal" (aquela pergunta específica) ou "podium" (acabou tudo), libera geral.
+function redactQuizRoom(key, value, authorized) {
+  if (authorized || value == null || !String(key).startsWith('quiz:room')) return value
+  try {
+    const obj = JSON.parse(value)
+    if (!Array.isArray(obj.questions)) return value
+    const qIndex = obj.qIndex ?? -1
+    const status = obj.status
+    obj.questions = obj.questions.map((q, i) => {
+      if (q == null || typeof q !== 'object') return q
+      const revealed = i < qIndex || (i === qIndex && (status === 'reveal' || status === 'podium'))
+      if (revealed) return q
+      const { correct, ...rest } = q
+      return rest
+    })
+    return JSON.stringify(obj)
+  } catch {
+    return value
+  }
+}
+
+// ─── e pro Torneio da turma ("tourney:config") — mesma lógica de "só revela depois de fechar",
+// mas por RODADA em vez de por pergunta (as 5 perguntas de uma rodada fecham todas juntas quando
+// a rodada avança). "correta" de uma rodada ainda em disputa nunca aparece pra quem não é professor.
+function redactTourneyConfig(key, value, authorized) {
+  if (authorized || value == null || !String(key).startsWith('tourney:config')) return value
+  try {
+    const obj = JSON.parse(value)
+    if (!obj.questions || typeof obj.questions !== 'object') return value
+    const currentRound = obj.round
+    const roundClosed = (r) => Number(r) < currentRound || (Number(r) === currentRound && obj.status === 'done')
+    const redactedQuestions = {}
+    for (const round of Object.keys(obj.questions)) {
+      const arr = obj.questions[round]
+      redactedQuestions[round] = (Array.isArray(arr) && !roundClosed(round))
+        ? arr.map(q => {
+            if (q == null || typeof q !== 'object') return q
+            const { correta, ...rest } = q
+            return rest
+          })
+        : arr
+    }
+    return JSON.stringify({ ...obj, questions: redactedQuestions })
+  } catch {
+    return value
+  }
+}
+
 // ─── Supabase JS Client ───────────────────────────────────────────────────────
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '')
 const SUPABASE_KEY =
@@ -395,7 +447,9 @@ export default async function handler(req, res) {
       case 'set':              await store.set(key, value);           return res.json({ ok: true })
       case 'get': {
         const authorized = isValidTeacherPassword(auth)
-        return res.json({ value: redactExamConfig(key, await store.get(key), authorized) })
+        const raw = await store.get(key)
+        const redacted = redactTourneyConfig(key, redactQuizRoom(key, redactExamConfig(key, raw, authorized), authorized), authorized)
+        return res.json({ value: redacted })
       }
       case 'grade_exam': {
         // corrige a prova no SERVIDOR: o aluno manda só as respostas que escolheu (nunca o
@@ -421,6 +475,30 @@ export default async function handler(req, res) {
         const penalty = Math.min(rawScore, Math.max(0, Number(exits) || 0) * 10)
         const finalScore = rawScore - penalty
         return res.json({ finalScore, raw: rawScore, total: questions.length })
+      }
+      case 'grade_tourney_round': {
+        // mesma ideia do grade_exam: o aluno manda só as respostas escolhidas (nunca o gabarito) —
+        // aqui em índice ORIGINAL da alternativa, não da posição embaralhada que ele viu na tela
+        // (o embaralhamento é só cosmético no cliente, feito sem precisar saber qual é a certa) —
+        // o servidor lê a rodada de verdade direto do banco (sem passar pelo redactTourneyConfig,
+        // que é só pra "get") e devolve só a pontuação, nunca "correta".
+        const ip = String((req.headers && req.headers['x-forwarded-for']) || req.socket?.remoteAddress || 'unknown').split(',')[0].trim()
+        const withinLimit = await rateLimitCheck(`ratelimit:gradetourney:${ip}`, 15, 600)
+        if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas tentativas seguidas de enviar o torneio. Aguarde um pouco e tente de novo.' })
+        const { tourneyId, round, picks } = req.body || {}
+        const raw = await store.get('tourney:config')
+        if (!raw) return res.status(404).json({ error: 'tourney_not_found' })
+        let config
+        try { config = JSON.parse(raw) } catch { return res.status(500).json({ error: 'tourney_config_corrupted' }) }
+        // rodada precisa ser exatamente a que está valendo AGORA — evita nota de uma rodada velha
+        // (já avançada) ou de um torneio anterior (id diferente) ser aceita como se fosse a atual
+        if (config.id !== tourneyId || config.round !== round) {
+          return res.status(409).json({ error: 'stale_round', message: 'Essa rodada não é mais a atual.' })
+        }
+        const questions = Array.isArray((config.questions || {})[round]) ? config.questions[round] : []
+        let score = 0
+        questions.forEach((q, i) => { if (picks && picks[i] === q.correta) score++ })
+        return res.json({ score, total: questions.length })
       }
       case 'log_error': {
         // qualquer sessão (aluno ou professor) pode registrar um erro — sem senha, porque o
