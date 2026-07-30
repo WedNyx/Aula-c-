@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight } from "./lib/colors.js";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.js";
@@ -4530,13 +4530,24 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       setExamCurrentQ(nextUnanswered !== -1 ? nextUnanswered : Math.min(qIdx + 1, qs.length - 1));
       await persist({ examAnswers: newAnswers });
     } else {
-      let pts = 0;
-      qs.forEach((q, i) => { if (newAnswers[i] === q.correct) pts++; });
-      const raw = pts * 10;
-      // anti-cola: cada saída da aba desconta 10 pts (o professor pode devolver se o aluno se explicar)
+      // a correção agora acontece no SERVIDOR (não mais aqui no navegador): o gabarito de cada
+      // questão nunca chega até o cliente, então não tem mais como calcular "pts" localmente
+      // comparando com "q.correct" — isso é exatamente o que fechou a brecha de segurança onde
+      // qualquer aluno conseguia ver as respostas certas antes de responder, olhando a aba de rede
+      // do navegador. Manda só as respostas escolhidas + quantas vezes saiu da aba; tenta de novo
+      // 1x se falhar (rede instável), e só desiste de vez se a segunda tentativa também falhar.
       const exits = stateRef.current.examExits || 0;
-      const penalty = Math.min(raw, exits * 10);
-      const finalScore = raw - penalty;
+      let result = await gradeExam(examInfo.shift || shift, newAnswers, exits);
+      if (!result) result = await gradeExam(examInfo.shift || shift, newAnswers, exits);
+      stateRef.current = { ...stateRef.current, examAnswers: newAnswers };
+      if (!result) {
+        setRobotMsg("⚠ Não consegui enviar sua prova agora (conexão?). Suas respostas estão salvas — tente clicar na última pergunta de novo em instantes.");
+        setRobotState("thinking");
+        await persist({ examAnswers: newAnswers });
+        return;
+      }
+      const { finalScore, raw, total } = result;
+      const pts = raw / 10;
       try { sessionStorage.removeItem("nyx_exam_open"); } catch {}
       const newNyxPoints = (stateRef.current.nyxPoints||0) + Math.round(finalScore / 10);
       stateRef.current = { ...stateRef.current, examAnswers: newAnswers, examDone: true, nyxPoints: newNyxPoints };
@@ -4544,8 +4555,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       setNyxPoints(newNyxPoints);
       await persist({ examAnswers: newAnswers, examScore: finalScore, examScoreRaw: raw, examExits: exits, examDone: true, nyxPoints: newNyxPoints });
       checkPointsAchievements(newNyxPoints);
-      if (qs.length && pts / qs.length >= 0.8) unlockAchievement("prova-mestre");
-      if (qs.length && pts === qs.length) unlockAchievement("prova-100");
+      if (total && pts / total >= 0.8) unlockAchievement("prova-mestre");
+      if (total && pts === total) unlockAchievement("prova-100");
     }
   };
 
@@ -6608,9 +6619,9 @@ function TeacherView({ onLogout, teacherAuth }) {
   useEffect(() => { shiftFilterRef.current = shiftFilter; }, [shiftFilter]);
   useEffect(() => {
     let alive = true;
-    (async () => { try { const ec = await getExamState(shiftFilter); if (alive) setExamConfig(ec); } catch {} })();
+    (async () => { try { const ec = await getExamState(shiftFilter, teacherAuth); if (alive) setExamConfig(ec); } catch {} })();
     return () => { alive = false; };
-  }, [shiftFilter]);
+  }, [shiftFilter]); // eslint-disable-line react-hooks/exhaustive-deps
   const [confirmEndExam, setConfirmEndExam] = useState(false);
   // 🎉 quiz estilo Kahoot: temas salvos + sala ativa (o professor é o único que escreve; os alunos
   // respondem no próprio perfil e o placar é apurado aqui a partir do polling da turma)
@@ -6698,7 +6709,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     const arr = await listStudents(teacherAuth);
     setStudents(arr);
     setLastUpdate(new Date().toLocaleTimeString("pt-BR"));
-    try { const ec = await getExamState(shiftFilterRef.current); setExamConfig(ec); } catch {}
+    try { const ec = await getExamState(shiftFilterRef.current, teacherAuth); setExamConfig(ec); } catch {}
     // marca o dia de hoje como aula se houver alunos — não conta fim de semana
     // como aula por padrão (só se o professor liberar em allowWeekend)
     const dowNow = new Date().getDay();

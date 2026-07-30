@@ -29,10 +29,13 @@ function needsTeacherAuth(action, key) {
 // ─── dado sensível de aluno (data de nascimento, CPF) some das LISTAGENS sem senha do professor ──
 // antes disso, qualquer um que soubesse o formato da API dava list_with_values com prefix
 // "student:" e baixava data de nascimento/CPF de toda a turma, sem senha nenhuma. A leitura
-// pontual (action "get", 1 chave só) continua sem essa proteção DE PROPÓSITO: patchStudent() lê o
-// registro inteiro, mistura com o patch e regrava tudo — se o "get" tivesse os campos sensíveis
-// escondidos, cada patch (nota, fase, código...) apagaria a data de nascimento/CPF do aluno sem
-// querer. list_with_values não tem esse problema (só listagens/relatórios usam ela).
+// pontual (action "get", 1 chave só) continua sem essa proteção DE PROPÓSITO pra "student:":
+// patchStudent() lê o registro inteiro, mistura com o patch e regrava tudo — se o "get" tivesse os
+// campos sensíveis escondidos, cada patch (nota, fase, código...) apagaria a data de
+// nascimento/CPF do aluno sem querer. list_with_values não tem esse problema (só
+// listagens/relatórios usam ela). "exam:config:" é uma exceção a essa regra — ver
+// redactExamConfig logo abaixo — porque lá o "get" é usado pelo PRÓPRIO aluno pra montar a tela da
+// prova, então esconder o gabarito ali é obrigatório, não opcional.
 const SENSITIVE_STUDENT_FIELDS = ['birthDate', 'cpf']
 function redactStudentValue(key, value, authorized) {
   if (authorized || value == null || !String(key).startsWith('student:')) return value
@@ -43,6 +46,28 @@ function redactStudentValue(key, value, authorized) {
       if (obj[f]) { delete obj[f]; changed = true }
     }
     return changed ? JSON.stringify(obj) : value
+  } catch {
+    return value
+  }
+}
+
+// ─── gabarito da prova ("exam:config:<turno>") nunca pode ir pro navegador do aluno ──
+// a prova era corrigida inteiramente no CLIENTE: o campo "correct" de cada questão viajava junto
+// com o resto (pra montar a tela), então qualquer aluno que abrisse a aba de rede do navegador via
+// a resposta certa de cada pergunta antes de responder. Esconde "correct" de toda pergunta quando
+// quem pediu não é o professor — a correção de verdade agora acontece no servidor (ver action
+// "grade_exam" mais abaixo), que é o único lugar que ainda enxerga o valor completo.
+function redactExamConfig(key, value, authorized) {
+  if (authorized || value == null || !String(key).startsWith('exam:config:')) return value
+  try {
+    const obj = JSON.parse(value)
+    if (!Array.isArray(obj.questions)) return value
+    obj.questions = obj.questions.map(q => {
+      if (q == null || typeof q !== 'object') return q
+      const { correct, ...rest } = q
+      return rest
+    })
+    return JSON.stringify(obj)
   } catch {
     return value
   }
@@ -351,7 +376,35 @@ export default async function handler(req, res) {
   try {
     switch (action) {
       case 'set':              await store.set(key, value);           return res.json({ ok: true })
-      case 'get':              return res.json({ value: await store.get(key) })
+      case 'get': {
+        const authorized = isValidTeacherPassword(auth)
+        return res.json({ value: redactExamConfig(key, await store.get(key), authorized) })
+      }
+      case 'grade_exam': {
+        // corrige a prova no SERVIDOR: o aluno manda só as respostas que escolheu (nunca o
+        // gabarito), o servidor lê a config completa (com "correct") direto do banco — sem passar
+        // pelo redactExamConfig acima, que é só pra respostas de "get" — calcula a nota e devolve
+        // só o número final. Mesma fórmula que existia no cliente antes desta correção: 10 pontos
+        // por acerto, descontando 10 por saída de aba registrada (anti-cola).
+        // limite de tentativas: a nota devolvida diz QUANTAS respostas acertou (não QUAIS) — sem
+        // um limite aqui, alguém poderia enviar respostas repetidas vezes mudando uma de cada vez
+        // pra descobrir o gabarito inteiro só olhando a nota subir ou descer.
+        const ip = String((req.headers && req.headers['x-forwarded-for']) || req.socket?.remoteAddress || 'unknown').split(',')[0].trim()
+        const withinLimit = await rateLimitCheck(`ratelimit:gradeexam:${ip}`, 15, 600)
+        if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas tentativas seguidas de enviar a prova. Aguarde um pouco e tente de novo.' })
+        const { shift, answers, exits } = req.body || {}
+        const raw = await store.get(`exam:config:${shift || 'all'}`)
+        if (!raw) return res.status(404).json({ error: 'exam_not_found' })
+        let config
+        try { config = JSON.parse(raw) } catch { return res.status(500).json({ error: 'exam_config_corrupted' }) }
+        const questions = Array.isArray(config.questions) ? config.questions : []
+        let pts = 0
+        questions.forEach((q, i) => { if (answers && answers[i] === q.correct) pts++ })
+        const rawScore = pts * 10
+        const penalty = Math.min(rawScore, Math.max(0, Number(exits) || 0) * 10)
+        const finalScore = rawScore - penalty
+        return res.json({ finalScore, raw: rawScore, total: questions.length })
+      }
       case 'list_with_values': {
         const items = await store.listWithValues(prefix)
         const authorized = isValidTeacherPassword(auth)

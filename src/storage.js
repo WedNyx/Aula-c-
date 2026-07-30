@@ -631,9 +631,11 @@ export async function listPartners(shift) {
 // exam:config:teste, etc.) — assim o professor pode ter uma prova da manhã em andamento e criar
 // uma prova diferente pra tarde sem uma apagar a outra. "all" ("Todos os turnos") é só mais um
 // turno possível aqui, usado quando o professor quer uma prova única valendo pra manhã+tarde juntas.
-export async function getExamState(shift) {
+// auth é opcional: sem ela (aluno), o servidor já esconde o campo "correct" de cada questão —
+// só o professor autenticado enxerga o gabarito completo (ver redactExamConfig em api/kv.js)
+export async function getExamState(shift, auth) {
   try {
-    const r = await kvCall({ action: 'get', key: `exam:config:${shift || 'all'}` })
+    const r = await kvCall({ action: 'get', key: `exam:config:${shift || 'all'}`, auth })
     return r.value ? JSON.parse(r.value) : { status: 'idle' }
   } catch { return { status: 'idle' } }
 }
@@ -651,6 +653,15 @@ export async function getExamStateForStudent(shift) {
   const own = await getExamState(shift)
   if (own && own.status && own.status !== 'idle') return own
   return getExamState('all')
+}
+
+// corrige a prova no SERVIDOR (o gabarito nunca sai de lá) — o aluno manda só as respostas que
+// escolheu e quantas vezes saiu da aba; volta com a nota já calculada, pronta pra salvar
+export async function gradeExam(shift, answers, exits) {
+  try {
+    const r = await kvCall({ action: 'grade_exam', shift, answers, exits })
+    return (r && typeof r.finalScore === 'number') ? r : null
+  } catch { return null }
 }
 
 // sinais de texto que costumam aparecer quando o Supabase free tier estourou a cota (armazenamento,

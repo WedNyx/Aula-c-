@@ -61,11 +61,36 @@ async function mockRoutes(page, kvStore) {
 
   await page.route('**/api/kv', async (route) => {
     const body = JSON.parse(route.request().postData() || '{}');
-    const { action, key, value, prefix } = body;
+    const { action, key, value, prefix, auth, shift, answers, exits } = body;
     let out;
     if (action === 'check') out = { configured: true };
     else if (action === 'set') { kvStore.set(key, value); out = { ok: true }; }
-    else if (action === 'get') { out = { value: kvStore.has(key) ? kvStore.get(key) : null }; }
+    else if (action === 'get') {
+      let v = kvStore.has(key) ? kvStore.get(key) : null;
+      // mesma redação do servidor de verdade: gabarito da prova some sem a senha do professor
+      // (ver redactExamConfig em api/kv.js) — o mock replica isso pra testar o fluxo completo
+      if (v != null && String(key).startsWith('exam:config:') && auth !== TEACHER_PASSWORD) {
+        try {
+          const obj = JSON.parse(v);
+          if (Array.isArray(obj.questions)) obj.questions = obj.questions.map(q => { const { correct, ...rest } = q || {}; return rest; });
+          v = JSON.stringify(obj);
+        } catch {}
+      }
+      out = { value: v };
+    }
+    else if (action === 'grade_exam') {
+      const raw = kvStore.get(`exam:config:${shift || 'all'}`);
+      if (!raw) out = { error: 'exam_not_found' };
+      else {
+        const config = JSON.parse(raw);
+        const questions = Array.isArray(config.questions) ? config.questions : [];
+        let pts = 0;
+        questions.forEach((q, i) => { if (answers && answers[i] === q.correct) pts++; });
+        const rawScore = pts * 10;
+        const penalty = Math.min(rawScore, Math.max(0, Number(exits) || 0) * 10);
+        out = { finalScore: rawScore - penalty, raw: rawScore, total: questions.length };
+      }
+    }
     else if (action === 'delete') { kvStore.delete(key); out = { ok: true }; }
     else if (action === 'delete_by_prefix') { let n = 0; for (const k of [...kvStore.keys()]) if (k.startsWith(prefix || '')) { kvStore.delete(k); n++; } out = { ok: true, deleted: n }; }
     else if (action === 'list_with_values') { out = { items: [...kvStore.entries()].filter(([k]) => k.startsWith(prefix || '')).map(([key, value]) => ({ key, value })) }; }
