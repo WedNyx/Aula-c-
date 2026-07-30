@@ -22,6 +22,9 @@ jobs:
       - name: Instala dependências
         run: npm ci
 
+      - name: Checagem de tipos (arquivos .ts já convertidos)
+        run: npm run typecheck
+
       - name: Instala o navegador do Playwright
         run: npx playwright install --with-deps chromium
 

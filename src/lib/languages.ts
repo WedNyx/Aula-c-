@@ -2,7 +2,17 @@
 //  SALA DE LINGUAGENS (extra, fora da turma de C#): amigos escolhem HTML/CSS/PHP/JS no onboarding
 //  e o Nyx vira especialista naquela linguagem — cada uma com seu próprio "conhecimento" e arquivo inicial
 // ════════════════════════════════════════════════════════════════════════════
-export const STUDY_LANGUAGES = [
+export interface StudyLanguage {
+  id: string;
+  label: string;
+  emoji: string;
+  fileName: string;
+  codeLang: string;
+  preview: boolean;
+  starter: string;
+  system: string;
+}
+export const STUDY_LANGUAGES: StudyLanguage[] = [
   {
     id: "html", label: "HTML", emoji: "🌐", fileName: "index.html", codeLang: "html", preview: true,
     starter: '<!DOCTYPE html>\n<html lang="pt-br">\n<head>\n  <meta charset="UTF-8">\n  <title>Minha página</title>\n</head>\n<body>\n  <h1>Olá, mundo!</h1>\n  <p>Essa é a minha primeira página em HTML.</p>\n</body>\n</html>',
@@ -105,11 +115,11 @@ Ponto e vírgula faltando; chaves/parênteses/colchetes não fechados; usar = no
 Fale sempre em português brasileiro simples, gentil e encorajador — o aluno é iniciante, mas sua análise é a de um especialista. Trate cada erro como parte normal do aprendizado, nunca como falha.`,
   },
 ];
-export const langById = (id) => STUDY_LANGUAGES.find(l => l.id === id) || null;
+export const langById = (id: string | null | undefined): StudyLanguage | null => STUDY_LANGUAGES.find(l => l.id === id) || null;
 
 // checklist de revisão usado no prompt de análise de código — um por linguagem, no mesmo espírito
 // do checklist de C# (curto, objetivo, focado nos erros de iniciante mais comuns daquela linguagem)
-export function reviewChecklistFor(lang) {
+export function reviewChecklistFor(lang: StudyLanguage | null | undefined): string {
   if (!lang) return `1. Maiúsculas/minúsculas: Console.WriteLine, Console.ReadLine, Convert.ToInt32, int.Parse — "console.writeline", "Console.writeline" e "Console.Writeline" estão ERRADOS.\n2. Tipos em minúsculo (regra da turma): string, int, double, bool, char — se usou String/Int32/Double/Boolean, avise para trocar pela forma minúscula.\n3. Ponto e vírgula ; faltando no fim de instruções (declarações, chamadas, atribuições).\n4. Chaves { }, parênteses ( ) e aspas " — conte os pares no arquivo INTEIRO antes de acusar falta.\n5. Palavras-chave erradas (publik, voi, whille, pritn, statics, clas).\n6. Variáveis usadas sem declarar (confira TODAS as linhas anteriores antes de acusar) e comparação com = em vez de ==.\n7. Console.ReadLine lido direto para int/double sem Convert/Parse.`;
   if (lang.id === "html") return `1. Toda tag aberta precisa ser fechada, na ORDEM certa (sem cruzar, ex: <div><p></p></div>, nunca <div><p></div></p>).\n2. Atributos sempre entre aspas, e as aspas fechadas.\n3. Estrutura básica quando fizer sentido: <!DOCTYPE html>, <head> com <meta charset> e <title>.\n4. Tags auto-fechadas (<img>, <br>, <input>, <meta>, <hr>, <link>) NÃO precisam de fechamento redundante — não acuse isso como erro.\n5. Elementos com os atributos essenciais (<img src alt>, <a href>).\n6. Tags/atributos em minúsculas (padrão da turma).`;
   if (lang.id === "css") return `1. Toda declaração termina com ; (a última do bloco é opcional, mas não é erro ter).\n2. Toda chave { tem um } fechando, na ordem certa.\n3. Seletor de classe leva ponto (.nome) e de id leva # — confira se não esqueceu.\n4. Nomes de propriedade certos e em minúsculas com hífen (font-size, nunca fontSize ou FontSize).\n5. Valores com unidade quando precisam (10px, não só 10) — exceto 0 e propriedades sem unidade (line-height, opacity, z-index, font-weight).\n6. Cores válidas (nome, #hex de 3 ou 6 dígitos, rgb()/rgba()).`;
@@ -121,9 +131,13 @@ export function reviewChecklistFor(lang) {
 // ── 👁️ prévia ao vivo (HTML/CSS/JS): monta um documento HTML combinando os arquivos do projeto,
 // pra rodar direto num iframe isolado. Como o iframe não tem sistema de arquivos de verdade, injeta
 // o CSS/JS de qualquer outro arquivo direto no HTML em vez de depender de <link>/<script src> ──
-export function buildPreviewDoc(files, langId) {
+export interface LangCodeFile {
+  name: string;
+  code: string;
+}
+export function buildPreviewDoc(files: LangCodeFile[] | null | undefined, langId: string | null | undefined): string {
   const list = files || [];
-  const byExt = (ext) => list.filter(f => String(f.name||"").toLowerCase().endsWith(ext));
+  const byExt = (ext: string) => list.filter(f => String(f.name||"").toLowerCase().endsWith(ext));
   const htmlFile = byExt(".html")[0];
   const cssBlock = byExt(".css").map(f => f.code || "").join("\n");
   const jsBlock = byExt(".js").map(f => f.code || "").join("\n");
@@ -155,7 +169,7 @@ export function buildPreviewDoc(files, langId) {
   </body></html>`;
 }
 
-export function otherFilesCtx(files, active, lang) {
+export function otherFilesCtx(files: LangCodeFile[] | null | undefined, active: number, lang: StudyLanguage | null | undefined): string {
   const others = (files||[]).filter((f,i)=>i!==active && (f.code||"").trim());
   if (!others.length) return "";
   return `Outros arquivos do MESMO projeto (compilam juntos com o arquivo em edição — classes daqui podem ser usadas nele):\n\`\`\`${lang ? lang.codeLang : "csharp"}\n${others.map(f=>`// ${f.name}\n${f.code}`).join("\n\n")}\n\`\`\`\n\n`;
@@ -163,7 +177,7 @@ export function otherFilesCtx(files, active, lang) {
 
 // acha em qual linha (0-indexado) um trecho de código aparece — usado pra sublinhar o erro que o Nyx apontou.
 // tenta igualdade exata da linha primeiro (mais preciso), senão cai pra "contém o trecho" (mais tolerante).
-export function findLineIndex(code, trecho) {
+export function findLineIndex(code: string | null | undefined, trecho: string | null | undefined): number {
   if (!trecho) return -1;
   const lines = (code || "").split("\n");
   const t = trecho.trim();

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { getStudent, getTeacherMeta, getHallOfFame, listStudents } from "../storage.js";
-import { FONT, PAGE_BG } from "../lib/theme.js";
-import { TEST_SHIFT, LANG_SHIFT, shiftMeta } from "../lib/shifts.js";
+import { FONT, PAGE_BG } from "../lib/theme.ts";
+import { TEST_SHIFT, LANG_SHIFT, shiftMeta } from "../lib/shifts.ts";
 import { computeStreak } from "../lib/utils.js";
-import { achievementInfo, visibleAchievements } from "../lib/achievements.js";
+import { achievementInfo, visibleAchievements } from "../lib/achievements.ts";
 import { Avatar } from "./Avatar.jsx";
 import { NyxRobot } from "./NyxRobot.jsx";
 

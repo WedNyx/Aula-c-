@@ -1,16 +1,16 @@
 import confetti from "canvas-confetti";
 
 // ── efeitos sonoros (Web Audio, sem arquivos externos) ──
-let __audioCtx = null;
-function getAudioCtx() {
+let __audioCtx: AudioContext | null = null;
+function getAudioCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
-  const Ctor = window.AudioContext || window.webkitAudioContext;
+  const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctor) return null;
   if (!__audioCtx) __audioCtx = new Ctor();
   return __audioCtx;
 }
 let soundsMuted = false;
-function playTone(ctx, freq, start, dur, type = "sine", gain = 0.09) {
+function playTone(ctx: AudioContext, freq: number, start: number, dur: number, type: OscillatorType = "sine", gain = 0.09): void {
   const osc = ctx.createOscillator();
   const g = ctx.createGain();
   osc.type = type;
@@ -24,8 +24,8 @@ function playTone(ctx, freq, start, dur, type = "sine", gain = 0.09) {
 }
 // modo calmo (apoio sensorial): silencia tudo sem mexer na preferência de som salva do aluno
 let soundsCalm = false;
-export function setSoundsCalm(v) { soundsCalm = v; }
-export function playSound(kind) {
+export function setSoundsCalm(v: boolean): void { soundsCalm = v; }
+export function playSound(kind: string): void {
   if (soundsMuted || soundsCalm) return;
   const ctx = getAudioCtx();
   if (!ctx) return;
@@ -43,12 +43,12 @@ export function playSound(kind) {
     else if (kind === "snap") { playTone(ctx, 660, t, 0.05, "sine", 0.06); playTone(ctx, 440, t + 0.04, 0.09, "sine", 0.05); }
   } catch {}
 }
-export function setSoundsMuted(v) { soundsMuted = v; try { localStorage.setItem("nyx_sounds_muted", v ? "1" : "0"); } catch {} }
-export function loadSoundsMuted() { try { soundsMuted = localStorage.getItem("nyx_sounds_muted") === "1"; } catch {} return soundsMuted; }
+export function setSoundsMuted(v: boolean): void { soundsMuted = v; try { localStorage.setItem("nyx_sounds_muted", v ? "1" : "0"); } catch {} }
+export function loadSoundsMuted(): boolean { try { soundsMuted = localStorage.getItem("nyx_sounds_muted") === "1"; } catch {} return soundsMuted; }
 
 // ── confete (canvas-confetti) pra momentos de comemoração: fim de atividade e conquista desbloqueada ──
-export const CONFETTI_COLORS = ["#c084fc","#22d3ee","#34d399","#fbbf24","#ec4899","#f87171"];
-export function fireConfetti(kind = "activity") {
+export const CONFETTI_COLORS: string[] = ["#c084fc", "#22d3ee", "#34d399", "#fbbf24", "#ec4899", "#f87171"];
+export function fireConfetti(kind: string = "activity"): void {
   if (soundsCalm) return; // modo calmo: sem estímulo visual extra
   try {
     if (kind === "achievement") {

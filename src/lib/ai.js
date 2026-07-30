@@ -1,5 +1,5 @@
 import { reportAiHealth } from "../storage.js";
-import { nyxPrefsInstruction } from "./ai-prompts.js";
+import { nyxPrefsInstruction } from "./ai-prompts.ts";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  IA + util

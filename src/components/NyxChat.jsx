@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { shade } from "../lib/colors.js";
-import { CS_SYSTEM, NYX_GUIDED_SYSTEM, nyxPrefsInstruction } from "../lib/ai-prompts.js";
+import { shade } from "../lib/colors.ts";
+import { CS_SYSTEM, NYX_GUIDED_SYSTEM, nyxPrefsInstruction } from "../lib/ai-prompts.ts";
 import { askClaude } from "../lib/ai.js";
 import { NyxRobot } from "./NyxRobot.jsx";
 

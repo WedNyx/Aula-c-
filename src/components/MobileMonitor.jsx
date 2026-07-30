@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { difficultyOf } from "../lib/studentStatus.js";
-import { SHIFTS } from "../lib/shifts.js";
+import { difficultyOf } from "../lib/studentStatus.ts";
+import { SHIFTS } from "../lib/shifts.ts";
 import { Avatar } from "./Avatar.jsx";
 
 const PHASE_LABEL = {

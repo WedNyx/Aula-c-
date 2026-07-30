@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { getBoss, setBoss, clearBoss, setScoreFix, getTourney, setTourney, clearTourney } from "../storage.js";
-import { TEST_SHIFT, SHIFTS } from "../lib/shifts.js";
+import { TEST_SHIFT, SHIFTS } from "../lib/shifts.ts";
 import { askClaudeJson } from "../lib/ai.js";
-import { classGoalProgress } from "../lib/achievements.js";
-import { goFullscreen } from "../lib/schedule.js";
+import { classGoalProgress } from "../lib/achievements.ts";
+import { goFullscreen } from "../lib/schedule.ts";
 import { gradeInfo } from "../lib/utils.js";
-import { shade } from "../lib/colors.js";
-import { DF_CITIES, DF_REGION_COORDS, matchDfRegion } from "../lib/dfRegions.js";
-import { difficultyOf } from "../lib/studentStatus.js";
+import { shade } from "../lib/colors.ts";
+import { DF_CITIES, DF_REGION_COORDS, matchDfRegion } from "../lib/dfRegions.ts";
+import { difficultyOf } from "../lib/studentStatus.ts";
 import { Avatar } from "./Avatar.jsx";
 import { ConfettiParty } from "./ConfettiParty.jsx";
 

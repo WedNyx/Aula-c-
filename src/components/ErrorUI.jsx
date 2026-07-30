@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { shade } from "../lib/colors.js";
+import { shade } from "../lib/colors.ts";
 import { gradeInfo } from "../lib/utils.js";
-import { findLineIndex } from "../lib/languages.js";
+import { findLineIndex } from "../lib/languages.ts";
 import { CodeBlock } from "./CodeEditor.jsx";
 import { NyxRobot } from "./NyxRobot.jsx";
 

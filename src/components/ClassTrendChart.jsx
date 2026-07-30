@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { shade } from "../lib/colors.js";
+import { shade } from "../lib/colors.ts";
 import { gradeInfo } from "../lib/utils.js";
 
 // mesmo visual do PerformanceChart (gradiente, Recharts), mas pra média/taxa da TURMA por dia

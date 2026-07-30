@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { listStudents, listDuels, setDuel, clearDuel, getDuel, listTeamDuels, getTeamDuel, setTeamDuel, clearTeamDuel } from "../storage.js";
-import { playSound } from "../lib/sound.js";
-import { weekKey } from "../lib/schedule.js";
+import { playSound } from "../lib/sound.ts";
+import { weekKey } from "../lib/schedule.ts";
 import { generateDuelQuestions, generateKnowledgeTestQuestions, generateFreeBuildPlan } from "../lib/aiChallenges.js";
 import { Avatar } from "./Avatar.jsx";
 

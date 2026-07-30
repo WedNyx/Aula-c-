@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { listStudents } from "../storage.js";
-import { shade } from "../lib/colors.js";
-import { FONT, PAGE_BG } from "../lib/theme.js";
+import { shade } from "../lib/colors.ts";
+import { FONT, PAGE_BG } from "../lib/theme.ts";
 import { useViewportWidth } from "../lib/utils.js";
-import { goFullscreen } from "../lib/schedule.js";
-import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta } from "../lib/shifts.js";
+import { goFullscreen } from "../lib/schedule.ts";
+import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta } from "../lib/shifts.ts";
 import { DEFAULT_AVATAR, Avatar, AvatarPreview, AvatarControls } from "./Avatar.jsx";
 import { NyxRobot } from "./NyxRobot.jsx";
 

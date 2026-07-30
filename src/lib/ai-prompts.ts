@@ -47,7 +47,11 @@ export const RUN_SYSTEM = "Você é o compilador e o runtime do .NET 8 executand
 
 // ── preferência de interação escolhida pelo próprio aluno (tela antes do tour) — vira uma
 // instrução extra anexada ao system prompt em explicações/chat, pra ajustar tom e nível de detalhe ──
-export const nyxPrefsInstruction = (prefs) => {
+export interface NyxPrefs {
+  tom?: "serio" | "divertido" | string;
+  estilo?: "direta" | "detalhada" | string;
+}
+export const nyxPrefsInstruction = (prefs: NyxPrefs | null | undefined): string => {
   if (!prefs) return "";
   const tomTxt = prefs.tom === "serio" ? "Tom SÉRIO e direto ao ponto, sem gracinhas nem emojis em excesso." : "Tom ANIMADO e brincalhão, empolgado com o que o aluno está aprendendo.";
   const estiloTxt = prefs.estilo === "direta" ? "Respostas DIRETAS e curtas, o mínimo de texto possível pra passar a informação." : "Respostas bem EXPLICADAS, com mais contexto e detalhe pra fixar o conceito.";

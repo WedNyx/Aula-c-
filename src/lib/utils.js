@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { todayKey } from "./schedule.js";
+import { todayKey } from "./schedule.ts";
 
 // deixa um trecho de código C# falável: quebra por linha (o \n vira uma pausa) e tira espaços nas pontas
 export function codeForSpeech(codigo) {

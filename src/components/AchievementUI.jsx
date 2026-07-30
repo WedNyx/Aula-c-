@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import gsap from "gsap";
 import { listStudents } from "../storage.js";
-import { visibleAchievements, classGoalProgress } from "../lib/achievements.js";
+import { visibleAchievements, classGoalProgress } from "../lib/achievements.ts";
 import { Avatar } from "./Avatar.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════

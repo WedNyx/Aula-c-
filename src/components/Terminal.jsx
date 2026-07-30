@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { RUN_SYSTEM } from "../lib/ai-prompts.js";
+import { RUN_SYSTEM } from "../lib/ai-prompts.ts";
 import { askClaude } from "../lib/ai.js";
 
 // ════════════════════════════════════════════════════════════════════════════

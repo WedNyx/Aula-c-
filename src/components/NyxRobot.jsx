@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
-import { shade } from "../lib/colors.js";
+import { shade } from "../lib/colors.ts";
 
 // ── loja de acessórios do Nyx (desbloqueados com pontos de acerto) ──
 export const NYX_ITEMS = [

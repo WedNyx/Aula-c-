@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { gradeInfo } from "../lib/utils.js";
-import { shade } from "../lib/colors.js";
+import { shade } from "../lib/colors.ts";
 
 // gráfico de "notas ao longo do tempo" — carrega o Recharts sob demanda (chunk separado, só baixa
 // quando esta tela abre) e mostra o gráfico de barras simples como fallback enquanto ele não chega

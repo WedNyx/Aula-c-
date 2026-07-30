@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { setCheckin } from "../storage.js";
-import { todayKey } from "../lib/schedule.js";
+import { todayKey } from "../lib/schedule.ts";
 import { PerformanceChart } from "./PerformanceChart.jsx";
 import { SummaryPretty } from "./SummaryPretty.jsx";
 

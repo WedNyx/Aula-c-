@@ -1,5 +1,13 @@
 // ── conquistas/medalhas do aluno ──
-export const ACHIEVEMENTS = [
+export interface Achievement {
+  id: string;
+  emoji: string;
+  label: string;
+  desc: string;
+  langOnly?: boolean;
+  secret?: boolean;
+}
+export const ACHIEVEMENTS: Achievement[] = [
   // primeiros passos e notas
   { id:"primeira-atividade", emoji:"🥇", label:"Primeiro Passo", desc:"Concluiu a primeira atividade da aula" },
   { id:"nota-cem",           emoji:"💯", label:"Nota Cem",       desc:"Tirou 100 numa atividade" },
@@ -62,15 +70,21 @@ export const ACHIEVEMENTS = [
   { id:"autodidata",         emoji:"🧠", label:"Autodidata",       desc:"Fez um teste de conhecimento por conta própria, sem esperar a atividade da aula" },
 ];
 // ids de todo Easter Egg individual que conta pra conquista "Caçador Lendário"
-export const ALL_EGG_ACHIEVEMENT_IDS = ["segredo-vaca","segredo-danca","segredo-matrix","segredo-piada","segredo-pirata","segredo-sanduiche","segredo-cafe","segredo-42","segredo-rm","tesouro","espartano"];
-export const achievementInfo = (id) => ACHIEVEMENTS.find(a => a.id === id);
+export const ALL_EGG_ACHIEVEMENT_IDS: string[] = ["segredo-vaca","segredo-danca","segredo-matrix","segredo-piada","segredo-pirata","segredo-sanduiche","segredo-cafe","segredo-42","segredo-rm","tesouro","espartano"];
+export const achievementInfo = (id: string): Achievement | undefined => ACHIEVEMENTS.find(a => a.id === id);
 // conquistas que valem pra esse aluno — some as "langOnly" (sala de linguagens) de quem nunca
 // vai poder consegui-las, pra não aparecerem impossíveis na lista nem inflarem o "X de Y"
-export const visibleAchievements = (isLangRoom) => ACHIEVEMENTS.filter(a => !a.langOnly || isLangRoom);
+export const visibleAchievements = (isLangRoom: boolean): Achievement[] => ACHIEVEMENTS.filter(a => !a.langOnly || isLangRoom);
 
 // ── metas coletivas da turma (soma dos pontos de todos da turma) ──
-export const CLASS_GOALS = [80, 200, 400, 800, 1500, 2500, 4000, 6000, 9000, 13000];
-export function classGoalProgress(totalPoints) {
+export const CLASS_GOALS: number[] = [80, 200, 400, 800, 1500, 2500, 4000, 6000, 9000, 13000];
+export interface ClassGoalProgress {
+  level: number;
+  prev: number;
+  next: number | null;
+  pct: number;
+}
+export function classGoalProgress(totalPoints: number): ClassGoalProgress {
   const idx = CLASS_GOALS.findIndex(g => totalPoints < g);
   if (idx === -1) return { level: CLASS_GOALS.length, prev: CLASS_GOALS[CLASS_GOALS.length-1], next: null, pct: 100 };
   const prev = idx === 0 ? 0 : CLASS_GOALS[idx-1];

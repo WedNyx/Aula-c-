@@ -2,7 +2,7 @@
 // teste de conhecimento avulso e desafio livre da semana
 import { askClaude, askClaudeJson, extractJson } from "./ai.js";
 import { shuffleQuestions } from "./utils.js";
-import { CS_SYSTEM } from "./ai-prompts.js";
+import { CS_SYSTEM } from "./ai-prompts.ts";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  DUELO ENTRE ALUNOS  (desafio 1x1: convite, aceite, mini-quiz compartilhado, resultado)
