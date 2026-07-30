@@ -6540,12 +6540,15 @@ function TeacherView({ onLogout, teacherAuth }) {
 
           {/* direita */}
           <div style={{ flex:"1 1 420px", minWidth:300 }}>
-            <div data-tour-prof="monitor-grid" className="cardfx" style={styles.card} onMouseEnter={()=>setMonitorHover(true)} onMouseLeave={()=>setMonitorHover(false)}>
+            <div data-tour-prof="monitor-grid" className="cardfx" style={styles.card} {...(isMobileScreen ? {} : { onMouseEnter:()=>setMonitorHover(true), onMouseLeave:()=>setMonitorHover(false) })}>
               <h3 style={{ color:"#fbbf24", marginBottom:12, display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                 <span>👥 Monitoramento ({shown.length})</span>
+                {isMobileScreen && monitorHover && (
+                  <button onClick={()=>setMonitorHover(false)} style={{ background:"transparent", border:"1px solid #3b2a58", color:"#a99ac9", borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>🙈 Ocultar</button>
+                )}
                 {duplicateGroups.length > 0 && (
-                  <div style={{ position:"relative" }} onMouseEnter={()=>setShowDupHover(true)} onMouseLeave={()=>setShowDupHover(false)}>
-                    <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:"#fbbf2422", border:"1px solid #fbbf24", color:"#fbbf24", borderRadius:20, padding:"4px 10px", fontSize:11.5, fontWeight:700, cursor:"default" }}>
+                  <div style={{ position:"relative" }} {...(isMobileScreen ? {} : { onMouseEnter:()=>setShowDupHover(true), onMouseLeave:()=>setShowDupHover(false) })}>
+                    <span onClick={()=>setShowDupHover(v=>!v)} style={{ display:"inline-flex", alignItems:"center", gap:5, background:"#fbbf2422", border:"1px solid #fbbf24", color:"#fbbf24", borderRadius:20, padding:"4px 10px", fontSize:11.5, fontWeight:700, cursor:"pointer" }}>
                       ⚠ {duplicateGroups.length} duplicado{duplicateGroups.length!==1?"s":""}
                     </span>
                     {showDupHover && (
@@ -6566,7 +6569,9 @@ function TeacherView({ onLogout, teacherAuth }) {
               </h3>
               {shown.length===0 && <p style={{ color:"#776798", fontSize:13 }}>{students.length===0 ? "Aguardando alunos entrarem..." : "Nenhum aluno nesta turma. Veja outra turma no filtro acima."}</p>}
               {shown.length > 0 && !monitorHover && (
-                <div style={{ padding:"36px 0", textAlign:"center", color:"#776798", fontSize:13 }}>🖱️ Passe o mouse aqui pra ver os {shown.length} aluno{shown.length!==1?"s":""}</div>
+                <div onClick={()=>setMonitorHover(true)} style={{ padding:"36px 0", textAlign:"center", color:"#776798", fontSize:13, cursor:"pointer" }}>
+                  {isMobileScreen ? `👆 Toque aqui pra ver os ${shown.length} aluno${shown.length!==1?"s":""}` : `🖱️ Passe o mouse aqui pra ver os ${shown.length} aluno${shown.length!==1?"s":""}`}
+                </div>
               )}
               {shown.length > 0 && monitorHover && (
               <div style={{ maxHeight:400, overflowY:"auto", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(128px,1fr))", gap:8 }}>
