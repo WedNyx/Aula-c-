@@ -28,6 +28,12 @@ import { requestFS, goFullscreen, todayKey, weekKey, dateKeyOf, hmToMin, nowMin,
 import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName } from "./lib/shifts.js";
 import { Login } from "./components/LoginScreen.jsx";
 import { ImpactPage, PortfolioPage } from "./components/PublicPages.jsx";
+import { generateDuelQuestions, generateKnowledgeTestQuestions, generateFreeBuildPlan } from "./lib/aiChallenges.js";
+import { DF_CITIES, DF_REGION_COORDS, normalizeCityName, matchDfRegion } from "./lib/dfRegions.js";
+import { STUCK_MINUTES, difficultyOf } from "./lib/studentStatus.js";
+import { SummaryPretty } from "./components/SummaryPretty.jsx";
+import { ClassTrendChart } from "./components/ClassTrendChart.jsx";
+import { ConfettiParty } from "./components/ConfettiParty.jsx";
 
 
 
@@ -914,37 +920,6 @@ function TelaoModal({ students, shift, onClose, teacherAuth }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  CADERNO DE RESUMOS + FESTA DA META DA TURMA
 // ════════════════════════════════════════════════════════════════════════════
-// renderização bonita de um resumo salvo (mesmo estilo da tela de resumo da aula)
-function SummaryPretty({ sum }) {
-  const structured = sum && typeof sum === "object" && Array.isArray(sum.secoes) && sum.secoes.length > 0;
-  const ACCENTS = ["#c084fc","#34d399","#fbbf24","#06b6d4","#ec4899","#8b5cf6","#f87171"];
-  if (!structured) return <pre style={{ whiteSpace:"pre-wrap", fontFamily:"inherit", fontSize:14, lineHeight:1.9, color:"#d6c9ec", margin:0 }}>{typeof sum==="string" ? sum : (sum && sum.raw) || "(resumo indisponível)"}</pre>;
-  return (
-    <div>
-      {sum.intro && <p style={{ color:"#d6c9ec", fontSize:14.5, lineHeight:1.7, margin:"0 0 14px" }}>{sum.intro}</p>}
-      {sum.secoes.map((s,i)=>{
-        const c = ACCENTS[i % ACCENTS.length];
-        return (
-          <div key={i} style={{ background:"#1e1430", borderRadius:14, padding:16, margin:"0 0 12px", border:"1px solid #3b2a58", borderLeft:`5px solid ${c}` }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-              <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:38, height:38, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>{s.emoji || "📌"}</span>
-              <h3 style={{ color:"#f0e9fb", fontSize:15.5, margin:0 }}>{s.titulo}</h3>
-            </div>
-            {s.explicacao && <p style={{ color:"#d6c9ec", fontSize:14, lineHeight:1.7, margin:"0 0 4px" }}>{s.explicacao}</p>}
-            {s.exemplo && <CodeBlock code={s.exemplo} />}
-          </div>
-        );
-      })}
-      {sum.dica && (
-        <div style={{ background:"#fbbf2416", border:"1px solid #fbbf24", borderRadius:14, padding:14, display:"flex", gap:10 }}>
-          <div style={{ fontSize:22, lineHeight:1 }}>💡</div>
-          <p style={{ color:"#fcd9a0", fontSize:14, lineHeight:1.7, margin:0 }}>{sum.dica}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── 👾 chefão: tela de estudo de 10min antes da batalha — mostra o código atual do aluno e os
 // resumos/explicações de tudo que ele já aprendeu, com contagem regressiva até o chefão aparecer ──
 function BossStudyModal({ studyUntil, clockNow, files, summaryHistory, detailedSummaryHistory }) {
@@ -1477,71 +1452,6 @@ function motivationalMessage(avg, name) {
   if (avg >= 40) return `${first}, programar é difícil no começo pra todo mundo. Não desista — continue estudando um pouquinho todo dia, porque assim você vai longe. 💪`;
   return `${first}, todo programador começou exatamente de onde você está agora. Continue tentando e peça ajuda ao Nyx e ao professor sempre que precisar — continue estudando, porque assim você vai longe! 🌱`;
 }
-// mesmo visual do PerformanceChart (gradiente, Recharts), mas pra média/taxa da TURMA por dia
-// (em vez da nota de um aluno só) — usado em "Evolução da turma" (nota) e "Evolução da presença".
-// gradId precisa ser único quando os dois gráficos aparecem juntos na mesma tela (ids de <svg>
-// duplicados fazem o navegador aplicar sempre o PRIMEIRO gradiente a todas as cópias)
-function ClassTrendChart({ trend, unit = "pts", gradId = "classTrendGrad", color = "#c084fc" }) {
-  const [RC, setRC] = useState(null);
-  useEffect(() => {
-    let alive = true;
-    import("recharts").then(mod => { if (alive) setRC(mod); }).catch(() => {});
-    return () => { alive = false; };
-  }, []);
-  const data = trend.map(({ date, avg, count }) => {
-    const [, m, dd] = date.split("-");
-    return { date: `${dd}/${m}`, avg, count };
-  });
-  const fmtVal = (n) => unit === "%" ? `${n}%` : `${n} ${unit}`;
-
-  if (!RC) {
-    return (
-      <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:110, overflowX:"auto", paddingBottom:4 }}>
-        {data.map(({ date, avg }) => {
-          const g = gradeInfo(avg);
-          return (
-            <div key={date} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, minWidth:38 }}>
-              <span style={{ color:g.color, fontSize:11, fontWeight:800 }}>{avg}</span>
-              <div style={{ width:24, height:Math.max(4, Math.round(avg*0.7)), background:`linear-gradient(180deg, ${g.color}, ${shade(g.color,-0.3)})`, borderRadius:"5px 5px 2px 2px" }} title={`${date}: média ${fmtVal(avg)}`} />
-              <span style={{ color:"#776798", fontSize:10 }}>{date}</span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } = RC;
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-    const { avg, count } = payload[0].payload;
-    const g = gradeInfo(avg);
-    return (
-      <div style={{ background:"#1e1430", border:`1px solid ${g.color}`, borderRadius:10, padding:"6px 10px", fontSize:12, boxShadow:"0 6px 18px rgba(0,0,0,.4)" }}>
-        <div style={{ color:"#a99ac9" }}>{label}</div>
-        <div style={{ color:g.color, fontWeight:900 }}>{fmtVal(avg)}</div>
-        <div style={{ color:"#776798", fontSize:11 }}>{count} aluno{count>1?"s":""}</div>
-      </div>
-    );
-  };
-  return (
-    <ResponsiveContainer width="100%" height={140}>
-      <AreaChart data={data} margin={{ top:8, right:8, left:-20, bottom:0 }}>
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={0.5} />
-            <stop offset="100%" stopColor={color} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid stroke="#3b2a58" strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey="date" stroke="#776798" fontSize={10} tickLine={false} axisLine={false} />
-        <YAxis domain={[0, 100]} stroke="#776798" fontSize={10} tickLine={false} axisLine={false} width={26} />
-        <Tooltip content={<CustomTooltip />} />
-        <Area type="monotone" dataKey="avg" stroke={color} strokeWidth={2.5} fill={`url(#${gradId})`} dot={{ r:3, fill:color, strokeWidth:0 }} activeDot={{ r:5 }} animationDuration={700} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
 // ── 😊 check-in emocional: aparece 1x por dia pro aluno, antes de começar a codar — rapidinho,
 // sem nota nem cobrança, só pro professor ter mais contexto sobre a turma naquele dia ──
 const CHECKIN_MOODS = [
@@ -1652,29 +1562,6 @@ function PerformanceModal({ studentName, scoreHistory, achievements, duelWins, t
   );
 }
 
-// chuva de confete + banner quando a turma sobe de nível na meta coletiva
-function ConfettiParty({ level }) {
-  const pieces = useMemo(() => Array.from({ length: 70 }, (_, i) => ({
-    left: Math.random() * 100,
-    delay: Math.random() * 1.6,
-    dur: 2.4 + Math.random() * 2,
-    size: 6 + Math.random() * 7,
-    color: ["#c084fc","#22d3ee","#34d399","#fbbf24","#ec4899","#f87171"][i % 6],
-    rot: Math.random() * 360,
-  })), []);
-  return (
-    <div style={{ position:"fixed", inset:0, zIndex:1400, pointerEvents:"none", overflow:"hidden" }}>
-      <style>{`@keyframes confete-cai { 0% { transform: translateY(-4vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(106vh) rotate(720deg); opacity: 0.8; } }`}</style>
-      {pieces.map((p, i) => (
-        <div key={i} style={{ position:"absolute", top:0, left:`${p.left}%`, width:p.size, height:p.size*0.6, background:p.color, borderRadius:2, transform:`rotate(${p.rot}deg)`, animation:`confete-cai ${p.dur}s linear ${p.delay}s both` }} />
-      ))}
-      <div style={{ position:"absolute", top:"18%", left:"50%", transform:"translateX(-50%)", background:"linear-gradient(135deg,#c084fc,#22d3ee)", color:"#fff", fontWeight:900, padding:"14px 28px", borderRadius:20, boxShadow:"0 14px 44px rgba(0,0,0,.5)", fontSize:17, textAlign:"center", animation:"rise .4s ease both" }}>
-        🎉 A TURMA SUBIU DE NÍVEL! 🎉<br/>
-        <span style={{ fontSize:13.5, fontWeight:700, opacity:0.95 }}>Meta coletiva: nível {level} alcançado — parabéns a todos!</span>
-      </div>
-    </div>
-  );
-}
 
 // ════════════════════════════════════════════════════════════════════════════
 //  🎉 QUIZ ESTILO KAHOOT  (professor cria sala com código; alunos entram e respondem valendo pontos por velocidade)
@@ -1751,48 +1638,6 @@ const QUIZ_SEED_THEMES = [
     ],
   },
 ];
-
-// ════════════════════════════════════════════════════════════════════════════
-//  DUELO ENTRE ALUNOS  (desafio 1x1: convite, aceite, mini-quiz compartilhado, resultado)
-// ════════════════════════════════════════════════════════════════════════════
-const DUEL_SYSTEM = "Você cria questões de múltipla escolha básicas sobre C# para iniciantes. Responda APENAS JSON puro, sem markdown.";
-
-async function generateDuelQuestions() {
-  const res = await askClaude(
-    `Crie 5 questões de múltipla escolha RÁPIDAS e BÁSICAS sobre conceitos fundamentais de C# para iniciantes (variáveis, tipos, Console.WriteLine/ReadLine, if/else, for/while, operadores). Nível fácil/médio, boas para um duelo rápido de conhecimento entre dois alunos. Responda APENAS JSON puro:\n{"questions":[{"q":"...","opts":["A","B","C","D"],"correct":0}]}`,
-    DUEL_SYSTEM,
-    { temperature: 0.7 }
-  );
-  const parsed = extractJson(res);
-  return shuffleQuestions(parsed.questions || []);
-}
-
-// 🧠 teste de conhecimento por conta própria: o aluno pode se testar a qualquer momento da aula,
-// sem precisar esperar a atividade oficial (que só libera depois de finalizar a aula) — sem dicas,
-// pra valer mesmo como autoavaliação
-async function generateKnowledgeTestQuestions() {
-  const res = await askClaude(
-    `Crie 6 questões de múltipla escolha sobre conceitos fundamentais de C# para iniciantes (variáveis, tipos, Console.WriteLine/ReadLine, if/else, for/while, operadores, listas/arrays básicos). Nível fácil/médio, pra um aluno se autoavaliar sobre a matéria a qualquer momento — sem depender do código específico que ele escreveu hoje. Responda APENAS JSON puro:\n{"questions":[{"q":"...","opts":["A","B","C","D"],"correct":0}]}`,
-    DUEL_SYSTEM,
-    { temperature: 0.7 }
-  );
-  const parsed = extractJson(res);
-  return shuffleQuestions(parsed.questions || []);
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-//  🏗️ DESAFIO LIVRE DA SEMANA — o aluno propõe algo que quer construir e o Nyx
-//  quebra em passos concretos pra guiar (não deixa solto, sem ajuda)
-// ════════════════════════════════════════════════════════════════════════════
-async function generateFreeBuildPlan(idea, language) {
-  const langLabel = language ? language.label : "C#";
-  const res = await askClaudeJson(
-    `Um aluno iniciante quer construir isso, por conta própria, como desafio pessoal da semana: "${idea}"\n\nCrie um plano de 4 a 6 passos BEM concretos, curtos e em ordem, pra ele conseguir chegar lá sozinho usando ${langLabel}. Cada passo é uma ação prática (não teoria solta) — tipo "Crie uma variável pra guardar X" ou "Use um for pra repetir Y". Adapte pro nível de quem está começando agora, sem pular etapas. Responda APENAS JSON puro: { "steps": ["...", "..."] }`,
-    (language ? language.system : CS_SYSTEM) + "\n\nVocê também ajuda o aluno a PLANEJAR projetos livres, quebrando a ideia dele em passos pequenos e alcançáveis — nunca resolva o projeto inteiro por ele, só mostre o caminho.",
-    { temperature: 0.6, max_tokens: 1200 }
-  );
-  return Array.isArray(res.steps) ? res.steps.slice(0, 6) : [];
-}
 
 function FreeBuildModal({ weeklyChallenge, onSave, onToggleStep, onFinish, language, onClose }) {
   const [idea, setIdea] = useState("");
@@ -6416,85 +6261,6 @@ function Calendar({ classDays, contentNames = {}, onToggle }) {
 // ════════════════════════════════════════════════════════════════════════════
 //  PROFESSOR
 // ════════════════════════════════════════════════════════════════════════════
-const DF_CITIES = ["Plano Piloto (Brasília)","Gama","Taguatinga","Brazlândia","Sobradinho","Planaltina","Paranoá","Núcleo Bandeirante","Ceilândia","Guará","Cruzeiro","Samambaia","Santa Maria","São Sebastião","Recanto das Emas","Lago Sul","Riacho Fundo","Lago Norte","Candangolândia","Águas Claras","Riacho Fundo II","Sudoeste/Octogonal","Varjão","Park Way","SCIA/Estrutural","Sobradinho II","Jardim Botânico","Itapoã","SIA","Vicente Pires","Fercal","Sol Nascente/Pôr do Sol","Arniqueira"];
-
-// ── 🗺️ mapa da jornada: posição ESQUEMÁTICA (não é GPS de verdade) de cada região administrativa
-// do DF num grid de 0 a 100, só pra dar noção de mais ou menos onde cada uma fica em relação às
-// outras — Plano Piloto no centro, satélites espalhadas ao redor, seguindo o formato real do DF ──
-const DF_REGION_COORDS = {
-  "Plano Piloto (Brasília)": { x:60, y:42 },
-  "Lago Sul": { x:70, y:50 },
-  "Lago Norte": { x:66, y:32 },
-  "Paranoá": { x:80, y:40 },
-  "Itapoã": { x:77, y:36 },
-  "Jardim Botânico": { x:78, y:48 },
-  "Varjão": { x:63, y:30 },
-  "Sudoeste/Octogonal": { x:54, y:48 },
-  "Cruzeiro": { x:50, y:46 },
-  "SIA": { x:46, y:46 },
-  "Guará": { x:44, y:50 },
-  "Núcleo Bandeirante": { x:47, y:56 },
-  "Candangolândia": { x:49, y:55 },
-  "Park Way": { x:45, y:62 },
-  "Riacho Fundo": { x:41, y:62 },
-  "Riacho Fundo II": { x:39, y:67 },
-  "Vicente Pires": { x:41, y:48 },
-  "Águas Claras": { x:37, y:53 },
-  "Arniqueira": { x:35, y:57 },
-  "Taguatinga": { x:30, y:51 },
-  "SCIA/Estrutural": { x:39, y:45 },
-  "Ceilândia": { x:18, y:47 },
-  "Sol Nascente/Pôr do Sol": { x:14, y:49 },
-  "Samambaia": { x:21, y:59 },
-  "Brazlândia": { x:9, y:24 },
-  "Santa Maria": { x:37, y:74 },
-  "Gama": { x:35, y:81 },
-  "Recanto das Emas": { x:27, y:69 },
-  "São Sebastião": { x:74, y:67 },
-  "Fercal": { x:54, y:9 },
-  "Sobradinho": { x:59, y:17 },
-  "Sobradinho II": { x:56, y:21 },
-  "Planaltina": { x:84, y:11 },
-};
-function normalizeCityName(s) {
-  return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-}
-// acha a região do DF que bate com o texto livre que o professor digitou (pode não ter acento,
-// pode ser só "Brasília" em vez de "Plano Piloto (Brasília)" etc.) — null se não reconhecer nenhuma
-function matchDfRegion(cityName) {
-  const norm = normalizeCityName(cityName);
-  if (!norm) return null;
-  for (const region of DF_CITIES) {
-    const rn = normalizeCityName(region);
-    if (rn === norm || rn.includes(norm) || norm.includes(rn)) return region;
-  }
-  return null;
-}
-
-function difficultyOf(s) {
-  if (s.phase==="done") {
-    if ((s.score||0) >= 70) return { level:"bem", text:`Concluiu a aula com nota ${s.score}.` };
-    return { level:"dif", text:`Concluiu, mas com nota baixa (${s.score}). Vale revisar o conteúdo com ele.` };
-  }
-  if (s.hasError && s.feedback && s.feedback.message) return { level:"dif", text:"Erro no código → " + s.feedback.message };
-  if (s.phase==="activity") return { level:"bem", text:"Está fazendo a atividade." };
-  if (s.phase==="summary") return { level:"bem", text:"Está lendo o resumo." };
-  if (s.feedback && s.feedback.ok) return { level:"bem", text:"Código sem erros até agora." };
-  // 🕰️ travado: já faz um tempo bom que entrou, continua online AGORA (não é aba esquecida aberta)
-  // e ainda não escreveu quase nada — o resto da lógica acima só pega quem já ERROU ou já
-  // TERMINOU com nota baixa; quem trava sem nem começar nunca aparecia como "precisa de ajuda"
-  const onlineNow = s.lastSeen && (Date.now() - s.lastSeen) < 30000;
-  const longSession = s.joinedAt && (Date.now() - s.joinedAt) > STUCK_MINUTES * 60000;
-  const codeLen = (s.code || "").trim().length;
-  if (onlineNow && longSession && codeLen < 10) {
-    const mins = Math.round((Date.now() - s.joinedAt) / 60000);
-    return { level:"dif", text:`Parece travado(a) — já está há ${mins} min na aula e ainda não escreveu nada.` };
-  }
-  if (!s.code || s.code.trim().length < 10) return { level:"neutro", text:"Ainda não começou a escrever." };
-  return { level:"neutro", text:"Está escrevendo o código." };
-}
-const STUCK_MINUTES = 8; // quanto tempo sem escrever nada (com a aba online) até o professor ser avisado
-
 // ── biblioteca de aulas prontas: exemplos completos que o professor carrega com 1 clique ──
 const LESSON_LIBRARY = [
   { title:"Aula 1 · Olá, mundo!", desc:"O primeiro programa: mostrar texto na tela.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // Console.WriteLine mostra um texto na tela\n        Console.WriteLine("Olá, mundo!");\n        Console.WriteLine("Bem-vindos à aula de C#!");\n    }\n}' }] },
