@@ -61,9 +61,20 @@ async function mockRoutes(page, kvStore) {
 
   await page.route('**/api/kv', async (route) => {
     const body = JSON.parse(route.request().postData() || '{}');
-    const { action, key, value, prefix, auth, shift, answers, exits } = body;
+    const { action, key, value, prefix, auth, shift, answers, exits, message, url: errUrl, role } = body;
     let out;
     if (action === 'check') out = { configured: true };
+    else if (action === 'log_error') {
+      const list = kvStore.has('errorlog:recent') ? JSON.parse(kvStore.get('errorlog:recent')) : [];
+      list.push({ message: String(message || ''), url: String(errUrl || ''), role: String(role || 'anon'), at: Date.now() });
+      kvStore.set('errorlog:recent', JSON.stringify(list));
+      out = { ok: true };
+    }
+    else if (action === 'get_recent_errors') {
+      out = auth === TEACHER_PASSWORD
+        ? { errors: (kvStore.has('errorlog:recent') ? JSON.parse(kvStore.get('errorlog:recent')) : []).slice().reverse() }
+        : { errors: [] };
+    }
     else if (action === 'set') { kvStore.set(key, value); out = { ok: true }; }
     else if (action === 'get') {
       let v = kvStore.has(key) ? kvStore.get(key) : null;

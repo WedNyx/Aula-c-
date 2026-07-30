@@ -306,7 +306,14 @@ export async function clearLoginFailures(bucketKey) {
 // mais antigos além do limite. Não é backup "fora do banco" (se o banco inteiro sumir, o backup
 // some junto), mas já protege contra bug/ação errada apagando ou corrompendo chaves específicas ──
 const BACKUP_PREFIX = 'backup:'
-const BACKUP_EXCLUDE = /^(ratelimit:|aihealth|loginfail:|backup:)/
+const BACKUP_EXCLUDE = /^(ratelimit:|aihealth|loginfail:|backup:|errorlog:)/
+
+// ─── log de erros de JS não tratados, mandado sozinho por qualquer sessão (aluno ou professor) —
+// ver reportClientError em storage.js / o listener global em App.jsx. Uma lista só, capada nas
+// últimas ERROR_LOG_MAX entradas (não precisa de uma chave por erro; ninguém consulta erro
+// antigo individualmente, só a lista recente inteira) ──
+const ERROR_LOG_KEY = 'errorlog:recent'
+const ERROR_LOG_MAX = 50
 export async function createBackupSnapshot(keep = 14) {
   if (!BACKEND) return { ok: false, reason: 'no_backend' }
   const items = await store.listWithValues('')
@@ -404,6 +411,38 @@ export default async function handler(req, res) {
         const penalty = Math.min(rawScore, Math.max(0, Number(exits) || 0) * 10)
         const finalScore = rawScore - penalty
         return res.json({ finalScore, raw: rawScore, total: questions.length })
+      }
+      case 'log_error': {
+        // qualquer sessão (aluno ou professor) pode registrar um erro — sem senha, porque o
+        // objetivo é justamente pegar erro de quem nem sabe que precisa avisar o professor.
+        // Rate limit generoso: protege contra um bug em loop enchendo o banco de milhares de
+        // registros iguais, sem travar o uso normal (um erro de verdade não repete toda hora).
+        const ip = String((req.headers && req.headers['x-forwarded-for']) || req.socket?.remoteAddress || 'unknown').split(',')[0].trim()
+        const withinLimit = await rateLimitCheck(`ratelimit:logerror:${ip}`, 30, 600)
+        if (!withinLimit) return res.json({ ok: false, reason: 'rate_limited' })
+        const { message, stack, url: pageUrl, role } = req.body || {}
+        const raw = await store.get(ERROR_LOG_KEY)
+        let entries = []
+        try { entries = raw ? JSON.parse(raw) : [] } catch { entries = [] }
+        entries.push({
+          message: String(message || '').slice(0, 500),
+          stack: String(stack || '').slice(0, 1500),
+          url: String(pageUrl || '').slice(0, 200),
+          role: String(role || 'anon').slice(0, 20),
+          at: Date.now(),
+        })
+        if (entries.length > ERROR_LOG_MAX) entries = entries.slice(entries.length - ERROR_LOG_MAX)
+        await store.set(ERROR_LOG_KEY, JSON.stringify(entries))
+        return res.json({ ok: true })
+      }
+      case 'get_recent_errors': {
+        if (!isValidTeacherPassword(auth)) {
+          return res.status(403).json({ error: 'forbidden', message: 'Essa ação é só do professor — senha inválida ou ausente.' })
+        }
+        const raw = await store.get(ERROR_LOG_KEY)
+        let entries = []
+        try { entries = raw ? JSON.parse(raw) : [] } catch { entries = [] }
+        return res.json({ errors: entries.slice().reverse() })
       }
       case 'list_with_values': {
         const items = await store.listWithValues(prefix)

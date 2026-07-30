@@ -212,6 +212,20 @@ export async function getBackupList() {
   } catch { return [] }
 }
 
+// 🚨 erro de JS não tratado em qualquer sessão (aluno ou professor) — dispara sozinho (ver App.jsx)
+// sem exigir que alguém perceba e avise. Nunca manda código nem dado pessoal, só mensagem/pilha/URL.
+// "Falha ao mandar o erro" não pode virar outro erro (senão vira loop) — por isso o catch mudo.
+export async function reportClientError({ message, stack, url, role }) {
+  try { await kvCall({ action: 'log_error', message, stack, url, role }) } catch {}
+}
+// só o professor vê o log agregado de erros — ver checagem de senha na própria ação no servidor
+export async function getRecentErrors(auth) {
+  try {
+    const r = await kvCall({ action: 'get_recent_errors', auth })
+    return r.errors || []
+  } catch { return [] }
+}
+
 // todos os perfis de apoio de uma vez (pro indicador 💙 nos tiles do monitoramento) — só o
 // professor pode listar em massa (o servidor exige a senha pra essa listagem)
 export async function listAllSupport(auth) {

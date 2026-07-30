@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight } from "./lib/colors.js";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.js";
@@ -6550,6 +6550,11 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [resetMsg, setResetMsg] = useState("");
   const [lastUpdate, setLastUpdate] = useState(null);
   const [diag, setDiag] = useState(null);
+  // 🚨 erros de JS capturados sozinhos nas sessões dos alunos/professor (ver reportClientError em
+  // storage.js e o listener global em App.jsx) — carrega só quando o card é aberto pela 1ª vez
+  const [recentErrors, setRecentErrors] = useState(null);
+  const [errorsLoading, setErrorsLoading] = useState(false);
+  const loadRecentErrors = async () => { setErrorsLoading(true); setRecentErrors(await getRecentErrors(teacherAuth)); setErrorsLoading(false); };
   const [tab, setTab] = useState("monitor");
   const [meta, setMeta] = useState({ city:"", classDays:[], contentNames:{} });
   // horário automático de aula (por turno) + vistoria (libera um aluno específico fora do horário)
@@ -8658,6 +8663,31 @@ function TeacherView({ onLogout, teacherAuth }) {
               )}
             </CollapsibleCard>
 
+            <CollapsibleCard title="🚨 Erros recentes" color="#f87171" headerRight={
+              <button style={{ ...styles.btn("#3b2a58"), padding:"3px 10px", fontSize:11.5 }} onClick={loadRecentErrors} disabled={errorsLoading}>{errorsLoading ? "..." : "↻ Verificar"}</button>
+            }>
+              <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.6, margin:"0 0 8px" }}>
+                Erros de JS que quebraram sozinhos na tela de algum aluno ou sua, sem precisar que ninguém perceba e avise. Não mostra código nem dado pessoal — só a mensagem do erro, de onde veio e quando.
+              </p>
+              {recentErrors === null ? (
+                <p style={{ color:"#776798", fontSize:12 }}>Clique em "↻ Verificar" pra carregar.</p>
+              ) : recentErrors.length === 0 ? (
+                <p style={{ color:"#34d399", fontSize:12.5 }}>✅ Nenhum erro registrado.</p>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:260, overflowY:"auto" }}>
+                  {recentErrors.map((e, i) => (
+                    <div key={i} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"8px 10px" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", gap:8, fontSize:10.5, color:"#776798", marginBottom:3 }}>
+                        <span>{e.role === "student" ? "🧑‍🎓 aluno" : e.role === "teacher" ? "🧑‍🏫 professor" : "❔ anônimo"} · {e.url || "?"}</span>
+                        <span>{e.at ? new Date(e.at).toLocaleString("pt-BR") : "?"}</span>
+                      </div>
+                      <p style={{ color:"#f0e9fb", fontSize:12, margin:0, wordBreak:"break-word" }}>{e.message}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CollapsibleCard>
+
             <CollapsibleCard title="📖 Conteúdo de hoje" dataTourProf="conteudo-auto">
               {todayContentM
                 ? <p style={{ color:"#34d399", fontSize:13, fontWeight:600, lineHeight:1.5, margin:0 }}>☀️ Manhã: {todayContentM}</p>
@@ -10230,6 +10260,26 @@ function PortfolioPage({ shift, name }) {
 // ════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [session, setSession] = useState(null);
+  // 🚨 captura erros de JS que quebram silenciosamente na tela do aluno/professor (sem precisar
+  // que alguém perceba e avise) — manda só a mensagem/pilha/URL pro professor ver no painel dele,
+  // nunca código ou dado pessoal. Um Set por sessão da página evita mandar a MESMA mensagem
+  // repetidas vezes (comum quando um erro dispara dentro de um loop de render)
+  const sessionRoleRef = useRef(null);
+  useEffect(() => { sessionRoleRef.current = session?.role || null; }, [session]);
+  useEffect(() => {
+    const reported = new Set();
+    const report = (message, stack) => {
+      const msg = String(message || "erro desconhecido").slice(0, 500);
+      if (reported.has(msg) || reported.size >= 8) return;
+      reported.add(msg);
+      reportClientError({ message: msg, stack: String(stack || "").slice(0, 1500), url: window.location.pathname, role: sessionRoleRef.current || "anon" });
+    };
+    const onError = (e) => report(e.message, e.error?.stack);
+    const onRejection = (e) => report(e.reason?.message || e.reason, e.reason?.stack);
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => { window.removeEventListener("error", onError); window.removeEventListener("unhandledrejection", onRejection); };
+  }, []);
   // /impacto é pública (sem login) — pensada pra mostrar pra prefeitura/patrocinador, só números
   // agregados, nenhum dado de aluno específico
   if (typeof window !== "undefined" && window.location.pathname === "/impacto") return <ImpactPage />;
