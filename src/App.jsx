@@ -1991,12 +1991,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     if (found) { setRobotState("ok"); setRobotMsg(found[0]); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, found[1]); }
   };
 
-  // 🏴‍☠️ baú do tesouro escondido: só concede os 500 pontos uma única vez por aluno — lê/escreve
+  // 🏴‍☠️ baú do tesouro escondido: só concede os 700 pontos uma única vez por aluno — lê/escreve
   // via stateRef, mesmo motivo do openGift (clique duplo bem rápido no ícone escondido)
   const findTreasure = () => {
     const s = stateRef.current;
     if (s.treasureFound) return;
-    const np = (s.nyxPoints||0) + 500;
+    const np = (s.nyxPoints||0) + 700;
     stateRef.current = { ...s, treasureFound: true, nyxPoints: np };
     setTreasureFound(true);
     setNyxPoints(np);
