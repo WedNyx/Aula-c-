@@ -7,7 +7,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const kvStore = baseKvStore({ city: 'Sobradinho', classDays: ['2026-07-20'] });
   // chefão com HP baixo e o aluno já com pontos suficientes pra já estar derrotado assim que o
   // telão abrir (studyUntil no passado, então nem passa pela tela de estudo)
-  kvStore.set('boss:config', JSON.stringify({
+  kvStore.set('boss:config:matutino', JSON.stringify({
     status: 'active', name: 'Bugzilla', emoji: '👾', maxHp: 10,
     baseline: { 'matutino:AlunoBoss': 0 },
     startedAt: Date.now() - 700000, studyUntil: Date.now() - 600000,

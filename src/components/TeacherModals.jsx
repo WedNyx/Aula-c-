@@ -91,30 +91,32 @@ const BOSS_PRESETS = [
 export function TelaoModal({ students, shift, turmas, onClose, teacherAuth }) {
   const turmaList = Array.isArray(turmas) && turmas.length ? turmas : SHIFTS;
   const [telaoShift, setTelaoShift] = useState(shift && shift !== "all" ? shift : (turmaList[0]?.id || "matutino"));
-  // 👾 chefão da turma: HP = dano que a turma precisa causar; cada ponto ganho desde a invocação = 1 de dano
+  // 👾 chefão da turma: HP = dano que a turma precisa causar; cada ponto ganho desde a invocação = 1
+  // de dano. Cada turma tem seu próprio chefão — troca de telaoShift retoma o DAQUELA turma
   const [boss, setBossState] = useState(null);
   useEffect(() => {
     let alive = true;
-    const load = async () => { const b = await getBoss(); if (alive) setBossState(b && b.status === "active" ? b : null); };
+    const load = async () => { const b = await getBoss(telaoShift); if (alive) setBossState(b && b.status === "active" ? b : null); };
     load();
     const iv = setInterval(load, 8000);
     return () => { alive = false; clearInterval(iv); };
-  }, []);
+  }, [telaoShift]);
   // ⏳ 10min de estudo antes da batalha começar de verdade — dá tempo da turma revisar o que
   // aprendeu antes do chefão aparecer pra valer
   const STUDY_MS = 10 * 60 * 1000;
   const summonBoss = async (maxHp) => {
     const preset = BOSS_PRESETS[Math.floor(Math.random() * BOSS_PRESETS.length)];
     const baseline = {};
-    (students || []).filter(s => (s.shift||"") !== TEST_SHIFT.id).forEach(s => { baseline[`${s.shift||"sem-turno"}:${s.name}`] = s.nyxPoints || 0; });
+    // só da turma que está enfrentando ESTE chefão — outra turma não deve nem participar do dano nem do bônus
+    (students || []).filter(s => (s.shift||"") === telaoShift).forEach(s => { baseline[`${s.shift||"sem-turno"}:${s.name}`] = s.nyxPoints || 0; });
     const b = { status: "active", ...preset, maxHp, baseline, startedAt: Date.now(), studyUntil: Date.now() + STUDY_MS };
-    await setBoss(b, teacherAuth);
+    await setBoss(telaoShift, b, teacherAuth);
     setBossState(b);
   };
   const skipStudy = async () => {
     if (!boss) return;
     const b = { ...boss, studyUntil: 0 };
-    await setBoss(b, teacherAuth);
+    await setBoss(telaoShift, b, teacherAuth);
     setBossState(b);
   };
   // 🎁 bônus de participação: todo mundo que causou dano de verdade ganha uns pontos extras
@@ -130,11 +132,11 @@ export function TelaoModal({ students, shift, turmas, onClose, teacherAuth }) {
     endingBossRef.current = true;
     try {
       if (bossDefeated && boss) {
-        const contributors = (students || []).filter(s => (s.shift||"") !== TEST_SHIFT.id)
+        const contributors = (students || []).filter(s => (s.shift||"") === telaoShift)
           .filter(s => ((s.nyxPoints || 0) - (boss.baseline?.[`${s.shift||"sem-turno"}:${s.name}`] ?? 0)) > 0);
         await Promise.all(contributors.map(s => setScoreFix(s.shift, s.name, { kind: "boss-bonus", amount: BOSS_DEFEAT_BONUS }, teacherAuth)));
       }
-      await clearBoss(teacherAuth);
+      await clearBoss(telaoShift, teacherAuth);
       setBossState(null);
     } finally {
       endingBossRef.current = false;
@@ -148,11 +150,11 @@ export function TelaoModal({ students, shift, turmas, onClose, teacherAuth }) {
   const [tourneyMsg, setTourneyMsg] = useState("");
   useEffect(() => {
     let alive = true;
-    const load = async () => { const t = await getTourney(); if (alive) setTourneyState(t); };
+    const load = async () => { const t = await getTourney(telaoShift); if (alive) setTourneyState(t); };
     load();
     const iv = setInterval(load, 8000);
     return () => { alive = false; clearInterval(iv); };
-  }, []);
+  }, [telaoShift]);
   // usedQuestions guarda o texto de TODAS as perguntas já usadas nesse torneio (acumulado rodada a
   // rodada) — tanto o pedido à IA quanto o banco de reserva evitam repetir qualquer uma delas
   const genTourneyQuestions = async (usedQuestions = []) => {
@@ -184,7 +186,7 @@ export function TelaoModal({ students, shift, turmas, onClose, teacherAuth }) {
     for (let i = 0; i < ordem.length; i += 2) matches.push({ round: 1, a: ordem[i], b: ordem[i + 1] ?? null });
     const questions = await genTourneyQuestions();
     const t = { status: "active", shift: telaoShift, id: Date.now(), round: 1, questions: { 1: questions }, matches, usedQuestions: questions.map(q=>q.pergunta) };
-    await setTourney(t, teacherAuth);
+    await setTourney(telaoShift, t, teacherAuth);
     setTourneyState(t);
     setTourneyBusy(false);
   };
@@ -219,11 +221,11 @@ export function TelaoModal({ students, shift, turmas, onClose, teacherAuth }) {
       const qs = await genTourneyQuestions(tourney.usedQuestions || []);
       t2 = { ...tourney, matches: [...resolvedMatches, ...newMatches], round: nextRound, questions: { ...tourney.questions, [nextRound]: qs }, usedQuestions: [...(tourney.usedQuestions || []), ...qs.map(q=>q.pergunta)] };
     }
-    await setTourney(t2, teacherAuth);
+    await setTourney(telaoShift, t2, teacherAuth);
     setTourneyState(t2);
     setTourneyBusy(false);
   };
-  const endTourney = async () => { await clearTourney(teacherAuth); setTourneyState(null); };
+  const endTourney = async () => { await clearTourney(telaoShift, teacherAuth); setTourneyState(null); };
 
   const [telaoNow, setTelaoNow] = useState(() => Date.now());
   useEffect(() => { const iv = setInterval(() => setTelaoNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
@@ -243,7 +245,7 @@ export function TelaoModal({ students, shift, turmas, onClose, teacherAuth }) {
     return "Não pode ser... quase lá, mais um empurrão!!";
   })();
   // 🗡️ quem mais causou dano até agora — mostrado ao vivo pra dar mais emoção à batalha
-  const topContributors = boss ? (students || []).filter(s => (s.shift||"") !== TEST_SHIFT.id)
+  const topContributors = boss ? (students || []).filter(s => (s.shift||"") === telaoShift)
     .map(s => ({ name: s.name, dmg: Math.max(0, (s.nyxPoints||0) - (boss.baseline?.[`${s.shift||"sem-turno"}:${s.name}`] ?? 0)) }))
     .filter(x => x.dmg > 0)
     .sort((a,b) => b.dmg - a.dmg)

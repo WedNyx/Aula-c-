@@ -61,7 +61,7 @@ async function mockRoutes(page, kvStore) {
 
   await page.route('**/api/kv', async (route) => {
     const body = JSON.parse(route.request().postData() || '{}');
-    const { action, key, value, prefix, auth, shift, answers, exits, message, url: errUrl, role } = body;
+    const { action, key, value, prefix, auth, shift, answers, exits, message, url: errUrl, role, tourneyId, round, picks, turmaId } = body;
     let out;
     if (action === 'check') out = { configured: true };
     else if (action === 'log_error') {
@@ -100,6 +100,21 @@ async function mockRoutes(page, kvStore) {
         const rawScore = pts * 10;
         const penalty = Math.min(rawScore, Math.max(0, Number(exits) || 0) * 10);
         out = { finalScore: rawScore - penalty, raw: rawScore, total: questions.length };
+      }
+    }
+    else if (action === 'grade_tourney_round') {
+      // mesma lógica do servidor de verdade (api/kv.js): lê a rodada por TURMA, nunca devolve "correta"
+      const raw = kvStore.get(`tourney:config:${turmaId || 'sem-turno'}`);
+      if (!raw) out = { error: 'tourney_not_found' };
+      else {
+        const config = JSON.parse(raw);
+        if (config.id !== tourneyId || config.round !== round) out = { error: 'stale_round' };
+        else {
+          const questions = Array.isArray((config.questions || {})[round]) ? config.questions[round] : [];
+          let score = 0;
+          questions.forEach((q, i) => { if (picks && picks[i] === q.correta) score++; });
+          out = { score, total: questions.length };
+        }
       }
     }
     else if (action === 'delete') { kvStore.delete(key); out = { ok: true }; }

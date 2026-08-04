@@ -485,8 +485,8 @@ export default async function handler(req, res) {
         const ip = String((req.headers && req.headers['x-forwarded-for']) || req.socket?.remoteAddress || 'unknown').split(',')[0].trim()
         const withinLimit = await rateLimitCheck(`ratelimit:gradetourney:${ip}`, 15, 600)
         if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas tentativas seguidas de enviar o torneio. Aguarde um pouco e tente de novo.' })
-        const { tourneyId, round, picks } = req.body || {}
-        const raw = await store.get('tourney:config')
+        const { tourneyId, round, picks, turmaId } = req.body || {}
+        const raw = await store.get(`tourney:config:${turmaId || 'sem-turno'}`)
         if (!raw) return res.status(404).json({ error: 'tourney_not_found' })
         let config
         try { config = JSON.parse(raw) } catch { return res.status(500).json({ error: 'tourney_config_corrupted' }) }

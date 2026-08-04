@@ -114,48 +114,56 @@ export async function setSupport(shift, name, flags, auth) {
     return r.ok === true
   } catch { return false }
 }
-// ── chefão da turma (evento do telão): a turma causa "dano" ganhando pontos ──
+// ── chefão da turma (evento do telão): a turma causa "dano" ganhando pontos. Cada turma tem seu
+// próprio chefão — duas turmas do mesmo turno podem ter uma partida independente rolando ao mesmo
+// tempo, uma não vê nem interfere na da outra ──
 const BOSS_KEY = 'boss:config'
-export async function getBoss() {
+const bossKeyFor = (turmaId) => `${BOSS_KEY}:${turmaId || 'sem-turno'}`
+export async function getBoss(turmaId) {
   try {
-    const r = await kvCall({ action: 'get', key: BOSS_KEY })
+    const r = await kvCall({ action: 'get', key: bossKeyFor(turmaId) })
     return r.value ? JSON.parse(r.value) : null
   } catch { return null }
 }
-export async function setBoss(state, auth) {
+export async function setBoss(turmaId, state, auth) {
   try {
-    const r = await kvCall({ action: 'set', key: BOSS_KEY, value: JSON.stringify(state), auth })
+    const r = await kvCall({ action: 'set', key: bossKeyFor(turmaId), value: JSON.stringify(state), auth })
     return r.ok === true
   } catch { return false }
 }
-export async function clearBoss(auth) {
-  try { await kvCall({ action: 'delete', key: BOSS_KEY, auth }) } catch {}
+export async function clearBoss(turmaId, auth) {
+  try { await kvCall({ action: 'delete', key: bossKeyFor(turmaId), auth }) } catch {}
 }
 
 // 🏟️ torneio da turma (chaveamento no telão): só o professor escreve; os alunos leem no tick
-// e respondem gravando a pontuação no PRÓPRIO perfil (tourneyAnswer), que o telão apura
+// e respondem gravando a pontuação no PRÓPRIO perfil (tourneyAnswer), que o telão apura. Cada
+// turma tem o seu próprio torneio, independente das outras
 const TOURNEY_KEY = 'tourney:config'
-export async function getTourney() {
+const tourneyKeyFor = (turmaId) => `${TOURNEY_KEY}:${turmaId || 'sem-turno'}`
+export async function getTourney(turmaId) {
   try {
-    const r = await kvCall({ action: 'get', key: TOURNEY_KEY })
+    const r = await kvCall({ action: 'get', key: tourneyKeyFor(turmaId) })
     return r.value ? JSON.parse(r.value) : null
   } catch { return null }
 }
-export async function setTourney(state, auth) {
+export async function setTourney(turmaId, state, auth) {
   try {
-    const r = await kvCall({ action: 'set', key: TOURNEY_KEY, value: JSON.stringify(state), auth })
+    const r = await kvCall({ action: 'set', key: tourneyKeyFor(turmaId), value: JSON.stringify(state), auth })
     return r.ok === true
   } catch { return false }
 }
-export async function clearTourney(auth) {
-  try { await kvCall({ action: 'delete', key: TOURNEY_KEY, auth }) } catch {}
+export async function clearTourney(turmaId, auth) {
+  try { await kvCall({ action: 'delete', key: tourneyKeyFor(turmaId), auth }) } catch {}
 }
 
-// 🎉 quiz estilo Kahoot: temas criados pelo professor + a sala ativa (código, pergunta atual, fase).
+// 🎉 quiz estilo Kahoot: temas criados pelo professor (compartilhados, é a biblioteca do professor)
+// + a sala ativa (código, pergunta atual, fase) — essa sim, uma por turma, pra duas turmas do
+// mesmo turno poderem ter um quiz rodando cada uma ao mesmo tempo sem se misturar.
 // Só o professor escreve (prefixo quiz: protegido por senha no servidor); os alunos leem a sala no
 // polling e respondem gravando no PRÓPRIO perfil (quizJoin/quizAnswers), que o telão do professor apura
 const QUIZ_THEMES_KEY = 'quiz:themes'
 const QUIZ_ROOM_KEY = 'quiz:room'
+const quizRoomKeyFor = (turmaId) => `${QUIZ_ROOM_KEY}:${turmaId || 'sem-turno'}`
 export async function getQuizThemes() {
   try {
     const r = await kvCall({ action: 'get', key: QUIZ_THEMES_KEY })
@@ -188,20 +196,20 @@ export async function saveTurmas(turmas, auth) {
 // auth é opcional: sem ela (aluno), o servidor já esconde o campo "correct" das perguntas ainda
 // não reveladas — só o professor autenticado enxerga o gabarito completo (ver redactQuizRoom em
 // api/kv.js)
-export async function getQuizRoom(auth) {
+export async function getQuizRoom(turmaId, auth) {
   try {
-    const r = await kvCall({ action: 'get', key: QUIZ_ROOM_KEY, auth })
+    const r = await kvCall({ action: 'get', key: quizRoomKeyFor(turmaId), auth })
     return r.value ? JSON.parse(r.value) : null
   } catch { return null }
 }
-export async function setQuizRoom(state, auth) {
+export async function setQuizRoom(turmaId, state, auth) {
   try {
-    const r = await kvCall({ action: 'set', key: QUIZ_ROOM_KEY, value: JSON.stringify(state), auth })
+    const r = await kvCall({ action: 'set', key: quizRoomKeyFor(turmaId), value: JSON.stringify(state), auth })
     return r.ok === true
   } catch { return false }
 }
-export async function clearQuizRoom(auth) {
-  try { await kvCall({ action: 'delete', key: QUIZ_ROOM_KEY, auth }) } catch {}
+export async function clearQuizRoom(turmaId, auth) {
+  try { await kvCall({ action: 'delete', key: quizRoomKeyFor(turmaId), auth }) } catch {}
 }
 
 // backup completo: baixa TODAS as chaves do banco (menos as técnicas) num JSON —
@@ -723,9 +731,9 @@ export async function gradeExam(shift, answers, exits) {
 
 // corrige uma rodada do torneio no SERVIDOR — o aluno manda só as alternativas escolhidas (em
 // índice ORIGINAL, não da posição embaralhada na tela), nunca o gabarito
-export async function gradeTourneyRound(tourneyId, round, picks) {
+export async function gradeTourneyRound(tourneyId, round, picks, turmaId) {
   try {
-    const r = await kvCall({ action: 'grade_tourney_round', tourneyId, round, picks })
+    const r = await kvCall({ action: 'grade_tourney_round', tourneyId, round, picks, turmaId })
     return (r && typeof r.score === 'number') ? r : null
   } catch { return null }
 }

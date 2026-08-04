@@ -103,14 +103,15 @@ const tourneyQuestions2 = [
   { pergunta: 'T2-Q1', alternativas: ['a', 'b', 'c', 'd'], correta: 2 },
 ];
 
-async function seedTourney(round, status) {
+const TURMA = 'vespertino';
+async function seedTourney(round, status, turmaId = TURMA) {
   const config = {
     id: 999, status, round,
     questions: { 1: tourneyQuestions1, 2: tourneyQuestions2 },
     matches: [{ round: 1, a: 'Ana', b: 'Beto' }],
     usedQuestions: [],
   };
-  await kvHandler(mockReq({ action: 'set', key: 'tourney:config', value: JSON.stringify(config), auth: 'senha-de-teste-123' }), mockRes());
+  await kvHandler(mockReq({ action: 'set', key: `tourney:config:${turmaId}`, value: JSON.stringify(config), auth: 'senha-de-teste-123' }), mockRes());
   return config;
 }
 
@@ -118,7 +119,7 @@ async function seedTourney(round, status) {
 {
   await seedTourney(1, 'active');
   const res = mockRes();
-  await kvHandler(mockReq({ action: 'get', key: 'tourney:config' }), res);
+  await kvHandler(mockReq({ action: 'get', key: `tourney:config:${TURMA}` }), res);
   const config = JSON.parse(res._body.value);
   check('Torneio: rodada ATIVA (1) não expõe "correta"', config.questions['1'].every(q => !('correta' in q)));
   check('Torneio: texto/alternativas da rodada ativa continuam intactos', config.questions['1'][0].pergunta === 'T1-Q1' && config.questions['1'][0].alternativas.length === 4);
@@ -128,7 +129,7 @@ async function seedTourney(round, status) {
 {
   await seedTourney(2, 'active');
   const res = mockRes();
-  await kvHandler(mockReq({ action: 'get', key: 'tourney:config' }), res);
+  await kvHandler(mockReq({ action: 'get', key: `tourney:config:${TURMA}` }), res);
   const config = JSON.parse(res._body.value);
   check('Torneio: rodada JÁ FECHADA (1) fica revelada', config.questions['1'].every(q => 'correta' in q));
   check('Torneio: rodada ATIVA (2) continua escondida', config.questions['2'].every(q => !('correta' in q)));
@@ -138,7 +139,7 @@ async function seedTourney(round, status) {
 {
   await seedTourney(2, 'done');
   const res = mockRes();
-  await kvHandler(mockReq({ action: 'get', key: 'tourney:config' }), res);
+  await kvHandler(mockReq({ action: 'get', key: `tourney:config:${TURMA}` }), res);
   const config = JSON.parse(res._body.value);
   check('Torneio "done": última rodada (2) também fica revelada', config.questions['2'].every(q => 'correta' in q));
 }
@@ -147,7 +148,7 @@ async function seedTourney(round, status) {
 {
   await seedTourney(1, 'active');
   const res = mockRes();
-  await kvHandler(mockReq({ action: 'get', key: 'tourney:config', auth: 'senha-de-teste-123' }), res);
+  await kvHandler(mockReq({ action: 'get', key: `tourney:config:${TURMA}`, auth: 'senha-de-teste-123' }), res);
   const config = JSON.parse(res._body.value);
   check('Torneio: professor vê o gabarito completo mesmo com rodada ativa', config.questions['1'].every(q => 'correta' in q));
 }
@@ -157,7 +158,7 @@ async function seedTourney(round, status) {
   await seedTourney(1, 'active');
   const picks = { 0: 0, 1: 3 }; // Q1 certa (correta=0), Q2 errada (correta=1, respondeu 3)
   const res = mockRes();
-  await kvHandler(mockReq({ action: 'grade_tourney_round', tourneyId: 999, round: 1, picks }), res);
+  await kvHandler(mockReq({ action: 'grade_tourney_round', tourneyId: 999, round: 1, picks, turmaId: TURMA }), res);
   check('grade_tourney_round: 1 de 2 certas', res._body.score === 1 && res._body.total === 2, JSON.stringify(res._body));
   check('grade_tourney_round: resposta nunca inclui "correta"', !JSON.stringify(res._body).includes('correta'));
   check('grade_tourney_round: NÃO exige senha (é o próprio aluno enviando)', res._status !== 403);
@@ -167,7 +168,7 @@ async function seedTourney(round, status) {
 {
   await seedTourney(2, 'active'); // agora a rodada 1 já não é mais a atual
   const res = mockRes();
-  await kvHandler(mockReq({ action: 'grade_tourney_round', tourneyId: 999, round: 1, picks: { 0: 0, 1: 1 } }), res);
+  await kvHandler(mockReq({ action: 'grade_tourney_round', tourneyId: 999, round: 1, picks: { 0: 0, 1: 1 }, turmaId: TURMA }), res);
   check('grade_tourney_round: rodada velha (já avançada) é rejeitada (409)', res._status === 409, JSON.stringify(res._body));
 }
 
@@ -175,8 +176,16 @@ async function seedTourney(round, status) {
 {
   await seedTourney(1, 'active');
   const res = mockRes();
-  await kvHandler(mockReq({ action: 'grade_tourney_round', tourneyId: 111, round: 1, picks: { 0: 0 } }), res);
+  await kvHandler(mockReq({ action: 'grade_tourney_round', tourneyId: 111, round: 1, picks: { 0: 0 }, turmaId: TURMA }), res);
   check('grade_tourney_round: id de torneio diferente é rejeitado (409)', res._status === 409, JSON.stringify(res._body));
+}
+
+// outra turma (mesmo turno ou não) nunca vê nem afeta o torneio desta — cada turma tem sua própria chave
+{
+  await seedTourney(1, 'active');
+  const res = mockRes();
+  await kvHandler(mockReq({ action: 'grade_tourney_round', tourneyId: 999, round: 1, picks: { 0: 0 }, turmaId: 'vespertino-b' }), res);
+  check('grade_tourney_round: turma DIFERENTE (sem torneio próprio) é rejeitada (404, não acerta o torneio da outra turma)', res._status === 404 || res._body?.error === 'tourney_not_found', JSON.stringify(res._body));
 }
 
 // limite de tentativas por IP (mesmo risco de "descobrir o gabarito testando" do grade_exam)
@@ -186,7 +195,7 @@ async function seedTourney(round, status) {
   let sawRateLimited = false;
   for (let i = 0; i < 16; i++) {
     const res = mockRes();
-    await kvHandler(mockReq({ action: 'grade_tourney_round', tourneyId: 999, round: 1, picks: { 0: 0 } }, ip), res);
+    await kvHandler(mockReq({ action: 'grade_tourney_round', tourneyId: 999, round: 1, picks: { 0: 0 }, turmaId: TURMA }, ip), res);
     if (res._status === 429) sawRateLimited = true;
   }
   check('grade_tourney_round: depois de muitas tentativas do mesmo IP, cai no limite (429)', sawRateLimited);

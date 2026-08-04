@@ -767,7 +767,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     // assim que uma sala existe, acelera pra manter a experiência ao vivo do jogo
     const check = async () => {
       if (!active) return;
-      const r = await getQuizRoom();
+      const r = await getQuizRoom(shift);
       if (!active) return;
       setQuizRoomInfo(r);
       timer = setTimeout(check, r ? 2500 : 10000);
@@ -953,8 +953,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     setTourneySubmitting(true);
     // corrige no SERVIDOR: manda só os índices ORIGINAIS escolhidos, nunca o gabarito (que nem
     // chega até aqui enquanto a rodada está valendo — ver redactTourneyConfig em api/kv.js)
-    let result = await gradeTourneyRound(tourneyQuiz.id, tourneyQuiz.round, tourneyPicks);
-    if (!result) result = await gradeTourneyRound(tourneyQuiz.id, tourneyQuiz.round, tourneyPicks);
+    let result = await gradeTourneyRound(tourneyQuiz.id, tourneyQuiz.round, tourneyPicks, shift);
+    if (!result) result = await gradeTourneyRound(tourneyQuiz.id, tourneyQuiz.round, tourneyPicks, shift);
     setTourneySubmitting(false);
     if (!result) {
       setRobotState("thinking");
@@ -1405,15 +1405,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         const locks = await getNyxLocks();
         setNyxLocksState({ zek: !!locks.zek, zeker: !!locks.zeker });
       } catch {}
-      // 👾 chefão da turma (evento do telão)
+      // 👾 chefão da turma (evento do telão) — só o da PRÓPRIA turma, cada turma tem o seu
       try {
-        const b = await getBoss();
+        const b = await getBoss(shift);
         setBossInfo(b && b.status === "active" ? b : null);
       } catch {}
       // 🏟️ torneio da turma (evento do telão): guarda o estado e, se EU sou o campeão e ainda
       // não recebi o prêmio, celebra e dá o bônus uma única vez
       try {
-        const t = await getTourney();
+        const t = await getTourney(shift);
         setTourneyInfo(t && t.shift === shift && (t.status === "active" || t.status === "done") ? t : null);
         if (t && t.status === "done" && t.shift === shift && t.champion === studentName && stateRef.current.tourneyClaimed !== t.id) {
           const bonus = 5;
@@ -4419,13 +4419,15 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [quizEditingTheme, setQuizEditingTheme] = useState(null); // { id?, title, questions } em edição
   const [quizQDraft, setQuizQDraft] = useState({ q:"", opts:["","","",""], correct:0, hard:false });
   useEffect(() => { getQuizThemes().then(ts => setQuizThemes(Array.isArray(ts) ? ts : [])); }, []);
-  useEffect(() => { getQuizRoom(teacherAuth).then(setQuizRoomState); }, []); // retoma sala aberta após recarregar a página, com o gabarito completo (é o professor)
+  // cada turma tem sua própria sala de quiz — troca de turma (codeShift) retoma a sala DAQUELA
+  // turma, se tiver uma aberta, com o gabarito completo (é o professor)
+  useEffect(() => { getQuizRoom(codeShift, teacherAuth).then(setQuizRoomState); }, [codeShift]);
   useEffect(() => {
     if (!quizRoom || quizRoom.status !== "question") return;
     const iv = setInterval(() => setQuizNow(Date.now()), 250);
     return () => clearInterval(iv);
   }, [quizRoom?.status, quizRoom?.qIndex]);
-  const quizWrite = async (state) => { setQuizRoomState(state); await setQuizRoom(state, teacherAuth); };
+  const quizWrite = async (state) => { setQuizRoomState(state); await setQuizRoom(codeShift, state, teacherAuth); };
   const startQuizRoom = async (theme) => {
     await quizWrite({ code: makeQuizCode(), themeTitle: theme.title, questions: theme.questions, secs: quizSecs, status: "lobby", qIndex: 0, startedAts: {}, createdAt: Date.now() });
     setTab("quiz");
@@ -4436,7 +4438,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     await quizWrite({ ...quizRoom, status: "question", qIndex: next, startedAts: { ...quizRoom.startedAts, [next]: Date.now() } });
   };
   const quizReveal = async () => { await quizWrite({ ...quizRoom, status: "reveal" }); };
-  const quizEnd = async () => { setQuizRoomState(null); await clearQuizRoom(teacherAuth); };
+  const quizEnd = async () => { setQuizRoomState(null); await clearQuizRoom(codeShift, teacherAuth); };
   // encerra a pergunta sozinho quando o tempo acabar (o professor também pode encerrar antes no botão)
   useEffect(() => {
     if (!quizRoom || quizRoom.status !== "question") return;
@@ -7231,8 +7233,13 @@ function TeacherView({ onLogout, teacherAuth }) {
         if (!room) return (
           <div style={{ padding:14, maxWidth:900, margin:"0 auto" }}>
             <div data-tour-prof="quiz-body" className="cardfx" style={{ ...styles.card, borderColor:"#c084fc" }}>
-              <h3 style={{ color:"#c084fc", marginBottom:6 }}>🎉 Quiz da Turma (estilo Kahoot)</h3>
-              <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, margin:"0 0 14px" }}>Escolha um tema e crie uma sala: um código aparece na sua tela, e na tela dos alunos acende um botão pra entrar com esse código. Cada pergunta vale até 1000 pontos — quanto mais rápido responder, mais pontos (difíceis valem em dobro).</p>
+              <h3 style={{ color:"#c084fc", marginBottom:6 }}>🎉 Quiz da Turma {shiftMeta(codeShift, turmas).label} (estilo Kahoot)</h3>
+              <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, margin:"0 0 14px" }}>Escolha um tema e crie uma sala: um código aparece na sua tela, e na tela dos alunos acende um botão pra entrar com esse código. Cada pergunta vale até 1000 pontos — quanto mais rápido responder, mais pontos (difíceis valem em dobro). Cada turma tem sua própria sala — dá pra ter um quiz rodando em cada uma ao mesmo tempo.</p>
+              <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
+                {activeTurmas.map(sh => (
+                  <button key={sh.id} onClick={()=>setCodeShift(sh.id)} style={styles.tab(codeShift===sh.id)}>{sh.emoji} {sh.label}</button>
+                ))}
+              </div>
               <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:14 }}>
                 <span style={{ color:"#a99ac9", fontSize:13 }}>⏱ Tempo por pergunta:</span>
                 {QUIZ_TIMER_OPTIONS.map(s => (
