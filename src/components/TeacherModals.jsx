@@ -88,8 +88,9 @@ const BOSS_PRESETS = [
   { name: "Stack Overlord", emoji: "🤖" },
 ];
 
-export function TelaoModal({ students, shift, onClose, teacherAuth }) {
-  const [telaoShift, setTelaoShift] = useState(shift && shift !== "all" ? shift : "matutino");
+export function TelaoModal({ students, shift, turmas, onClose, teacherAuth }) {
+  const turmaList = Array.isArray(turmas) && turmas.length ? turmas : SHIFTS;
+  const [telaoShift, setTelaoShift] = useState(shift && shift !== "all" ? shift : (turmaList[0]?.id || "matutino"));
   // 👾 chefão da turma: HP = dano que a turma precisa causar; cada ponto ganho desde a invocação = 1 de dano
   const [boss, setBossState] = useState(null);
   useEffect(() => {
@@ -265,7 +266,7 @@ export function TelaoModal({ students, shift, onClose, teacherAuth }) {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:28, flexWrap:"wrap", gap:14 }}>
         <span className="shine" style={{ fontSize:"clamp(22px, 5vw, 32px)", fontWeight:900, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🖥️ Telão da Turma</span>
         <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
-          {SHIFTS.map(sh => (
+          {turmaList.map(sh => (
             <button key={sh.id} onClick={()=>setTelaoShift(sh.id)} style={{ background: telaoShift===sh.id ? "#fbbf24" : "#231636", color: telaoShift===sh.id ? "#1c1400" : "#a99ac9", border:`2px solid ${telaoShift===sh.id?"#fbbf24":"#3b2a58"}`, borderRadius:12, padding:"10px 20px", fontSize:16, fontWeight:800, cursor:"pointer" }}>{sh.emoji} {sh.label}</button>
           ))}
           <button onClick={onClose} style={{ background:"#3b2a58", color:"#fff", border:"none", borderRadius:12, padding:"10px 18px", fontSize:16, cursor:"pointer", fontWeight:800 }}>✕ Sair (Esc)</button>
@@ -375,7 +376,7 @@ export function TelaoModal({ students, shift, onClose, teacherAuth }) {
       ) : (
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20, flexWrap:"wrap" }}>
           <span style={{ color:"#a99ac9", fontSize:14, fontWeight:800 }}>🏟️ Torneio da turma (chaveamento de mini-quizzes entre os alunos online):</span>
-          <button onClick={startTourney} disabled={tourneyBusy} style={{ background:"#0e7490", color:"#cffafe", border:"1px solid #22d3ee", borderRadius:12, padding:"8px 16px", fontSize:13, fontWeight:800, cursor:"pointer", opacity: tourneyBusy ? 0.6 : 1 }}>{tourneyBusy ? "Montando..." : `Iniciar torneio (${SHIFTS.find(sh=>sh.id===telaoShift)?.label || telaoShift})`}</button>
+          <button onClick={startTourney} disabled={tourneyBusy} style={{ background:"#0e7490", color:"#cffafe", border:"1px solid #22d3ee", borderRadius:12, padding:"8px 16px", fontSize:13, fontWeight:800, cursor:"pointer", opacity: tourneyBusy ? 0.6 : 1 }}>{tourneyBusy ? "Montando..." : `Iniciar torneio (${turmaList.find(sh=>sh.id===telaoShift)?.label || telaoShift})`}</button>
           {tourneyMsg && <span style={{ color:"#fbbf24", fontSize:13, fontWeight:700 }}>{tourneyMsg}</span>}
         </div>
       )}

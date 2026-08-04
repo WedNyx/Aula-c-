@@ -32,10 +32,10 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await page.click('button:has-text("🔄 Resetar")');
   await page.waitForTimeout(400);
 
-  check('Modal de confirmação abre com opção "Matutino + Vespertino"', (await page.locator('button:has-text("Matutino + Vespertino")').count()) > 0);
-  await page.click('button:has-text("Matutino + Vespertino")');
+  check('Modal de confirmação abre com opção "Todas as turmas"', (await page.locator('button:has-text("Todas as turmas")').count()) > 0);
+  await page.click('button:has-text("Todas as turmas")');
   await page.waitForTimeout(200);
-  await page.click('button:has-text("Resetar Matutino + Vespertino")');
+  await page.click('button:has-text("Resetar todas as turmas")');
   await page.waitForTimeout(1200);
 
   check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 3).join(' | '));

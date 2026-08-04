@@ -28,7 +28,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   // escopado dentro do card de exportação (data-tour-prof="exportar") — o filtro de turma geral do
   // topo da tela também tem botões "☀️ Matutino"/"🌙 Vespertino", então precisa desambiguar
   const exportCard = page.locator('[data-tour-prof="exportar"]');
-  check('Seletor de turno do PDF existe (Ambos)', (await exportCard.locator('button:has-text("🏫 Ambos")').count()) > 0);
+  check('Seletor de turno do PDF existe (Ambos)', (await exportCard.locator('button:has-text("🏫 Todas")').count()) > 0);
   check('Seletor de turno do PDF existe (Matutino)', (await exportCard.locator('button:has-text("☀️ Matutino")').count()) > 0);
 
   await exportCard.locator('button:has-text("☀️ Matutino")').click();
@@ -45,7 +45,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 
   explainPrompts.length = 0;
   await page.waitForTimeout(500);
-  await exportCard.locator('button:has-text("🏫 Ambos")').click();
+  await exportCard.locator('button:has-text("🏫 Todas")').click();
   await page.waitForTimeout(300);
   const [download2] = await Promise.all([
     page.waitForEvent('download'),

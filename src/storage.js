@@ -1,3 +1,5 @@
+import { DEFAULT_TURMAS } from './lib/shifts.ts'
+
 const PREFIX = 'student:'
 const TEACHER_META_KEY = 'teachermeta:main'
 
@@ -163,6 +165,23 @@ export async function getQuizThemes() {
 export async function saveQuizThemes(themes, auth) {
   try {
     const r = await kvCall({ action: 'set', key: QUIZ_THEMES_KEY, value: JSON.stringify(themes || []), auth })
+    return r.ok === true
+  } catch { return false }
+}
+
+// ── turmas: lista de turmas do professor (pode ter mais de uma no mesmo turno, ex: duas de tarde).
+// Enquanto essa chave nunca foi escrita (professor nunca abriu a tela de gerenciar turmas), devolve
+// DEFAULT_TURMAS (as 2 de sempre) — zero migração, comportamento idêntico a antes dessa feature ──
+const TURMAS_KEY = 'turmas:list'
+export async function getTurmas() {
+  try {
+    const r = await kvCall({ action: 'get', key: TURMAS_KEY })
+    return r.value ? JSON.parse(r.value) : DEFAULT_TURMAS
+  } catch { return DEFAULT_TURMAS }
+}
+export async function saveTurmas(turmas, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: TURMAS_KEY, value: JSON.stringify(turmas || []), auth })
     return r.ok === true
   } catch { return false }
 }

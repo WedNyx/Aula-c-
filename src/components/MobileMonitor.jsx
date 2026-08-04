@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { difficultyOf } from "../lib/studentStatus.ts";
-import { SHIFTS } from "../lib/shifts.ts";
+import { DEFAULT_TURMAS } from "../lib/shifts.ts";
 import { Avatar } from "./Avatar.jsx";
 
 const PHASE_LABEL = {
@@ -29,11 +29,12 @@ function timeAgo(lastSeen) {
 //  sozinho quando a tela é estreita (ver useViewportWidth em TeacherView); "🖥️ Modo completo"
 //  sempre disponível pra quem precisar mexer em alguma configuração específica.
 // ════════════════════════════════════════════════════════════════════════════
-export function MobileMonitorView({ students, shiftFilter, setShiftFilter, tk, markPresentToday, unmarkPresentToday, onOpenFull }) {
+export function MobileMonitorView({ students, turmas, shiftFilter, setShiftFilter, tk, markPresentToday, unmarkPresentToday, onOpenFull }) {
   const [expanded, setExpanded] = useState(null); // chave "turno::nome" do aluno com as ações abertas
   const [busyKey, setBusyKey] = useState(null);
+  const shiftList = Array.isArray(turmas) && turmas.length ? turmas : DEFAULT_TURMAS;
 
-  const filtered = (students || []).filter(s => shiftFilter === "all" || (s.shift || "matutino") === shiftFilter);
+  const filtered = (students || []).filter(s => shiftFilter === "all" || (s.shift || shiftList[0]?.id || "matutino") === shiftFilter);
   const withStatus = filtered.map(s => ({ s, d: difficultyOf(s) }));
   const order = { dif: 0, neutro: 1, bem: 2 };
   withStatus.sort((a, b) => (order[a.d.level] ?? 3) - (order[b.d.level] ?? 3));
@@ -56,7 +57,7 @@ export function MobileMonitorView({ students, shiftFilter, setShiftFilter, tk, m
 
       <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
         <button onClick={() => setShiftFilter("all")} style={{ background: shiftFilter === "all" ? "#c084fc" : "#171026", color: shiftFilter === "all" ? "#fff" : "#a99ac9", border: `1px solid ${shiftFilter === "all" ? "#c084fc" : "#3b2a58"}`, borderRadius: 999, padding: "6px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Todos</button>
-        {SHIFTS.map(sh => (
+        {shiftList.map(sh => (
           <button key={sh.id} onClick={() => setShiftFilter(sh.id)} style={{ background: shiftFilter === sh.id ? "#c084fc" : "#171026", color: shiftFilter === sh.id ? "#fff" : "#a99ac9", border: `1px solid ${shiftFilter === sh.id ? "#c084fc" : "#3b2a58"}`, borderRadius: 999, padding: "6px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>{sh.emoji} {sh.label}</button>
         ))}
       </div>

@@ -4,7 +4,7 @@ import { shade } from "../lib/colors.ts";
 import { FONT, PAGE_BG } from "../lib/theme.ts";
 import { useViewportWidth } from "../lib/utils.js";
 import { goFullscreen } from "../lib/schedule.ts";
-import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta } from "../lib/shifts.ts";
+import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta, DEFAULT_TURMAS } from "../lib/shifts.ts";
 import { DEFAULT_AVATAR, Avatar, AvatarPreview, AvatarControls } from "./Avatar.jsx";
 import { NyxRobot } from "./NyxRobot.jsx";
 
@@ -49,9 +49,12 @@ function AmbientParticles() {
 // ════════════════════════════════════════════════════════════════════════════
 //  LOGIN
 // ════════════════════════════════════════════════════════════════════════════
-export function Login({ onJoin }) {
+export function Login({ onJoin, turmas }) {
   const vw = useViewportWidth();
   const isNarrow = vw < 720; // abaixo disso, a personalização do avatar empilha em vez de ficar em 2 colunas
+  // pode ter mais de uma turma no mesmo turno (ex: duas de tarde) — turmas vem do professor (ver App.jsx);
+  // sem a prop (ou ainda carregando), cai nas 2 turmas padrão pra nunca mostrar a tela vazia
+  const activeTurmas = (Array.isArray(turmas) && turmas.length ? turmas : DEFAULT_TURMAS).filter(t => !t.archived);
   const [name, setName] = useState("");
   // 🎓 data de nascimento + CPF — só pedidos na CRIAÇÃO do perfil, nunca aparecem de novo pro aluno depois
   // (ficam escondidos do próprio perfil; o professor só vê isso ao gerar a planilha, pra usar no certificado)
@@ -64,7 +67,13 @@ export function Login({ onJoin }) {
   const [profiles, setProfiles] = useState([]);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
-  const [shift, setShift] = useState(() => new Date().getHours() < 13 ? "matutino" : "vespertino");
+  // chute inicial pelo horário do dia: pega a primeira turma do período provável (manhã/tarde) —
+  // se o professor tiver mais de uma turma nesse período, o aluno escolhe a certa na lista mesmo assim
+  const [shift, setShift] = useState(() => {
+    const guessPeriod = new Date().getHours() < 13 ? "matutino" : "vespertino";
+    const guess = activeTurmas.find(t => t.period === guessPeriod) || activeTurmas[0];
+    return guess?.id || guessPeriod;
+  });
   // turma de teste (protegida por senha)
   const [testUnlocking, setTestUnlocking] = useState(false);
   const [testPass, setTestPass] = useState("");
@@ -162,7 +171,7 @@ export function Login({ onJoin }) {
               <div style={{ flex: isNarrow ? "1 1 100%" : "1 1 300px", minWidth: isNarrow ? 0 : 260 }}>
                 <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 8px" }}>🕑 Qual é a sua turma?</p>
                 <div style={{ display:"flex", gap:10, marginBottom:10 }}>
-                  {SHIFTS.map(sh => (
+                  {activeTurmas.map(sh => (
                     <button key={sh.id} onClick={()=>{ setShift(sh.id); setTestUnlocking(false); setLangUnlocking(false); }}
                       style={{ ...styles.rBtn(), ...(shift===sh.id ? { borderColor:"#c084fc", color:"#fff", background:"#c084fc22" } : {}) }}>
                       {sh.emoji} {sh.label}
@@ -204,14 +213,14 @@ export function Login({ onJoin }) {
 
                 <div style={{ marginBottom:16 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                    <span style={{ color:"#a99ac9", fontSize:13 }}>Já tem um perfil da turma {shiftMeta(shift).label}? Toque no seu nome:</span>
+                    <span style={{ color:"#a99ac9", fontSize:13 }}>Já tem um perfil da turma {shiftMeta(shift, turmas).label}? Toque no seu nome:</span>
                     <button onClick={loadProfiles} style={{ background:"transparent", border:"none", color:"#c084fc", cursor:"pointer", fontSize:12 }}>↻ atualizar</button>
                   </div>
                   {loadingProfiles ? <p style={{ color:"#776798", fontSize:13 }}>Procurando perfis salvos...</p>
-                    : profiles.filter(p => (p.shift||"matutino")===shift).length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum perfil salvo ainda nesta turma. Crie o seu abaixo 👇</p>
+                    : profiles.filter(p => (p.shift||activeTurmas[0]?.id||"matutino")===shift).length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum perfil salvo ainda nesta turma. Crie o seu abaixo 👇</p>
                     : (
                       <div style={{ maxHeight:170, overflowY:"auto", display:"flex", flexDirection:"column", gap:8 }}>
-                        {profiles.filter(p => (p.shift||"matutino")===shift).map(p=>(
+                        {profiles.filter(p => (p.shift||activeTurmas[0]?.id||"matutino")===shift).map(p=>(
                           <button key={`${p.shift||"x"}:${p.name}`} onClick={()=>openProfile(p)} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"8px 12px", cursor:"pointer", color:"#f0e9fb", textAlign:"left" }}>
                             <Avatar cfg={p.avatar} size={32} />
                             <span style={{ fontWeight:600, flex:1 }}>{p.name}</span>
@@ -224,7 +233,7 @@ export function Login({ onJoin }) {
 
                 <div style={{ display:"flex", alignItems:"center", gap:10, margin:"6px 0 14px" }}>
                   <div style={{ flex:1, height:1, background:"#3b2a58" }}/>
-                  <span style={{ color:"#776798", fontSize:12 }}>ou crie um novo perfil na turma {shiftMeta(shift).label}</span>
+                  <span style={{ color:"#776798", fontSize:12 }}>ou crie um novo perfil na turma {shiftMeta(shift, turmas).label}</span>
                   <div style={{ flex:1, height:1, background:"#3b2a58" }}/>
                 </div>
 

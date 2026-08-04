@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getTurmas, saveTurmas } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -25,7 +25,7 @@ import { STUDY_LANGUAGES, langById, reviewChecklistFor, buildPreviewDoc, otherFi
 import { BRACKET_COLORS, highlight, highlightCSharp, highlightJS, highlightPHP, highlightCSS, highlightHTML } from "./lib/highlight.jsx";
 import { ANALYZE_PROVIDERS, PARTNER_REWARD, isOffline, isNetworkError, askClaude, extractJson, askClaudeJson, buildSummaryRequest, buildContinuationSummaryRequest, mergeSummaryContinuation, recentDifficultyHint, adaptiveDifficultyTier } from "./lib/ai.js";
 import { requestFS, goFullscreen, todayKey, weekKey, dateKeyOf, hmToMin, nowMin, classStatus } from "./lib/schedule.ts";
-import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName } from "./lib/shifts.ts";
+import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName, DEFAULT_TURMAS, TURMA_COLORS } from "./lib/shifts.ts";
 import { Login } from "./components/LoginScreen.jsx";
 import { ImpactPage, PortfolioPage } from "./components/PublicPages.jsx";
 import { generateDuelQuestions, generateKnowledgeTestQuestions, generateFreeBuildPlan } from "./lib/aiChallenges.js";
@@ -175,6 +175,9 @@ const QUIZ_SEED_THEMES = [
 // ════════════════════════════════════════════════════════════════════════════
 function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initialBirthDate, initialCpf }) {
   const vw = useViewportWidth();
+  // nome/emoji da própria turma (pode ser uma turma extra criada pelo professor, além das 2 padrão)
+  const [myTurmas, setMyTurmas] = useState(DEFAULT_TURMAS);
+  useEffect(() => { getTurmas().then(t => { if (Array.isArray(t) && t.length) setMyTurmas(t); }); }, []);
   // 🎛️ preferência de como o Nyx interage/explica — perguntada só pra perfil novo, antes até da
   // apresentação do Nyx e do tour, porque cada aluno (mais novo ou mais velho) prefere de um jeito
   const [showNyxPrefs, setShowNyxPrefs] = useState(!!isNew);
@@ -2467,7 +2470,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           {classStatusNow.isWeekend
             ? "A turma só tem aula de segunda a sexta. Aproveite o descanso e até a próxima aula! 😊"
             : classStatusNow.before
-            ? `A turma ${shiftMeta(shift).label} começa às ${mySchedule.start}. Até já!`
+            ? `A turma ${shiftMeta(shift, myTurmas).label} começa às ${mySchedule.start}. Até já!`
             : "Até a próxima aula! Seu código já está salvo, então pode ficar tranquilo(a)."}
         </p>
       </div>
@@ -3157,7 +3160,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             })}
           </span>
           <span style={{ background:"#c084fc22", padding:"4px 12px", borderRadius:20, fontSize:13 }}>👤 {studentName}</span>
-          <span style={{ background:"#171026", border:"1px solid #3b2a58", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#a99ac9" }}>{shiftLabel(shift)}</span>
+          <span style={{ background:"#171026", border:"1px solid #3b2a58", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#a99ac9" }}>{shiftLabel(shift, myTurmas)}</span>
           {streakCount >= 2 && <span title="Dias de aula seguidos que você participou" style={{ background:"#f8717122", border:"1px solid #f87171", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#fca5a5", fontWeight:800 }}>🔥 {streakCount} dias seguidos</span>}
           <button data-tour="tema" style={{ ...styles.btn("#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
           {isSpartan && (
@@ -4305,6 +4308,35 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [errorsLoading, setErrorsLoading] = useState(false);
   const loadRecentErrors = async () => { setErrorsLoading(true); setRecentErrors(await getRecentErrors(teacherAuth)); setErrorsLoading(false); };
   const [tab, setTab] = useState("monitor");
+  // 🏫 turmas: pode ter mais de uma no mesmo turno (ex: duas de tarde) — cada turma é seu próprio
+  // "turno" pra todo o resto do sistema (aluno, prova, código, monitoramento já funcionam com
+  // qualquer id). Recarrega sozinho depois de criar/arquivar, pra refletir na hora sem precisar sair e voltar
+  const [turmas, setTurmas] = useState(DEFAULT_TURMAS);
+  const reloadTurmas = () => getTurmas().then(t => { if (Array.isArray(t) && t.length) setTurmas(t); });
+  useEffect(() => { reloadTurmas(); }, []);
+  const activeTurmas = turmas.filter(t => !t.archived);
+  const [novaTurmaLabel, setNovaTurmaLabel] = useState("");
+  const [novaTurmaPeriod, setNovaTurmaPeriod] = useState("vespertino");
+  const [turmaMsg, setTurmaMsg] = useState("");
+  const criarTurma = async () => {
+    const label = novaTurmaLabel.trim();
+    if (!label) return;
+    const baseId = label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "turma";
+    let id = baseId, n = 2;
+    while (turmas.some(t => t.id === id)) { id = `${baseId}-${n}`; n++; }
+    const color = TURMA_COLORS[turmas.length % TURMA_COLORS.length];
+    const emoji = novaTurmaPeriod === "matutino" ? "☀️" : "🌙";
+    const next = [...turmas, { id, label, emoji, period: novaTurmaPeriod, color, createdAt: Date.now(), archived: false }];
+    const ok = await saveTurmas(next, teacherAuth);
+    if (ok) { setTurmas(next); setNovaTurmaLabel(""); setTurmaMsg(`✅ Turma "${label}" criada!`); }
+    else setTurmaMsg("⚠ Não consegui salvar a turma agora, tenta de novo.");
+    setTimeout(() => setTurmaMsg(""), 4000);
+  };
+  const arquivarTurma = async (id, archived) => {
+    const next = turmas.map(t => t.id === id ? { ...t, archived } : t);
+    const ok = await saveTurmas(next, teacherAuth);
+    if (ok) setTurmas(next);
+  };
   const [meta, setMeta] = useState({ city:"", classDays:[], contentNames:{} });
   // horário automático de aula (por turno) + vistoria (libera um aluno específico fora do horário)
   const [schedule, setSchedule] = useState({});
@@ -4494,7 +4526,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   useEffect(() => { diagnose().then(setDiag); }, []);
 
   // 🍎 intervalo: status de cada turno (recalcula a cada carregamento da turma, ~2s) + sininho no fim
-  const shiftBreakStatuses = SHIFTS.map(sh => ({ ...sh, status: classStatus(schedule[sh.id] || {}, meta.allowWeekend) }));
+  const shiftBreakStatuses = activeTurmas.map(sh => ({ ...sh, status: classStatus(schedule[sh.id] || {}, meta.allowWeekend) }));
   useEffect(() => {
     shiftBreakStatuses.forEach(({ id, label, status }) => {
       const sc = schedule[id] || {};
@@ -4535,7 +4567,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // sem o professor precisar lembrar de clicar. Só tenta 1x por turno por dia.
   useEffect(() => {
     const tk = todayKey();
-    SHIFTS.forEach(sh => {
+    activeTurmas.forEach(sh => {
       const key = `${tk}-${sh.id}`;
       if (autoNameTriedRef.current[key]) return;
       if (contentNameFor((meta.contentNames||{})[tk], sh.id)) { autoNameTriedRef.current[key] = true; return; }
@@ -4545,7 +4577,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       if (!allPastCoding) return;
       autoNameTriedRef.current[key] = true;
       computeContentName(sh.id)
-        .then(({ title }) => { setAutoNameMsg(`✨ Nome do conteúdo gerado sozinho (${shiftMeta(sh.id).label}): ${title}`); setTimeout(()=>setAutoNameMsg(""), 8000); })
+        .then(({ title }) => { setAutoNameMsg(`✨ Nome do conteúdo gerado sozinho (${shiftMeta(sh.id, turmas).label}): ${title}`); setTimeout(()=>setAutoNameMsg(""), 8000); })
         .catch(() => {}); // sem exemplo do professor nem código de aluno ainda — tenta de novo quando alguém escrever
     });
   }, [students, meta.contentNames]);
@@ -4618,7 +4650,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   useEffect(() => {
     let active = true;
     const load2 = async () => {
-      const lists = await Promise.all(SHIFTS.map(sh => listPartners(sh.id)));
+      const lists = await Promise.all(activeTurmas.map(sh => listPartners(sh.id)));
       if (active) setPartners(lists.flat());
     };
     load2();
@@ -4874,14 +4906,14 @@ function TeacherView({ onLogout, teacherAuth }) {
   };
 
   const doReset = async () => {
-    const scope = resetScope; // "all" | "matutino" | "vespertino"
+    const scope = resetScope; // "all" | id de uma turma
     setConfirmReset(false);
     setResetting(true);
     setResetMsg("");
-    // "Todos os turnos" reseta só Matutino + Vespertino (a turma oficial de C#) — turma de teste e
-    // sala de linguagens NUNCA são apagadas por esse botão, mesmo escolhendo "todos"
+    // "Todas as turmas" reseta todas as turmas ativas cadastradas — turma de teste e sala de
+    // linguagens NUNCA são apagadas por esse botão, mesmo escolhendo "todas"
     const ok = scope === "all"
-      ? (await Promise.all([resetAll("matutino", teacherAuth), resetAll("vespertino", teacherAuth)])).every(Boolean)
+      ? (await Promise.all(activeTurmas.map(t => resetAll(t.id, teacherAuth)))).every(Boolean)
       : await resetAll(scope, teacherAuth);
     // opcional: também limpa o "Meu código" do(s) turno(s) resetado(s) — só mexe no estado local
     // (não chama saveTeacherCode direto), porque o efeito de autosave já existente (que roda 1s
@@ -4890,13 +4922,13 @@ function TeacherView({ onLogout, teacherAuth }) {
       const emptyFiles = [{ name:"Program.cs", code:"" }];
       setProFilesByShift(prev => ({
         ...prev,
-        ...(scope === "all" ? { matutino: emptyFiles, vespertino: emptyFiles } : { [scope]: emptyFiles }),
+        ...(scope === "all" ? Object.fromEntries(activeTurmas.map(t => [t.id, emptyFiles])) : { [scope]: emptyFiles }),
       }));
     }
     setSelected(null);
     await load();
     setResetting(false);
-    const alvo = scope === "all" ? "Matutino e Vespertino foram resetados" : `Turma ${shiftMeta(scope).label} resetada`;
+    const alvo = scope === "all" ? "Todas as turmas foram resetadas" : `Turma ${shiftMeta(scope, turmas).label} resetada`;
     setResetMsg(ok
       ? `✅ ${alvo}${resetClearMyCode ? " (e seu código em Meu código também foi limpo)" : ""}! Os alunos online desse grupo serão desconectados em alguns segundos.`
       : "⚠ Não foi possível resetar. O armazenamento só funciona no app publicado — teste pelo link publicado.");
@@ -4916,7 +4948,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       const codes = base.filter(s => (s.code||"").trim().length > 5).map((s,i)=>`Aluno ${i+1}:\n${s.code}`).join("\n\n---\n\n");
       if (codes) { source = codes; origem = "alunos"; }
     }
-    if (!source) throw new Error(`Programe o exemplo de ${shiftMeta(shift).label} na aba "Meu código" (ou espere os alunos dessa turma começarem a escrever).`);
+    if (!source) throw new Error(`Programe o exemplo de ${shiftMeta(shift, turmas).label} na aba "Meu código" (ou espere os alunos dessa turma começarem a escrever).`);
     const ctx = origem === "professor"
       ? "Este é o código C# que o professor escreveu como exemplo na aula de hoje"
       : "Estes são os códigos C# que os alunos escreveram na aula de hoje";
@@ -4935,7 +4967,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     setGenName(true); setNameMsg("");
     try {
       const { title, origem } = await computeContentName(shift);
-      setNameMsg(`✅ Conteúdo de hoje (${shiftMeta(shift).label}): ${title}${origem==="alunos"?" (gerado pelo código dos alunos)":""}`);
+      setNameMsg(`✅ Conteúdo de hoje (${shiftMeta(shift, turmas).label}): ${title}${origem==="alunos"?" (gerado pelo código dos alunos)":""}`);
     } catch (e) { setNameMsg(e.message || "Não consegui gerar agora. Tente de novo em instantes."); }
     setGenName(false);
     setTimeout(()=>setNameMsg(""), 6000);
@@ -4944,11 +4976,11 @@ function TeacherView({ onLogout, teacherAuth }) {
   // usado no Monitoramento — respeita o filtro de turma (gera para os dois se "Todas" estiver selecionada)
   const generateContentNameFiltered = async () => {
     setGenName(true); setNameMsg("");
-    const shifts = shiftFilter === "all" ? ["matutino","vespertino"] : [shiftFilter];
+    const shifts = shiftFilter === "all" ? activeTurmas.map(t=>t.id) : [shiftFilter];
     const parts = [];
     for (const sh of shifts) {
-      try { const { title } = await computeContentName(sh); parts.push(`${shiftMeta(sh).emoji} ${title}`); }
-      catch { parts.push(`${shiftMeta(sh).emoji} não consegui gerar`); }
+      try { const { title } = await computeContentName(sh); parts.push(`${shiftMeta(sh, turmas).emoji} ${title}`); }
+      catch { parts.push(`${shiftMeta(sh, turmas).emoji} não consegui gerar`); }
     }
     setNameMsg(`✅ ${parts.join(" · ")}`);
     setGenName(false);
@@ -4981,7 +5013,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       if (nota == null) return;
       if (melhorNotaGeral == null || nota > melhorNotaGeral) melhorNotaGeral = nota;
     });
-    const groups = SHIFTS.map(sh => ({ ...sh, list: rows.filter(s => (s.shift||"sem-turno")===sh.id) })).filter(g => g.list.length > 0);
+    const groups = turmas.map(sh => ({ ...sh, list: rows.filter(s => (s.shift||"sem-turno")===sh.id) })).filter(g => g.list.length > 0);
 
     // dias de aula (marcados no Calendário) — cada um vira uma coluna com presença/falta/justificado
     const classDays = [...new Set(meta.classDays || [])].sort();
@@ -5079,7 +5111,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
     // junta o código do professor por turno (só turnos que têm código) — scope filtra pra só o
     // turno escolhido, pra dar pra mandar o PDF certo pro grupo certo em vez de sempre os dois juntos
-    const shiftsWithCode = SHIFTS
+    const shiftsWithCode = activeTurmas
       .filter(sh => scope === "all" || sh.id === scope)
       .map(sh => ({ ...sh, files: (proFilesByShift[sh.id]||[]).filter(f => (f.code||"").trim()) }))
       .filter(sh => sh.files.length > 0);
@@ -5257,7 +5289,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     let explain = null, aiOffline = false;
     try {
       explain = await askClaudeJson(
-        `Este é o código C# que o professor ensinou HOJE para a turma ${shiftMeta(shift).label} (pode ter vários arquivos):\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie uma explicação COMPLETA e didática desse código, para um aluno que FALTOU hoje e vai estudar esse material sozinho em casa. Percorra o código NA ORDEM em que ele aparece, cobrindo TODOS os conceitos importantes do dia — não pode faltar nenhum.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 a 2 frases dizendo o que foi ensinado hoje como um todo",\n  "secoes": [ { "titulo": "nome curto do conceito/parte", "explicacao": "explicação clara de 2 a 4 frases, em português simples", "exemplo": "trecho C# bem curto ilustrando (opcional — use \\n pra quebrar linha)" } ],\n  "dica": "1 frase final encorajando o aluno a estudar em casa e perguntar na próxima aula se tiver dúvida"\n}\n\nFaça uma seção para CADA parte ou conceito importante do código (pode passar de 8 se o dia teve bastante conteúdo — não corte nada pra economizar espaço). Garanta JSON válido.`,
+        `Este é o código C# que o professor ensinou HOJE para a turma ${shiftMeta(shift, turmas).label} (pode ter vários arquivos):\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie uma explicação COMPLETA e didática desse código, para um aluno que FALTOU hoje e vai estudar esse material sozinho em casa. Percorra o código NA ORDEM em que ele aparece, cobrindo TODOS os conceitos importantes do dia — não pode faltar nenhum.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 a 2 frases dizendo o que foi ensinado hoje como um todo",\n  "secoes": [ { "titulo": "nome curto do conceito/parte", "explicacao": "explicação clara de 2 a 4 frases, em português simples", "exemplo": "trecho C# bem curto ilustrando (opcional — use \\n pra quebrar linha)" } ],\n  "dica": "1 frase final encorajando o aluno a estudar em casa e perguntar na próxima aula se tiver dúvida"\n}\n\nFaça uma seção para CADA parte ou conceito importante do código (pode passar de 8 se o dia teve bastante conteúdo — não corte nada pra economizar espaço). Garanta JSON válido.`,
         "Você é um professor de C# escrevendo, com carinho, um resumo por escrito para um aluno que faltou não ficar pra trás. Português correto e simples. Responda APENAS JSON puro válido.",
         { max_tokens: 4000 }
       );
@@ -5314,7 +5346,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       const dataBr = new Date().toLocaleDateString("pt-BR");
       const contentName = contentFor(shift);
       doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.setTextColor(255, 255, 255);
-      doc.text(clean(`${dataBr} • Turma ${shiftMeta(shift).label}${contentName ? " • " + contentName : ""}`), margin + 16, y + 35);
+      doc.text(clean(`${dataBr} • Turma ${shiftMeta(shift, turmas).label}${contentName ? " • " + contentName : ""}`), margin + 16, y + 35);
       y += 74;
 
       writeParagraph("Oi! Você faltou hoje, mas aqui está tudo o que a turma viu — dá uma olhada com calma e, se ficar com alguma dúvida, é só perguntar na próxima aula. 💜", { size: 11, style: "italic", color: "#4a5170" });
@@ -5401,14 +5433,14 @@ function TeacherView({ onLogout, teacherAuth }) {
     const turma = isSingleStudent
       ? [scope]
       : students
-          .filter(s => (s.name||"").trim() && (scope === "all" ? SHIFTS.some(sh=>sh.id===(s.shift||"")) : (s.shift||"") === scope))
+          .filter(s => (s.name||"").trim() && (scope === "all" ? turmas.some(sh=>sh.id===(s.shift||"")) : (s.shift||"") === scope))
           .sort((a,b)=>((a.shift||"")+a.name).localeCompare((b.shift||"")+b.name,"pt-BR"));
     if (!turma.length) { setBoletimMsg("⚠ Nenhum aluno nessa turma ainda."); setBoletimBusy(false); return; }
     const classDays = [...new Set(meta.classDays || [])].sort();
 
     // "Todos" pode misturar Manhã e Tarde — o conteúdo do mês é por turno, então gera "o que
     // aprendeu" 1 vez PARA CADA turno que aparece na lista, e cada aluno usa o do seu próprio turno
-    const turnosPresentes = [...new Set(turma.map(s => s.shift))].filter(sh => SHIFTS.some(x=>x.id===sh));
+    const turnosPresentes = [...new Set(turma.map(s => s.shift))].filter(sh => turmas.some(x=>x.id===sh));
     setBoletimMsg(turma.length > 1 ? "🧠 O Nyx está escrevendo a parte 'o que seu filho aprendeu'..." : "🧠 O Nyx está escrevendo o boletim...");
     const aprendeuPorTurno = {};
     await Promise.all((turnosPresentes.length ? turnosPresentes : [turma[0].shift]).map(async (sh) => {
@@ -5552,8 +5584,8 @@ function TeacherView({ onLogout, teacherAuth }) {
     const deleted = await deleteStudentProfile(s.shift, s.name, teacherAuth);
     await setKick(s.shift, s.name, teacherAuth);
     flashMgmt(deleted
-      ? `✅ Movido para ${shiftLabel(newShift)}. Se estiver online, ele vai precisar entrar de novo.`
-      : `⚠️ Movido para ${shiftLabel(newShift)}, mas não consegui apagar a cópia antiga em ${shiftLabel(s.shift||"sem-turno")} (fica um card duplicado lá — pode excluir ele por lá).`);
+      ? `✅ Movido para ${shiftLabel(newShift, turmas)}. Se estiver online, ele vai precisar entrar de novo.`
+      : `⚠️ Movido para ${shiftLabel(newShift, turmas)}, mas não consegui apagar a cópia antiga em ${shiftLabel(s.shift||"sem-turno", turmas)} (fica um card duplicado lá — pode excluir ele por lá).`);
     load();
   };
 
@@ -5613,7 +5645,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
 
   const startExam = async () => {
-    const examShifts = shiftFilter === "all" ? ["matutino","vespertino"] : [shiftFilter];
+    const examShifts = shiftFilter === "all" ? activeTurmas.map(t=>t.id) : [shiftFilter];
     const proCode = examShifts.flatMap(sh => proFilesByShift[sh]||[]).map(f => (f.code||"")).join("\n").trim();
     const examStudents = shiftFilter === "all" ? students : students.filter(s=>(s.shift||"sem-turno")===shiftFilter);
     // pega o código de TODOS os arquivos que cada aluno escreveu ao longo da aula (não só um trecho) —
@@ -5625,7 +5657,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       .join("\n\n")
       .slice(0, 30000);
     const codeCtx = [proCode, studentCodes].filter(Boolean).join("\n\n");
-    if (!codeCtx) { setExamMsg(`Escreva o código de exemplo na aba Meu código (turma ${shiftFilter==="all"?"Manhã ou Tarde":shiftMeta(shiftFilter).label}) primeiro!`); return; }
+    if (!codeCtx) { setExamMsg(`Escreva o código de exemplo na aba Meu código (turma ${shiftFilter==="all"?"Manhã ou Tarde":shiftMeta(shiftFilter, turmas).label}) primeiro!`); return; }
     setExamGenerating(true); setExamMsg("Gerando resumo...");
     try {
       const summaryResult = await askClaude(
@@ -5884,7 +5916,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   useEffect(() => { getTeacherLessons().then(ls => setMyLessons(Array.isArray(ls) ? ls : [])); }, []);
   const saveCurrentLesson = async () => {
     const files = (proFiles || []).filter(f => (f.code || "").trim());
-    if (!files.length) { setNameMsg(`⚠ Programe algo na turma ${shiftMeta(codeShift).label} primeiro — a aula salva é o código que está no editor.`); setTimeout(()=>setNameMsg(""), 6000); return; }
+    if (!files.length) { setNameMsg(`⚠ Programe algo na turma ${shiftMeta(codeShift, turmas).label} primeiro — a aula salva é o código que está no editor.`); setTimeout(()=>setNameMsg(""), 6000); return; }
     const title = lessonName.trim() || `Aula de ${new Date().toLocaleDateString("pt-BR")}`;
     const next = [...myLessons, { title, files: files.map(f => ({ ...f })), at: Date.now() }];
     setMyLessons(next);
@@ -5995,7 +6027,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   );
 
   // lista de chamada separada por turno (a turma de teste só aparece se filtrada explicitamente)
-  const chamadaGroups = [...SHIFTS, TEST_SHIFT]
+  const chamadaGroups = [...activeTurmas, TEST_SHIFT]
     .filter(sh => shiftFilter === "all" ? sh.id !== TEST_SHIFT.id : shiftFilter === sh.id)
     .map(sh => {
       const list = students.filter(s => (s.shift||"sem-turno")===sh.id).sort((a,b)=>(a.name||"").localeCompare(b.name||"","pt-BR"));
@@ -6023,6 +6055,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     return (
       <MobileMonitorView
         students={students}
+        turmas={activeTurmas}
         shiftFilter={shiftFilter}
         setShiftFilter={setShiftFilter}
         tk={tk}
@@ -6126,7 +6159,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         <div data-tour-prof="turma" style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
           <span style={{ color:"#a99ac9", fontSize:13 }}>Turma:</span>
           <button onClick={()=>setShiftFilter("all")} style={styles.tab(shiftFilter==="all")}>Todas ({students.length})</button>
-          {SHIFTS.map(sh => (
+          {activeTurmas.map(sh => (
             <button key={sh.id} onClick={()=>setShiftFilter(sh.id)} style={styles.tab(shiftFilter===sh.id)}>
               {sh.emoji} {sh.label} ({students.filter(s=>(s.shift||"sem-turno")===sh.id).length})
             </button>
@@ -6151,7 +6184,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         </div>
       )}
 
-      {showTelao && <TelaoModal students={students} shift={shiftFilter} onClose={()=>setShowTelao(false)} teacherAuth={teacherAuth} />}
+      {showTelao && <TelaoModal students={students} shift={shiftFilter} turmas={activeTurmas} onClose={()=>setShowTelao(false)} teacherAuth={teacherAuth} />}
       {showQuickStatus && <QuickStatusModal students={sorted} onClose={()=>setShowQuickStatus(false)} />}
       {showTripOverview && <TripOverviewModal entries={tripHallEntries} currentCity={meta.cityClosed ? null : meta.city} onClose={()=>setShowTripOverview(false)} />}
 
@@ -6163,7 +6196,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               <button onClick={()=>setDailyPdfModal(null)} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
             </div>
             <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 12px", lineHeight:1.6 }}>
-              Confirme (ou cole por cima) o código que você passou HOJE pra turma {shiftLabel(dailyPdfModal.shift)}. O Nyx explica exatamente o que estiver aqui embaixo — só o que já estava salvo em "Meu código" veio pré-preenchido.
+              Confirme (ou cole por cima) o código que você passou HOJE pra turma {shiftLabel(dailyPdfModal.shift, turmas)}. O Nyx explica exatamente o que estiver aqui embaixo — só o que já estava salvo em "Meu código" veio pré-preenchido.
             </p>
             <textarea value={dailyPdfCode} onChange={e=>setDailyPdfCode(e.target.value)} disabled={dailyPdfBusy} rows={14} spellCheck={false}
               style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"10px 12px", color:"#f0e9fb", fontFamily:"'Courier New',monospace", fontSize:12.5, outline:"none", resize:"vertical", boxSizing:"border-box" }} />
@@ -6186,11 +6219,11 @@ function TeacherView({ onLogout, teacherAuth }) {
               <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📚 Minhas aulas</h2>
               <button onClick={()=>setShowLessons(false)} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
             </div>
-            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Sua biblioteca: salve o código que está no editor com um nome e reutilize em qualquer turma, quantas vezes quiser. Carregar uma aula <b>substitui</b> o código atual da turma {shiftMeta(codeShift).label}.</p>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Sua biblioteca: salve o código que está no editor com um nome e reutilize em qualquer turma, quantas vezes quiser. Carregar uma aula <b>substitui</b> o código atual da turma {shiftMeta(codeShift, turmas).label}.</p>
 
             {/* salvar a aula atual */}
             <div style={{ background:"#171026", border:"1px dashed #34d399", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
-              <p style={{ color:"#34d399", fontSize:12.5, fontWeight:800, margin:"0 0 8px" }}>💾 Salvar o código atual ({shiftMeta(codeShift).label}) como aula</p>
+              <p style={{ color:"#34d399", fontSize:12.5, fontWeight:800, margin:"0 0 8px" }}>💾 Salvar o código atual ({shiftMeta(codeShift, turmas).label}) como aula</p>
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 <input value={lessonName} onChange={e=>setLessonName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveCurrentLesson()} placeholder={`Nome da aula (ex: Variáveis e ReadLine)`}
                   style={{ flex:"1 1 220px", background:"#1a1029", border:"1px solid #3b2a58", borderRadius:10, padding:"8px 12px", color:"#f0e9fb", fontSize:13, outline:"none" }} />
@@ -6209,7 +6242,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
                       <p style={{ color:"#776798", fontSize:11.5, margin:"3px 0 0" }}>salva em {new Date(lesson.at).toLocaleDateString("pt-BR")} · {lesson.files.length} arquivo{lesson.files.length!==1?"s":""}</p>
                     </div>
-                    <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
+                    <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift, turmas).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
                       style={{ ...styles.btn("#34d399"), padding:"7px 14px", fontSize:12.5 }}>Usar esta aula →</button>
                     <button onClick={()=>deleteLesson(li)} title="Excluir esta aula da biblioteca" style={{ background:"transparent", border:"1px solid #f8717155", color:"#f87171", borderRadius:8, padding:"6px 10px", fontSize:12, cursor:"pointer" }}>✕</button>
                   </div>
@@ -6229,7 +6262,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
                       <p style={{ color:"#a99ac9", fontSize:12, margin:"3px 0 0" }}>{lesson.desc}</p>
                     </div>
-                    <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
+                    <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift, turmas).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
                       style={{ ...styles.btn("#3b2a58"), padding:"7px 14px", fontSize:12.5 }}>Usar este modelo →</button>
                   </div>
                 ))}
@@ -6251,8 +6284,8 @@ function TeacherView({ onLogout, teacherAuth }) {
             </button>
             <p style={{ color:"#a99ac9", fontSize:13, margin:"14px 0 6px" }}>O que você quer resetar?</p>
             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-              <button onClick={()=>setResetScope("all")} style={{ ...styles.tab(resetScope==="all"), flex:"1 1 120px" }}>☀️🌙 Matutino + Vespertino</button>
-              {SHIFTS.map(sh => (
+              <button onClick={()=>setResetScope("all")} style={{ ...styles.tab(resetScope==="all"), flex:"1 1 120px" }}>☀️🌙 Todas as turmas</button>
+              {activeTurmas.map(sh => (
                 <button key={sh.id} onClick={()=>setResetScope(sh.id)} style={{ ...styles.tab(resetScope===sh.id), flex:"1 1 120px" }}>Só {sh.emoji} {sh.label}</button>
               ))}
             </div>
@@ -6263,7 +6296,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             </label>
             <div style={{ display:"flex", gap:10, marginTop:18 }}>
               <button onClick={()=>setConfirmReset(false)} style={{ ...styles.btn("#3b2a58"), flex:1 }}>Cancelar</button>
-              <button onClick={doReset} style={{ ...styles.btn("#f87171"), flex:1 }}>{resetScope==="all"?"Resetar Matutino + Vespertino":`Resetar ${shiftMeta(resetScope).label}`}</button>
+              <button onClick={doReset} style={{ ...styles.btn("#f87171"), flex:1 }}>{resetScope==="all"?"Resetar todas as turmas":`Resetar ${shiftMeta(resetScope, turmas).label}`}</button>
             </div>
           </div>
         </div>
@@ -6364,7 +6397,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               </button>
               <div style={{ display:"flex", gap:5, flexWrap:"wrap", alignItems:"center", marginTop:8 }}>
                 <span style={{ color:"#776798", fontSize:11 }}>PDF de:</span>
-                {[{ id:"all", emoji:"🏫", label:"Ambos" }, ...SHIFTS].map(sh => (
+                {[{ id:"all", emoji:"🏫", label:"Todas" }, ...activeTurmas].map(sh => (
                   <button key={sh.id} onClick={()=>setPdfScope(sh.id)} style={{ background: pdfScope===sh.id ? "linear-gradient(135deg,#c084fc,#9333ea)" : "#171026", color: pdfScope===sh.id ? "#fff" : "#a99ac9", border:`1px solid ${pdfScope===sh.id?"#c084fc":"#3b2a58"}`, borderRadius:8, padding:"3px 8px", fontSize:11, fontWeight:700, cursor:"pointer" }}>{sh.emoji} {sh.label}</button>
                 ))}
               </div>
@@ -6498,7 +6531,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Um PDF com uma página por aluno, em linguagem simples pra família: presenças, o que aprendeu, medalhas e um recado do Nyx. Bom pra mandar pra casa no fim do mês. Pra gerar de 1 aluno só, selecione ele no Monitoramento e use o botão no painel de Gerenciar aluno.</p>
               <div style={{ display:"flex", gap:5, flexWrap:"wrap", alignItems:"center", marginBottom:8 }}>
                 <span style={{ color:"#776798", fontSize:11 }}>Boletim de:</span>
-                {[{ id:"all", emoji:"🏫", label:"Todos" }, ...SHIFTS].map(sh => (
+                {[{ id:"all", emoji:"🏫", label:"Todos" }, ...activeTurmas].map(sh => (
                   <button key={sh.id} onClick={()=>setBoletimScope(sh.id)} style={{ background: boletimScope===sh.id ? "linear-gradient(135deg,#ec4899,#be185d)" : "#171026", color: boletimScope===sh.id ? "#fff" : "#a99ac9", border:`1px solid ${boletimScope===sh.id?"#ec4899":"#3b2a58"}`, borderRadius:8, padding:"3px 8px", fontSize:11, fontWeight:700, cursor:"pointer" }}>{sh.emoji} {sh.label}</button>
                 ))}
               </div>
@@ -6511,7 +6544,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
             <CollapsibleCard title="🎁 Retrospectiva do mês" color="#c4b5fd" dataTourProf="retro">
               <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"0 0 8px" }}>Libere no fim do mês: cada aluno vê uma tela especial com os números dele (linhas de código, presenças, conquistas...). Cada um vê a sua uma vez só.</p>
-              {SHIFTS.map(sh => {
+              {activeTurmas.map(sh => {
                 const on = !!(meta.retro || {})[sh.id];
                 return (
                   <button key={sh.id} onClick={()=>toggleRetro(sh.id)}
@@ -6558,7 +6591,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                           <div key={g.name} style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", padding:"6px 0", borderTop:"1px solid #3b2a5855" }}>
                             <b style={{ color:"#f0e9fb", fontSize:13 }}>{g.name}</b>
                             {g.list.map(s => (
-                              <button key={studentKey(s)} onClick={()=>{ setShiftFilter(s.shift||"sem-turno"); setSelected(studentKey(s)); setShowDupHover(false); }} style={{ ...styles.badge("#fbbf24"), cursor:"pointer", border:"1px solid #fbbf24", background:"transparent" }}>{shiftLabel(s.shift)}</button>
+                              <button key={studentKey(s)} onClick={()=>{ setShiftFilter(s.shift||"sem-turno"); setSelected(studentKey(s)); setShowDupHover(false); }} style={{ ...styles.badge("#fbbf24"), cursor:"pointer", border:"1px solid #fbbf24", background:"transparent" }}>{shiftLabel(s.shift, turmas)}</button>
                             ))}
                           </div>
                         ))}
@@ -6791,7 +6824,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                       <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>🕑 Turma:</span>
-                      {[...SHIFTS, TEST_SHIFT].filter(sh => sh.id !== (sel.shift||"sem-turno")).map(sh => (
+                      {[...activeTurmas, TEST_SHIFT].filter(sh => sh.id !== (sel.shift||"sem-turno")).map(sh => (
                         <button key={sh.id} onClick={()=>doMoveStudent(sel, sh.id)} style={{ ...styles.btn("#3b2a58"), padding:"6px 12px", fontSize:12.5 }}>
                           Mover p/ {sh.emoji} {sh.label}
                         </button>
@@ -6902,7 +6935,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
                       <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>📤 Código:</span>
                       <button onClick={()=>doSendClassCode(sel)} style={{ ...styles.btn("#22d3ee"), padding:"6px 14px", fontSize:12.5 }}>Enviar código da turma</button>
-                      <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>Manda todos os arquivos da aba "Meu código" (turno {shiftLabel(sel.shift)}) direto pro editor deste aluno.</span>
+                      <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>Manda todos os arquivos da aba "Meu código" (turno {shiftLabel(sel.shift, turmas)}) direto pro editor deste aluno.</span>
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
                       <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>📄 PDF do dia:</span>
@@ -6988,15 +7021,15 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   <button style={{ ...styles.btn("#34d399"), padding:"7px 12px", fontSize:12.5 }} onClick={()=>setShowLessons(true)} title="Sua biblioteca de aulas: salve o código atual com um nome e reutilize quando quiser">📚 Minhas aulas</button>
-                  <button style={{ ...styles.btn("#c084fc"), opacity:genName?0.6:1, padding:"7px 12px", fontSize:12.5 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift).label})`}</button>
+                  <button style={{ ...styles.btn("#c084fc"), opacity:genName?0.6:1, padding:"7px 12px", fontSize:12.5 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift, turmas).label})`}</button>
                 </div>
               </div>
               <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                {SHIFTS.map(sh => (
+                {activeTurmas.map(sh => (
                   <button key={sh.id} onClick={()=>setCodeShift(sh.id)} style={styles.tab(codeShift===sh.id)}>{sh.emoji} {sh.label}</button>
                 ))}
               </div>
-              {contentFor(codeShift) && <p style={{ color:"#34d399", fontSize:13, fontWeight:600, margin:"8px 0 0" }}>📖 Conteúdo de hoje ({shiftMeta(codeShift).label}): {contentFor(codeShift)}</p>}
+              {contentFor(codeShift) && <p style={{ color:"#34d399", fontSize:13, fontWeight:600, margin:"8px 0 0" }}>📖 Conteúdo de hoje ({shiftMeta(codeShift, turmas).label}): {contentFor(codeShift)}</p>}
               {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12.5, margin:"8px 0 0", lineHeight:1.5 }}>{nameMsg}</p>}
             </div>
             <CodeLab key={codeShift} accent="#fbbf24" files={proFiles} onChange={setProFiles} terminalMaxHeight={420} gear={meta.nyxGear||DEFAULT_NYX_GEAR} onEquip={saveTeacherGear} />
@@ -7010,12 +7043,12 @@ function TeacherView({ onLogout, teacherAuth }) {
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8, marginBottom:12 }}>
               <h3 style={{ color:"#fbbf24", margin:0 }}>🗓️ Calendário de aulas</h3>
               <div style={{ display:"flex", gap:8 }}>
-                {SHIFTS.map(sh => (
+                {activeTurmas.map(sh => (
                   <button key={sh.id} onClick={()=>setCodeShift(sh.id)} style={styles.tab(codeShift===sh.id)}>{sh.emoji} {sh.label}</button>
                 ))}
               </div>
             </div>
-            <p style={{ color:"#a99ac9", fontSize:13, marginBottom:12 }}>Os dias com aula ficam em verde (são marcados sozinhos quando há alunos online, e você também pode clicar para marcar/desmarcar). O 📖 indica os dias que já têm conteúdo gerado para a turma {shiftMeta(codeShift).label} — passe o mouse para ver o tema.</p>
+            <p style={{ color:"#a99ac9", fontSize:13, marginBottom:12 }}>Os dias com aula ficam em verde (são marcados sozinhos quando há alunos online, e você também pode clicar para marcar/desmarcar). O 📖 indica os dias que já têm conteúdo gerado para a turma {shiftMeta(codeShift, turmas).label} — passe o mouse para ver o tema.</p>
             <Calendar classDays={meta.classDays||[]} contentNames={calContentNames} onToggle={toggleClassDay} />
           </div>
           <div data-tour-prof="cidade" className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
@@ -7071,8 +7104,30 @@ function TeacherView({ onLogout, teacherAuth }) {
             <button style={{ ...styles.btn("#fbbf24"), width:"100%", opacity:relatorioBusy?0.6:1 }} onClick={doGerarRelatorio} disabled={relatorioBusy}>{relatorioBusy ? "Gerando relatório..." : "📄 Gerar Relatório de Comprovação"}</button>
             {relatorioMsg && <p style={{ color: relatorioMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:8 }}>{relatorioMsg}</p>}
           </div>
+          <div className="cardfx" style={{ ...styles.card, flex:"1 1 300px" }}>
+            <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🏫 Turmas</h3>
+            <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 12px", lineHeight:1.6 }}>Tem mais de uma turma no mesmo turno (ex: duas de tarde)? Crie uma turma extra aqui — ela ganha lista de alunos, prova, calendário e monitoramento totalmente separados das outras.</p>
+            {turmas.map(t => (
+              <div key={t.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 0", opacity: t.archived ? 0.5 : 1 }}>
+                <span style={{ width:10, height:10, borderRadius:"50%", background:t.color, flexShrink:0 }} />
+                <span style={{ flex:1, fontSize:13, color:"#f0e9fb" }}>{t.emoji} {t.label}{t.archived ? " (arquivada)" : ""}</span>
+                <button onClick={()=>arquivarTurma(t.id, !t.archived)} style={{ background:"transparent", border:"1px solid #3b2a58", color:"#a99ac9", borderRadius:8, padding:"4px 10px", fontSize:11.5, cursor:"pointer" }}>
+                  {t.archived ? "Reativar" : "Arquivar"}
+                </button>
+              </div>
+            ))}
+            <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap", alignItems:"center" }}>
+              <input value={novaTurmaLabel} onChange={e=>setNovaTurmaLabel(e.target.value)} placeholder="Nome da turma (ex: Vespertino B)" style={{ flex:"1 1 160px", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 10px", color:"#f0e9fb", fontSize:13, outline:"none" }} />
+              <select value={novaTurmaPeriod} onChange={e=>setNovaTurmaPeriod(e.target.value)} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 10px", color:"#f0e9fb", fontSize:13 }}>
+                <option value="matutino">☀️ Manhã</option>
+                <option value="vespertino">🌙 Tarde</option>
+              </select>
+              <button onClick={criarTurma} disabled={!novaTurmaLabel.trim()} style={{ ...styles.btn("#c084fc"), padding:"7px 14px", fontSize:13, opacity: novaTurmaLabel.trim() ? 1 : 0.5 }}>+ Criar turma</button>
+            </div>
+            {turmaMsg && <p style={{ color: turmaMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:8 }}>{turmaMsg}</p>}
+          </div>
           <div data-tour-prof="horario" className="cardfx" style={{ ...styles.card, flex:"1 1 300px" }}>
-            <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🕐 Horário da turma ({shiftMeta(codeShift).label})</h3>
+            <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🕐 Horário da turma ({shiftMeta(codeShift, turmas).label})</h3>
             <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 12px", lineHeight:1.6 }}>Defina o horário e o Nyx libera/bloqueia o perfil dos alunos sozinho. Deixe em branco pra não restringir nada.</p>
             {(() => {
               const sc = schedule[codeShift] || {};
@@ -7110,7 +7165,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             })()}
           </div>
           <div className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
-            <h3 style={{ color:"#fbbf24", marginBottom:8 }}>📖 Conteúdo de hoje ({shiftMeta(codeShift).label})</h3>
+            <h3 style={{ color:"#fbbf24", marginBottom:8 }}>📖 Conteúdo de hoje ({shiftMeta(codeShift, turmas).label})</h3>
             {contentFor(codeShift)
               ? <p style={{ color:"#34d399", fontSize:16, fontWeight:600, lineHeight:1.5, margin:"4px 0 12px" }}>{contentFor(codeShift)}</p>
               : <p style={{ color:"#a99ac9", fontSize:13, lineHeight:1.6, margin:"4px 0 12px" }}>Ainda não gerado. Programe o exemplo do dia na aba <b>Meu código</b> e clique abaixo para criar um nome automático.</p>}
@@ -7132,7 +7187,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6, flexWrap:"wrap" }}>
                     <Avatar cfg={s.avatar} size={30} />
                     <b>{s.name}</b>
-                    <span style={{ ...styles.badge(s.shift===TEST_SHIFT.id?"#a855f7":"#c084fc"), fontWeight:700 }}>{shiftLabel(s.shift)}</span>
+                    <span style={{ ...styles.badge(s.shift===TEST_SHIFT.id?"#a855f7":"#c084fc"), fontWeight:700 }}>{shiftLabel(s.shift, turmas)}</span>
                     <span style={{ color:"#fbbf24" }}>{"★".repeat(s.classFeedback.rating||0)}{"☆".repeat(5-(s.classFeedback.rating||0))}</span>
                     <span style={{ color:"#776798", fontSize:11, marginLeft:"auto", whiteSpace:"nowrap" }}>🕒 {dataHora(s.classFeedback.at)}</span>
                   </div>
@@ -7561,7 +7616,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           // turma de teste fica fora do contexto do Nyx: é só para testar o sistema, não são alunos reais
           const rows = students.filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id).map(s => {
             const att = Object.values(s.attendance||{}).filter(v => v === "present").length;
-            return `- ${s.name} [${shiftLabel(s.shift)}]: fase=${s.phase||"aguardando"}, presenças=${att}, nota atividade=${s.score ?? "—"}, nota prova=${s.examScore ?? "—"}, erro no código agora=${s.hasError ? "sim: " + (s.feedback?.message || "") : "não"}`;
+            return `- ${s.name} [${shiftLabel(s.shift, turmas)}]: fase=${s.phase||"aguardando"}, presenças=${att}, nota atividade=${s.score ?? "—"}, nota prova=${s.examScore ?? "—"}, erro no código agora=${s.hasError ? "sim: " + (s.feedback?.message || "") : "não"}`;
           }).join("\n");
           return `Contexto: você é o assistente do professor. Situação da turma AGORA (turmas Matutino e Vespertino; a turma de teste não entra aqui):\n${rows || "(nenhum aluno entrou ainda)"}\nConteúdo de hoje — Manhã: ${todayContentM || "ainda não definido"} · Tarde: ${todayContentV || "ainda não definido"}.`;
         }}
@@ -7575,6 +7630,10 @@ function TeacherView({ onLogout, teacherAuth }) {
 // ════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [session, setSession] = useState(null);
+  // lista de turmas (pode ter mais de uma no mesmo turno) pra tela de login — o painel do professor
+  // carrega a sua própria cópia (ver TeacherView) porque precisa atualizar na hora ao criar/arquivar
+  const [loginTurmas, setLoginTurmas] = useState(DEFAULT_TURMAS);
+  useEffect(() => { getTurmas().then(t => { if (Array.isArray(t) && t.length) setLoginTurmas(t); }); }, []);
   // 🚨 captura erros de JS que quebram silenciosamente na tela do aluno/professor (sem precisar
   // que alguém perceba e avise) — manda só a mensagem/pilha/URL pro professor ver no painel dele,
   // nunca código ou dado pessoal. Um Set por sessão da página evita mandar a MESMA mensagem
@@ -7604,7 +7663,7 @@ export default function App() {
     const parts = window.location.pathname.split("/").filter(Boolean);
     return <PortfolioPage shift={decodeURIComponent(parts[1] || "")} name={decodeURIComponent(parts[2] || "")} />;
   }
-  if (!session) return <Login onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} />;
+  if (!session) return <Login turmas={loginTurmas} onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} />;
   if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} />;
   return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} />;
 }
