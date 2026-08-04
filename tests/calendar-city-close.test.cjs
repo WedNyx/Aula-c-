@@ -28,7 +28,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 
     check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 3).join(' | '));
     const meta1 = JSON.parse(kvStore.get('teachermeta:main'));
-    check('meta.cityClosed vira true ao encerrar', meta1.cityClosed === true, JSON.stringify(meta1));
+    check('meta.byTurma.matutino.cityClosed vira true ao encerrar (cada turma tem seu próprio calendário)', meta1.byTurma?.matutino?.cityClosed === true, JSON.stringify(meta1));
 
     await page.waitForTimeout(500);
     check('Aviso de cidade pausada aparece na tela', (await page.locator('text=A contagem de dias de aula está pausada').count()) > 0);
@@ -69,8 +69,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     await page.waitForTimeout(500);
 
     meta2 = JSON.parse(kvStore.get('teachermeta:main'));
-    check('Definir a próxima cidade limpa o cityClosed', meta2.cityClosed === false, JSON.stringify(meta2));
-    check('Cidade nova foi salva', meta2.city === 'Planaltina');
+    check('Definir a próxima cidade limpa o cityClosed (na turma matutino, que é a selecionada)', meta2.byTurma?.matutino?.cityClosed === false, JSON.stringify(meta2));
+    check('Cidade nova foi salva', meta2.byTurma?.matutino?.city === 'Planaltina');
 
     // não dá pra usar page.reload() aqui: a sessão do professor só existe em memória (sem
     // localStorage), um reload de verdade jogaria de volta pra tela de login. Em vez disso, espera
@@ -78,7 +78,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     await page.waitForTimeout(11000);
 
     meta2 = JSON.parse(kvStore.get('teachermeta:main'));
-    check('Depois de definir a próxima cidade, o dia de hoje volta a ser marcado sozinho', (meta2.classDays || []).includes(todayKey), JSON.stringify(meta2.classDays));
+    check('Depois de definir a próxima cidade, o dia de hoje volta a ser marcado sozinho', (meta2.byTurma?.matutino?.classDays || []).includes(todayKey), JSON.stringify(meta2.byTurma?.matutino?.classDays));
     check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 3).join(' | '));
 
     await ctx.close();

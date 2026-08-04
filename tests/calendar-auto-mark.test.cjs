@@ -27,7 +27,7 @@ const yesterday = new Date(Date.now() - 26 * 60 * 60 * 1000).getTime(); // >24h 
 
     const meta = JSON.parse(kvStore.get('teachermeta:main'));
     check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 3).join(' | '));
-    check('Ninguém visto hoje → hoje NÃO é marcado sozinho (só ter aluno cadastrado não basta)', !(meta.classDays || []).includes(todayKey), JSON.stringify(meta.classDays));
+    check('Ninguém visto hoje → hoje NÃO é marcado sozinho (só ter aluno cadastrado não basta)', !(meta.byTurma?.matutino?.classDays || []).includes(todayKey), JSON.stringify(meta.byTurma));
 
     await ctx.close();
     await browser.close();
@@ -51,7 +51,7 @@ const yesterday = new Date(Date.now() - 26 * 60 * 60 * 1000).getTime(); // >24h 
 
     const meta = JSON.parse(kvStore.get('teachermeta:main'));
     check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 3).join(' | '));
-    check('Aluno visto ONLINE hoje → hoje é marcado sozinho normalmente', (meta.classDays || []).includes(todayKey), JSON.stringify(meta.classDays));
+    check('Aluno visto ONLINE hoje → hoje é marcado sozinho normalmente (na turma dele, matutino)', (meta.byTurma?.matutino?.classDays || []).includes(todayKey), JSON.stringify(meta.byTurma));
 
     await ctx.close();
     await browser.close();

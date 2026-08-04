@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { getStudent, getTeacherMeta, getHallOfFame, listStudents } from "../storage.js";
+import { getStudent, getTeacherMeta, getOwnHallOfFame, getLegacyHallOfFame, listStudents, getTurmas } from "../storage.js";
 import { FONT, PAGE_BG } from "../lib/theme.ts";
-import { TEST_SHIFT, LANG_SHIFT, shiftMeta } from "../lib/shifts.ts";
+import { LANG_SHIFT, shiftMeta, turmaCalendar } from "../lib/shifts.ts";
 import { computeStreak } from "../lib/utils.js";
 import { achievementInfo, visibleAchievements } from "../lib/achievements.ts";
 import { Avatar } from "./Avatar.jsx";
@@ -17,18 +17,36 @@ function useImpactStats() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [hall, meta, liveStudents] = await Promise.all([getHallOfFame(), getTeacherMeta(), listStudents()]);
+      const [meta, liveStudents, turmas] = await Promise.all([getTeacherMeta(), listStudents(), getTurmas()]);
       if (!alive) return;
-      const activeStudents = liveStudents.filter(s => (s.shift||"") !== TEST_SHIFT.id && (s.shift||"") !== LANG_SHIFT.id);
+      const activeTurmas = (turmas || []).filter(t => !t.archived);
       const highlightOf = (s) => { const notas = [...Object.values(s.scoreHistory||{}), s.score, s.examScore].filter(n=>typeof n==="number"); return notas.length ? Math.max(...notas) : 0; };
-      const liveNotas = activeStudents.map(highlightOf).filter(n=>n>0);
-      const liveAvg = liveNotas.length ? Math.round(liveNotas.reduce((a,b)=>a+b,0)/liveNotas.length) : 0;
-      const lastSnapshot = hall.length ? (hall[hall.length-1].classDaysSnapshot||0) : 0;
-      const liveClasses = Math.max(0, (meta.classDays||[]).length - lastSnapshot);
-      const cities = [
-        ...hall.map(h => ({ city: h.city, students: h.totalStudents||0, classes: h.totalClasses||0, avg: h.avgScore||0, active:false })),
-        ...(meta.city && activeStudents.length ? [{ city: meta.city, students: activeStudents.length, classes: liveClasses, avg: liveAvg, active:true }] : []),
-      ];
+      // soma o Hall da Fama + calendário de CADA turma — cada uma pode estar numa cidade
+      // diferente da jornada, então os números totais somam todas em vez de ler um valor global só.
+      // O histórico LEGADO (de antes de existir mais de uma turma) pertence a matutino E vespertino
+      // ao mesmo tempo — soma só UMA vez no total, senão conta a mesma cidade encerrada em dobro
+      const legacy = await getLegacyHallOfFame();
+      let legacyAdded = false;
+      const cities = [];
+      for (const turma of activeTurmas) {
+        const own = await getOwnHallOfFame(turma.id);
+        const isLegacyEligible = turma.id === "matutino" || turma.id === "vespertino";
+        const merged = isLegacyEligible ? [...legacy, ...own] : own;
+        const cal = turmaCalendar(meta, turma.id);
+        const turmaStudents = liveStudents.filter(s => (s.shift||"") === turma.id);
+        const liveNotas = turmaStudents.map(highlightOf).filter(n=>n>0);
+        const liveAvg = liveNotas.length ? Math.round(liveNotas.reduce((a,b)=>a+b,0)/liveNotas.length) : 0;
+        const lastSnapshot = merged.length ? (merged[merged.length-1].classDaysSnapshot||0) : 0;
+        const liveClasses = Math.max(0, cal.classDays.length - lastSnapshot);
+        if (isLegacyEligible && !legacyAdded) {
+          cities.push(...legacy.map(h => ({ city: h.city, students: h.totalStudents||0, classes: h.totalClasses||0, avg: h.avgScore||0, active:false })));
+          legacyAdded = true;
+        }
+        cities.push(
+          ...own.map(h => ({ city: h.city, students: h.totalStudents||0, classes: h.totalClasses||0, avg: h.avgScore||0, active:false })),
+          ...(cal.city && turmaStudents.length ? [{ city: cal.city, students: turmaStudents.length, classes: liveClasses, avg: liveAvg, active:true }] : []),
+        );
+      }
       const totalStudents = cities.reduce((a,c)=>a+c.students, 0);
       const totalClasses = cities.reduce((a,c)=>a+c.classes, 0);
       const scored = cities.filter(c=>c.avg>0 && c.students>0);
@@ -149,7 +167,7 @@ function usePortfolioData(shift, name) {
     (async () => {
       const [student, meta] = await Promise.all([getStudent(shift, name), getTeacherMeta()]);
       if (!alive) return;
-      setState({ loading: false, student, classDays: meta?.classDays || [] });
+      setState({ loading: false, student, classDays: turmaCalendar(meta, shift).classDays });
     })().catch(() => { if (alive) setState({ loading: false, student: null, classDays: [] }); });
     return () => { alive = false; };
   }, [shift, name]);

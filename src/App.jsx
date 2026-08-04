@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getTurmas, saveTurmas } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getTurmas, saveTurmas } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -25,7 +25,7 @@ import { STUDY_LANGUAGES, langById, reviewChecklistFor, buildPreviewDoc, otherFi
 import { BRACKET_COLORS, highlight, highlightCSharp, highlightJS, highlightPHP, highlightCSS, highlightHTML } from "./lib/highlight.jsx";
 import { ANALYZE_PROVIDERS, PARTNER_REWARD, isOffline, isNetworkError, askClaude, extractJson, askClaudeJson, buildSummaryRequest, buildContinuationSummaryRequest, mergeSummaryContinuation, recentDifficultyHint, adaptiveDifficultyTier } from "./lib/ai.js";
 import { requestFS, goFullscreen, todayKey, weekKey, dateKeyOf, hmToMin, nowMin, classStatus } from "./lib/schedule.ts";
-import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName, DEFAULT_TURMAS, TURMA_COLORS } from "./lib/shifts.ts";
+import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName, DEFAULT_TURMAS, TURMA_COLORS, turmaCalendar, withTurmaCalendar } from "./lib/shifts.ts";
 import { Login } from "./components/LoginScreen.jsx";
 import { ImpactPage, PortfolioPage } from "./components/PublicPages.jsx";
 import { generateDuelQuestions, generateKnowledgeTestQuestions, generateFreeBuildPlan } from "./lib/aiChallenges.js";
@@ -3562,7 +3562,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             <button data-tour="teclado" onClick={()=>setShowKeyboard(true)} style={{ ...styles.btn("#22d3ee"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Aprenda onde fica cada tecla, no seu ritmo — pode treinar quando quiser">
               ⌨️ Tutorial de Teclado
             </button>
-            <button data-tour="hall" onClick={()=>{ setShowHallOfFame(true); getHallOfFame().then(setHallEntries); }} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja quem se destacou nas cidades por onde a carreta já passou">
+            <button data-tour="hall" onClick={()=>{ setShowHallOfFame(true); getHallOfFame(shift).then(setHallEntries); }} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja quem se destacou nas cidades por onde a carreta já passou">
               🏆 Hall da Fama
             </button>
             {pendingAbsences.length>0 && (
@@ -4496,22 +4496,26 @@ function TeacherView({ onLogout, teacherAuth }) {
     setStudents(arr);
     setLastUpdate(new Date().toLocaleTimeString("pt-BR"));
     try { const ec = await getExamState(shiftFilterRef.current, teacherAuth); setExamConfig(ec); } catch {}
-    // marca o dia de hoje como aula se algum aluno foi visto ONLINE hoje (não só se a turma tem
-    // algum aluno cadastrado — isso ficava true pra sempre depois do primeiro aluno criado, e
-    // marcava "teve aula" mesmo em dias sem ninguém online, além de desfazer sozinho em até 10s
-    // quando o professor removia manualmente o dia pelo calendário). Não conta fim de semana como
-    // aula por padrão (só se o professor liberar em allowWeekend). Enquanto a cidade estiver
-    // "encerrada" (ver doCloseCity/saveCity), NÃO conta dia de aula sozinho — só volta a contar
-    // quando o professor definir a próxima cidade
+    // marca o dia de hoje como aula (NA TURMA de cada aluno) se ele foi visto ONLINE hoje (não só
+    // se a turma tem algum aluno cadastrado — isso ficava true pra sempre depois do primeiro aluno
+    // criado, e marcava "teve aula" mesmo em dias sem ninguém online, além de desfazer sozinho em
+    // até 10s quando o professor removia manualmente o dia pelo calendário). Não conta fim de
+    // semana como aula por padrão (só se o professor liberar em allowWeekend). Cada turma tem seu
+    // próprio calendário — a cidade "encerrada" de UMA turma não pausa a contagem das outras
     const dowNow = new Date().getDay();
     const isWeekendNow = dowNow === 0 || dowNow === 6;
-    const someoneOnlineToday = arr.some(s => isSameDayTs(s.lastSeen));
-    if (someoneOnlineToday && !metaRef.current.cityClosed && (!isWeekendNow || metaRef.current.allowWeekend)) {
+    const turmasOnlineToday = [...new Set(arr.filter(s => isSameDayTs(s.lastSeen)).map(s => s.shift || "sem-turno"))];
+    if (turmasOnlineToday.length && (!isWeekendNow || metaRef.current.allowWeekend)) {
       const tk = todayKey();
-      if (!metaRef.current.classDays.includes(tk)) {
-        const nm = { ...metaRef.current, classDays:[...metaRef.current.classDays, tk] };
-        metaRef.current = nm; setMeta(nm); saveTeacherMeta(nm, teacherAuth);
+      let nm = metaRef.current;
+      let changed = false;
+      for (const turmaId of turmasOnlineToday) {
+        const cal = turmaCalendar(nm, turmaId);
+        if (cal.cityClosed || cal.classDays.includes(tk)) continue;
+        nm = withTurmaCalendar(nm, turmaId, { classDays: [...cal.classDays, tk] });
+        changed = true;
       }
+      if (changed) { metaRef.current = nm; setMeta(nm); saveTeacherMeta(nm, teacherAuth); }
     }
   }, []);
 
@@ -4657,7 +4661,10 @@ function TeacherView({ onLogout, teacherAuth }) {
     const iv = setInterval(load2, 10000);
     return () => { active = false; clearInterval(iv); };
   }, []);
-  useEffect(() => { getTeacherMeta().then(m => { metaRef.current = m; setMeta(m); setCityInput(m.city||""); setSchedule(m.schedule||{}); }); }, []);
+  useEffect(() => { getTeacherMeta().then(m => { metaRef.current = m; setMeta(m); setCityInput(turmaCalendar(m, codeShift).city); setSchedule(m.schedule||{}); }); }, []);
+  // troca de turma no Calendário (codeShift): o campo de cidade precisa mostrar a cidade DAQUELA
+  // turma, não a que estava escrita antes de trocar de aba — cada turma tem a sua própria
+  useEffect(() => { setCityInput(turmaCalendar(meta, codeShift).city); }, [codeShift]);
   // carrega o código salvo do professor uma vez, para cada turno
   useEffect(() => {
     (async () => {
@@ -4682,8 +4689,9 @@ function TeacherView({ onLogout, teacherAuth }) {
   }, [proFilesByShift, proLoaded]);
 
   // definir a cidade aqui é o que "reativa" a viagem depois de uma cidade encerrada — só a partir
-  // daqui volta a contar dia de aula e a mostrar o pino "você está aqui" na Visão da Viagem
-  const saveCity = async () => { const nm = { ...metaRef.current, city:cityInput.trim(), cityClosed:false }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
+  // daqui volta a contar dia de aula e a mostrar o pino "você está aqui" na Visão da Viagem. Cada
+  // turma tem sua própria cidade/jornada — vale pra turma selecionada no momento (codeShift)
+  const saveCity = async () => { const nm = withTurmaCalendar(metaRef.current, codeShift, { city:cityInput.trim(), cityClosed:false }); metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
   // personalização do Nyx do professor (acessórios cosméticos, sem custo — é só o professor mesmo)
   const saveTeacherGear = async (newGear) => { const nm = { ...metaRef.current, nyxGear:newGear }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); };
   // 📄 relatório de despedida: um PDF-lembrança da cidade que está sendo encerrada, com o
@@ -4801,8 +4809,11 @@ function TeacherView({ onLogout, teacherAuth }) {
   // e também gera um PDF de despedida pro professor guardar/imprimir
   const doCloseCity = async () => {
     setConfirmCloseCity(false);
-    if (!meta.city) { setHallMsg("❌ Defina o nome da cidade antes de encerrar."); setTimeout(()=>setHallMsg(""), 5000); return; }
-    const active = students.filter(s => (s.shift||"") !== TEST_SHIFT.id);
+    // encerra a cidade da turma SELECIONADA no momento (codeShift) — cada turma tem sua própria
+    // jornada, então isso nunca mexe na cidade/calendário de outra turma
+    const cal = turmaCalendar(meta, codeShift);
+    if (!cal.city) { setHallMsg("❌ Defina o nome da cidade antes de encerrar."); setTimeout(()=>setHallMsg(""), 5000); return; }
+    const active = students.filter(s => (s.shift||"sem-turno") === codeShift);
     const highlightOf = (s) => {
       const notas = [...Object.values(s.scoreHistory||{}), s.score, s.examScore].filter(n => typeof n === "number");
       return notas.length ? Math.max(...notas) : 0;
@@ -4813,37 +4824,38 @@ function TeacherView({ onLogout, teacherAuth }) {
       .sort((a,b) => (b.nota - a.nota) || (b.pts - a.pts))
       .slice(0, 3)
       .map(s => ({ name: s.name, highlight: s.nota > 0 ? `nota ${s.nota} · ${s.pts} pts do Nyx` : `${s.pts} pts do Nyx` }));
-    // estatísticas da cidade inteira, pra "Visão da Viagem" (agregado de todas as cidades encerradas)
+    // estatísticas da cidade inteira, pra "Visão da Viagem" (agregado de todas as cidades encerradas DESTA turma)
     const notasValidas = active.map(highlightOf).filter(n => n > 0);
     const avgScore = notasValidas.length ? Math.round(notasValidas.reduce((a,b)=>a+b,0) / notasValidas.length) : 0;
-    const entries = await getHallOfFame();
-    // meta.classDays é uma lista que só CRESCE desde sempre (nunca reseta de cidade pra cidade) —
+    const entries = await getHallOfFame(codeShift);
+    // cal.classDays é uma lista que só CRESCE desde sempre (nunca reseta de cidade pra cidade) —
     // "aulas dadas NESTA cidade" precisa ser a diferença desde a última cidade encerrada, senão toda
     // cidade nova soma o histórico inteiro da viagem e o total infla sem parar
-    const cumulativeClassDays = (meta.classDays||[]).length;
+    const cumulativeClassDays = cal.classDays.length;
     const previousCumulative = entries.length ? (entries[entries.length-1].classDaysSnapshot || 0) : 0;
     const totalClasses = Math.max(0, cumulativeClassDays - previousCumulative);
-    const next = [...entries, { city: meta.city, students: podio, closedAt: Date.now(), totalStudents: active.length, totalClasses, avgScore, classDaysSnapshot: cumulativeClassDays }];
-    await saveHallOfFame(next, teacherAuth);
+    const ownEntries = await getOwnHallOfFame(codeShift);
+    const next = [...ownEntries, { city: cal.city, students: podio, closedAt: Date.now(), totalStudents: active.length, totalClasses, avgScore, classDaysSnapshot: cumulativeClassDays }];
+    await saveHallOfFame(codeShift, next, teacherAuth);
     // 🚦 encerrar a cidade NÃO define a próxima sozinho — fica marcada como "fechada" até o
     // professor digitar o nome da cidade seguinte (ver saveCity), pra parar de contar dia de aula
-    // e mostrar o pino "você está aqui" numa cidade que já foi encerrada
-    { const nm = { ...metaRef.current, cityClosed: true }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); }
+    // e mostrar o pino "você está aqui" numa cidade que já foi encerrada — só nesta turma
+    { const nm = withTurmaCalendar(metaRef.current, codeShift, { cityClosed: true }); metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); }
     // 🔒 fim da turma nesta cidade: os responsáveis já sabiam que isso aconteceria — apaga data de
     // nascimento e CPF de todo mundo (dado sensível só existia pra gerar certificado enquanto durou
     // a turma). Depois disso ninguém mais tem acesso, nem o professor — some da planilha também.
     await Promise.all(active.filter(s => s.birthDate || s.cpf).map(s => patchStudent(s.shift, s.name, { birthDate:"", cpf:"" })));
-    setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama! Gerando o relatório de despedida em PDF...`);
+    setHallMsg(`✅ ${cal.city} entrou pro Hall da Fama! Gerando o relatório de despedida em PDF...`);
     setFarewellBusy(true);
     try {
-      const daysThisCity = [...(meta.classDays||[])].sort().slice(-Math.max(totalClasses,1));
+      const daysThisCity = [...cal.classDays].sort().slice(-Math.max(totalClasses,1));
       const fmt = (k) => { try { const [y,m,d] = String(k).split("-"); return `${d}/${m}/${y}`; } catch { return k; } };
       const periodStart = daysThisCity.length ? fmt(daysThisCity[0]) : fmt(todayKey());
       const periodEnd = daysThisCity.length ? fmt(daysThisCity[daysThisCity.length-1]) : fmt(todayKey());
-      await generateFarewellPDF({ city: meta.city, active, podio, totalClasses, avgScore, periodStart, periodEnd });
-      setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama, o relatório de despedida foi baixado, e a data de nascimento/CPF da turma foi apagada.`);
+      await generateFarewellPDF({ city: cal.city, active, podio, totalClasses, avgScore, periodStart, periodEnd });
+      setHallMsg(`✅ ${cal.city} entrou pro Hall da Fama, o relatório de despedida foi baixado, e a data de nascimento/CPF da turma foi apagada.`);
     } catch {
-      setHallMsg(`✅ ${meta.city} entrou pro Hall da Fama e a data de nascimento/CPF da turma foi apagada! (Não consegui gerar o PDF de despedida agora — tente de novo se quiser.)`);
+      setHallMsg(`✅ ${cal.city} entrou pro Hall da Fama e a data de nascimento/CPF da turma foi apagada! (Não consegui gerar o PDF de despedida agora — tente de novo se quiser.)`);
     }
     setFarewellBusy(false);
     setTimeout(()=>setHallMsg(""), 9000);
@@ -4895,9 +4907,11 @@ function TeacherView({ onLogout, teacherAuth }) {
     setTimeout(()=>setScheduleMsg(""), 4000);
   };
   const toggleClassDay = async (k) => {
-    const has = metaRef.current.classDays.includes(k);
-    const days = has ? metaRef.current.classDays.filter(d=>d!==k) : [...metaRef.current.classDays, k];
-    const nm = { ...metaRef.current, classDays:days }; metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth);
+    const cal = turmaCalendar(metaRef.current, codeShift);
+    const has = cal.classDays.includes(k);
+    const days = has ? cal.classDays.filter(d=>d!==k) : [...cal.classDays, k];
+    const nm = withTurmaCalendar(metaRef.current, codeShift, { classDays: days });
+    metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth);
   };
   // fim de semana fecha por padrão (a turma só funciona seg-sex) — esse toggle libera sábado/domingo
   const toggleAllowWeekend = async () => {
@@ -5015,12 +5029,15 @@ function TeacherView({ onLogout, teacherAuth }) {
     });
     const groups = turmas.map(sh => ({ ...sh, list: rows.filter(s => (s.shift||"sem-turno")===sh.id) })).filter(g => g.list.length > 0);
 
-    // dias de aula (marcados no Calendário) — cada um vira uma coluna com presença/falta/justificado
-    const classDays = [...new Set(meta.classDays || [])].sort();
+    // dias de aula (marcados no Calendário DE CADA TURMA) — junta os dias de todas as turmas do
+    // export numa coluna só; um dia que não era aula NA TURMA daquele aluno específico vira "–"
+    // (mesmo tratamento de "fora do período dele"), não conta como falta por engano
+    const classDays = [...new Set(turmas.flatMap(t => turmaCalendar(meta, t.id).classDays))].sort();
     const dayCell = (s, d) => {
       const enrollFrom = s.createdAt ? dateKeyOf(s.createdAt) : (Object.keys(s.attendance||{}).sort()[0] || null);
       const lastDay = s.lastSeen ? dateKeyOf(s.lastSeen) : null;
       if ((enrollFrom && d < enrollFrom) || (lastDay && d > lastDay)) return { v:"–", st:null }; // fora do período do aluno
+      if (!turmaCalendar(meta, s.shift||"sem-turno").classDays.includes(d)) return { v:"–", st:null }; // não era dia de aula na turma dele
       if ((s.attendance||{})[d] === "present") return { v:"✓", st:"present" };
       const just = (s.justifications||{})[d];
       if (just && just.status === "approved") return { v:"J", st:"justified" };
@@ -5436,7 +5453,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           .filter(s => (s.name||"").trim() && (scope === "all" ? turmas.some(sh=>sh.id===(s.shift||"")) : (s.shift||"") === scope))
           .sort((a,b)=>((a.shift||"")+a.name).localeCompare((b.shift||"")+b.name,"pt-BR"));
     if (!turma.length) { setBoletimMsg("⚠ Nenhum aluno nessa turma ainda."); setBoletimBusy(false); return; }
-    const classDays = [...new Set(meta.classDays || [])].sort();
+    const classDays = [...new Set(turmas.flatMap(t => turmaCalendar(meta, t.id).classDays))].sort();
 
     // "Todos" pode misturar Manhã e Tarde — o conteúdo do mês é por turno, então gera "o que
     // aprendeu" 1 vez PARA CADA turno que aparece na lista, e cada aluno usa o do seu próprio turno
@@ -5494,7 +5511,8 @@ function TeacherView({ onLogout, teacherAuth }) {
         const enrollFrom = s.createdAt ? dateKeyOf(s.createdAt) : (Object.keys(s.attendance||{}).sort()[0] || null);
         // só dias já passados contam (o dia de HOJE só entra se o aluno já esteve presente —
         // senão uma aula ainda em andamento viraria "falta" injusta no boletim)
-        const myDays = classDays.filter(d => (!enrollFrom || d >= enrollFrom) && (d < todayKey() || (s.attendance||{})[d] === "present"));
+        const myTurmaDays = new Set(turmaCalendar(meta, s.shift||"sem-turno").classDays);
+        const myDays = classDays.filter(d => myTurmaDays.has(d) && (!enrollFrom || d >= enrollFrom) && (d < todayKey() || (s.attendance||{})[d] === "present"));
         const presentes = myDays.filter(d => (s.attendance||{})[d] === "present").length;
         const justificadas = myDays.filter(d => (s.attendance||{})[d] !== "present" && (s.justifications||{})[d]?.status === "approved").length;
         const faltas = Math.max(0, myDays.length - presentes - justificadas);
@@ -6117,7 +6135,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           <span className="shine" style={{ fontWeight:900, fontSize: tab==="code" ? 14 : 18, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
           {tab!=="code" && (
             <span style={{ color:"#a99ac9", marginLeft:12, fontSize:12 }}>
-              ● ao vivo · {lastUpdate}{meta.city?` · 📍 ${meta.city}`:""}
+              ● ao vivo · {lastUpdate}{turmaCalendar(meta, codeShift).city?` · 📍 ${turmaCalendar(meta, codeShift).city}`:""}
               {(todayContentM||todayContentV) ? ` · 📖 ${[todayContentM&&`☀️ ${todayContentM}`, todayContentV&&`🌙 ${todayContentV}`].filter(Boolean).join(" · ")}` : ""}
             </span>
           )}
@@ -6186,7 +6204,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
       {showTelao && <TelaoModal students={students} shift={shiftFilter} turmas={activeTurmas} onClose={()=>setShowTelao(false)} teacherAuth={teacherAuth} />}
       {showQuickStatus && <QuickStatusModal students={sorted} onClose={()=>setShowQuickStatus(false)} />}
-      {showTripOverview && <TripOverviewModal entries={tripHallEntries} currentCity={meta.cityClosed ? null : meta.city} onClose={()=>setShowTripOverview(false)} />}
+      {showTripOverview && <TripOverviewModal entries={tripHallEntries} currentCity={turmaCalendar(meta, codeShift).cityClosed ? null : turmaCalendar(meta, codeShift).city} onClose={()=>setShowTripOverview(false)} />}
 
       {dailyPdfModal && (
         <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
@@ -6721,11 +6739,13 @@ function TeacherView({ onLogout, teacherAuth }) {
                 planilha e no boletim: só conta quem já era da turma naquele dia) */}
             {(() => {
               const relevant = shown.filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id);
-              const classDaysList = [...new Set(meta.classDays || [])].sort();
+              const classDaysList = [...new Set(relevant.flatMap(s => turmaCalendar(meta, s.shift||"sem-turno").classDays))].sort();
               const byDate = {};
               relevant.forEach(s => {
                 const enrollFrom = s.createdAt ? dateKeyOf(s.createdAt) : (Object.keys(s.attendance||{}).sort()[0] || null);
+                const myTurmaDays = new Set(turmaCalendar(meta, s.shift||"sem-turno").classDays);
                 classDaysList.forEach(d => {
+                  if (!myTurmaDays.has(d)) return; // não era dia de aula na turma dele
                   if (enrollFrom && d < enrollFrom) return; // ainda não tinha entrado na turma
                   if (d >= todayKey() && !(s.attendance||{})[d]) return; // hoje sem presença marcada ainda não conta como falta
                   const bucket = (byDate[d] = byDate[d] || { present:0, total:0 });
@@ -7049,35 +7069,37 @@ function TeacherView({ onLogout, teacherAuth }) {
               </div>
             </div>
             <p style={{ color:"#a99ac9", fontSize:13, marginBottom:12 }}>Os dias com aula ficam em verde (são marcados sozinhos quando há alunos online, e você também pode clicar para marcar/desmarcar). O 📖 indica os dias que já têm conteúdo gerado para a turma {shiftMeta(codeShift, turmas).label} — passe o mouse para ver o tema.</p>
-            <Calendar classDays={meta.classDays||[]} contentNames={calContentNames} onToggle={toggleClassDay} />
+            <Calendar classDays={turmaCalendar(meta, codeShift).classDays} contentNames={calContentNames} onToggle={toggleClassDay} />
           </div>
           <div data-tour-prof="cidade" className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
-            <h3 style={{ color:"#fbbf24", marginBottom:12 }}>📍 Sua cidade no DF</h3>
+            <h3 style={{ color:"#fbbf24", marginBottom:12 }}>📍 Cidade no DF da turma {shiftMeta(codeShift, turmas).label}</h3>
             <input list="df-cities" value={cityInput} onChange={e=>setCityInput(e.target.value)} onBlur={saveCity} placeholder="Ex: Ceilândia"
               style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"10px 12px", color:"#f0e9fb", fontSize:15, boxSizing:"border-box" }} />
             <datalist id="df-cities">{DF_CITIES.map(c=><option key={c} value={c} />)}</datalist>
             <button style={{ ...styles.btn("#c084fc"), marginTop:10 }} onClick={saveCity}>Salvar cidade</button>
-            {meta.city && !meta.cityClosed && <p style={{ color:"#34d399", fontSize:13, marginTop:10 }}>Cidade salva: {meta.city}</p>}
-            {meta.cityClosed && (
-              <p style={{ color:"#fbbf24", fontSize:13, marginTop:10, lineHeight:1.6 }}>⏸ {meta.city} foi encerrada. A contagem de dias de aula está pausada — digite a próxima cidade acima para retomar.</p>
+            {(() => { const cal = turmaCalendar(meta, codeShift); return (<>
+            {cal.city && !cal.cityClosed && <p style={{ color:"#34d399", fontSize:13, marginTop:10 }}>Cidade salva: {cal.city}</p>}
+            {cal.cityClosed && (
+              <p style={{ color:"#fbbf24", fontSize:13, marginTop:10, lineHeight:1.6 }}>⏸ {cal.city} foi encerrada. A contagem de dias de aula está pausada — digite a próxima cidade acima para retomar.</p>
             )}
             <hr style={{ borderColor:"#3b2a58", margin:"14px 0" }}/>
-            <p style={{ color:"#a99ac9", fontSize:13 }}>Total de dias de aula registrados: <b style={{ color:"#f0e9fb" }}>{(meta.classDays||[]).length}</b></p>
+            <p style={{ color:"#a99ac9", fontSize:13 }}>Total de dias de aula registrados: <b style={{ color:"#f0e9fb" }}>{cal.classDays.length}</b></p>
             <hr style={{ borderColor:"#3b2a58", margin:"14px 0" }}/>
             <p style={{ color:"#fbbf24", fontWeight:700, fontSize:13, marginBottom:6 }}>🏆 Hall da Fama</p>
             <p style={{ color:"#a99ac9", fontSize:12.5, lineHeight:1.6, margin:"0 0 10px" }}>Quando a carreta for mudar de cidade, encerre aqui: guarda uma placa com quem mais se destacou, pros alunos da próxima cidade verem, e baixa um relatório de despedida em PDF pra você guardar. Não apaga nada da turma atual — exceto a data de nascimento e o CPF de todos, que somem pra sempre (nem você mais tem acesso).</p>
-            {meta.cityClosed ? (
-              <p style={{ color:"#776798", fontSize:12.5, lineHeight:1.6 }}>🏆 {meta.city} já foi encerrada — defina a próxima cidade acima antes de encerrar de novo.</p>
+            {cal.cityClosed ? (
+              <p style={{ color:"#776798", fontSize:12.5, lineHeight:1.6 }}>🏆 {cal.city} já foi encerrada — defina a próxima cidade acima antes de encerrar de novo.</p>
             ) : confirmCloseCity ? (
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                <button style={{ ...styles.btn("#fbbf24"), opacity:farewellBusy?0.6:1 }} onClick={doCloseCity} disabled={farewellBusy}>{farewellBusy ? "Gerando relatório..." : `Sim, encerrar ${meta.city || "a cidade"}`}</button>
+                <button style={{ ...styles.btn("#fbbf24"), opacity:farewellBusy?0.6:1 }} onClick={doCloseCity} disabled={farewellBusy}>{farewellBusy ? "Gerando relatório..." : `Sim, encerrar ${cal.city || "a cidade"}`}</button>
                 <button style={styles.btn("#3b2a58")} onClick={()=>setConfirmCloseCity(false)} disabled={farewellBusy}>Cancelar</button>
               </div>
             ) : (
               <button style={{ ...styles.btn("#fbbf24"), width:"100%" }} onClick={()=>setConfirmCloseCity(true)}>🏆 Encerrar cidade e gerar placa + relatório</button>
             )}
+            </>); })()}
             {hallMsg && <p style={{ color: hallMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:8, lineHeight:1.5 }}>{hallMsg}</p>}
-            <button style={{ ...styles.btn("#06b6d4"), width:"100%", marginTop:10 }} onClick={()=>{ getHallOfFame().then(setTripHallEntries); setShowTripOverview(true); }}>📊 Visão da Viagem</button>
+            <button style={{ ...styles.btn("#06b6d4"), width:"100%", marginTop:10 }} onClick={()=>{ getHallOfFame(codeShift).then(setTripHallEntries); setShowTripOverview(true); }}>📊 Visão da Viagem ({shiftMeta(codeShift, turmas).label})</button>
           </div>
           <div data-tour-prof="backup" className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:4 }}>💾 Backup automático</h3>

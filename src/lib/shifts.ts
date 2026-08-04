@@ -69,3 +69,34 @@ export function withContentName(
   const prevObj = prev && typeof prev === "object" ? prev : {};
   return { ...(contentNames || {}), [date]: { ...prevObj, [shift]: title } };
 }
+
+// ── calendário (dias de aula + cidade da jornada do DF) por turma — cada turma tem o próprio,
+// guardado em teachermeta.byTurma[id]. SÓ as 2 turmas originais (matutino/vespertino) caem no
+// valor GLOBAL antigo enquanto não tiverem o próprio (era o calendário único de antes de existir
+// mais de uma turma — zero migração pra quem só tinha essas 2); qualquer turma criada DEPOIS dessa
+// feature sempre começa com calendário vazio, nunca herda a cidade/dias de outra turma ──
+export interface TurmaCalendar {
+  city: string;
+  cityClosed: boolean;
+  classDays: string[];
+}
+export interface TeacherMetaLike {
+  city?: string | null;
+  cityClosed?: boolean | null;
+  classDays?: string[] | null;
+  byTurma?: Record<string, Partial<TurmaCalendar>> | null;
+}
+const LEGACY_CALENDAR_TURMA_IDS = ["matutino", "vespertino"];
+export function turmaCalendar(m: TeacherMetaLike | null | undefined, turmaId: string): TurmaCalendar {
+  const meta = m || {};
+  const per = (meta.byTurma || {})[turmaId];
+  if (per) return { classDays: per.classDays || [], city: per.city || "", cityClosed: !!per.cityClosed };
+  if (LEGACY_CALENDAR_TURMA_IDS.includes(turmaId)) {
+    return { classDays: meta.classDays || [], city: meta.city || "", cityClosed: !!meta.cityClosed };
+  }
+  return { classDays: [], city: "", cityClosed: false };
+}
+export function withTurmaCalendar<T extends TeacherMetaLike>(m: T, turmaId: string, patch: Partial<TurmaCalendar>): T {
+  const cur = turmaCalendar(m, turmaId);
+  return { ...m, byTurma: { ...(m.byTurma || {}), [turmaId]: { ...cur, ...patch } } };
+}

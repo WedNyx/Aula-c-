@@ -279,17 +279,38 @@ export async function setInspection(shift, name, value, auth) {
   } catch { return false }
 }
 
-// ── 🏆 Hall da Fama: uma "placa" por cidade encerrada, visível para os alunos das próximas cidades ──
+// ── 🏆 Hall da Fama: uma "placa" por cidade encerrada, visível para os alunos das próximas cidades.
+// Cada turma tem o seu — a chave antiga (sem turma, de antes de existir mais de uma turma) fica como
+// histórico de matutino/vespertino (as 2 turmas originais, quando encerrar cidade ainda era um
+// evento único do sistema inteiro); uma turma criada depois só lê a própria, sem herdar nada ──
 const HALL_KEY = 'hall:entries'
-export async function getHallOfFame() {
+const hallKeyFor = (turmaId) => `hall:entries:${turmaId || 'sem-turno'}`
+// só as entradas DESTA turma, sem o histórico legado — usado na hora de gravar (pra não duplicar o
+// legado a cada cidade nova encerrada); pra EXIBIR pro professor/aluno use getHallOfFame, que já mescla
+export async function getOwnHallOfFame(turmaId) {
   try {
-    const r = await kvCall({ action: 'get', key: HALL_KEY })
+    const r = await kvCall({ action: 'get', key: hallKeyFor(turmaId) })
     return r.value ? JSON.parse(r.value) : []
   } catch { return [] }
 }
-export async function saveHallOfFame(entries, auth) {
+// histórico legado (de antes de existir mais de uma turma) — pertence a matutino E vespertino ao
+// mesmo tempo, então quem for SOMAR entre várias turmas (ex: /impacto) precisa buscar isso só UMA
+// vez à parte (getOwnHallOfFame de cada turma) pra não contar o mesmo histórico em dobro
+export async function getLegacyHallOfFame() {
   try {
-    const r = await kvCall({ action: 'set', key: HALL_KEY, value: JSON.stringify(entries || []), auth })
+    const legacy = await kvCall({ action: 'get', key: HALL_KEY })
+    return legacy.value ? JSON.parse(legacy.value) : []
+  } catch { return [] }
+}
+export async function getHallOfFame(turmaId) {
+  const own = await getOwnHallOfFame(turmaId)
+  if (turmaId !== 'matutino' && turmaId !== 'vespertino') return own
+  const legacyEntries = await getLegacyHallOfFame()
+  return [...legacyEntries, ...own]
+}
+export async function saveHallOfFame(turmaId, entries, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: hallKeyFor(turmaId), value: JSON.stringify(entries || []), auth })
     return r.ok === true
   } catch { return false }
 }
