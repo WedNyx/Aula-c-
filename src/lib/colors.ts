@@ -15,3 +15,11 @@ export function isLight(hex: string): boolean {
   const [r, g, b] = hexToRgb(hex);
   return (0.299 * r + 0.587 * g + 0.114 * b) > 165;
 }
+// mesma clareada/escurecida do shade(), mas devolve hex "RRGGBB" (sem #) em vez de rgb(...) —
+// usado onde o formato precisa ser hex puro, como estilo de célula de planilha (xlsx.js)
+export function shadeHex(hex: string, pct: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const t = pct < 0 ? 0 : 255, p = Math.min(1, Math.abs(pct));
+  const m = (v: number) => Math.round((t - v) * p) + v;
+  return [m(r), m(g), m(b)].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("").toUpperCase();
+}

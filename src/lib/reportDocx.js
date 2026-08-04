@@ -188,14 +188,18 @@ function emuExtentFor(canvas) {
   return { cx, cy };
 }
 
-function shiftLabel(shift) {
-  return shift === "vespertino" ? "Vespertina" : "Matutina";
+// "Turma Matutina"/"Turma Vespertina" pras 2 turmas de fábrica (mantém o texto de sempre no
+// relatório); uma turma extra criada pelo professor usa o próprio nome dela (ex: "Turma Vespertino B")
+function turmaLabel(turma) {
+  if (turma.id === "matutino") return "Matutina";
+  if (turma.id === "vespertino") return "Vespertina";
+  return turma.label || turma.id;
 }
 
 // ── monta o XML de uma turma inteira (cabeçalho + um bloco por aluno + as 3 fotos de cada) ──
-async function buildShiftXml(shift, students, { cursoTexto, tipoAvaliacao }, imgReg) {
+async function buildTurmaXml(turma, students, { cursoTexto, tipoAvaliacao }, imgReg) {
   let xml = "";
-  xml += centerPara(`CURSO DE: ${cursoTexto} — Turma ${shiftLabel(shift)}`);
+  xml += centerPara(`CURSO DE: ${cursoTexto} — Turma ${turmaLabel(turma)}`);
   xml += fieldPara(`TIPO DE AVALIAÇÃO: ${tipoAvaliacao}`);
   xml += blankPara();
   if (!students.length) {
@@ -248,9 +252,10 @@ function nextFreeRid(relsXml) {
 /**
  * Gera o Relatório de Comprovação de Aproveitamento de Aprendizado em .docx, reaproveitando o
  * modelo oficial (cabeçalho, rodapé, assinaturas — tudo igual), preenchendo cidade/mês e um
- * bloco por turma (matutino/vespertino) com todos os alunos que entraram na plataforma.
+ * bloco POR TURMA (todas as turmas ativas, não só matutino/vespertino) com todos os alunos que
+ * entraram na plataforma.
  */
-export async function generateRelatorioDocx({ city, studentsByShift, cursoTexto, tipoAvaliacao, when = new Date() }) {
+export async function generateRelatorioDocx({ city, studentsByShift, turmas, cursoTexto, tipoAvaliacao, when = new Date() }) {
   const JSZip = (await import("jszip")).default;
   const res = await fetch("/relatorio-modelo.docx");
   if (!res.ok) throw new Error("Não consegui carregar o modelo do relatório.");
@@ -271,9 +276,10 @@ export async function generateRelatorioDocx({ city, studentsByShift, cursoTexto,
     .replace("__DATA_ASSINATURA__", () => escapeXml(formatDataAssinatura(when)));
 
   const imgReg = makeImageRegistry(nextFreeRid(relsXml), 5000);
-  const matutinoXml = await buildShiftXml("matutino", studentsByShift.matutino || [], { cursoTexto, tipoAvaliacao }, imgReg);
-  const vespertinoXml = await buildShiftXml("vespertino", studentsByShift.vespertino || [], { cursoTexto, tipoAvaliacao }, imgReg);
-  const turmasXml = matutinoXml + vespertinoXml;
+  let turmasXml = "";
+  for (const turma of turmas) {
+    turmasXml += await buildTurmaXml(turma, studentsByShift[turma.id] || [], { cursoTexto, tipoAvaliacao }, imgReg);
+  }
   documentXml = documentXml.replace(
     '<w:p><w:pPr><w:pStyle w:val="Normal"/><w:tabs><w:tab w:val="clear" w:pos="720"/><w:tab w:val="left" w:pos="3119" w:leader="none"/></w:tabs><w:spacing w:lineRule="auto" w:line="360"/><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="pt-BR"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:cs="Times New Roman" w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="pt-BR"/></w:rPr><w:t>__TURMAS__</w:t></w:r></w:p>',
     () => turmasXml

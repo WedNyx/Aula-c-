@@ -3,7 +3,7 @@ import gsap from "gsap";
 import { Toaster, toast } from "sonner";
 import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getTurmas, saveTurmas } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
-import { hexToRgb, shade, isLight } from "./lib/colors.ts";
+import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
 import { setSoundsCalm, playSound, setSoundsMuted, loadSoundsMuted, CONFETTI_COLORS, fireConfetti } from "./lib/sound.ts";
 import { codeBackupKey, saveCodeBackupLocal, loadCodeBackupLocal } from "./lib/codeBackup.ts";
@@ -4385,10 +4385,10 @@ function TeacherView({ onLogout, teacherAuth }) {
   });
   const [proLoaded, setProLoaded] = useState(false);
   const [codeShift, setCodeShift] = useState("matutino"); // turno em edição/visualização (Meu código + Calendário)
-  const proFiles = proFilesByShift[codeShift];
+  const proFiles = proFilesByShift[codeShift] || [{ name:"Program.cs", code:"" }];
   const setProFiles = (updater) => setProFilesByShift(prev => ({
     ...prev,
-    [codeShift]: typeof updater === "function" ? updater(prev[codeShift]) : updater,
+    [codeShift]: typeof updater === "function" ? updater(prev[codeShift] || [{ name:"Program.cs", code:"" }]) : updater,
   }));
   // prova
   const [examConfig, setExamConfig] = useState({ status: 'idle' });
@@ -4670,25 +4670,29 @@ function TeacherView({ onLogout, teacherAuth }) {
   // carrega o código salvo do professor uma vez, para cada turno
   useEffect(() => {
     (async () => {
-      const [m, v] = await Promise.all([getTeacherCode("matutino"), getTeacherCode("vespertino")]);
+      const results = await Promise.all(turmas.map(t => getTeacherCode(t.id)));
       // tira \r de código salvo ANTES da correção (colado do Windows/Visual Studio) — ver VSEditor
       const clean = (files) => files.map(f => ({ ...f, code: String(f.code||"").replace(/\r/g, "") }));
-      setProFilesByShift(prev => ({
-        matutino: (m && Array.isArray(m.files) && m.files.length) ? clean(m.files) : prev.matutino,
-        vespertino: (v && Array.isArray(v.files) && v.files.length) ? clean(v.files) : prev.vespertino,
-      }));
+      setProFilesByShift(prev => {
+        const next = { ...prev };
+        turmas.forEach((t, i) => {
+          const r = results[i];
+          if (r && Array.isArray(r.files) && r.files.length) next[t.id] = clean(r.files);
+          else if (!next[t.id]) next[t.id] = [{ name:"Program.cs", code:"" }];
+        });
+        return next;
+      });
       setProLoaded(true);
     })();
-  }, []);
-  // salva o código do professor de cada turno (sem pressa) sempre que ele mexe
+  }, [turmas]);
+  // salva o código do professor de cada turma (sem pressa) sempre que ele mexe
   useEffect(() => {
     if (!proLoaded) return;
     const id = setTimeout(() => {
-      saveTeacherCode(proFilesByShift.matutino, "matutino", teacherAuth);
-      saveTeacherCode(proFilesByShift.vespertino, "vespertino", teacherAuth);
+      turmas.forEach(t => saveTeacherCode(proFilesByShift[t.id] || [{ name:"Program.cs", code:"" }], t.id, teacherAuth));
     }, 1000);
     return () => clearTimeout(id);
-  }, [proFilesByShift, proLoaded]);
+  }, [proFilesByShift, proLoaded, turmas]);
 
   // definir a cidade aqui é o que "reativa" a viagem depois de uma cidade encerrada — só a partir
   // daqui volta a contar dia de aula e a mostrar o pino "você está aqui" na Visão da Viagem. Cada
@@ -4863,29 +4867,34 @@ function TeacherView({ onLogout, teacherAuth }) {
     setTimeout(()=>setHallMsg(""), 9000);
   };
   // 📄 Relatório de Comprovação de Aproveitamento de Aprendizado: reaproveita o modelo oficial
-  // (cabeçalho/rodapé/assinaturas intactos), preenchendo cidade/mês e um bloco por turma com
-  // ALUNO/CPF/NOTA/ANEXO de cada aluno — só matutino e vespertino (mesmo recorte da turma oficial
-  // de C# usado no /impacto; turma de teste e sala de linguagens ficam de fora)
+  // (cabeçalho/rodapé/assinaturas intactos), preenchendo cidade/mês e um bloco por TURMA ATIVA
+  // (todas, não só matutino/vespertino) com ALUNO/CPF/NOTA/ANEXO de cada aluno — turma de teste e
+  // sala de linguagens continuam de fora (nunca entram na lista de turmas de verdade)
   const [relatorioBusy, setRelatorioBusy] = useState(false);
   const [relatorioMsg, setRelatorioMsg] = useState("");
   const doGerarRelatorio = async () => {
     setRelatorioBusy(true); setRelatorioMsg("");
     try {
       const byName = (a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR");
-      const studentsByShift = {
-        matutino: students.filter(s => (s.shift || "matutino") === "matutino").sort(byName),
-        vespertino: students.filter(s => s.shift === "vespertino").sort(byName),
-      };
-      const total = studentsByShift.matutino.length + studentsByShift.vespertino.length;
-      if (total === 0) { setRelatorioMsg("❌ Nenhum aluno em Matutino/Vespertino ainda pra gerar o relatório."); setRelatorioBusy(false); return; }
+      const studentsByShift = Object.fromEntries(
+        activeTurmas.map(t => [t.id, students.filter(s => (s.shift || activeTurmas[0]?.id) === t.id).sort(byName)])
+      );
+      const total = activeTurmas.reduce((n, t) => n + studentsByShift[t.id].length, 0);
+      if (total === 0) { setRelatorioMsg("❌ Nenhum aluno em nenhuma turma ainda pra gerar o relatório."); setRelatorioBusy(false); return; }
+      // cada turma pode estar numa cidade diferente da jornada agora — se todas as que têm aluno
+      // no relatório baterem na mesma cidade, usa ela; se divergirem, lista as diferentes juntas
+      const citiesInvolved = [...new Set(activeTurmas.filter(t => studentsByShift[t.id].length).map(t => turmaCalendar(meta, t.id).city).filter(Boolean))];
+      const cityLabel = citiesInvolved.length <= 1 ? (citiesInvolved[0] || "") : citiesInvolved.join(" / ");
       const blob = await generateRelatorioDocx({
-        city: meta.city,
+        city: cityLabel,
         studentsByShift,
+        turmas: activeTurmas,
         cursoTexto: "C# para iniciantes",
         tipoAvaliacao: "atividades avaliativas e prova sobre C#",
       });
-      downloadRelatorioDocx(blob, { city: meta.city });
-      setRelatorioMsg(`✅ Relatório gerado com ${total} aluno${total===1?"":"s"} (${studentsByShift.matutino.length} matutino, ${studentsByShift.vespertino.length} vespertino).`);
+      downloadRelatorioDocx(blob, { city: cityLabel });
+      const porTurma = activeTurmas.map(t => `${studentsByShift[t.id].length} ${t.label}`).join(", ");
+      setRelatorioMsg(`✅ Relatório gerado com ${total} aluno${total===1?"":"s"} (${porTurma}).`);
     } catch (e) {
       setRelatorioMsg(`❌ Não consegui gerar o relatório: ${e?.message || e}`);
     }
@@ -5065,9 +5074,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     xlsRows.push({ cells: [] });
 
     groups.forEach(g => {
-      const bandSt = g.id === "matutino"
-        ? { b:1, sz:12, color:"5C4400", fill:"FFE9A8", border:1 }
-        : { b:1, sz:12, color:"232A6B", fill:"C9CDFF", border:1 };
+      const bandSt = { b:1, sz:12, color: shadeHex(g.color || "#c084fc", -0.55), fill: shadeHex(g.color || "#c084fc", 0.75), border:1 };
       cells = wide(bandSt);
       cells[0].v = `${g.emoji} TURMA ${g.label.toUpperCase()} — ${g.list.length} aluno${g.list.length!==1?"s":""}`;
       xlsRows.push({ cells, ht: 22 }); mergeRow();
@@ -5221,7 +5228,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
       // ── CONTEÚDO (um capítulo por turno) ──
       shiftsWithCode.forEach((sh, idx) => {
-        const accent = sh.id === "matutino" ? "#f59e0b" : "#c084fc";
+        const accent = sh.color || "#c084fc";
         doc.addPage(); y = margin;
 
         // faixa do turno
@@ -5358,7 +5365,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       };
 
       // ── cabeçalho ──
-      const accent = shift === "matutino" ? "#f59e0b" : "#c084fc";
+      const accent = turmas.find(t => t.id === shift)?.color || "#c084fc";
       doc.setFillColor(...hexRgb(accent)); doc.roundedRect(margin, y - 8, maxW, 56, 10, 10, "F");
       doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(255, 255, 255);
       doc.text(clean(`Resumo da aula de hoje — para ${studentName}`), margin + 16, y + 16);
@@ -5492,7 +5499,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       turma.forEach((s, idx) => {
         if (idx > 0) doc.addPage();
         let y = margin;
-        const accent = s.shift === "matutino" ? "#f59e0b" : "#c084fc";
+        const accent = turmas.find(t => t.id === s.shift)?.color || "#c084fc";
         const aprendeu = aprendeuPorTurno[s.shift] || aprendeuPorTurno[turnosPresentes[0]] || ["Participou das aulas de introdução à programação em C#."];
         // cabeçalho
         doc.setFillColor(...hexRgb(accent)); doc.roundedRect(margin, y - 8, maxW, 64, 10, 10, "F");
@@ -6036,9 +6043,9 @@ function TeacherView({ onLogout, teacherAuth }) {
   const idleList    = sorted.filter(s => attStatus(s)==="idle");
   const absentList  = sorted.filter(s => attStatus(s)==="absent");
   const contentFor = (sh) => contentNameFor((meta.contentNames||{})[tk], sh);
-  const todayContentM = contentFor("matutino");
-  const todayContentV = contentFor("vespertino");
-  const todayContent = todayContentM || todayContentV; // uso legado (NyxChat, etc.)
+  // conteúdo de hoje de CADA turma ativa (não só matutino/vespertino) — usado no resumo automático,
+  // no aviso do topo e no contexto que o Nyx do professor recebe
+  const todayContentByTurma = activeTurmas.map(t => ({ turma: t, content: contentFor(t.id) })).filter(x => x.content);
   // mapa de conteúdo por dia já resolvido para o turno em foco (usado no Calendário)
   const calContentNames = Object.fromEntries(
     Object.entries(meta.contentNames || {})
@@ -6138,7 +6145,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           {tab!=="code" && (
             <span style={{ color:"#a99ac9", marginLeft:12, fontSize:12 }}>
               ● ao vivo · {lastUpdate}{turmaCalendar(meta, codeShift).city?` · 📍 ${turmaCalendar(meta, codeShift).city}`:""}
-              {(todayContentM||todayContentV) ? ` · 📖 ${[todayContentM&&`☀️ ${todayContentM}`, todayContentV&&`🌙 ${todayContentV}`].filter(Boolean).join(" · ")}` : ""}
+              {todayContentByTurma.length ? ` · 📖 ${todayContentByTurma.map(x=>`${x.turma.emoji} ${x.content}`).join(" · ")}` : ""}
             </span>
           )}
           {tab!=="code" && (
@@ -6536,12 +6543,12 @@ function TeacherView({ onLogout, teacherAuth }) {
             </CollapsibleCard>
 
             <CollapsibleCard title="📖 Conteúdo de hoje" dataTourProf="conteudo-auto">
-              {todayContentM
-                ? <p style={{ color:"#34d399", fontSize:13, fontWeight:600, lineHeight:1.5, margin:0 }}>☀️ Manhã: {todayContentM}</p>
-                : <p style={{ color:"#a99ac9", fontSize:12.5, lineHeight:1.5, margin:0 }}>☀️ Manhã: ainda não definido</p>}
-              {todayContentV
-                ? <p style={{ color:"#34d399", fontSize:13, fontWeight:600, lineHeight:1.5, margin:"4px 0 0" }}>🌙 Tarde: {todayContentV}</p>
-                : <p style={{ color:"#a99ac9", fontSize:12.5, lineHeight:1.5, margin:"4px 0 0" }}>🌙 Tarde: ainda não definido</p>}
+              {activeTurmas.map((t, i) => {
+                const content = contentFor(t.id);
+                return content
+                  ? <p key={t.id} style={{ color:"#34d399", fontSize:13, fontWeight:600, lineHeight:1.5, margin: i===0?0:"4px 0 0" }}>{t.emoji} {t.label}: {content}</p>
+                  : <p key={t.id} style={{ color:"#a99ac9", fontSize:12.5, lineHeight:1.5, margin: i===0?0:"4px 0 0" }}>{t.emoji} {t.label}: ainda não definido</p>;
+              })}
               <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.5, margin:"8px 0 0" }}>Programe o exemplo na aba <b>Meu código</b> e gere um nome automático. (Se ainda não programou, uso o código dos alunos.)</p>
               <button style={{ ...styles.btn("#c084fc"), padding:"6px 12px", fontSize:13, marginTop:8, width:"100%", opacity:genName?0.6:1 }} onClick={generateContentNameFiltered} disabled={genName}>{genName?"Gerando...":"✨ Gerar nome do conteúdo"}</button>
               {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12, marginTop:8, lineHeight:1.5 }}>{nameMsg}</p>}
@@ -7647,7 +7654,8 @@ function TeacherView({ onLogout, teacherAuth }) {
             const att = Object.values(s.attendance||{}).filter(v => v === "present").length;
             return `- ${s.name} [${shiftLabel(s.shift, turmas)}]: fase=${s.phase||"aguardando"}, presenças=${att}, nota atividade=${s.score ?? "—"}, nota prova=${s.examScore ?? "—"}, erro no código agora=${s.hasError ? "sim: " + (s.feedback?.message || "") : "não"}`;
           }).join("\n");
-          return `Contexto: você é o assistente do professor. Situação da turma AGORA (turmas Matutino e Vespertino; a turma de teste não entra aqui):\n${rows || "(nenhum aluno entrou ainda)"}\nConteúdo de hoje — Manhã: ${todayContentM || "ainda não definido"} · Tarde: ${todayContentV || "ainda não definido"}.`;
+          const conteudoHoje = activeTurmas.map(t => `${t.label}: ${contentFor(t.id) || "ainda não definido"}`).join(" · ");
+          return `Contexto: você é o assistente do professor. Situação de todas as turmas AGORA (a turma de teste não entra aqui):\n${rows || "(nenhum aluno entrou ainda)"}\nConteúdo de hoje — ${conteudoHoje}.`;
         }}
       />
     </div>
