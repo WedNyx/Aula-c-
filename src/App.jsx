@@ -6028,14 +6028,16 @@ function TeacherView({ onLogout, teacherAuth }) {
     if (a) return a;
     return isSameDayTs(s.lastSeen) ? "present" : "absent";
   };
-  // ⏰ atrasado: só faz sentido se o turno tem horário configurado — compara o 1º acesso de HOJE com o início da aula
+  // ⏰ atrasado: só faz sentido se o turno tem horário configurado — compara o 1º acesso de HOJE com o início da aula,
+  // com 15 min de tolerância (só conta atraso depois disso)
+  const LATE_TOLERANCE_MIN = 15;
   const isLate = (s) => {
     const sched = schedule[s.shift];
     const startMin = sched && hmToMin(sched.start);
     const firstToday = s.attendanceFirst && s.attendanceFirst[tk];
     if (startMin == null || !firstToday) return false;
     const d = new Date(firstToday);
-    return (d.getHours() * 60 + d.getMinutes()) > startMin;
+    return (d.getHours() * 60 + d.getMinutes()) > startMin + LATE_TOLERANCE_MIN;
   };
   // 📋 faltas pendentes de justificativa (aparecem no detalhe do aluno)
   const pendingJustifications = (s) => Object.entries(s.justifications || {}).filter(([, j]) => j.status === "pending");

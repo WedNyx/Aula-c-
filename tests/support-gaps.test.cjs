@@ -1,6 +1,7 @@
 // Fecha 3 lacunas de apoio a alunos: (1) aluno liga um perfil de apoio pra si mesmo (sem depender
 // do professor notar), (2) aluno pede um parceiro sozinho e o professor vê/pareia/dispensa,
-// (3) o painel do professor detecta quem está "travado" (online, faz tempo, sem escrever nada).
+// (3) o painel do professor avisa (de forma neutra, sem soar como "dificuldade") quem está online
+// faz tempo sem escrever nada.
 const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } = require('./helpers.cjs');
 
 (async () => {
@@ -69,11 +70,17 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await p.waitForTimeout(500);
 
   check('Resumo mostra que alguém pediu parceiro', (await p.locator('text=/pediu um parceiro/').count()) > 0);
-  check('Resumo mostra AlunoTravado como travado (dificuldade)', (await p.locator('text=/AlunoTravado/').count()) > 0);
+  // ficar online muito tempo sem escrever nada não é mais tratado como "dificuldade" — vira só um
+  // aviso neutro de inatividade, então AlunoTravado NÃO deve entrar no resumo "com dificuldade agora"
+  check('Resumo NÃO trata AlunoTravado como "com dificuldade"',
+    (await p.locator('text=/com dificuldade agora.*AlunoTravado/').count()) === 0);
 
   const monitorCard = p.locator('h3:has-text("Monitoramento")').locator('xpath=..');
   await monitorCard.hover();
   await p.waitForTimeout(700);
+  const tileTravado = p.locator('.tilefx', { hasText: 'AlunoTravado' });
+  check('Tile de AlunoTravado mostra o rótulo neutro "Começando", não "Com dificuldade"',
+    (await tileTravado.locator('text=Começando').count()) > 0 && (await tileTravado.locator('text=Com dificuldade').count()) === 0);
   await p.click('text=AlunoApoio');
   await p.waitForTimeout(500);
   check('Professor vê o badge de pedido de parceiro do aluno', (await p.locator('text=/pediu um parceiro/').count()) > 0);
