@@ -81,6 +81,20 @@ await seed('loginfail:teacher:1.2.3.4', JSON.stringify({ count: 2 }));
   check('POST com senha errada é negado', res._status === 401);
 }
 
+// 4b) tentativas erradas seguidas atrasam cada vez mais (antes disso, este endpoint verificava a
+// senha sem NENHUM atraso/bloqueio — só /api/auth e /api/kv tinham essa proteção)
+{
+  const req1 = mockReq({ headers: { 'x-forwarded-for': '9.9.9.9' }, body: { auth: 'senha-errada' } });
+  const t0 = Date.now();
+  await backupHandler(req1, mockRes());
+  const d1 = Date.now() - t0;
+  const req2 = mockReq({ headers: { 'x-forwarded-for': '9.9.9.9' }, body: { auth: 'senha-errada' } });
+  const t1 = Date.now();
+  await backupHandler(req2, mockRes());
+  const d2 = Date.now() - t1;
+  check('Tentativa errada seguida do mesmo IP demora mais que a anterior', d2 > d1, `d1=${d1}ms d2=${d2}ms`);
+}
+
 // 5) simula um segundo dia: CRON_SECRET configurado, chamada do Cron de verdade (com o header certo)
 {
   process.env.CRON_SECRET = 'segredo-do-cron-123';
@@ -96,6 +110,20 @@ await seed('loginfail:teacher:1.2.3.4', JSON.stringify({ count: 2 }));
   await backupHandler(req, res);
   check('Com CRON_SECRET configurado, chamada sem credencial nenhuma é negada', res._status === 401);
 }
+// listar os backups (não só criar) também exige credencial — antes disso, o "?list=1" sempre
+// devolvia a listagem pra qualquer um, mesmo com CRON_SECRET configurado, sem senha nenhuma
+{
+  const req = mockReq({ method: 'GET', query: { list: '1' } });
+  const res = mockRes();
+  await backupHandler(req, res);
+  check('Listar backups SEM credencial (com CRON_SECRET configurado) é negado', res._status === 401, JSON.stringify(res._body));
+}
+{
+  const req = mockReq({ method: 'GET', query: { list: '1', auth: 'senha-de-teste-123' } });
+  const res = mockRes();
+  await backupHandler(req, res);
+  check('Listar backups COM a senha do professor continua funcionando', Array.isArray(res._body.backups), JSON.stringify(res._body));
+}
 
 // 6) rotação: cria mais backups além do limite (keep=14) e confere que os mais antigos somem
 {
@@ -106,7 +134,8 @@ await seed('loginfail:teacher:1.2.3.4', JSON.stringify({ count: 2 }));
     await backupHandler(req, res);
     await new Promise(r => setTimeout(r, 5)); // garante timestamps (chave) diferentes
   }
-  const req = mockReq({ method: 'GET', query: { list: '1' } });
+  // CRON_SECRET já está configurado (desde o passo 5) — listar agora exige credencial, igual criar
+  const req = mockReq({ method: 'GET', query: { list: '1', auth: 'senha-de-teste-123' } });
   const res = mockRes();
   await backupHandler(req, res);
   check('Rotação mantém no máximo 14 backups guardados', res._body.backups.length <= 14, `total=${res._body.backups.length}`);

@@ -2,6 +2,10 @@
 // Tenta criar a tabela via Postgres direto (DATABASE_PASSWORD).
 // Se não conseguir, retorna o SQL para o usuário rodar no Supabase.
 
+import { loginFailCount, recordLoginFailure, clearLoginFailures } from './kv.js'
+import { isValidTeacherPassword } from './_teacherAuth.js'
+import { clientIp } from './_ip.js'
+
 const CREATE_SQL = `CREATE TABLE IF NOT EXISTS kv_store (
   key        TEXT PRIMARY KEY,
   value      TEXT,
@@ -10,6 +14,20 @@ const CREATE_SQL = `CREATE TABLE IF NOT EXISTS kv_store (
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  // essa rota abre uma conexão pg de verdade e roda CREATE TABLE/escreve no banco — não tinha
+  // NENHUMA autenticação, então qualquer um que soubesse a URL podia disparar isso à vontade.
+  // Mesmo atraso crescente por tentativa errada usado no resto do painel do professor.
+  const { auth } = req.body || {}
+  const ip = clientIp(req)
+  const bucketKey = `loginfail:setupdb:${ip}`
+  const fails = await loginFailCount(bucketKey)
+  if (fails > 0) await new Promise(r => setTimeout(r, Math.min(400 + fails * 500, 6000)))
+  if (!isValidTeacherPassword(auth)) {
+    await recordLoginFailure(bucketKey, 600)
+    return res.status(403).json({ error: 'forbidden', message: 'Essa ação é só do professor — senha inválida ou ausente.' })
+  }
+  await clearLoginFailures(bucketKey)
 
   const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '')
   const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || ''

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { isValidTeacherPassword } from './_teacherAuth.js'
+import { clientIp } from './_ip.js'
 
 const TABLE = 'kv_store'
 
@@ -28,6 +29,7 @@ const PUBLIC_LIST_PREFIXES = ['student:', 'duel:', 'teamduel:', 'partner:']
 const GET_PROTECTED_PREFIXES = ['backup:', 'errorlog:']
 function needsTeacherAuth(action, key) {
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
+  if (action === 'get_recent_errors') return true // lista os erros de todo mundo — sempre só-do-professor
   const k = String(key || '')
   if (action === 'set') return SET_PROTECTED_PREFIXES.some(p => k.startsWith(p))
   if (action === 'delete') return DELETE_PROTECTED_PREFIXES.some(p => k.startsWith(p))
@@ -397,29 +399,49 @@ export async function listBackups() {
   return items.map(i => ({ key: i.key, size: (i.value || '').length })).sort((a, b) => b.key.localeCompare(a.key))
 }
 
+// ─── verifica a senha do professor com o mesmo atraso crescente por tentativa errada do
+// /api/auth, aplicado sempre que uma senha É de fato tentada (campo "auth" não vazio) — inclusive
+// em ações que não EXIGEM senha pra funcionar, como "get" de uma chave qualquer. Sem isso, dava pra
+// chutar a senha sem limite nenhum usando a redação condicional de "get" como oráculo (gabarito de
+// prova/quiz/torneio some ou aparece dependendo só de acertar a senha), sem nunca cair no 403 que
+// dispararia o throttle. Quando "auth" está vazio (a esmagadora maioria das leituras anônimas
+// normais), devolve false na hora sem gastar nenhuma chamada a mais no banco.
+async function checkTeacherAuth(ip, auth) {
+  if (!auth) return false
+  const bucketKey = `loginfail:kvaction:${ip}`
+  const fails = await loginFailCount(bucketKey)
+  if (fails > 0) await new Promise(r => setTimeout(r, Math.min(400 + fails * 500, 6000)))
+  const ok = isValidTeacherPassword(auth)
+  if (ok) await clearLoginFailures(bucketKey)
+  else await recordLoginFailure(bucketKey, 600)
+  return ok
+}
+
+// ─── limites generosos de uso pra "set"/"get"/"delete"/"list_with_values" — essas quatro ações
+// nunca tiveram NENHUM limite, mesmo sendo o coração de todo o app (autosave, polling de duelo/chefão/
+// torneio, etc.), o que deixava um bug em loop (ou um script malicioso) capaz de martelar o banco sem
+// nenhum freio. Os números são bem folgados de propósito — uma sala inteira de alunos compartilhando
+// o wifi da escola gera bem menos que isso por minuto — servem só pra barrar um loop descontrolado.
+const KV_RATE_LIMITS = { kvset: [600, 60], kvget: [1200, 60], kvdelete: [300, 60], kvlist: [300, 60] }
+async function checkKvRateLimit(res, bucket, ip) {
+  const [max, windowSeconds] = KV_RATE_LIMITS[bucket]
+  const within = await rateLimitCheck(`ratelimit:${bucket}:${ip}`, max, windowSeconds)
+  if (!within) { res.status(429).json({ error: 'rate_limited', message: 'Muitos pedidos seguidos desse mesmo lugar. Aguarde um pouco e tente de novo.' }); return false }
+  return true
+}
+
 // ─── Handler ─────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   const { action, key, value, prefix, auth } = req.body || {}
+  const ip = clientIp(req)
 
   const authKey = (action === 'delete_by_prefix' || action === 'list_with_values') ? prefix : key
   if (needsTeacherAuth(action, authKey)) {
-    // mesma ideia do /api/auth: sem senha certa não dava pra chamar essas ações mesmo — mas nada
-    // impedia alguém de ficar chutando o campo "auth" direto aqui, sem passar pela tela de login
-    // (que é quem tinha o atraso crescente). Agora cada erro seguido NESSE endpoint também atrasa
-    // a próxima tentativa vinda do mesmo IP — só demora se já teve chute errado antes, então o uso
-    // normal do professor (senha certa, sempre) não fica lento.
-    const ip = String((req.headers && req.headers['x-forwarded-for']) || req.socket?.remoteAddress || 'unknown').split(',')[0].trim()
-    const bucketKey = `loginfail:kvaction:${ip}`
-    const fails = await loginFailCount(bucketKey)
-    if (fails > 0) await new Promise(r => setTimeout(r, Math.min(400 + fails * 500, 6000)))
-
-    if (!isValidTeacherPassword(auth)) {
-      await recordLoginFailure(bucketKey, 600)
+    if (!(await checkTeacherAuth(ip, auth))) {
       return res.status(403).json({ error: 'forbidden', message: 'Essa ação é só do professor — senha inválida ou ausente.' })
     }
-    await clearLoginFailures(bucketKey)
   }
 
   if (action === 'check') {
@@ -444,9 +466,14 @@ export default async function handler(req, res) {
 
   try {
     switch (action) {
-      case 'set':              await store.set(key, value);           return res.json({ ok: true })
+      case 'set': {
+        if (!(await checkKvRateLimit(res, 'kvset', ip))) return
+        await store.set(key, value)
+        return res.json({ ok: true })
+      }
       case 'get': {
-        const authorized = isValidTeacherPassword(auth)
+        if (!(await checkKvRateLimit(res, 'kvget', ip))) return
+        const authorized = await checkTeacherAuth(ip, auth)
         const raw = await store.get(key)
         const redacted = redactTourneyConfig(key, redactQuizRoom(key, redactExamConfig(key, raw, authorized), authorized), authorized)
         return res.json({ value: redacted })
@@ -460,7 +487,6 @@ export default async function handler(req, res) {
         // limite de tentativas: a nota devolvida diz QUANTAS respostas acertou (não QUAIS) — sem
         // um limite aqui, alguém poderia enviar respostas repetidas vezes mudando uma de cada vez
         // pra descobrir o gabarito inteiro só olhando a nota subir ou descer.
-        const ip = String((req.headers && req.headers['x-forwarded-for']) || req.socket?.remoteAddress || 'unknown').split(',')[0].trim()
         const withinLimit = await rateLimitCheck(`ratelimit:gradeexam:${ip}`, 15, 600)
         if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas tentativas seguidas de enviar a prova. Aguarde um pouco e tente de novo.' })
         const { shift, answers, exits } = req.body || {}
@@ -482,7 +508,6 @@ export default async function handler(req, res) {
         // (o embaralhamento é só cosmético no cliente, feito sem precisar saber qual é a certa) —
         // o servidor lê a rodada de verdade direto do banco (sem passar pelo redactTourneyConfig,
         // que é só pra "get") e devolve só a pontuação, nunca "correta".
-        const ip = String((req.headers && req.headers['x-forwarded-for']) || req.socket?.remoteAddress || 'unknown').split(',')[0].trim()
         const withinLimit = await rateLimitCheck(`ratelimit:gradetourney:${ip}`, 15, 600)
         if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas tentativas seguidas de enviar o torneio. Aguarde um pouco e tente de novo.' })
         const { tourneyId, round, picks, turmaId } = req.body || {}
@@ -505,7 +530,6 @@ export default async function handler(req, res) {
         // objetivo é justamente pegar erro de quem nem sabe que precisa avisar o professor.
         // Rate limit generoso: protege contra um bug em loop enchendo o banco de milhares de
         // registros iguais, sem travar o uso normal (um erro de verdade não repete toda hora).
-        const ip = String((req.headers && req.headers['x-forwarded-for']) || req.socket?.remoteAddress || 'unknown').split(',')[0].trim()
         const withinLimit = await rateLimitCheck(`ratelimit:logerror:${ip}`, 30, 600)
         if (!withinLimit) return res.json({ ok: false, reason: 'rate_limited' })
         const { message, stack, url: pageUrl, role } = req.body || {}
@@ -524,21 +548,29 @@ export default async function handler(req, res) {
         return res.json({ ok: true })
       }
       case 'get_recent_errors': {
-        if (!isValidTeacherPassword(auth)) {
-          return res.status(403).json({ error: 'forbidden', message: 'Essa ação é só do professor — senha inválida ou ausente.' })
-        }
+        // senha já verificada acima (needsTeacherAuth trata "get_recent_errors" como sempre
+        // protegida, com o mesmo atraso crescente das outras ações só-do-professor)
         const raw = await store.get(ERROR_LOG_KEY)
         let entries = []
         try { entries = raw ? JSON.parse(raw) : [] } catch { entries = [] }
         return res.json({ errors: entries.slice().reverse() })
       }
       case 'list_with_values': {
+        if (!(await checkKvRateLimit(res, 'kvlist', ip))) return
         const items = await store.listWithValues(prefix)
-        const authorized = isValidTeacherPassword(auth)
+        const authorized = await checkTeacherAuth(ip, auth)
         return res.json({ items: items.map(i => ({ key: i.key, value: redactStudentValue(i.key, i.value, authorized) })) })
       }
-      case 'delete':           await store.delete(key);               return res.json({ ok: true })
-      case 'delete_by_prefix': await store.deleteByPrefix(prefix);    return res.json({ ok: true })
+      case 'delete': {
+        if (!(await checkKvRateLimit(res, 'kvdelete', ip))) return
+        await store.delete(key)
+        return res.json({ ok: true })
+      }
+      case 'delete_by_prefix': {
+        if (!(await checkKvRateLimit(res, 'kvdelete', ip))) return
+        await store.deleteByPrefix(prefix)
+        return res.json({ ok: true })
+      }
       default: return res.status(400).json({ error: `Unknown action: ${action}` })
     }
   } catch (e) {

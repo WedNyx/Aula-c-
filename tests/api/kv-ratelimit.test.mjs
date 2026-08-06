@@ -86,6 +86,35 @@ check('Atraso cresce (throttling) entre a 1ª e a última tentativa errada', del
   check('Ação não-protegida ("get") nunca é atrasada pelo throttle', d < 1000, `${d}ms`);
 }
 
+// "get" numa chave que NÃO exige senha pra funcionar (ex: exam:config:) ainda assim vira um
+// "oráculo" de senha: o campo "correct" só some/aparece dependendo de acertar o "auth" mandado.
+// Antes desta correção, dava pra chutar a senha à vontade por esse caminho, sem NUNCA cair no
+// atraso — porque só as ações "protegidas de verdade" tinham o throttle. Agora, qualquer tentativa
+// de senha (campo "auth" preenchido, mesmo em ação não-protegida) entra no mesmo contador por IP.
+{
+  const seedReq = mockReq({ action: 'set', key: 'exam:config:matutino', value: JSON.stringify({ questions: [{ q: '1+1', correct: 0 }] }), auth: 'senha-de-teste-123' });
+  await kvHandler(seedReq, mockRes());
+
+  const ip = '10.0.0.77';
+  const guessReq = (guess) => ({ method: 'POST', body: { action: 'get', key: 'exam:config:matutino', auth: guess }, headers: { 'x-forwarded-for': ip }, socket: {} });
+
+  const t0 = Date.now();
+  await kvHandler(guessReq('chute-1'), mockRes());
+  const d1 = Date.now() - t0;
+  const t1 = Date.now();
+  await kvHandler(guessReq('chute-2'), mockRes());
+  const d2 = Date.now() - t1;
+  check('Chutar a senha via "get" (oráculo do gabarito) também atrasa a cada tentativa', d2 > d1, `d1=${d1}ms d2=${d2}ms`);
+
+  const resWrong = mockRes();
+  await kvHandler(guessReq('chute-errado'), resWrong);
+  check('Chute errado via "get": gabarito continua escondido ("correct" ausente)', !resWrong._body.value.includes('correct'), resWrong._body.value);
+
+  const resRight = mockRes();
+  await kvHandler({ method: 'POST', body: { action: 'get', key: 'exam:config:matutino', auth: 'senha-de-teste-123' }, headers: { 'x-forwarded-for': ip }, socket: {} }, resRight);
+  check('Senha certa via "get": gabarito aparece normalmente pro professor', resRight._body.value.includes('correct'), resRight._body.value);
+}
+
 console.log(`\n=== THROTTLE DE AÇÃO PROTEGIDA EM /api/kv TEST: ${pass}/${pass + fail} passed ===`);
 server.kill();
 process.exit(fail > 0 ? 1 : 0);

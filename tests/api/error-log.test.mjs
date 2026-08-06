@@ -57,6 +57,20 @@ const { default: kvHandler } = await import('file:///home/user/Aula-c-/api/kv.js
   check('O erro guarda de onde veio (role/url)', res._body.errors.some(e => e.role === 'student' && e.url === '/aluno'));
 }
 
+// 3b) "get_recent_errors" com senha errada seguida do mesmo IP atrasa cada vez mais — antes desta
+// correção, essa ação verificava a senha na mão, sem passar pelo mesmo atraso/bloqueio por
+// tentativa errada que toda outra ação protegida do /api/kv já tinha
+{
+  const ip = '10.0.0.61';
+  const t0 = Date.now();
+  await kvHandler(mockReq({ action: 'get_recent_errors', auth: 'senha-errada' }, ip), mockRes());
+  const d1 = Date.now() - t0;
+  const t1 = Date.now();
+  await kvHandler(mockReq({ action: 'get_recent_errors', auth: 'senha-errada' }, ip), mockRes());
+  const d2 = Date.now() - t1;
+  check('get_recent_errors: atraso cresce a cada tentativa errada seguida do mesmo IP', d2 > d1, `d1=${d1}ms d2=${d2}ms`);
+}
+
 // 4) mensagens muito longas são cortadas (não vira um jeito de mandar payload gigante)
 {
   const req = mockReq({ action: 'log_error', message: 'x'.repeat(5000), stack: 'y'.repeat(5000), url: '/z'.repeat(500), role: 'teacher' });

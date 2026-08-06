@@ -234,9 +234,9 @@ export async function triggerBackupNow(auth) {
     return await r.json()
   } catch (e) { return { ok: false, reason: String(e?.message || e) } }
 }
-export async function getBackupList() {
+export async function getBackupList(auth) {
   try {
-    const r = await fetch('/api/backup?list=1')
+    const r = await fetch(`/api/backup?list=1&auth=${encodeURIComponent(auth || '')}`)
     const d = await r.json()
     return d.backups || []
   } catch { return [] }

@@ -4941,7 +4941,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     setRelatorioBusy(false);
     setTimeout(() => setRelatorioMsg(""), 9000);
   };
-  const loadAutoBackups = async () => { setAutoBackupList(await getBackupList()); };
+  const loadAutoBackups = async () => { setAutoBackupList(await getBackupList(teacherAuth)); };
   const doAutoBackupNow = async () => {
     setAutoBackupBusy(true); setAutoBackupMsg("");
     const r = await triggerBackupNow(teacherAuth);
@@ -5819,7 +5819,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     setDbSetupMsg("");
     setDbSetupSQL(null);
     try {
-      const r = await fetch("/api/setup-db", { method: "POST" });
+      const r = await fetch("/api/setup-db", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ auth: teacherAuth }) });
       const d = await r.json();
       if (d.ok) {
         setDbSetupMsg("✅ " + (d.message || "Banco configurado!"));

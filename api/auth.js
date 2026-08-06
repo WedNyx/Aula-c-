@@ -4,6 +4,7 @@
 
 import { isValidTeacherPassword } from './_teacherAuth.js'
 import { loginFailCount, recordLoginFailure, clearLoginFailures } from './kv.js'
+import { clientIp } from './_ip.js'
 
 const WINDOW_SECONDS = 600 // 10 minutos — depois disso o contador de erros seguidos zera sozinho
 
@@ -11,7 +12,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const { password } = req.body || {}
 
-  const ip = String((req.headers && req.headers['x-forwarded-for']) || req.socket?.remoteAddress || 'unknown').split(',')[0].trim()
+  const ip = clientIp(req)
   const bucketKey = `loginfail:teacher:${ip}`
 
   // atraso cresce a cada erro seguido desse IP (400ms → ... → até 6s) em vez de travar de vez —

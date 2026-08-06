@@ -5,6 +5,7 @@
 // para que o restante do app (App.jsx) não precise saber qual provedor respondeu.
 
 import { rateLimitCheck } from './kv.js'
+import { clientIp } from './_ip.js'
 
 const NVIDIA_KEY = process.env.NVIDIA_API_KEY || ''
 const NVIDIA_MODEL = process.env.NVIDIA_MODEL || ''
@@ -166,7 +167,7 @@ export default async function handler(req, res) {
 
   // limite de uso: generoso de propósito, porque a carreta inteira costuma compartilhar um único IP
   // (um roteador só pra turma toda) — a ideia é barrar um bug em loop ou abuso, não o uso normal
-  const ip = String((req.headers && req.headers['x-forwarded-for']) || req.socket?.remoteAddress || 'unknown').split(',')[0].trim()
+  const ip = clientIp(req)
   const withinLimit = await rateLimitCheck(`ratelimit:claude:${ip}`, 90, 60)
   if (!withinLimit) {
     return res.status(429).json({ error: 'rate_limited', message: 'Muitos pedidos seguidos pro Nyx desse mesmo lugar. Aguarde um minuto e tente de novo.' })
