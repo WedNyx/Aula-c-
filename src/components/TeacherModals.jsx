@@ -230,7 +230,12 @@ export function TelaoModal({ students, shift, turmas, onClose, teacherAuth }) {
   const [telaoNow, setTelaoNow] = useState(() => Date.now());
   useEffect(() => { const iv = setInterval(() => setTelaoNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
   const bossStudying = boss && boss.studyUntil && telaoNow < boss.studyUntil;
-  const bossDamage = boss ? (students || []).filter(s => (s.shift||"") !== TEST_SHIFT.id)
+  // só da turma que está enfrentando ESTE chefão — igual ao baseline (summonBoss) e ao ranking
+  // (topContributors) logo abaixo. Antes filtrava só "não é a turma de teste", então QUALQUER
+  // aluno de QUALQUER outra turma contava: como ele nunca teve baseline aqui, o nyxPoints inteiro
+  // dele (não só o ganho desde a invocação) virava "dano" — um chefão podia nascer quase morto,
+  // ou já derrotado, só por causa de pontos de alunos que nem estavam nessa turma
+  const bossDamage = boss ? (students || []).filter(s => (s.shift||"") === telaoShift)
     .reduce((sum, s) => sum + Math.max(0, (s.nyxPoints || 0) - (boss.baseline?.[`${s.shift||"sem-turno"}:${s.name}`] ?? 0)), 0) : 0;
   const bossHp = boss ? Math.max(0, boss.maxHp - bossDamage) : 0;
   const bossDefeated = boss && bossHp === 0;

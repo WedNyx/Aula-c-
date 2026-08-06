@@ -31,7 +31,11 @@ function formatMesAno(d) {
   return `${MESES_PT[d.getMonth()]} de ${d.getFullYear()}`;
 }
 function escapeXml(s) {
-  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&apos;" }[c]));
+  // caracteres de controle (\x00-\x1F, exceto tab/LF/CR) quebram o XML do .docx mesmo depois de
+  // escapado — nome de aluno colado de outro lugar com lixo invisível corrompia o arquivo inteiro
+  return String(s ?? "")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
+    .replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&apos;" }[c]));
 }
 
 // ── blocos de parágrafo idênticos, em formatação, aos do modelo original (Times New Roman 12pt,
