@@ -634,11 +634,19 @@ export async function getCodeSend(shift, name) {
 // professor usa isso pra mostrar "Reconectando Nyx" quando a última chamada de alguém falhou ──
 const AI_HEALTH_KEY = 'ai:health'
 const aiHealthProviderKey = (provider) => `ai:health:${provider}`
-// "provider" é opcional — quando informado (chamadas explícitas do botão de análise), também grava
-// a saúde DAQUELE modelo específico, pro indicador do painel do professor mostrar Nemotron/Laguna
-// separados; a chave geral continua servendo pro aviso "Reconectando Nyx" (qualquer modelo)
-export async function reportAiHealth(ok, provider) {
-  try { await kvCall({ action: 'set', key: AI_HEALTH_KEY, value: JSON.stringify({ ok, at: Date.now() }) }) } catch {}
+// "provider" é opcional — quando informado, também grava a saúde DAQUELE modelo específico, pro
+// indicador do painel do professor mostrar Nemotron/Laguna separados; a chave geral continua
+// servendo pro aviso "Reconectando Nyx" (qualquer modelo). "global" (default true) controla se a
+// chave GERAL também é escrita — desligado quando a chamada é só UMA tentativa dentro de uma
+// sequência com fallback automático (ver askClaude/opts.silentHealth em lib/ai.js): o botão
+// "Analisar código" tenta um modelo gratuito, e se falhar tenta o próximo, sem avisar o aluno — cada
+// tentativa isolada não deve acender "Reconectando Nyx" pra sala inteira só porque o PRIMEIRO modelo
+// da fila estava instável e o seguinte resolveu sozinho; só a falha da sequência INTEIRA representa
+// o Nyx de verdade fora do ar.
+export async function reportAiHealth(ok, provider, global = true) {
+  if (global) {
+    try { await kvCall({ action: 'set', key: AI_HEALTH_KEY, value: JSON.stringify({ ok, at: Date.now() }) }) } catch {}
+  }
   if (provider) {
     try { await kvCall({ action: 'set', key: aiHealthProviderKey(provider), value: JSON.stringify({ ok, at: Date.now() }) }) } catch {}
   }

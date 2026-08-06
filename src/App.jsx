@@ -1756,7 +1756,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         const parsed = await askClaudeJson(
           `Revise o código ${studyLang ? studyLang.label : "C#"} de um aluno iniciante como um COMPILADOR faria, linha por linha.\n\n${otherFilesCtx(files, active, studyLang)}Arquivo em edição — é ESTE e SÓ ESTE que você deve revisar (${files[active]?.name || "Program.cs"}):\n\`\`\`${studyLang ? studyLang.codeLang : "csharp"}\n${activeCode}\n\`\`\`\n\nO que verificar (nesta ordem):\n${reviewChecklistFor(studyLang)}\n\nLembretes IMPORTANTES:\n- Os "Outros arquivos" (se houver) são SÓ contexto, pra você saber que existem e podem ser usados no arquivo em edição — NUNCA os revise, NUNCA aponte erro neles, e NUNCA copie um "trecho" retirado deles. Cada "trecho" de erro tem que ser uma linha que existe literalmente no arquivo em edição.${studyLang ? "" : "\n- Top-level statements (código sem class/Main) e ausência de using System são VÁLIDOS — não são erro.\n- Não aponte classe/método \"inexistente\" se estiver definido em outro arquivo do projeto."}\n- NÃO invente erro em código correto. Na dúvida real, prefira ok=true.\n\nResponda APENAS em JSON puro, sem markdown, com os campos NESTA ordem:\n{"analise": "sua verificação rápida linha a linha, citando o que conferiu (máx 3 frases — o aluno não vê isto)", "ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: onde está (linha/trecho) e como corrigir mostrando a forma certa, em 1 a 3 frases gentis", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se nenhum"], "errors": ["se ok for false: uma lista com CADA erro encontrado no arquivo em edição (pode ter mais de um). Cada item é um objeto {\\"trecho\\": a linha EXATA e completa como aparece no ARQUIVO EM EDIÇÃO (nunca nos outros arquivos), copiada literalmente, sem espaços extras no início; \\"explicacao\\": por que está errado e como corrigir, 1 a 2 frases bem simples e gentis; \\"exemplo\\": a mesma linha já corrigida}. Lista vazia se ok for true."]}`,
           (studyLang ? studyLang.system : CS_SYSTEM) + "\nResponda APENAS JSON puro, sem markdown." + nyxPrefsInstruction(nyxPrefs),
-          { temperature: 0, provider }
+          // silentHealth: cada tentativa da sequência não deve acender "Reconectando Nyx" sozinha —
+          // só o resultado final (depois do loop) reporta a saúde geral, ver abaixo
+          { temperature: 0, provider, silentHealth: true }
         );
         // só lembra o modelo GRATUITO que funcionou (pra próxima vez tentar ele primeiro de novo) —
         // o Sonnet 5 é só reserva de emergência, não deve virar o preferido
@@ -1777,6 +1779,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         lastErr = e; // guarda e tenta o próximo modelo da lista, sem avisar o aluno ainda
       }
     }
+    // agora sim: UM report geral só, refletindo o resultado FINAL da sequência inteira (não cada
+    // tentativa isolada) — "Reconectando Nyx" só acende pra sala toda quando o Nyx realmente não
+    // respondeu de jeito nenhum, não toda vez que o primeiro modelo gratuito da fila estava
+    // instável e o próximo resolveu sozinho sem o aluno nem perceber
+    if (!lastErr) reportAiHealth(true);
+    else if (lastErr.message !== 'ROBOTKEY_MISSING') reportAiHealth(false);
     if (lastErr) {
       if (lastErr.message === 'ROBOTKEY_MISSING') {
         setRobotState("error");

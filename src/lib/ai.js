@@ -20,11 +20,18 @@ export function isOffline() {
 export function isNetworkError(e) {
   return isOffline() || (e && e.name === "TypeError" && /fetch/i.test(e.message || ""));
 }
+// "silentHealth": true faz essa chamada NÃO acender/apagar o aviso geral de "Reconectando Nyx" —
+// só usado quando quem chama já sabe que é UMA tentativa dentro de uma sequência com fallback
+// automático (ver analyzeCode em App.jsx), pra uma falha isolada do primeiro modelo tentado não
+// preocupar a sala toda quando o próximo modelo resolve sozinho. O indicador POR MODELO
+// (Nemotron/Laguna) continua sendo atualizado normalmente mesmo com silentHealth — só a chave geral
+// fica de fora até quem chama decidir o resultado final da sequência.
 export async function askClaude(prompt, system, opts = {}){
+  const { silentHealth, ...bodyOpts } = opts;
   try {
     const resp = await fetch("/api/claude", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ prompt, system, ...opts })
+      body: JSON.stringify({ prompt, system, ...bodyOpts })
     });
     const data = await resp.json();
     if (data.error === 'missing_api_key') {
@@ -33,11 +40,11 @@ export async function askClaude(prompt, system, opts = {}){
       throw e;
     }
     if (!resp.ok) throw new Error(data.error || `API ${resp.status}`);
-    reportAiHealth(true, opts.provider); // avisa o painel do professor (em qualquer navegador) que o Nyx está respondendo
+    reportAiHealth(true, opts.provider, !silentHealth); // avisa o painel do professor (em qualquer navegador) que o Nyx está respondendo
     return data.content?.map(b=>b.text||"").join("")||"";
   } catch (e) {
     // chave não configurada não é "fora do ar temporariamente" — é config pendente, não reporta como falha
-    if (e.message !== 'ROBOTKEY_MISSING') reportAiHealth(false, opts.provider);
+    if (e.message !== 'ROBOTKEY_MISSING') reportAiHealth(false, opts.provider, !silentHealth);
     throw e;
   }
 }
