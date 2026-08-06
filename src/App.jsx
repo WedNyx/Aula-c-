@@ -2087,7 +2087,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       <span onClick={()=>triggerEgg("cafe")} title="" style={{ position:"fixed", right:8, top:"50%", transform:"translateY(-50%)", fontSize:17, opacity:0.15, zIndex:3, cursor:"default", userSelect:"none" }}>☕</span>
       <span onClick={()=>triggerEgg("42")} title="" style={{ position:"fixed", bottom:8, right:8, fontSize:17, opacity:0.16, zIndex:3, cursor:"default", userSelect:"none" }}>🌌</span>
       <span onClick={()=>triggerEgg("rm")} title="" style={{ position:"fixed", left:8, top:"50%", transform:"translateY(-50%)", fontSize:17, opacity:0.15, zIndex:3, cursor:"default", userSelect:"none" }}>🗑️</span>
-      <span onClick={findTreasure} title="" style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:16, height:16, lineHeight:"16px", textAlign:"center", fontSize:12, opacity:0.07, zIndex:3, cursor:"default", userSelect:"none" }}>🏴‍☠️</span>
+      {/* o baú só existe pra quem já desbloqueou o Chapéu Pirata (segredo "nyx pirata" no terminal) —
+          é a pista do próprio Nyx ("procure o tesouro") que faz sentido do baú aparecer */}
+      {nyxOwned.includes("chapeuPirata") && (
+        <span onClick={findTreasure} title="" style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:16, height:16, lineHeight:"16px", textAlign:"center", fontSize:12, opacity:0.07, zIndex:3, cursor:"default", userSelect:"none" }}>🏴‍☠️</span>
+      )}
     </>
   );
 
