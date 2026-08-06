@@ -551,8 +551,23 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     // mudou um desses campos depois que esta aba carregou, e esta aba não tem uma edição própria
     // pendente neles, adota o valor do servidor — sem isso, o autosave periódico desta aba (a cada
     // 12s) apagaria silenciosamente o que a outra sessão acabou de salvar
+    let latest = null;
+    // 🔍 vistoria fora do horário: o professor só liberou ESTE aluno pra inspecionar/corrigir o
+    // perfil, sem estar dando aula de verdade — nenhuma nota, ponto ou presença pode "vazar" dessa
+    // janela pro perfil real. Busca o horário/vistoria FRESCOS aqui (não confia no estado React
+    // mySchedule/myInspection, que na primeira chamada de persist() logo após o login ainda pode
+    // não ter carregado — se confiasse, essa primeira chamada marcaria presença antes mesmo de saber
+    // que era vistoria, e a presença já marcada nunca mais seria desfeita).
+    let vistoriaOnly = false;
     try {
-      const latest = await getStudent(shift, studentName);
+      const [latestRes, meta, insp] = await Promise.all([
+        getStudent(shift, studentName),
+        getTeacherMeta(),
+        getInspection(shift, studentName),
+      ]);
+      latest = latestRes;
+      const csNow = classStatus((meta.schedule || {})[shift] || {}, !!meta.allowWeekend);
+      vistoriaOnly = csNow.configured && !csNow.open && insp;
       if (latest) {
         const applyIfUnedited = (field, setter, compareNorm = (v) => v, materialize = compareNorm) => {
           if (field in extra) return; // esta chamada já está escrevendo um valor novo de propósito
@@ -573,15 +588,26 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         applyIfUnedited("justifications", setJustifications, (v) => JSON.stringify(v || {}), (v) => v || {});
       }
     } catch {} // sem internet ou ainda sem registro salvo: segue só com o que já tinha localmente
-    // presença do dia: "present" se já fez algo de verdade hoje, senão "idle" (entrou mas parado)
+    // trava nota/pontos/conquistas no que já estava salvo no servidor, ignorando qualquer mudança
+    // local (mesmo que já tenha vindo em "extra") — cobre a atividade e qualquer outra fonte de
+    // pontos de uma vez só, sem precisar mexer em cada uma separadamente
+    if (vistoriaOnly && latest) {
+      s.nyxPoints = latest.nyxPoints || 0;
+      s.scoreHistory = latest.scoreHistory || {};
+      s.achievements = latest.achievements || [];
+      s.score = latest.score ?? null;
+      delete extra.nyxPoints; delete extra.scoreHistory; delete extra.achievements; delete extra.score;
+    }
+    // presença do dia: "present" se já fez algo de verdade hoje, senão "idle" (entrou mas parado) —
+    // mas nunca durante uma vistoria fora do horário (só observação, não conta como aula de verdade)
     const tk = todayKey();
-    const didWork = (s.code && s.code.trim().length >= 10) || (s.phase && s.phase !== "coding") || (s.score != null) || (s.answers && Object.keys(s.answers).length > 0);
+    const didWork = !vistoriaOnly && ((s.code && s.code.trim().length >= 10) || (s.phase && s.phase !== "coding") || (s.score != null) || (s.answers && Object.keys(s.answers).length > 0));
     // o dia em que o perfil foi criado conta como presença automática, mesmo que o aluno não
     // escreva nada nesse primeiro acesso (ex: dia de apresentação/cadastro) — vale tanto pra quem
     // começa no primeiro dia de aula quanto pra quem entra na turma depois (dias ANTERIORES ao
     // cadastro dele já não contam como falta em nenhum lugar — ver dayCell/boletim/tendência —
     // então a partir do momento que ele entra, o dia de entrada em si também não pode virar falta)
-    const isEnrollmentDay = tk === dateKeyOf(createdAtRef.current);
+    const isEnrollmentDay = !vistoriaOnly && tk === dateKeyOf(createdAtRef.current);
     attendanceRef.current = { ...attendanceRef.current, [tk]: (didWork || isEnrollmentDay || attendanceRef.current[tk] === "present") ? "present" : "idle" };
     // guarda o horário do PRIMEIRO acesso de hoje (uma vez só) — usado pra marcar "atrasado" na chamada
     if (!attendanceFirstRef.current[tk]) attendanceFirstRef.current = { ...attendanceFirstRef.current, [tk]: Date.now() };
