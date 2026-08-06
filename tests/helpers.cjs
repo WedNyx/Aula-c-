@@ -53,6 +53,27 @@ function mockClaudeBody(prompt) {
   return JSON.stringify({ ok: true, frases: ['Aprendeu C# de verdade.'] });
 }
 
+// mesma derivação de chave usada em src/storage.js / api/kv.js pra "duel:"/"teamduel:"
+function safeNameMock(name) { return String(name || '').trim().replace(/\s+/g, '_').replace(/["'\/\\:]/g, ''); }
+function duelKeyForMock(shift, nameA, nameB) {
+  const [x, y] = [safeNameMock(nameA), safeNameMock(nameB)].sort();
+  return `duel:${shift || 'sem-turno'}:${x}__${y}`;
+}
+function teamDuelKeyForMock(shift, names) {
+  const sorted = (names || []).map(safeNameMock).sort();
+  return `teamduel:${shift || 'sem-turno'}:${sorted.join('__')}`;
+}
+// mesma redação do servidor de verdade (redactDuelQuestions em api/kv.js): esconde "correct" das
+// perguntas de um duelo/duelo em dupla — o mock replica isso pra testar o fluxo completo
+function redactDuelCorrectMock(v) {
+  try {
+    const obj = JSON.parse(v);
+    if (!Array.isArray(obj.questions)) return v;
+    obj.questions = obj.questions.map(q => { const { correct, ...rest } = q || {}; return rest; });
+    return JSON.stringify(obj);
+  } catch { return v; }
+}
+
 // cria um kvStore (Map) em memória compartilhável entre chamadas do mesmo teste, e liga as rotas
 // mockadas numa página do Playwright já criada
 async function mockRoutes(page, kvStore) {
@@ -61,7 +82,7 @@ async function mockRoutes(page, kvStore) {
 
   await page.route('**/api/kv', async (route) => {
     const body = JSON.parse(route.request().postData() || '{}');
-    const { action, key, value, prefix, auth, shift, answers, exits, message, url: errUrl, role, tourneyId, round, picks, turmaId } = body;
+    const { action, key, value, prefix, auth, shift, answers, exits, message, url: errUrl, role, tourneyId, round, picks, turmaId, from, to, myName, names } = body;
     let out;
     if (action === 'check') out = { configured: true };
     else if (action === 'log_error') {
@@ -86,6 +107,10 @@ async function mockRoutes(page, kvStore) {
           if (Array.isArray(obj.questions)) obj.questions = obj.questions.map(q => { const { correct, ...rest } = q || {}; return rest; });
           v = JSON.stringify(obj);
         } catch {}
+      }
+      // mesma redação do servidor de verdade pra duelo/duelo em dupla (ver redactDuelQuestions)
+      if (v != null && (String(key).startsWith('duel:') || String(key).startsWith('teamduel:')) && auth !== TEACHER_PASSWORD) {
+        v = redactDuelCorrectMock(v);
       }
       out = { value: v };
     }
@@ -117,9 +142,63 @@ async function mockRoutes(page, kvStore) {
         }
       }
     }
+    else if (action === 'grade_duel') {
+      // mesma lógica do servidor de verdade (api/kv.js): acha o duelo pela dupla de nomes, nunca
+      // devolve "correct" — só a pontuação. O merge (resposta + nota + status) é gravado AQUI, com
+      // a config PRISTINE (não a redigida), igual o servidor de verdade faz.
+      const dKey = duelKeyForMock(shift, from, to);
+      const raw = kvStore.get(dKey);
+      if (!raw) out = { error: 'duel_not_found' };
+      else {
+        const config = JSON.parse(raw);
+        if (myName !== config.from && myName !== config.to) out = { error: 'not_a_player' };
+        else {
+          const scoreField = myName === config.from ? 'scoreFrom' : 'scoreTo';
+          const answersField = myName === config.from ? 'answersFrom' : 'answersTo';
+          const questions = Array.isArray(config.questions) ? config.questions : [];
+          if (config[scoreField] != null) out = { score: config[scoreField], total: questions.length, already: true };
+          else {
+            let score = 0;
+            questions.forEach((q, i) => { if (answers && answers[i] === q.correct) score++; });
+            const merged = { ...config, [answersField]: answers || {}, [scoreField]: score };
+            if (merged.scoreFrom != null && merged.scoreTo != null) merged.status = 'done';
+            kvStore.set(dKey, JSON.stringify(merged));
+            out = { score, total: questions.length };
+          }
+        }
+      }
+    }
+    else if (action === 'grade_team_duel') {
+      const tKey = teamDuelKeyForMock(shift, names);
+      const raw = kvStore.get(tKey);
+      if (!raw) out = { error: 'duel_not_found' };
+      else {
+        const config = JSON.parse(raw);
+        if (!(config.players || []).some(p => p.name === myName)) out = { error: 'not_a_player' };
+        else {
+          const questions = Array.isArray(config.questions) ? config.questions : [];
+          if (config.scores && config.scores[myName] != null) out = { score: config.scores[myName], total: questions.length, already: true };
+          else {
+            let score = 0;
+            questions.forEach((q, i) => { if (answers && answers[i] === q.correct) score++; });
+            const scores = { ...(config.scores || {}), [myName]: score };
+            const answersMap = { ...(config.answers || {}), [myName]: answers || {} };
+            const allDone = (config.players || []).every(p => scores[p.name] != null);
+            const merged = { ...config, scores, answers: answersMap, status: allDone ? 'done' : config.status };
+            kvStore.set(tKey, JSON.stringify(merged));
+            out = { score, total: questions.length };
+          }
+        }
+      }
+    }
     else if (action === 'delete') { kvStore.delete(key); out = { ok: true }; }
     else if (action === 'delete_by_prefix') { let n = 0; for (const k of [...kvStore.keys()]) if (k.startsWith(prefix || '')) { kvStore.delete(k); n++; } out = { ok: true, deleted: n }; }
-    else if (action === 'list_with_values') { out = { items: [...kvStore.entries()].filter(([k]) => k.startsWith(prefix || '')).map(([key, value]) => ({ key, value })) }; }
+    else if (action === 'list_with_values') {
+      out = { items: [...kvStore.entries()].filter(([k]) => k.startsWith(prefix || '')).map(([key, value]) => ({
+        key,
+        value: (String(key).startsWith('duel:') || String(key).startsWith('teamduel:')) && auth !== TEACHER_PASSWORD ? redactDuelCorrectMock(value) : value,
+      })) };
+    }
     else out = { ok: true };
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(out) });
   });

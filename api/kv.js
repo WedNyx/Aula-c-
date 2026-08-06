@@ -137,6 +137,45 @@ function redactTourneyConfig(key, value, authorized) {
   }
 }
 
+// ─── duelo 1x1 e em dupla ("duel:"/"teamduel:") — o documento é compartilhado pelos próprios
+// jogadores (cada um escreve a própria resposta nele), então desde a hora que o duelo é criado o
+// gabarito completo ("correct" de cada questão) já ficava ali dentro, visível pra quem quisesse
+// abrir a aba de rede e entrar no duelo do adversário antes de responder. Esconde "correct" de toda
+// pergunta quando quem pediu não é o professor — a correção de verdade agora acontece no servidor
+// (ver "grade_duel"/"grade_team_duel" mais abaixo), igual à prova e ao torneio.
+function redactDuelQuestions(key, value, authorized) {
+  if (authorized || value == null) return value
+  const k = String(key)
+  if (!k.startsWith('duel:') && !k.startsWith('teamduel:')) return value
+  try {
+    const obj = JSON.parse(value)
+    if (!Array.isArray(obj.questions)) return value
+    obj.questions = obj.questions.map(q => {
+      if (q == null || typeof q !== 'object') return q
+      const { correct, ...rest } = q
+      return rest
+    })
+    return JSON.stringify(obj)
+  } catch {
+    return value
+  }
+}
+
+// ─── mesma derivação de chave usada em src/storage.js pra "duel:"/"teamduel:" — duplicada aqui de
+// propósito (mesmo padrão já usado pra "exam:config:"/"tourney:config"): o servidor precisa achar o
+// documento certo pra corrigir de verdade, sem depender do cliente mandar a chave pronta.
+function safeNameForKey(name) {
+  return String(name || '').trim().replace(/\s+/g, '_').replace(/["'\/\\:]/g, '')
+}
+function duelKeyFor(shift, nameA, nameB) {
+  const [x, y] = [safeNameForKey(nameA), safeNameForKey(nameB)].sort()
+  return `duel:${shift || 'sem-turno'}:${x}__${y}`
+}
+function teamDuelKeyFor(shift, names) {
+  const sorted = (names || []).map(safeNameForKey).sort()
+  return `teamduel:${shift || 'sem-turno'}:${sorted.join('__')}`
+}
+
 // ─── Supabase JS Client ───────────────────────────────────────────────────────
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '')
 const SUPABASE_KEY =
@@ -475,7 +514,7 @@ export default async function handler(req, res) {
         if (!(await checkKvRateLimit(res, 'kvget', ip))) return
         const authorized = await checkTeacherAuth(ip, auth)
         const raw = await store.get(key)
-        const redacted = redactTourneyConfig(key, redactQuizRoom(key, redactExamConfig(key, raw, authorized), authorized), authorized)
+        const redacted = redactDuelQuestions(key, redactTourneyConfig(key, redactQuizRoom(key, redactExamConfig(key, raw, authorized), authorized), authorized), authorized)
         return res.json({ value: redacted })
       }
       case 'grade_exam': {
@@ -525,6 +564,65 @@ export default async function handler(req, res) {
         questions.forEach((q, i) => { if (picks && picks[i] === q.correta) score++ })
         return res.json({ score, total: questions.length })
       }
+      case 'grade_duel': {
+        // mesma ideia do grade_exam/grade_tourney_round: o aluno manda só as respostas escolhidas
+        // (nunca o gabarito) — o servidor acha o duelo pela dupla de nomes, lê a config completa
+        // direto do banco (sem passar pelo redactDuelQuestions acima, que é só pra "get"/
+        // "list_with_values") e devolve só a pontuação, nunca "correct". O MERGE (resposta + nota +
+        // status) também é gravado aqui, no servidor, com a config PRISTINE (não a redigida) — se o
+        // merge fosse feito no cliente (ler com "get", já sem "correct", e regravar o documento
+        // inteiro por cima), a segunda pessoa a responder perderia o gabarito de vez, porque a
+        // primeira já teria regravado o duelo sem os "correct" nas perguntas.
+        const withinLimit = await rateLimitCheck(`ratelimit:gradeduel:${ip}`, 15, 600)
+        if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas tentativas seguidas de enviar o duelo. Aguarde um pouco e tente de novo.' })
+        const { shift, from, to, myName, answers } = req.body || {}
+        const dKey = duelKeyFor(shift, from, to)
+        const raw = await store.get(dKey)
+        if (!raw) return res.status(404).json({ error: 'duel_not_found' })
+        let config
+        try { config = JSON.parse(raw) } catch { return res.status(500).json({ error: 'duel_corrupted' }) }
+        if (myName !== config.from && myName !== config.to) {
+          return res.status(403).json({ error: 'not_a_player', message: 'Você não faz parte desse duelo.' })
+        }
+        const scoreField = myName === config.from ? 'scoreFrom' : 'scoreTo'
+        const answersField = myName === config.from ? 'answersFrom' : 'answersTo'
+        const questions = Array.isArray(config.questions) ? config.questions : []
+        // já respondeu esse duelo antes: devolve a nota já registrada em vez de recalcular — sem
+        // isso, dava pra reenviar respostas diferentes só pra ver a nota mudar e ir adivinhando
+        // o gabarito aos poucos, mesmo dentro do limite de tentativas acima
+        if (config[scoreField] != null) return res.json({ score: config[scoreField], total: questions.length, already: true })
+        let score = 0
+        questions.forEach((q, i) => { if (answers && answers[i] === q.correct) score++ })
+        const merged = { ...config, [answersField]: answers || {}, [scoreField]: score }
+        if (merged.scoreFrom != null && merged.scoreTo != null) merged.status = 'done'
+        await store.set(dKey, JSON.stringify(merged))
+        return res.json({ score, total: questions.length })
+      }
+      case 'grade_team_duel': {
+        const withinLimit = await rateLimitCheck(`ratelimit:gradeteamduel:${ip}`, 15, 600)
+        if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas tentativas seguidas de enviar o duelo em dupla. Aguarde um pouco e tente de novo.' })
+        const { shift, names, myName, answers } = req.body || {}
+        const tKey = teamDuelKeyFor(shift, names)
+        const raw = await store.get(tKey)
+        if (!raw) return res.status(404).json({ error: 'duel_not_found' })
+        let config
+        try { config = JSON.parse(raw) } catch { return res.status(500).json({ error: 'duel_corrupted' }) }
+        if (!(config.players || []).some(p => p.name === myName)) {
+          return res.status(403).json({ error: 'not_a_player', message: 'Você não faz parte desse duelo.' })
+        }
+        const questions = Array.isArray(config.questions) ? config.questions : []
+        if (config.scores && config.scores[myName] != null) {
+          return res.json({ score: config.scores[myName], total: questions.length, already: true })
+        }
+        let score = 0
+        questions.forEach((q, i) => { if (answers && answers[i] === q.correct) score++ })
+        const scores = { ...(config.scores || {}), [myName]: score }
+        const answersMap = { ...(config.answers || {}), [myName]: answers || {} }
+        const allDone = (config.players || []).every(p => scores[p.name] != null)
+        const merged = { ...config, scores, answers: answersMap, status: allDone ? 'done' : config.status }
+        await store.set(tKey, JSON.stringify(merged))
+        return res.json({ score, total: questions.length })
+      }
       case 'log_error': {
         // qualquer sessão (aluno ou professor) pode registrar um erro — sem senha, porque o
         // objetivo é justamente pegar erro de quem nem sabe que precisa avisar o professor.
@@ -559,7 +657,7 @@ export default async function handler(req, res) {
         if (!(await checkKvRateLimit(res, 'kvlist', ip))) return
         const items = await store.listWithValues(prefix)
         const authorized = await checkTeacherAuth(ip, auth)
-        return res.json({ items: items.map(i => ({ key: i.key, value: redactStudentValue(i.key, i.value, authorized) })) })
+        return res.json({ items: items.map(i => ({ key: i.key, value: redactDuelQuestions(i.key, redactStudentValue(i.key, i.value, authorized), authorized) })) })
       }
       case 'delete': {
         if (!(await checkKvRateLimit(res, 'kvdelete', ip))) return

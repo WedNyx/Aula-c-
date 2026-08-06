@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { listStudents, listDuels, setDuel, clearDuel, getDuel, listTeamDuels, getTeamDuel, setTeamDuel, clearTeamDuel } from "../storage.js";
+import { listStudents, listDuels, setDuel, clearDuel, getDuel, gradeDuel, listTeamDuels, getTeamDuel, setTeamDuel, clearTeamDuel, gradeTeamDuel } from "../storage.js";
 import { playSound } from "../lib/sound.ts";
 import { weekKey } from "../lib/schedule.ts";
 import { generateDuelQuestions, generateKnowledgeTestQuestions, generateFreeBuildPlan } from "../lib/aiChallenges.js";
@@ -259,17 +259,16 @@ export function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) 
   };
 
   const submitDuelAnswers = async () => {
-    const qs = duel.questions || [];
-    let pts = 0;
-    qs.forEach((q,i) => { if (myAnswers[i]===q.correct) pts++; });
-    const field = isChallenger ? "answersFrom" : "answersTo";
-    const scoreField = isChallenger ? "scoreFrom" : "scoreTo";
+    // corrige no SERVIDOR: manda só as respostas escolhidas, nunca o gabarito (que nem chega mais
+    // até aqui — ver redactDuelQuestions em api/kv.js). O próprio servidor já grava a resposta/nota
+    // no documento do duelo (usando a config verdadeira, com "correct") — o cliente só recarrega o
+    // estado depois. Ele NÃO pode fazer esse merge sozinho: como o cliente só enxerga a versão sem
+    // "correct" (redigida), regravar o documento inteiro por cima apagaria o gabarito pra sempre,
+    // impedindo o outro jogador de ser corrigido depois.
+    const result = await gradeDuel(shift, duel.from, duel.to, myName, myAnswers);
+    if (!result) { setErr("Não consegui enviar suas respostas do duelo agora. Tente de novo."); return; }
     const latest = (await getDuel(shift, duel.from, duel.to)) || duel;
-    const merged = { ...latest, [field]:myAnswers, [scoreField]:pts };
-    const bothDone = merged.scoreFrom != null && merged.scoreTo != null;
-    if (bothDone) merged.status = "done";
-    await setDuel(shift, duel.from, duel.to, merged);
-    setDuelState(merged);
+    setDuelState(latest);
     // premiação agora fica só no useEffect (chave: duel.status==="done"), que roda pros dois
     // jogadores igual — inclusive pra este aqui, quando ele for quem completou o duelo por último
   };
@@ -493,16 +492,15 @@ export function TeamDuelModal({ shift, myName, myAvatar, onAward, onWin, onClose
   };
 
   const submitAnswers = async () => {
-    const qs = teamDuel.questions || [];
-    let pts = 0;
-    qs.forEach((q,i) => { if (myAnswers[i]===q.correct) pts++; });
-    const latest = (await getTeamDuel(shift, teamDuel.players.map(p=>p.name))) || teamDuel;
-    const scores = { ...latest.scores, [myName]: pts };
-    const answers = { ...latest.answers, [myName]: myAnswers };
-    const allDone = latest.players.every(p => scores[p.name] != null);
-    const merged = { ...latest, scores, answers, status: allDone ? "done" : latest.status };
-    await setTeamDuel(shift, merged.players.map(p=>p.name), merged);
-    setTeamDuelState(merged);
+    // corrige no SERVIDOR: manda só as respostas escolhidas, nunca o gabarito. O merge (resposta +
+    // nota + status) também é gravado lá — mesmo motivo do duelo 1x1 (ver comentário em
+    // submitDuelAnswers): o cliente só enxerga a versão sem "correct", regravar o documento por
+    // cima apagaria o gabarito pros outros 3 jogadores que ainda não responderam.
+    const names = teamDuel.players.map(p=>p.name);
+    const result = await gradeTeamDuel(shift, names, myName, myAnswers);
+    if (!result) { setErr("Não consegui enviar suas respostas do duelo em dupla agora. Tente de novo."); return; }
+    const latest = (await getTeamDuel(shift, names)) || teamDuel;
+    setTeamDuelState(latest);
   };
 
   const closeResult = async () => {

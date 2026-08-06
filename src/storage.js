@@ -746,6 +746,24 @@ export async function gradeTourneyRound(tourneyId, round, picks, turmaId) {
   } catch { return null }
 }
 
+// corrige o duelo 1x1 no SERVIDOR — mesma ideia da prova/torneio: manda só as respostas escolhidas
+// e o nome de quem está respondendo (pra achar o lado certo no documento do duelo), nunca o gabarito
+export async function gradeDuel(shift, from, to, myName, answers) {
+  try {
+    const r = await kvCall({ action: 'grade_duel', shift, from, to, myName, answers })
+    return (r && typeof r.score === 'number') ? r : null
+  } catch { return null }
+}
+
+// mesma ideia pro duelo em dupla (2x2) — manda os 4 nomes do confronto (a ordem não importa, o
+// servidor monta a mesma chave ordenada que o storage.js usa) e as respostas escolhidas
+export async function gradeTeamDuel(shift, names, myName, answers) {
+  try {
+    const r = await kvCall({ action: 'grade_team_duel', shift, names, myName, answers })
+    return (r && typeof r.score === 'number') ? r : null
+  } catch { return null }
+}
+
 // sinais de texto que costumam aparecer quando o Supabase free tier estourou a cota (armazenamento,
 // egress/banda ou limite de requisições) — não temos acesso à API de billing, então é uma detecção
 // por palavras-chave no erro que já vem da chamada normal, sem custo extra
