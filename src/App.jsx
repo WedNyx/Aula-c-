@@ -4366,6 +4366,8 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [monitorHover, setMonitorHover] = useState(false);
   const [genName, setGenName] = useState(false);
   const [nameMsg, setNameMsg] = useState("");
+  // 📚 gerar resumo de aula em lote (pra quem ainda não tem um de hoje ou de ontem)
+  const [resumoLoteBusy, setResumoLoteBusy] = useState(false);
   const [autoNameMsg, setAutoNameMsg] = useState("");
   const autoNameTriedRef = useRef({});
   // ✋ notificação de pedido de ajuda (toast, igual ao "Reconectando Nyx")
@@ -5010,6 +5012,37 @@ function TeacherView({ onLogout, teacherAuth }) {
     setNameMsg(`✅ ${parts.join(" · ")}`);
     setGenName(false);
     setTimeout(()=>setNameMsg(""), 7000);
+  };
+
+  // 📚 gera o resumo de aula (Nyx) em lote pra turma filtrada, numa data — só entra em quem AINDA
+  // não tem um resumo salvo naquele dia (nunca sobrescreve um que já existe) e pula quem não tem
+  // código nenhum escrito (não dá pra resumir o vazio). Roda em paralelo, um pedido por aluno.
+  const doGerarResumosLote = async (dateKey, label) => {
+    if (resumoLoteBusy) return;
+    setResumoLoteBusy(true);
+    try {
+      const alvo = shown.filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id);
+      const results = await Promise.all(alvo.map(async (s) => {
+        const fullCode = (Array.isArray(s.files) && s.files.length) ? s.files.map(f=>f.code||"").join("\n") : (s.code||"");
+        const hist = s.summaryHistory || {};
+        const existing = hist[dateKey];
+        const jaTem = existing && typeof existing === "object" && Array.isArray(existing.secoes) && existing.secoes.length > 0;
+        if (jaTem) return "ja_tinha";
+        if (fullCode.trim().length < 10) return "sem_codigo";
+        try {
+          const req = buildSummaryRequest("simples", false, fullCode, fullCode, null, s.nyxPrefs || {});
+          const summaryData = await askClaudeJson(req.prompt, req.system);
+          const ok = await patchStudent(s.shift, s.name, { summaryHistory: { ...hist, [dateKey]: summaryData } });
+          return ok ? "gerado" : "erro";
+        } catch { return "erro"; }
+      }));
+      const count = (tag) => results.filter(r => r === tag).length;
+      const gerados = count("gerado"), jaTinham = count("ja_tinha"), semCodigo = count("sem_codigo"), comErro = count("erro");
+      flashMgmt(`✅ Resumo de ${label}: ${gerados} gerado(s)${jaTinham?`, ${jaTinham} já tinham`:""}${semCodigo?`, ${semCodigo} sem código ainda`:""}${comErro?`, ${comErro} com erro`:""}.`);
+      load();
+    } finally {
+      setResumoLoteBusy(false);
+    }
   };
 
   // envia um aviso para um aluno específico aparecer na tela dele
@@ -6351,6 +6384,8 @@ function TeacherView({ onLogout, teacherAuth }) {
             <CollapsibleCard title="📋 Lista de Chamada" dataTourProf="chamada" headerRight={<>
               <span style={styles.badge("#34d399")}>{present} online / {shown.length}</span>
               <button onClick={async ()=>{ await Promise.all(shown.map(s=>setKeyboardLaunch(s.shift, s.name, teacherAuth))); flashMgmt(`⌨️ Tutorial de teclado aberto pra ${shown.length} aluno(s).`); }} style={{ ...styles.btn("#22d3ee"), padding:"5px 10px", fontSize:12 }} title="Abre o tutorial de teclado na tela de todos os alunos filtrados">⌨️ Abrir teclado pra todos</button>
+              <button onClick={()=>doGerarResumosLote(todayKey(), "hoje")} disabled={resumoLoteBusy} style={{ ...styles.btn("#a855f7"), padding:"5px 10px", fontSize:12, opacity:resumoLoteBusy?0.6:1 }} title="Gera o resumo de aula (Nyx) pra quem ainda não tem um de hoje, sem mexer em quem já tem">{resumoLoteBusy ? "📚 Gerando..." : "📚 Gerar resumo (hoje)"}</button>
+              <button onClick={()=>doGerarResumosLote(dateKeyOf(Date.now()-86400000), "ontem")} disabled={resumoLoteBusy} style={{ ...styles.btn("#a855f7"), padding:"5px 10px", fontSize:12, opacity:resumoLoteBusy?0.6:1 }} title="Gera o resumo de aula (Nyx) pra quem não conseguiu gerar o de ontem">{resumoLoteBusy ? "📚 Gerando..." : "📚 Gerar resumo (ontem)"}</button>
             </>}>
               {shown.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum aluno na chamada ainda.</p> : (
                 chamadaGroups.map((g, gi) => (
