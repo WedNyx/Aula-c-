@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getTurmas, saveTurmas } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getTurmas, saveTurmas } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -211,6 +211,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [revealedHints, setRevealedHints] = useState({}); // 💡 dicas da dificuldade adaptativa que o aluno já abriu, por questão
   const [score, setScore] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [keyboardLocked, setKeyboardLockedState] = useState(false);
   const lastProviderRef = useRef("nvidia"); // lembra o último modelo escolhido, pra reverificação automática usar o mesmo
   // 🔌 modo offline total: quando a análise ou o "Salvar e Finalizar" não rolam por falta de
   // internet (não uma simples instabilidade), fica marcado aqui pra tentar de novo sozinho assim
@@ -225,6 +226,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [dynamicActivity, setDynamicActivity] = useState(null);
   const [generatingMsg, setGeneratingMsg] = useState("");
   const [loaded, setLoaded] = useState(false);
+  // 🔒 professor pode travar o editor de código de toda a turma com um clique (ex: pra pedir
+  // atenção durante uma explicação) — fica de olho na mesma cadência devagar/rápido do quiz acima
+  useEffect(() => {
+    if (!loaded) return;
+    let active = true;
+    const iv = setInterval(async () => {
+      const v = await getKeyboardLock(shift);
+      if (active) setKeyboardLockedState(v);
+    }, 4000);
+    return () => { active = false; clearInterval(iv); };
+  }, [loaded, shift]);
   const [connected, setConnected] = useState(null);
   const [justReconnected, setJustReconnected] = useState(false);
   const prevConnectedRef = useRef(null);
@@ -3524,11 +3536,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
 
               <div data-tour="editor">
-                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} errorLines={errorLinesForEditor} locked={analyzing} />
+                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} errorLines={errorLinesForEditor} locked={analyzing || keyboardLocked} />
               </div>
 
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
-                <span style={{ color: saveWarn ? "#fbbf24" : "#776798", fontSize:12 }}>{saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
+                <span style={{ color: keyboardLocked ? "#f87171" : saveWarn ? "#fbbf24" : "#776798", fontSize:12 }}>{keyboardLocked ? "🔒 O professor travou o teclado — espere ele liberar de novo." : saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {analyzeButtons}
                   <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
@@ -4417,6 +4429,24 @@ function TeacherView({ onLogout, teacherAuth }) {
   const errorSeenRef = useRef({});
   const errorInitRef = useRef(false);
   const [nudged, setNudged] = useState({});
+  // 🔒 teclado travado por turma: professor clica e o editor de código congela pra todo mundo
+  // daquela turma (ex: pedir atenção durante uma explicação) — cada turma trava/libera à parte
+  const [keyboardLocks, setKeyboardLocks] = useState({});
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const entries = await Promise.all(activeTurmas.map(async t => [t.id, await getKeyboardLock(t.id)]));
+      if (active) setKeyboardLocks(Object.fromEntries(entries));
+    };
+    load();
+    const iv = setInterval(load, 8000);
+    return () => { active = false; clearInterval(iv); };
+  }, [activeTurmas]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toggleKeyboardLock = async (turmaId) => {
+    const next = !keyboardLocks[turmaId];
+    setKeyboardLocks(prev => ({ ...prev, [turmaId]: next }));
+    await setKeyboardLock(turmaId, next, teacherAuth);
+  };
   const metaRef = useRef({ city:"", classDays:[], contentNames:{} });
   // código do professor (aba "Meu código") — um exemplo independente por turno
   const [proFilesByShift, setProFilesByShift] = useState({
@@ -6428,9 +6458,14 @@ function TeacherView({ onLogout, teacherAuth }) {
               {shown.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum aluno na chamada ainda.</p> : (
                 chamadaGroups.map((g, gi) => (
                   <div key={g.shift.id} style={{ marginTop: gi>0 ? 18 : 0, paddingTop: gi>0 ? 16 : 0, borderTop: gi>0 ? "1px solid #3b2a58" : "none" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, flexWrap:"wrap" }}>
                       <b style={{ color:"#f0e9fb", fontSize:14 }}>{g.shift.emoji} {g.shift.label}</b>
                       <span style={styles.badge("#34d399")}>{g.online} online / {g.list.length}</span>
+                      <button onClick={()=>toggleKeyboardLock(g.shift.id)}
+                        title={keyboardLocks[g.shift.id] ? "Libera o editor de código dos alunos dessa turma" : "Congela o editor de código dos alunos dessa turma (ex: pra pedir atenção)"}
+                        style={{ ...styles.btn(keyboardLocks[g.shift.id] ? "#f87171" : "#3b2a58"), padding:"3px 9px", fontSize:11.5 }}>
+                        {keyboardLocks[g.shift.id] ? "🔒 Teclado travado" : "🔓 Travar teclado"}
+                      </button>
                     </div>
                     {g.list.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum aluno nesta turma ainda.</p> : (
                       <>

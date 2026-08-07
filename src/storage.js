@@ -135,6 +135,23 @@ export async function clearBoss(turmaId, auth) {
   try { await kvCall({ action: 'delete', key: bossKeyFor(turmaId), auth }) } catch {}
 }
 
+// ── teclado travado da turma: um clique do professor congela o editor de código de todo mundo
+// daquela turma (ex: pra pedir atenção durante uma explicação) — cada turma trava/libera
+// independente das outras, mesmo padrão do chefão/torneio acima ──
+const keyboardLockKeyFor = (turmaId) => `kbdlock:${turmaId || 'sem-turno'}`
+export async function getKeyboardLock(turmaId) {
+  try {
+    const r = await kvCall({ action: 'get', key: keyboardLockKeyFor(turmaId) })
+    return r.value === '1'
+  } catch { return false }
+}
+export async function setKeyboardLock(turmaId, value, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: keyboardLockKeyFor(turmaId), value: value ? '1' : '0', auth })
+    return r.ok === true
+  } catch { return false }
+}
+
 // 🏟️ torneio da turma (chaveamento no telão): só o professor escreve; os alunos leem no tick
 // e respondem gravando a pontuação no PRÓPRIO perfil (tourneyAnswer), que o telão apura. Cada
 // turma tem o seu próprio torneio, independente das outras
