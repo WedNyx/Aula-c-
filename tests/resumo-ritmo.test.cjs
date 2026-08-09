@@ -68,6 +68,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     else break;
   }
   check('Aluno com código começa na tela de código (ainda não foi puxado)', (await pageC.locator('textarea').count()) > 0);
+  check('Botão "Salvar e Finalizar Aula" NÃO existe mais (agora é o professor quem libera)', (await pageC.locator('button:has-text("Salvar e Finalizar Aula")').count()) === 0);
+  check('Aviso explica que o professor libera o resumo', (await pageC.locator('text=/professor libera o resumo/').count()) > 0);
   await pageC.waitForSelector('text=Resumo da sua aula', { timeout: 20000 });
   check('Aluno com código foi pro Resumo da Aula sozinho, sem clicar em nada', (await pageC.locator('text=Resumo da sua aula').count()) > 0);
   const alunoComCodigoAfter = JSON.parse(kvStore.get('student:matutino:AlunoComCodigo'));

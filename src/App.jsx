@@ -3559,9 +3559,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 <span style={{ color: saveWarn ? "#fbbf24" : "#776798", fontSize:scaleSize(12) }}>{saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {analyzeButtons}
-                  <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
                 </div>
               </div>
+              <p data-tour="salvar" style={{ color:"#a99ac9", fontSize:scaleSize(12), margin:"10px 0 0", lineHeight:1.5 }}>📚 Continue praticando — seu professor libera o resumo da aula pra turma quando chegar a hora.</p>
 
               <Terminal files={files} dataTour="terminal" onEasterEgg={handleEasterEgg} />
             </div>
@@ -3587,9 +3587,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 <span style={{ color: keyboardLocked ? "#f87171" : saveWarn ? "#fbbf24" : "#776798", fontSize:12 }}>{keyboardLocked ? "🔒 O professor travou o teclado — espere ele liberar de novo." : saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {analyzeButtons}
-                  <button data-tour="salvar" style={styles.btn("#34d399")} onClick={handleSave}>💾 Salvar e Finalizar Aula</button>
                 </div>
               </div>
+              <p data-tour="salvar" style={{ color:"#a99ac9", fontSize:12, margin:"8px 0 0", lineHeight:1.5 }}>📚 Continue praticando — seu professor libera o resumo da aula pra turma quando chegar a hora.</p>
 
               <Terminal files={files} dataTour="terminal" onEasterEgg={handleEasterEgg} />
             </>

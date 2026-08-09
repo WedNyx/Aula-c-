@@ -1,5 +1,5 @@
-// Ponta a ponta: fluxo completo do aluno (perfil → editor → terminal → salvar → atividade →
-// conclusão) e todas as abas principais do painel do professor.
+// Ponta a ponta: fluxo completo do aluno (perfil → editor → terminal → professor libera o resumo →
+// atividade → conclusão) e todas as abas principais do painel do professor.
 const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, loginNewStudent } = require('./helpers.cjs');
 
 (async () => {
@@ -37,13 +37,38 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, lo
   }
 
   check('Sem erro de JS até aqui (editor + terminal)', errA.length === 0, errA.slice(0, 3).join(' | '));
+  check('Aviso de que o professor libera o resumo aparece (não é mais o aluno quem salva)', (await a.locator('[data-tour="salvar"]').count()) > 0);
+  check('Botão "Salvar e Finalizar Aula" NÃO existe mais', (await a.locator('button:has-text("Salvar e Finalizar Aula")').count()) === 0);
 
-  const salvarBtn = a.locator('[data-tour="salvar"]').first();
-  if (await salvarBtn.count()) {
-    await salvarBtn.click();
-    await a.waitForTimeout(3000);
-    check('Tela de resumo/atividade apareceu depois de salvar', (await a.locator('text=/Atividade da Aula|resumo/i').count()) > 0);
+  // ══════════════════ 2) PAINEL DO PROFESSOR: libera o resumo pra turma do aluno ══════════════════
+  // a tela de login do aluno escolhe o turno sozinha (por horário do dia), então acha no banco em
+  // qual turma "Fulano Teste" caiu, pra saber qual turma o professor precisa liberar
+  console.log('\n--- PROFESSOR ---');
+  let studentShift = null;
+  for (const [k, v] of kvStore.entries()) {
+    if (!k.startsWith('student:')) continue;
+    try { const obj = JSON.parse(v); if (obj.name === 'Fulano Teste') { studentShift = obj.shift; break; } } catch {}
   }
+  check('Achou a turma do aluno no banco', !!studentShift, studentShift);
+
+  const ctxP = await browser.newContext({ viewport: { width: 1400, height: 950 } });
+  const p = await ctxP.newPage();
+  const errP = await mockRoutes(p, kvStore);
+  await loginTeacher(p);
+  await p.click('text=👨‍💻 Meu código');
+  await p.waitForTimeout(500);
+  const turmaLabel = studentShift === 'vespertino' ? '🌙 Vespertino' : '☀️ Matutino';
+  const turmaBtn = p.locator(`button:has-text("${turmaLabel}")`).first();
+  if (await turmaBtn.count()) { await turmaBtn.click(); await p.waitForTimeout(300); }
+  await p.locator('[data-tour-prof="resumo-ritmo"]').locator('button:has-text("Liberar resumo pra turma hoje")').click();
+  await p.waitForTimeout(600);
+  check('Professor liberou o resumo sem erro de JS', errP.length === 0, errP.slice(0, 3).join(' | '));
+
+  // seletor PRECISO (não um regex genérico de "resumo") — o próprio aviso da tela de código já
+  // menciona "resumo" ("seu professor libera o resumo..."), então um regex solto casava com esse
+  // aviso ainda na fase "coding" e o teste seguia cedo demais, antes da geração de verdade terminar
+  await a.waitForSelector('text=Resumo da sua aula', { timeout: 20000 });
+  check('Tela de resumo apareceu no aluno depois do professor liberar', (await a.locator('text=Resumo da sua aula').count()) > 0);
 
   const startActivityBtn = a.locator('button:has-text("Fazer Atividade")');
   if (await startActivityBtn.count()) { await startActivityBtn.click(); await a.waitForTimeout(500); }
@@ -67,13 +92,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, lo
   check('Sem erro de JS no fluxo completo do aluno', errA.length === 0, errA.slice(0, 3).join(' | '));
   await ctxA.close();
 
-  // ══════════════════ 2) PAINEL DO PROFESSOR, TODAS AS ABAS PRINCIPAIS ══════════════════
-  console.log('\n--- PROFESSOR ---');
-  const ctxP = await browser.newContext({ viewport: { width: 1400, height: 950 } });
-  const p = await ctxP.newPage();
-  const errP = await mockRoutes(p, kvStore);
-
-  await loginTeacher(p);
+  // ══════════════════ 3) PAINEL DO PROFESSOR, TODAS AS ABAS PRINCIPAIS ══════════════════
+  // reaproveita o mesmo contexto/página do professor já aberto acima (pra liberar o resumo)
   check('Painel do professor abriu (pós-login)', (await p.locator('text=👥 Monitoramento').count()) > 0);
 
   const tabs = ['👨‍💻 Meu código', '🏆 Prova', '👥 Monitoramento', '🗓️ Calendário', '💬 Feedback'];
