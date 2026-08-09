@@ -2199,9 +2199,27 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const hasTodayDiff = todayCode.trim().length >= 10 && todayCode.trim() !== fullCode.trim();
       // se já existe um resumo de hoje (o aluno salvou antes e o professor passou mais código
       // depois), o próximo resumo é uma CONTINUAÇÃO — só as seções novas, sem repetir o que já tinha
-      const existingSummary = summaryHistory[todayKey()];
-      const isContinuation = existingSummary && typeof existingSummary === "object" && Array.isArray(existingSummary.secoes) && existingSummary.secoes.length > 0;
-      const novoCode = isContinuation ? codeWrittenSinceLastSummary() : "";
+      const todaySummary = summaryHistory[todayKey()];
+      const hasTodaySummary = todaySummary && typeof todaySummary === "object" && Array.isArray(todaySummary.secoes) && todaySummary.secoes.length > 0;
+      // sem resumo de hoje ainda? procura o ÚLTIMO resumo de um dia ANTERIOR (o aluno faltou, ou o
+      // ritmo da turma pulou um dia dele) — o resumo de hoje vira uma PONTE: cobre tudo que ficou
+      // pendente desde o último resumo dele, sem repetir os conceitos já explicados, em vez de só
+      // resumir o código de hoje e deixar o que ele perdeu pra trás
+      let lastPastSummary = null;
+      if (!hasTodaySummary) {
+        const pastDates = Object.keys(summaryHistory || {}).filter(d => d !== todayKey()).sort().reverse();
+        for (const d of pastDates) {
+          const s = summaryHistory[d];
+          if (s && typeof s === "object" && Array.isArray(s.secoes) && s.secoes.length > 0) { lastPastSummary = s; break; }
+        }
+      }
+      const existingSummary = hasTodaySummary ? todaySummary : lastPastSummary;
+      const isContinuation = !!existingSummary;
+      // dentro do MESMO dia, a "foto" do código na hora do último resumo permite saber exatamente o
+      // que é novo. De um dia pra outro essa foto não existe (só a do dia atual é guardada) — manda
+      // o código completo como "novo" e deixa a lista de conceitos já explicados, dentro de
+      // buildContinuationSummaryRequest, filtrar o que não repetir
+      const novoCode = hasTodaySummary ? codeWrittenSinceLastSummary() : (lastPastSummary ? fullCode : "");
       const simpleReq = isContinuation
         ? buildContinuationSummaryRequest(existingSummary, novoCode.trim() ? novoCode : todayCode, fullCode, studyLang, nyxPrefs)
         : buildSummaryRequest("simples", hasTodayDiff, todayCode, fullCode, studyLang, nyxPrefs);
@@ -2232,9 +2250,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           summaryData = extractJson(retryResult);
         } catch { summaryData = null; }
       }
-      const finalSummary = isContinuation && summaryData
-        ? mergeSummaryContinuation(existingSummary, summaryData)
-        : (isContinuation ? existingSummary : (summaryData || { secoes: [] })); // se a continuação falhar, mantém o resumo que já existia (nunca perde o que já tinha)
+      // continuação do MESMO dia: soma no resumo de hoje que já existia (mesmo registro). Ponte de
+      // dias anteriores: o resumo de hoje é só o que foi gerado agora (o resumo antigo continua
+      // intacto no próprio dia dele, no caderno do aluno) — se a geração falhar, cai pra um resumo
+      // vazio em vez de repetir por engano o conteúdo do dia antigo como se fosse o de hoje
+      const finalSummary = hasTodaySummary
+        ? (summaryData ? mergeSummaryContinuation(existingSummary, summaryData) : existingSummary)
+        : (summaryData || { secoes: [] });
       setDynamicSummary(finalSummary);
       const parsed = extractJson(activityResult);
       const questions = shuffleQuestions(parsed.questions);

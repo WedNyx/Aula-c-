@@ -35,6 +35,12 @@ function mockClaudeBody(prompt) {
   if (p.includes('"questions"')) {
     return JSON.stringify({ questions: Array.from({ length: 4 }, (_, i) => ({ q: `Pergunta de teste ${i + 1}?`, opts: ['A', 'B', 'C', 'D'], correct: 0 })) });
   }
+  // continuação de resumo (buildContinuationSummaryRequest) — schema sem "intro", só "secoes"+"dica";
+  // devolve um título RECONHECÍVEL e diferente do resumo "do zero" abaixo, pra dar pra distinguir
+  // nos testes se o caminho de continuação (mesmo dia OU ponte de dias) foi o que realmente rodou
+  if (p.includes('CONTINUAÇÃO do resumo')) {
+    return JSON.stringify({ secoes: [{ emoji: '🌉', titulo: 'Conceito Novo Depois da Falta', explicacao: 'Isso é novo.', exemplo: 'int y = 2;' }], dica: 'Continue de onde parou!' });
+  }
   if (p.includes('"secoes"')) {
     return JSON.stringify({ intro: 'Você aprendeu bastante hoje!', secoes: [{ emoji: '💡', titulo: 'Variáveis', explicacao: 'Guardam valores.', exemplo: 'int x = 1;' }], dica: 'Continue praticando!', encorajamento: 'Mandou bem!' });
   }
