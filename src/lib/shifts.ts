@@ -79,6 +79,10 @@ export interface TurmaCalendar {
   city: string;
   cityClosed: boolean;
   classDays: string[];
+  // 0 (padrão) = sem ritmo definido, código e resumo podem acontecer no mesmo dia, quando o
+  // professor quiser. N ≥ 1 = a cada N dias de aula seguidos, o (N+1)-ésimo vira dia de resumo —
+  // N=1 é "um dia código, um dia resumo" alternado; N=2 é "dois dias código, um de resumo" etc.
+  resumoCadence: number;
 }
 export interface TeacherMetaLike {
   city?: string | null;
@@ -90,13 +94,32 @@ const LEGACY_CALENDAR_TURMA_IDS = ["matutino", "vespertino"];
 export function turmaCalendar(m: TeacherMetaLike | null | undefined, turmaId: string): TurmaCalendar {
   const meta = m || {};
   const per = (meta.byTurma || {})[turmaId];
-  if (per) return { classDays: per.classDays || [], city: per.city || "", cityClosed: !!per.cityClosed };
+  if (per) return { classDays: per.classDays || [], city: per.city || "", cityClosed: !!per.cityClosed, resumoCadence: per.resumoCadence || 0 };
   if (LEGACY_CALENDAR_TURMA_IDS.includes(turmaId)) {
-    return { classDays: meta.classDays || [], city: meta.city || "", cityClosed: !!meta.cityClosed };
+    return { classDays: meta.classDays || [], city: meta.city || "", cityClosed: !!meta.cityClosed, resumoCadence: 0 };
   }
-  return { classDays: [], city: "", cityClosed: false };
+  return { classDays: [], city: "", cityClosed: false, resumoCadence: 0 };
 }
 export function withTurmaCalendar<T extends TeacherMetaLike>(m: T, turmaId: string, patch: Partial<TurmaCalendar>): T {
   const cur = turmaCalendar(m, turmaId);
   return { ...m, byTurma: { ...(m.byTurma || {}), [turmaId]: { ...cur, ...patch } } };
+}
+
+// ── em que posição (0-based) uma data cairia na sequência de dias de aula JÁ registrados —
+// se a data ainda não está em classDays (ex: hoje, antes de qualquer aluno entrar e marcar o dia
+// sozinho), conta quantos dias JÁ registrados vêm antes dela, como se ela fosse o próximo da fila.
+// Isso deixa o indicador de "hoje é dia de código ou de resumo" certo mesmo antes do 1º aluno logar.
+function classDayIndexFor(classDays: string[], dateKey: string): number {
+  const sorted = [...new Set(classDays)].sort();
+  const exact = sorted.indexOf(dateKey);
+  if (exact >= 0) return exact;
+  return sorted.filter(d => d < dateKey).length;
+}
+
+// se uma data é dia de RESUMO (não de código) dado o ritmo configurado pra turma — ver comentário
+// de resumoCadence acima pra entender os números
+export function isResumoDay(classDays: string[], resumoCadence: number, dateKey: string): boolean {
+  if (!resumoCadence || resumoCadence < 1) return false;
+  const idx = classDayIndexFor(classDays, dateKey);
+  return (idx + 1) % (resumoCadence + 1) === 0;
 }

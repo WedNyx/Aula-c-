@@ -152,6 +152,24 @@ export async function setKeyboardLock(turmaId, value, auth) {
   } catch { return false }
 }
 
+// ── resumo liberado pela turma HOJE: o professor clica em "Meu código" e todo aluno conectado que
+// já tem código escrito e ainda está na fase "coding" tem a aula finalizada sozinho (mesma coisa
+// que "Salvar e Finalizar Aula", só que sem precisar clicar) — a chave guarda a DATA liberada
+// (não um booleano), então continua valendo o dia inteiro pra quem entra depois do clique também ──
+const resumoTriggerKeyFor = (turmaId) => `resumotrigger:${turmaId || 'sem-turno'}`
+export async function getResumoTrigger(turmaId) {
+  try {
+    const r = await kvCall({ action: 'get', key: resumoTriggerKeyFor(turmaId) })
+    return r.value || null
+  } catch { return null }
+}
+export async function setResumoTrigger(turmaId, dateKey, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: resumoTriggerKeyFor(turmaId), value: dateKey || '', auth })
+    return r.ok === true
+  } catch { return false }
+}
+
 // 🏟️ torneio da turma (chaveamento no telão): só o professor escreve; os alunos leem no tick
 // e respondem gravando a pontuação no PRÓPRIO perfil (tourneyAnswer), que o telão apura. Cada
 // turma tem o seu próprio torneio, independente das outras

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getTurmas, saveTurmas } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getTurmas, saveTurmas } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -25,7 +25,7 @@ import { STUDY_LANGUAGES, langById, reviewChecklistFor, buildPreviewDoc, otherFi
 import { BRACKET_COLORS, highlight, highlightCSharp, highlightJS, highlightPHP, highlightCSS, highlightHTML } from "./lib/highlight.jsx";
 import { ANALYZE_PROVIDERS, PARTNER_REWARD, isOffline, isNetworkError, askClaude, extractJson, askClaudeJson, buildSummaryRequest, buildContinuationSummaryRequest, mergeSummaryContinuation, recentDifficultyHint, adaptiveDifficultyTier } from "./lib/ai.js";
 import { requestFS, goFullscreen, todayKey, weekKey, dateKeyOf, hmToMin, nowMin, classStatus } from "./lib/schedule.ts";
-import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName, DEFAULT_TURMAS, TURMA_COLORS, turmaCalendar, withTurmaCalendar } from "./lib/shifts.ts";
+import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName, DEFAULT_TURMAS, TURMA_COLORS, turmaCalendar, withTurmaCalendar, isResumoDay } from "./lib/shifts.ts";
 import { Login } from "./components/LoginScreen.jsx";
 import { ImpactPage, PortfolioPage } from "./components/PublicPages.jsx";
 import { generateDuelQuestions, generateKnowledgeTestQuestions, generateFreeBuildPlan } from "./lib/aiChallenges.js";
@@ -2269,6 +2269,28 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     return () => window.removeEventListener("online", onBackOnline);
   }, [analyzeCode, handleSave]);
 
+  // 📚 resumo liberado pelo professor (aba "Meu código"): assim que detecta o aviso de hoje,
+  // finaliza a aula sozinho — mesmo fluxo de "Salvar e Finalizar Aula", só sem precisar clicar. Usa
+  // stateRef (sempre atualizado) em vez de "phase"/"files" direto, pra não precisar recriar o
+  // intervalo a cada tecla digitada (senão, um aluno digitando sem parar nunca seria pego).
+  const handleSaveRef = useRef(handleSave);
+  handleSaveRef.current = handleSave;
+  const resumoAutoSaveRef = useRef(false);
+  useEffect(() => {
+    if (!loaded) return;
+    let active = true;
+    const iv = setInterval(async () => {
+      if (resumoAutoSaveRef.current || stateRef.current.phase !== "coding") return;
+      const fullCode = (stateRef.current.files || []).filter(f => (f.code||"").trim()).map(f => f.code || "").join("\n");
+      if (fullCode.trim().length < 10) return;
+      const triggered = await getResumoTrigger(shift);
+      if (!active || triggered !== todayKey() || stateRef.current.phase !== "coding") return;
+      resumoAutoSaveRef.current = true;
+      try { await handleSaveRef.current(); } finally { resumoAutoSaveRef.current = false; }
+    }, 5000);
+    return () => { active = false; clearInterval(iv); };
+  }, [loaded, shift]);
+
   // versão detalhada do resumo, pedida sob demanda (só quando o aluno clica) — gerada uma vez e guardada
   const fetchDetailedSummary = async () => {
     if (detailedSummary) { setSummaryView("detalhado"); return; }
@@ -4416,8 +4438,13 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [monitorHover, setMonitorHover] = useState(false);
   const [genName, setGenName] = useState(false);
   const [nameMsg, setNameMsg] = useState("");
-  // 📚 gerar resumo de aula em lote (pra quem ainda não tem um de hoje ou de ontem)
-  const [resumoLoteBusy, setResumoLoteBusy] = useState(false);
+  // 📚 ritmo do resumo: em vez do professor escolher dia a dia "gerar resumo de hoje/ontem", ele
+  // define um ritmo (ex: a cada 2 aulas de código, 1 de resumo) e clica um botão só na aba "Meu
+  // código" quando quiser liberar — a plataforma já calcula sozinha se hoje é dia de código ou de
+  // resumo, e o resumo aparece pra QUALQUER aluno conectado (na hora ou mais tarde no mesmo dia)
+  const [resumoTriggerBusy, setResumoTriggerBusy] = useState(false);
+  const [resumoTriggerMsg, setResumoTriggerMsg] = useState("");
+  const [resumoTriggeredToday, setResumoTriggeredToday] = useState({});
   const [autoNameMsg, setAutoNameMsg] = useState("");
   const autoNameTriedRef = useRef({});
   // ✋ notificação de pedido de ajuda (toast, igual ao "Reconectando Nyx")
@@ -5082,35 +5109,36 @@ function TeacherView({ onLogout, teacherAuth }) {
     setTimeout(()=>setNameMsg(""), 7000);
   };
 
-  // 📚 gera o resumo de aula (Nyx) em lote pra turma filtrada, numa data — só entra em quem AINDA
-  // não tem um resumo salvo naquele dia (nunca sobrescreve um que já existe) e pula quem não tem
-  // código nenhum escrito (não dá pra resumir o vazio). Roda em paralelo, um pedido por aluno.
-  const doGerarResumosLote = async (dateKey, label) => {
-    if (resumoLoteBusy) return;
-    setResumoLoteBusy(true);
-    try {
-      const alvo = shown.filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id);
-      const results = await Promise.all(alvo.map(async (s) => {
-        const fullCode = (Array.isArray(s.files) && s.files.length) ? s.files.map(f=>f.code||"").join("\n") : (s.code||"");
-        const hist = s.summaryHistory || {};
-        const existing = hist[dateKey];
-        const jaTem = existing && typeof existing === "object" && Array.isArray(existing.secoes) && existing.secoes.length > 0;
-        if (jaTem) return "ja_tinha";
-        if (fullCode.trim().length < 10) return "sem_codigo";
-        try {
-          const req = buildSummaryRequest("simples", false, fullCode, fullCode, null, s.nyxPrefs || {});
-          const summaryData = await askClaudeJson(req.prompt, req.system);
-          const ok = await patchStudent(s.shift, s.name, { summaryHistory: { ...hist, [dateKey]: summaryData } });
-          return ok ? "gerado" : "erro";
-        } catch { return "erro"; }
-      }));
-      const count = (tag) => results.filter(r => r === tag).length;
-      const gerados = count("gerado"), jaTinham = count("ja_tinha"), semCodigo = count("sem_codigo"), comErro = count("erro");
-      flashMgmt(`✅ Resumo de ${label}: ${gerados} gerado(s)${jaTinham?`, ${jaTinham} já tinham`:""}${semCodigo?`, ${semCodigo} sem código ainda`:""}${comErro?`, ${comErro} com erro`:""}.`);
-      load();
-    } finally {
-      setResumoLoteBusy(false);
+  // 📚 ritmo do resumo (aba "Meu código"): salva a cada quantos dias de código a turma tem 1 dia
+  // de resumo (0 = sem ritmo, código e resumo podem acontecer no mesmo dia quando o professor quiser)
+  const saveResumoCadence = async (turmaId, value) => {
+    const n = Math.max(0, parseInt(value, 10) || 0);
+    const nm = withTurmaCalendar(metaRef.current, turmaId, { resumoCadence: n });
+    metaRef.current = nm; setMeta(nm);
+    await saveTeacherMeta(nm, teacherAuth);
+  };
+  // busca se a turma selecionada em "Meu código" já teve o resumo de hoje liberado — só pra mostrar
+  // o status certo (evita o professor achar que precisa clicar de novo)
+  useEffect(() => {
+    let active = true;
+    getResumoTrigger(codeShift).then(v => { if (active) setResumoTriggeredToday(t => ({ ...t, [codeShift]: v === todayKey() })); });
+    return () => { active = false; };
+  }, [codeShift]);
+  // 📚 libera o resumo da turma HOJE: qualquer aluno conectado que já tem código escrito e ainda
+  // está na fase "coding" finaliza a aula sozinho (mesmo fluxo de "Salvar e Finalizar Aula") assim
+  // que o próprio navegador dele perceber o aviso — sem precisar clicar em nada. Continua valendo
+  // o dia inteiro, então também pega quem entra DEPOIS deste clique (não só quem já está online).
+  const liberarResumoHoje = async (turmaId) => {
+    setResumoTriggerBusy(true); setResumoTriggerMsg("");
+    const ok = await setResumoTrigger(turmaId, todayKey(), teacherAuth);
+    setResumoTriggerBusy(false);
+    if (ok) {
+      setResumoTriggeredToday(t => ({ ...t, [turmaId]: true }));
+      setResumoTriggerMsg(`✅ Resumo liberado pra turma ${shiftMeta(turmaId, turmas).label}! Quem estiver com código escrito vai pro resumo sozinho, na hora ou assim que entrar hoje.`);
+    } else {
+      setResumoTriggerMsg("❌ Não consegui liberar o resumo agora. Tente de novo em instantes.");
     }
+    setTimeout(() => setResumoTriggerMsg(""), 8000);
   };
 
   // envia um aviso para um aluno específico aparecer na tela dele
@@ -6452,8 +6480,6 @@ function TeacherView({ onLogout, teacherAuth }) {
             <CollapsibleCard title="📋 Lista de Chamada" dataTourProf="chamada" headerRight={<>
               <span style={styles.badge("#34d399")}>{present} online / {shown.length}</span>
               <button onClick={async ()=>{ await Promise.all(shown.map(s=>setKeyboardLaunch(s.shift, s.name, teacherAuth))); flashMgmt(`⌨️ Tutorial de teclado aberto pra ${shown.length} aluno(s).`); }} style={{ ...styles.btn("#22d3ee"), padding:"5px 10px", fontSize:12 }} title="Abre o tutorial de teclado na tela de todos os alunos filtrados">⌨️ Abrir teclado pra todos</button>
-              <button onClick={()=>doGerarResumosLote(todayKey(), "hoje")} disabled={resumoLoteBusy} style={{ ...styles.btn("#a855f7"), padding:"5px 10px", fontSize:12, opacity:resumoLoteBusy?0.6:1 }} title="Gera o resumo de aula (Nyx) pra quem ainda não tem um de hoje, sem mexer em quem já tem">{resumoLoteBusy ? "📚 Gerando..." : "📚 Gerar resumo (hoje)"}</button>
-              <button onClick={()=>doGerarResumosLote(dateKeyOf(Date.now()-86400000), "ontem")} disabled={resumoLoteBusy} style={{ ...styles.btn("#a855f7"), padding:"5px 10px", fontSize:12, opacity:resumoLoteBusy?0.6:1 }} title="Gera o resumo de aula (Nyx) pra quem não conseguiu gerar o de ontem">{resumoLoteBusy ? "📚 Gerando..." : "📚 Gerar resumo (ontem)"}</button>
             </>}>
               {shown.length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum aluno na chamada ainda.</p> : (
                 chamadaGroups.map((g, gi) => (
@@ -7171,6 +7197,40 @@ function TeacherView({ onLogout, teacherAuth }) {
               {contentFor(codeShift) && <p style={{ color:"#34d399", fontSize:13, fontWeight:600, margin:"8px 0 0" }}>📖 Conteúdo de hoje ({shiftMeta(codeShift, turmas).label}): {contentFor(codeShift)}</p>}
               {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12.5, margin:"8px 0 0", lineHeight:1.5 }}>{nameMsg}</p>}
             </div>
+
+            {(() => {
+              const cal = turmaCalendar(meta, codeShift);
+              const hoje = todayKey();
+              const isResumo = isResumoDay(cal.classDays, cal.resumoCadence, hoje);
+              const jaLiberado = !!resumoTriggeredToday[codeShift];
+              return (
+                <div data-tour-prof="resumo-ritmo" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
+                  <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>📚 Resumo da aula — {shiftMeta(codeShift, turmas).label}</h3>
+                  <p style={{ color:"#a99ac9", fontSize:12.5, margin:"4px 0 10px", lineHeight:1.5 }}>Defina o ritmo da turma e, quando for dia de resumo, clique em liberar — todo aluno conectado com código escrito finaliza a aula sozinho (nada de clicar em "Salvar e Finalizar Aula"), na hora ou assim que entrar ainda hoje.</p>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:10 }}>
+                    <span style={{ color:"#a99ac9", fontSize:13 }}>A cada</span>
+                    <input type="number" min={0} value={cal.resumoCadence} onChange={e=>saveResumoCadence(codeShift, e.target.value)}
+                      style={{ width:52, background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"5px 8px", color:"#f0e9fb", fontSize:13, textAlign:"center" }} />
+                    <span style={{ color:"#a99ac9", fontSize:13 }}>{cal.resumoCadence===1 ? "aula de código, 1 de resumo" : "aulas de código, 1 de resumo"}</span>
+                    <span style={{ color:"#776798", fontSize:12 }} title='0 = sem ritmo fixo — código e resumo podem acontecer no mesmo dia, quando você quiser'>{cal.resumoCadence===0 ? "(0 = sem ritmo fixo, decide dia a dia)" : ""}</span>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                    <span style={styles.badge(cal.resumoCadence===0 ? "#a99ac9" : isResumo ? "#c084fc" : "#22d3ee")}>
+                      {cal.resumoCadence===0 ? "🔀 Sem ritmo fixo hoje" : isResumo ? "📚 Hoje é dia de RESUMO" : "💻 Hoje é dia de código"}
+                    </span>
+                    {jaLiberado ? (
+                      <span style={styles.badge("#34d399")}>✅ Resumo já liberado hoje</span>
+                    ) : (
+                      <button onClick={()=>liberarResumoHoje(codeShift)} disabled={resumoTriggerBusy} style={{ ...styles.btn("#c084fc"), padding:"7px 14px", fontSize:12.5, opacity:resumoTriggerBusy?0.6:1 }}>
+                        {resumoTriggerBusy ? "Liberando..." : "📚 Liberar resumo pra turma hoje"}
+                      </button>
+                    )}
+                  </div>
+                  {resumoTriggerMsg && <p style={{ color:resumoTriggerMsg.startsWith("✅")?"#34d399":"#f87171", fontSize:12.5, margin:"8px 0 0", lineHeight:1.5 }}>{resumoTriggerMsg}</p>}
+                </div>
+              );
+            })()}
+
             <CodeLab key={codeShift} accent="#fbbf24" files={proFiles} onChange={setProFiles} terminalMaxHeight={420} gear={meta.nyxGear||DEFAULT_NYX_GEAR} onEquip={saveTeacherGear} />
           </div>
       )}
