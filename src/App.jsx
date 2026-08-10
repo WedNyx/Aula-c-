@@ -1489,10 +1489,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         const tc = await getTeacherCode(shift);
         setTeacherWriting(!!(tc && tc.at && Date.now() - tc.at < 6000));
       } catch {}
-      // ⌨️ o professor "empurrou" a abertura do tutorial de teclado pra este aluno
+      // ⌨️ o professor "empurrou" a abertura do tutorial de teclado pra este aluno — só vale pro
+      // dia em que foi aberto (o valor fica salvo pra sempre no servidor, mas não deve reabrir
+      // sozinho de novo em outro dia só porque o aluno recarregou a página ou voltou no dia seguinte)
       try {
         const launchedAt = await getKeyboardLaunch(shift, studentName);
-        if (launchedAt && kbLaunchSeenRef.current !== launchedAt) {
+        if (launchedAt && dateKeyOf(launchedAt) === todayKey() && kbLaunchSeenRef.current !== launchedAt) {
           kbLaunchSeenRef.current = launchedAt;
           setShowKeyboard(true);
         }
