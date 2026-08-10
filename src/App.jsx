@@ -212,7 +212,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [score, setScore] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [keyboardLocked, setKeyboardLockedState] = useState(false);
-  const lastProviderRef = useRef("nvidia"); // lembra o último modelo escolhido, pra reverificação automática usar o mesmo
+  const lastProviderRef = useRef("nvidia"); // lembra o último modelo que funcionou, pra próxima análise tentar ele primeiro
   // 🔌 modo offline total: quando a análise ou o "Salvar e Finalizar" não rolam por falta de
   // internet (não uma simples instabilidade), fica marcado aqui pra tentar de novo sozinho assim
   // que a conexão voltar — o aluno não precisa ficar clicando até funcionar
@@ -1843,10 +1843,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     setAnalyzing(false);
   };
 
-  // enquanto houver erros sinalizados, sublinha em vermelho a linha correspondente no editor — some sozinho
-  // quando o aluno edita a linha (e, se todos sumirem por edição, o Nyx reanalisa sozinho pra confirmar)
+  // enquanto houver erros sinalizados, sublinha em vermelho a linha correspondente no editor — some
+  // sozinho quando o aluno edita a linha (o Nyx só reanalisa de novo se o aluno pedir, clicando em
+  // "Analisar código" ou no botão de reverificar do card de erro — nunca mais por conta própria)
   const errorLinesForEditor = codeErrors.map(e => findLineIndex(activeCode, e.trecho)).filter(i => i >= 0);
-  const [pendingAutoVerify, setPendingAutoVerify] = useState(false);
   useEffect(() => {
     if (!codeErrors.length) return;
     const stillPresent = codeErrors.filter(e => findLineIndex(activeCode, e.trecho) >= 0);
@@ -1854,31 +1854,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       setCodeErrors(stillPresent);
       if (stillPresent.length === 0) {
         setShowErrorWalkthrough(false);
-        setPendingAutoVerify(true); // todas as linhas sinalizadas foram editadas -> arma a reverificação
       } else {
         setErrorWalkStep(s => Math.min(s, stillPresent.length - 1));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCode]);
-  // debounce da reverificação automática: reagenda a CADA tecla enquanto estiver pendente, pra sempre usar
-  // o código mais atual (sem isso, o timer poderia disparar com um estado intermediário desatualizado,
-  // por exemplo bem no meio de um Ctrl+A+Delete + digitar de novo)
-  useEffect(() => {
-    if (!pendingAutoVerify) return;
-    const t = setTimeout(() => { setPendingAutoVerify(false); analyzeCode(); }, 1200);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCode, pendingAutoVerify]);
-
-  // auto-análise silenciosa: se o aluno ficar 15 minutos inteiros sem digitar nada, o Nyx confere
-  // o código sozinho — sem avisar antes que vai analisar, só reagenda o timer a cada tecla
-  useEffect(() => {
-    if (analyzing || activeCode.trim().length < 12) return;
-    const t = setTimeout(() => { analyzeCode(); }, 15 * 60000);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCode, analyzing]);
 
   // anti-cola geral: o professor está passando código pra copiar (escrevendo em "Meu código" agora)
   // e este aluno está distraído (loja, teclado ou duelo) em vez de copiar — depois de 10s parado
@@ -3584,7 +3565,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
 
               <div data-tour="editor">
-                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} errorLines={errorLinesForEditor} locked={(analyzing && lockDuringAnalysis) || keyboardLocked} />
+                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} errorLines={errorLinesForEditor} locked={(analyzing && lockDuringAnalysis) || keyboardLocked} lockMessage={keyboardLocked ? "🔒 O professor travou o teclado — espere ele liberar de novo" : undefined} />
               </div>
 
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
@@ -4066,6 +4047,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                   onChange={()=>{}}
                   filename={partnerPeerCode.files[partnerViewActive]?.name ?? partnerPeerCode.files[0]?.name}
                   locked={true}
+                  lockMessage="👀 Somente leitura — código de outro aluno"
                 />
               </>
             )}

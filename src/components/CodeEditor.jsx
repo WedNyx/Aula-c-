@@ -4,7 +4,7 @@ import { highlight } from "../lib/highlight.jsx";
 // ════════════════════════════════════════════════════════════════════════════
 //  EDITOR ESTILO VS CODE
 // ════════════════════════════════════════════════════════════════════════════
-export function VSEditor({ value, onChange, filename, errorLines, locked }) {
+export function VSEditor({ value, onChange, filename, errorLines, locked, lockMessage }) {
   const textareaRef = useRef(null);
   const highlightRef = useRef(null);
   const gutterRef = useRef(null);
@@ -121,13 +121,14 @@ export function VSEditor({ value, onChange, filename, errorLines, locked }) {
               indo empurrando a marcação visual pra direita conforme a linha afetada cresce */}
           <textarea ref={textareaRef} value={value} readOnly={locked} onChange={e => { if (!locked) onChange(e.target.value.replace(/\r/g, "")); }} onKeyDown={handleKeyDown} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
             style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, background:"transparent", color:"transparent", caretColor: locked ? "transparent" : "#aeafad", border:"none", outline:"none", resize:"none", zIndex:1, paddingLeft:14, overflow:"auto", cursor: locked ? "not-allowed" : "text" }} />
-          {/* congela o código enquanto o Nyx analisa — evita que o aluno mude algo bem na hora que
-              o Nyx está lendo, o que faria a análise apontar pra um código que já nem existe mais */}
+          {/* congela o código enquanto estiver travado (análise em andamento, professor travou o
+              teclado, ou visualização somente-leitura) — a mensagem reflete o motivo de verdade,
+              em vez de sempre dizer "Nyx analisando" mesmo quando não é isso que está travando */}
           {locked && (
             <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(10,6,20,.35)", display:"flex", alignItems:"flex-start", justifyContent:"center", pointerEvents:"none" }}>
               <div className="pop" style={{ marginTop:14, background:"#171026", border:"1px solid #c084fc66", borderRadius:20, padding:"6px 14px", fontSize:12.5, fontWeight:700, color:"#e8ebfa", display:"flex", alignItems:"center", gap:8, boxShadow:"0 6px 18px rgba(0,0,0,.4)" }}>
-                <span style={{ animation:"nyx-spin 1.1s linear infinite", display:"inline-block" }}>🔍</span>
-                Nyx analisando... o código fica congelado até terminar
+                {!lockMessage && <span style={{ animation:"nyx-spin 1.1s linear infinite", display:"inline-block" }}>🔍</span>}
+                {lockMessage || "Nyx analisando... o código fica congelado até terminar"}
               </div>
             </div>
           )}
