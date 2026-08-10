@@ -21,9 +21,9 @@ import { codeForSpeech, useViewportWidth, computeStreak, shuffleQuestions, isDon
 import { ACHIEVEMENTS, ALL_EGG_ACHIEVEMENT_IDS, achievementInfo, visibleAchievements, CLASS_GOALS, classGoalProgress } from "./lib/achievements.ts";
 import { generateRelatorioDocx, downloadRelatorioDocx } from "./lib/reportDocx.js";
 import { CS_SYSTEM, RUN_SYSTEM, nyxPrefsInstruction, NYX_FUN_SYSTEM, NYX_GUIDED_SYSTEM } from "./lib/ai-prompts.ts";
-import { STUDY_LANGUAGES, langById, reviewChecklistFor, buildPreviewDoc, otherFilesCtx, findLineIndex } from "./lib/languages.ts";
+import { STUDY_LANGUAGES, langById, reviewChecklistFor, buildPreviewDoc, otherFilesCtx } from "./lib/languages.ts";
 import { BRACKET_COLORS, highlight, highlightCSharp, highlightJS, highlightPHP, highlightCSS, highlightHTML } from "./lib/highlight.jsx";
-import { ANALYZE_PROVIDERS, PARTNER_REWARD, isOffline, isNetworkError, askClaude, extractJson, askClaudeJson, buildSummaryRequest, buildContinuationSummaryRequest, mergeSummaryContinuation, recentDifficultyHint, adaptiveDifficultyTier } from "./lib/ai.js";
+import { PARTNER_REWARD, isOffline, isNetworkError, askClaude, extractJson, askClaudeJson, buildSummaryRequest, buildContinuationSummaryRequest, mergeSummaryContinuation, recentDifficultyHint, adaptiveDifficultyTier } from "./lib/ai.js";
 import { requestFS, goFullscreen, todayKey, weekKey, dateKeyOf, hmToMin, nowMin, classStatus } from "./lib/schedule.ts";
 import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName, DEFAULT_TURMAS, TURMA_COLORS, turmaCalendar, withTurmaCalendar, isResumoDay } from "./lib/shifts.ts";
 import { Login } from "./components/LoginScreen.jsx";
@@ -34,7 +34,7 @@ import { STUCK_MINUTES, difficultyOf } from "./lib/studentStatus.ts";
 import { SummaryPretty } from "./components/SummaryPretty.jsx";
 import { ClassTrendChart } from "./components/ClassTrendChart.jsx";
 import { ConfettiParty } from "./components/ConfettiParty.jsx";
-import { ErrorHighlightRing, ErrorWalkthroughCard, FloatingErrorBubble, NyxFeedbackModal, ErrorExplainModal } from "./components/ErrorUI.jsx";
+import { NyxFeedbackModal, ErrorExplainModal } from "./components/ErrorUI.jsx";
 import { NyxShop, RetroOverlay } from "./components/NyxShop.jsx";
 import { AchievementToast, AchievementsModal, RankingModal, ClassGoalBar } from "./components/AchievementUI.jsx";
 import { QuickStatusModal, TelaoModal, JustifyModal, HallOfFameModal, TripOverviewModal } from "./components/TeacherModals.jsx";
@@ -210,18 +210,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [answers, setAnswers] = useState({});
   const [revealedHints, setRevealedHints] = useState({}); // 💡 dicas da dificuldade adaptativa que o aluno já abriu, por questão
   const [score, setScore] = useState(null);
-  const [analyzing, setAnalyzing] = useState(false);
   const [keyboardLocked, setKeyboardLockedState] = useState(false);
-  const lastProviderRef = useRef("nvidia"); // lembra o último modelo escolhido, pra reverificação automática usar o mesmo
-  // 🔌 modo offline total: quando a análise ou o "Salvar e Finalizar" não rolam por falta de
-  // internet (não uma simples instabilidade), fica marcado aqui pra tentar de novo sozinho assim
-  // que a conexão voltar — o aluno não precisa ficar clicando até funcionar
-  const pendingAnalyzeRef = useRef(false);
+  // 🔌 modo offline total: quando "Salvar e Finalizar" não rola por falta de internet (não uma
+  // simples instabilidade), fica marcado aqui pra tentar de novo sozinho assim que a conexão
+  // voltar — o aluno não precisa ficar clicando até funcionar
   const pendingSaveRef = useRef(false);
-  // erros da última análise (linha sublinhada de vermelho até corrigir) + tour do Nyx explicando cada um
-  const [codeErrors, setCodeErrors] = useState([]);
-  const [showErrorWalkthrough, setShowErrorWalkthrough] = useState(false);
-  const [errorWalkStep, setErrorWalkStep] = useState(0);
   const [dynamicSummary, setDynamicSummary] = useState("");
   const [dynamicActivity, setDynamicActivity] = useState(null);
   const [generatingMsg, setGeneratingMsg] = useState("");
@@ -1759,123 +1752,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     setGuidedLessonLoading(false);
   };
 
-  // analisa o código tentando os modelos disponíveis em sequência — se o primeiro falhar por
-  // qualquer motivo (chave não configurada, instabilidade, etc.), tenta o outro automaticamente
-  // e SEM avisar o aluno no meio do caminho; só mostra erro se os dois falharem
-  const analyzeCode = async () => {
-    const trimmed = activeCode.trim();
-    if (trimmed.length < 12 || analyzing) return;
-    setRobotState("thinking"); setAnalyzing(true);
-    const quick = quickCheck(activeCode);
-    if (quick) {
-      const fb = { ok:false, message:quick.message, missingChars:quick.missing||[] };
-      setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setFeedback(fb);
-      setCodeErrors([]); setShowErrorWalkthrough(false);
-      await persist({ feedback:fb, hasError:true });
-      setAnalyzing(false);
-      return;
-    }
-    // 🔌 sem internet nenhuma agora: nem tenta chamar a IA (ia falhar de qualquer jeito) — avisa
-    // com carinho e marca pra verificar sozinho assim que a conexão voltar
-    if (isOffline()) {
-      setRobotState("error");
-      setRobotMsg("📡 Sem internet agora — seu código já está salvo neste computador. Assim que a conexão voltar, eu verifico automaticamente!");
-      pendingAnalyzeRef.current = true;
-      setAnalyzing(false);
-      return;
-    }
-    // tenta os dois modelos gratuitos primeiro (na ordem de sempre) e, só se os DOIS falharem de
-    // verdade (é aí que aparece "Reconectando Nyx"), usa a Anthropic (Sonnet 5) como último recurso —
-    // assim o aluno não fica travado esperando o gratuito voltar, mas o gasto pago só entra quando precisa
-    const order = [lastProviderRef.current, ANALYZE_PROVIDERS.find(p => p !== lastProviderRef.current), "anthropic"];
-    let lastErr = null;
-    for (const provider of order) {
-      try {
-        const parsed = await askClaudeJson(
-          `Revise o código ${studyLang ? studyLang.label : "C#"} de um aluno iniciante como um COMPILADOR faria, linha por linha.\n\n${otherFilesCtx(files, active, studyLang)}Arquivo em edição — é ESTE e SÓ ESTE que você deve revisar (${files[active]?.name || "Program.cs"}):\n\`\`\`${studyLang ? studyLang.codeLang : "csharp"}\n${activeCode}\n\`\`\`\n\nO que verificar (nesta ordem):\n${reviewChecklistFor(studyLang)}\n\nLembretes IMPORTANTES:\n- Os "Outros arquivos" (se houver) são SÓ contexto, pra você saber que existem e podem ser usados no arquivo em edição — NUNCA os revise, NUNCA aponte erro neles, e NUNCA copie um "trecho" retirado deles. Cada "trecho" de erro tem que ser uma linha que existe literalmente no arquivo em edição.${studyLang ? "" : "\n- Top-level statements (código sem class/Main) e ausência de using System são VÁLIDOS — não são erro.\n- Não aponte classe/método \"inexistente\" se estiver definido em outro arquivo do projeto."}\n- NÃO invente erro em código correto. Na dúvida real, prefira ok=true.\n\nResponda APENAS em JSON puro, sem markdown, com os campos NESTA ordem:\n{"analise": "sua verificação rápida linha a linha, citando o que conferiu (máx 3 frases — o aluno não vê isto)", "ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: onde está (linha/trecho) e como corrigir mostrando a forma certa, em 1 a 3 frases gentis", "missingChars": ["só símbolos que faltam, ex: ; } ) — vazio se nenhum"], "errors": ["se ok for false: uma lista com CADA erro encontrado no arquivo em edição (pode ter mais de um). Cada item é um objeto {\\"trecho\\": a linha EXATA e completa como aparece no ARQUIVO EM EDIÇÃO (nunca nos outros arquivos), copiada literalmente, sem espaços extras no início; \\"explicacao\\": por que está errado e como corrigir, 1 a 2 frases bem simples e gentis; \\"exemplo\\": a mesma linha já corrigida}. Lista vazia se ok for true."]}`,
-          (studyLang ? studyLang.system : CS_SYSTEM) + "\nResponda APENAS JSON puro, sem markdown." + nyxPrefsInstruction(nyxPrefs),
-          // silentHealth: cada tentativa da sequência não deve acender "Reconectando Nyx" sozinha —
-          // só o resultado final (depois do loop) reporta a saúde geral, ver abaixo
-          { temperature: 0, provider, silentHealth: true }
-        );
-        // só lembra o modelo GRATUITO que funcionou (pra próxima vez tentar ele primeiro de novo) —
-        // o Sonnet 5 é só reserva de emergência, não deve virar o preferido
-        if (provider !== "anthropic") lastProviderRef.current = provider;
-        setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
-        await persist({ feedback:parsed, hasError:!parsed.ok });
-        if (parsed.ok) {
-          unlockAchievement("codigo-limpo");
-          setCodeErrors([]); setShowErrorWalkthrough(false);
-        } else {
-          const errs = (Array.isArray(parsed.errors) ? parsed.errors : []).filter(e => e && e.trecho && findLineIndex(activeCode, e.trecho) >= 0);
-          setCodeErrors(errs);
-          if (errs.length > 0) { setErrorWalkStep(0); setShowErrorWalkthrough(true); }
-        }
-        lastErr = null;
-        break; // deu certo — não precisa tentar o próximo modelo
-      } catch (e) {
-        lastErr = e; // guarda e tenta o próximo modelo da lista, sem avisar o aluno ainda
-      }
-    }
-    // agora sim: UM report geral só, refletindo o resultado FINAL da sequência inteira (não cada
-    // tentativa isolada) — "Reconectando Nyx" só acende pra sala toda quando o Nyx realmente não
-    // respondeu de jeito nenhum, não toda vez que o primeiro modelo gratuito da fila estava
-    // instável e o próximo resolveu sozinho sem o aluno nem perceber
-    if (!lastErr) reportAiHealth(true);
-    else if (lastErr.message !== 'ROBOTKEY_MISSING') reportAiHealth(false);
-    if (lastErr) {
-      if (lastErr.message === 'ROBOTKEY_MISSING') {
-        setRobotState("error");
-        setRobotMsg(lastErr.userMsg || "🔑 Nyx está offline: o professor precisa configurar a chave da IA no painel do Vercel. A verificação básica do código continua funcionando!");
-      } else if (isNetworkError(lastErr)) {
-        setRobotState("error");
-        setRobotMsg("📡 A internet caiu bem na hora de verificar — mas seu código está salvo! Assim que a conexão voltar, eu verifico automaticamente.");
-        pendingAnalyzeRef.current = true;
-      } else {
-        setRobotState("error");
-        setRobotMsg(`😵 Nyx tentou analisar com todos os modelos disponíveis e nenhum respondeu agora. Tente de novo em instantes.\n\n🔧 Detalhe técnico (pra mostrar ao Vegapunk): ${lastErr.message || lastErr}`);
-      }
-    }
-    setAnalyzing(false);
-  };
-
-  // enquanto houver erros sinalizados, sublinha em vermelho a linha correspondente no editor — some sozinho
-  // quando o aluno edita a linha (e, se todos sumirem por edição, o Nyx reanalisa sozinho pra confirmar)
-  const errorLinesForEditor = codeErrors.map(e => findLineIndex(activeCode, e.trecho)).filter(i => i >= 0);
-  const [pendingAutoVerify, setPendingAutoVerify] = useState(false);
-  useEffect(() => {
-    if (!codeErrors.length) return;
-    const stillPresent = codeErrors.filter(e => findLineIndex(activeCode, e.trecho) >= 0);
-    if (stillPresent.length !== codeErrors.length) {
-      setCodeErrors(stillPresent);
-      if (stillPresent.length === 0) {
-        setShowErrorWalkthrough(false);
-        setPendingAutoVerify(true); // todas as linhas sinalizadas foram editadas -> arma a reverificação
-      } else {
-        setErrorWalkStep(s => Math.min(s, stillPresent.length - 1));
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCode]);
-  // debounce da reverificação automática: reagenda a CADA tecla enquanto estiver pendente, pra sempre usar
-  // o código mais atual (sem isso, o timer poderia disparar com um estado intermediário desatualizado,
-  // por exemplo bem no meio de um Ctrl+A+Delete + digitar de novo)
-  useEffect(() => {
-    if (!pendingAutoVerify) return;
-    const t = setTimeout(() => { setPendingAutoVerify(false); analyzeCode(); }, 1200);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCode, pendingAutoVerify]);
-
-  // auto-análise silenciosa: se o aluno ficar 15 minutos inteiros sem digitar nada, o Nyx confere
-  // o código sozinho — sem avisar antes que vai analisar, só reagenda o timer a cada tecla
-  useEffect(() => {
-    if (analyzing || activeCode.trim().length < 12) return;
-    const t = setTimeout(() => { analyzeCode(); }, 15 * 60000);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCode, analyzing]);
-
   // anti-cola geral: o professor está passando código pra copiar (escrevendo em "Meu código" agora)
   // e este aluno está distraído (loja, teclado ou duelo) em vez de copiar — depois de 10s parado
   // nessa distração, o Nyx traz ele de volta sozinho pro editor, sem avisar nada antes
@@ -2281,15 +2157,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   };
 
   // 🔌 modo offline total: assim que a internet voltar, tenta sozinho de novo o que ficou pendente
-  // (análise ou salvar/gerar atividade) — o aluno não precisa perceber que caiu e clicar de novo
+  // (salvar/gerar atividade) — o aluno não precisa perceber que caiu e clicar de novo
   useEffect(() => {
     const onBackOnline = () => {
-      if (pendingAnalyzeRef.current) { pendingAnalyzeRef.current = false; analyzeCode(); }
       if (pendingSaveRef.current) { pendingSaveRef.current = false; handleSave(); }
     };
     window.addEventListener("online", onBackOnline);
     return () => window.removeEventListener("online", onBackOnline);
-  }, [analyzeCode, handleSave]);
+  }, [handleSave]);
 
   // 📚 resumo liberado pelo professor (aba "Meu código"): assim que detecta o aviso de hoje,
   // finaliza a aula sozinho — mesmo fluxo de "Salvar e Finalizar Aula", só sem precisar clicar. Usa
@@ -3118,14 +2993,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     );
   }
 
-  // um único botão — o Nyx tenta o primeiro modelo e, se falhar por qualquer motivo, tenta o
-  // outro sozinho por trás dos panos, sem o aluno precisar escolher nem clicar de novo
-  const analyzeButtons = (
-    <button title={activeCode.trim().length<12 ? "Escreva um pouco mais de código neste arquivo antes de pedir a análise" : ""} style={{ ...styles.btn("#c084fc"), opacity:(analyzing||activeCode.trim().length<12)?0.55:1 }} onClick={()=>analyzeCode()} disabled={analyzing||activeCode.trim().length<12}>
-      {analyzing ? "🔍 Analisando..." : "✨ Analisar código"}
-    </button>
-  );
-
   // ── CODING ──
   return (
     <div className={supportClass} style={styles.container}>
@@ -3555,12 +3422,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 </div>
               )}
 
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:16, flexWrap:"wrap", gap:8 }}>
-                <span style={{ color: saveWarn ? "#fbbf24" : "#776798", fontSize:scaleSize(12) }}>{saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  {analyzeButtons}
+              {saveWarn && (
+                <div style={{ marginTop:16 }}>
+                  <span style={{ color:"#fbbf24", fontSize:scaleSize(12) }}>{saveWarn}</span>
                 </div>
-              </div>
+              )}
               <p data-tour="salvar" style={{ color:"#a99ac9", fontSize:scaleSize(12), margin:"10px 0 0", lineHeight:1.5 }}>📚 Continue praticando — seu professor libera o resumo da aula pra turma quando chegar a hora.</p>
 
               <Terminal files={files} dataTour="terminal" onEasterEgg={handleEasterEgg} />
@@ -3580,15 +3446,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
 
               <div data-tour="editor">
-                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} errorLines={errorLinesForEditor} locked={analyzing || keyboardLocked} />
+                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} locked={keyboardLocked} />
               </div>
 
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
-                <span style={{ color: keyboardLocked ? "#f87171" : saveWarn ? "#fbbf24" : "#776798", fontSize:12 }}>{keyboardLocked ? "🔒 O professor travou o teclado — espere ele liberar de novo." : saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  {analyzeButtons}
+              {(keyboardLocked || saveWarn) && (
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
+                  <span style={{ color: keyboardLocked ? "#f87171" : "#fbbf24", fontSize:12 }}>{keyboardLocked ? "🔒 O professor travou o teclado — espere ele liberar de novo." : saveWarn}</span>
                 </div>
-              </div>
+              )}
               <p data-tour="salvar" style={{ color:"#a99ac9", fontSize:12, margin:"8px 0 0", lineHeight:1.5 }}>📚 Continue praticando — seu professor libera o resumo da aula pra turma quando chegar a hora.</p>
 
               <Terminal files={files} dataTour="terminal" onEasterEgg={handleEasterEgg} />
@@ -3598,30 +3463,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
         {/* Robô + atalhos — fica "grudado" na tela conforme rola a página, com scroll próprio se o conteúdo for mais alto que a tela */}
         <div className="side-col side-col-sticky" style={{ width:250, flex:"0 0 250px" }}>
-          {showErrorWalkthrough && codeErrors.length > 0 && (
-            vw > 700 ? (
-              <FloatingErrorBubble
-                errors={codeErrors}
-                step={Math.min(errorWalkStep, codeErrors.length-1)}
-                activeCode={activeCode}
-                verifying={analyzing}
-                onPrev={()=>setErrorWalkStep(s=>Math.max(0,s-1))}
-                onNext={()=>setErrorWalkStep(s=>Math.min(codeErrors.length-1,s+1))}
-                onVerify={analyzeCode}
-                onClose={()=>setShowErrorWalkthrough(false)}
-              />
-            ) : (
-              <ErrorWalkthroughCard
-                errors={codeErrors}
-                step={Math.min(errorWalkStep, codeErrors.length-1)}
-                verifying={analyzing}
-                onPrev={()=>setErrorWalkStep(s=>Math.max(0,s-1))}
-                onNext={()=>setErrorWalkStep(s=>Math.min(codeErrors.length-1,s+1))}
-                onVerify={analyzeCode}
-                onClose={()=>setShowErrorWalkthrough(false)}
-              />
-            )
-          )}
           <div data-tour="nyx" className="cardfx" style={styles.card}>
             <NyxRobot state={robotState} size={88} gear={nyxGear} />
             {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>
@@ -3871,8 +3712,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {tourStep >= 0 && tourStep < TOUR_STEPS.length && (
         <TourOverlay step={tourStep} onNext={()=>setTourStep(s => (s+1 >= TOUR_STEPS.length ? -1 : s+1))} />
       )}
-
-      <ErrorHighlightRing active={showErrorWalkthrough && codeErrors.length > 0} />
 
       {showNyxShop && (
         <NyxShop
