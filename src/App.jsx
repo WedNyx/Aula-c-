@@ -2898,7 +2898,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               <>
                 <p style={{ color:"#a99ac9", marginBottom:12 }}>Quando terminar de anotar, vá para a atividade! ✍️</p>
                 <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
-                  <button style={{ ...styles.btn("#3b2a58"), padding:"12px 22px", fontSize:15 }} onClick={async()=>{ setPhase("coding"); await persist({ phase:"coding" }); }}>← Voltar para o código</button>
+                  <button style={{ ...styles.btnGhost, padding:"12px 22px", fontSize:15 }} onClick={async()=>{ setPhase("coding"); await persist({ phase:"coding" }); }}>← Voltar para o código</button>
                   <button style={{ ...styles.btn("#c084fc"), padding:"12px 26px", fontSize:16 }} onClick={handleStartActivity}>Fazer Atividade →</button>
                 </div>
               </>
@@ -3247,7 +3247,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <span style={{ background:"#c084fc22", padding:"4px 12px", borderRadius:20, fontSize:13 }}>👤 {studentName}</span>
           <span style={{ background:"#171026", border:"1px solid #3b2a58", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#a99ac9" }}>{shiftLabel(shift, myTurmas)}</span>
           {streakCount >= 2 && <span title="Dias de aula seguidos que você participou" style={{ background:"#f8717122", border:"1px solid #f87171", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#fca5a5", fontWeight:800 }}>🔥 {streakCount} dias seguidos</span>}
-          <button data-tour="tema" style={{ ...styles.btn("#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
+          <button data-tour="tema" style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
           {isSpartan && (
             <button style={{ ...styles.btn("#b45309"), padding:"6px 12px", fontSize:12 }}
               onClick={()=>setThemeAndSave(theme==="spartan" ? (themeBeforeSpartan||"dark") : "spartan")}
@@ -3255,10 +3255,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               {theme==="spartan" ? "🎨 Tema normal" : "🛡️ Tema Espartano"}
             </button>
           )}
-          <button style={{ ...styles.btn("#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={toggleMuted} title={muted?"Ativar sons":"Silenciar sons"}>{muted?"🔇":"🔊"}</button>
+          <button style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={toggleMuted} title={muted?"Ativar sons":"Silenciar sons"}>{muted?"🔇":"🔊"}</button>
           <button data-tour="acessibilidade" style={{ ...styles.btn(largeUiMode?"#06b6d4":"#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={()=>{ setLargeUiMode(!largeUiMode); try { localStorage.setItem("nyx_large_ui", !largeUiMode?"1":"0"); } catch {} }} title={largeUiMode?"Desativar modo acessível":"Ativar modo acessível (letras maiores)"}>♿</button>
-          {ttsSupported && <button style={{ ...styles.btn("#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={()=>setShowVoicePicker(true)} title="Escolher a voz do Nyx (leitura em voz alta)">🗣️</button>}
-          <button style={{ ...styles.btn("#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={tryFullscreen}>⛶ Tela cheia</button>
+          {ttsSupported && <button style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={()=>setShowVoicePicker(true)} title="Escolher a voz do Nyx (leitura em voz alta)">🗣️</button>}
+          <button style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={tryFullscreen}>⛶ Tela cheia</button>
           <button style={{ ...styles.btn("#f87171"), padding:"6px 12px", fontSize:12 }} onClick={onLogout}>Sair</button>
         </div>
       </div>
@@ -3423,7 +3423,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               <span style={{ color:"#776798", fontSize:14 }}>.cs</span>
             </div>
             <div style={{ display:"flex", gap:10, marginTop:18 }}>
-              <button onClick={cancelRename} style={{ ...styles.btn("#3b2a58"), flex:1 }}>Cancelar</button>
+              <button onClick={cancelRename} style={{ ...styles.btnGhost, flex:1 }}>Cancelar</button>
               <button onClick={confirmRename} style={{ ...styles.btn("#c084fc"), flex:1 }}>Salvar nome</button>
             </div>
           </div>
@@ -3455,7 +3455,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                     onKeyDown={e=>{ if (e.key==="Enter" && pendingBlock.value.trim()) addGuidedBlock(pendingBlock.block, pendingBlock.value); }}
                     style={{ width:"100%", background:"#1e1430", border:"1px solid #3b2a58", borderRadius:8, padding:`${scalePx(10)}px ${scalePx(12)}px`, color:"#f0e9fb", fontSize:scaleSize(15), boxSizing:"border-box" }} />
                   <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                    <button onClick={()=>setPendingBlock(null)} style={{ ...styles.btn("#3b2a58"), flex:1 }}>Cancelar</button>
+                    <button onClick={()=>setPendingBlock(null)} style={{ ...styles.btnGhost, flex:1 }}>Cancelar</button>
                     <button onClick={()=>addGuidedBlock(pendingBlock.block, pendingBlock.value)} disabled={!pendingBlock.value.trim()} style={{ ...styles.btn("#22d3ee"), flex:1, opacity:pendingBlock.value.trim()?1:0.5 }}>Adicionar ✅</button>
                   </div>
                 </div>
@@ -3905,7 +3905,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"12px 14px", color:"#f0e9fb", fontSize:26, fontWeight:900, letterSpacing:8, textAlign:"center", outline:"none", boxSizing:"border-box" }} />
             {quizCodeError && <p style={{ color:"#f87171", fontSize:12.5, margin:"8px 0 0" }}>{quizCodeError}</p>}
             <div style={{ display:"flex", gap:8, marginTop:14 }}>
-              <button onClick={()=>setShowQuizJoin(false)} style={{ ...styles.btn("#3b2a58"), flex:1, padding:"11px 0", fontSize:13.5 }}>Cancelar</button>
+              <button onClick={()=>setShowQuizJoin(false)} style={{ ...styles.btnGhost, flex:1, padding:"11px 0", fontSize:13.5 }}>Cancelar</button>
               <button onClick={joinQuiz} disabled={quizCodeInput.length<6} style={{ ...styles.btn("#c084fc"), flex:1, padding:"11px 0", fontSize:13.5, opacity:quizCodeInput.length<6?0.5:1 }}>Entrar →</button>
             </div>
           </div>
@@ -4023,7 +4023,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               Depois você escolhe outra linguagem e começa do zero nela.
             </p>
             <div style={{ display:"flex", gap:8 }}>
-              <button onClick={()=>setShowSwitchConfirm(false)} style={{ ...styles.btn("#3b2a58"), flex:1, padding:"9px 0", fontSize:13 }}>Cancelar</button>
+              <button onClick={()=>setShowSwitchConfirm(false)} style={{ ...styles.btnGhost, flex:1, padding:"9px 0", fontSize:13 }}>Cancelar</button>
               <button onClick={switchLanguage} style={{ ...styles.btn("#fbbf24"), flex:1, padding:"9px 0", fontSize:13 }}>Sim, trocar</button>
             </div>
           </div>
@@ -6383,7 +6383,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               <button onClick={()=>exportDailyPDF(dailyPdfModal.shift, dailyPdfModal.studentName, dailyPdfCode)} disabled={dailyPdfBusy || !dailyPdfCode.trim()} style={{ ...styles.btn("#fbbf24"), padding:"9px 18px", fontSize:13.5, opacity: (dailyPdfBusy || !dailyPdfCode.trim()) ? 0.6 : 1 }}>
                 {dailyPdfBusy ? "⏳ Gerando..." : "✅ Gerar PDF"}
               </button>
-              <button onClick={()=>setDailyPdfModal(null)} disabled={dailyPdfBusy} style={{ ...styles.btn("#3b2a58"), padding:"9px 18px", fontSize:13.5 }}>Cancelar</button>
+              <button onClick={()=>setDailyPdfModal(null)} disabled={dailyPdfBusy} style={{ ...styles.btnGhost, padding:"9px 18px", fontSize:13.5 }}>Cancelar</button>
             </div>
             {dailyPdfMsg && <p style={{ color: dailyPdfMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:10 }}>{dailyPdfMsg}</p>}
           </div>
@@ -6442,7 +6442,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <p style={{ color:"#a99ac9", fontSize:12, margin:"3px 0 0" }}>{lesson.desc}</p>
                     </div>
                     <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift, turmas).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
-                      style={{ ...styles.btn("#3b2a58"), padding:"7px 14px", fontSize:12.5 }}>Usar este modelo →</button>
+                      style={{ ...styles.btnGhost, padding:"7px 14px", fontSize:12.5 }}>Usar este modelo →</button>
                   </div>
                 ))}
               </div>
@@ -6474,7 +6474,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               🗑️ Também limpar o meu código (aba "Meu código") do(s) turno(s) escolhido(s)
             </label>
             <div style={{ display:"flex", gap:10, marginTop:18 }}>
-              <button onClick={()=>setConfirmReset(false)} style={{ ...styles.btn("#3b2a58"), flex:1 }}>Cancelar</button>
+              <button onClick={()=>setConfirmReset(false)} style={{ ...styles.btnGhost, flex:1 }}>Cancelar</button>
               <button onClick={doReset} style={{ ...styles.btn("#f87171"), flex:1 }}>{resetScope==="all"?"Resetar todas as turmas":`Resetar ${shiftMeta(resetScope, turmas).label}`}</button>
             </div>
           </div>
@@ -6576,7 +6576,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   return done.length > 0 ? Math.round(done.reduce((a,s)=>a+s.score,0)/done.length)+" pts" : "—";
                 })()}</span>
               </div>
-              <button onClick={exportCSV} style={{ ...styles.btn("#3b2a58"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Baixa uma planilha colorida e organizada por turno (abre no Excel), com presenças, notas e situação de cada aluno (sem a turma de teste)">
+              <button onClick={exportCSV} style={{ ...styles.btnGhost, width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Baixa uma planilha colorida e organizada por turno (abre no Excel), com presenças, notas e situação de cada aluno (sem a turma de teste)">
                 ⬇️ Exportar planilha (Excel)
               </button>
               <div style={{ display:"flex", gap:5, flexWrap:"wrap", alignItems:"center", marginTop:8 }}>
@@ -6666,7 +6666,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
               ) : <span style={{ color:"#776798" }}>verificando...</span>}
               <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap",alignItems:"center"}}>
-                <button style={{ ...styles.btn("#3b2a58"), padding:"4px 10px", fontSize:12 }} onClick={()=>{ setDbSetupSQL(null); setDbSetupMsg(""); diagnose().then(setDiag); load(); }}>↻ Verificar agora</button>
+                <button style={{ ...styles.btnGhost, padding:"4px 10px", fontSize:12 }} onClick={()=>{ setDbSetupSQL(null); setDbSetupMsg(""); diagnose().then(setDiag); load(); }}>↻ Verificar agora</button>
                 <button style={{...styles.btn("#166534"),padding:"4px 10px",fontSize:12,opacity:dbSetupLoading?0.6:1}} onClick={setupDb} disabled={dbSetupLoading}>{dbSetupLoading?"...":"🔧 Inicializar banco"}</button>
               </div>
               {dbSetupMsg && (
@@ -6675,7 +6675,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             </CollapsibleCard>
 
             <CollapsibleCard title="🚨 Erros recentes" color="#f87171" headerRight={
-              <button style={{ ...styles.btn("#3b2a58"), padding:"3px 10px", fontSize:11.5 }} onClick={loadRecentErrors} disabled={errorsLoading}>{errorsLoading ? "..." : "↻ Verificar"}</button>
+              <button style={{ ...styles.btnGhost, padding:"3px 10px", fontSize:11.5 }} onClick={loadRecentErrors} disabled={errorsLoading}>{errorsLoading ? "..." : "↻ Verificar"}</button>
             }>
               <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.6, margin:"0 0 8px" }}>
                 Erros de JS que quebraram sozinhos na tela de algum aluno ou sua, sem precisar que ninguém perceba e avise. Não mostra código nem dado pessoal — só a mensagem do erro, de onde veio e quando.
@@ -6957,7 +6957,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   {sel.wantsPartner && (
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", background:"#a855f710", border:"1px solid #a855f7", borderRadius:8, padding:"8px 10px", marginBottom:10 }}>
                       <span style={{ color:"#a855f7", fontSize:12.5, fontWeight:800, flex:"1 1 180px" }}>🙋 {sel.name} pediu um parceiro às {new Date(sel.wantsPartner).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}!</span>
-                      <button onClick={()=>dismissPartnerRequest(sel)} style={{ ...styles.btn("#3b2a58"), padding:"4px 10px", fontSize:11.5 }}>Dispensar</button>
+                      <button onClick={()=>dismissPartnerRequest(sel)} style={{ ...styles.btnGhost, padding:"4px 10px", fontSize:11.5 }}>Dispensar</button>
                     </div>
                   )}
                   {(() => {
@@ -7011,7 +7011,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                       <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>🕑 Turma:</span>
                       {[...activeTurmas, TEST_SHIFT].filter(sh => sh.id !== (sel.shift||"sem-turno")).map(sh => (
-                        <button key={sh.id} onClick={()=>doMoveStudent(sel, sh.id)} style={{ ...styles.btn("#3b2a58"), padding:"6px 12px", fontSize:12.5 }}>
+                        <button key={sh.id} onClick={()=>doMoveStudent(sel, sh.id)} style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12.5 }}>
                           Mover p/ {sh.emoji} {sh.label}
                         </button>
                       ))}
@@ -7142,7 +7142,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                         <>
                           <span style={{ color:"#f87171", fontSize:13 }}>Excluir <b>{sel.name}</b> e tudo o que ele fez? Não dá para desfazer.</span>
                           <button onClick={()=>doDeleteStudent(sel)} style={{ ...styles.btn("#f87171"), padding:"6px 14px", fontSize:12.5 }}>Sim, excluir</button>
-                          <button onClick={()=>setConfirmDelete(false)} style={{ ...styles.btn("#3b2a58"), padding:"6px 14px", fontSize:12.5 }}>Cancelar</button>
+                          <button onClick={()=>setConfirmDelete(false)} style={{ ...styles.btnGhost, padding:"6px 14px", fontSize:12.5 }}>Cancelar</button>
                         </>
                       ) : (
                         <button onClick={()=>setConfirmDelete(true)} style={{ ...styles.btn("#f87171"), padding:"6px 14px", fontSize:12.5 }}>Excluir perfil do aluno</button>
@@ -7301,7 +7301,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             ) : confirmCloseCity ? (
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 <button style={{ ...styles.btn("#fbbf24"), opacity:farewellBusy?0.6:1 }} onClick={doCloseCity} disabled={farewellBusy}>{farewellBusy ? "Gerando relatório..." : `Sim, encerrar ${cal.city || "a cidade"}`}</button>
-                <button style={styles.btn("#3b2a58")} onClick={()=>setConfirmCloseCity(false)} disabled={farewellBusy}>Cancelar</button>
+                <button style={styles.btnGhost} onClick={()=>setConfirmCloseCity(false)} disabled={farewellBusy}>Cancelar</button>
               </div>
             ) : (
               <button style={{ ...styles.btn("#fbbf24"), width:"100%" }} onClick={()=>setConfirmCloseCity(true)}>🏆 Encerrar cidade e gerar placa + relatório</button>
@@ -7314,7 +7314,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             <h3 style={{ color:"#fbbf24", marginBottom:4 }}>💾 Backup automático</h3>
             <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 12px", lineHeight:1.6 }}>Todo dia de madrugada o Nyx guarda uma cópia de segurança de tudo sozinho, sem precisar fazer nada. Aqui você confere quando foi o último e pode forçar um agora se quiser.</p>
             {autoBackupList === null ? (
-              <button style={{ ...styles.btn("#3b2a58"), width:"100%" }} onClick={loadAutoBackups}>Ver backups</button>
+              <button style={{ ...styles.btnGhost, width:"100%" }} onClick={loadAutoBackups}>Ver backups</button>
             ) : autoBackupList.length === 0 ? (
               <p style={{ color:"#776798", fontSize:12.5 }}>Nenhum backup ainda — o primeiro roda sozinho na próxima madrugada, ou clique abaixo pra fazer um agora.</p>
             ) : (
@@ -7463,7 +7463,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                     <span style={{ ...styles.badge("#a99ac9"), fontSize:11 }}>{t.questions.length} perguntas</span>
                     {t.builtin && <span style={{ ...styles.badge("#22d3ee"), fontSize:11 }}>pronto de fábrica</span>}
                     <button onClick={()=>startQuizRoom(t)} style={{ ...styles.btn("#c084fc"), padding:"7px 16px", fontSize:13 }}>▶ Criar sala</button>
-                    {!t.builtin && <button onClick={()=>{ setQuizEditingTheme({ ...t, questions:[...t.questions] }); }} style={{ ...styles.btn("#3b2a58"), padding:"7px 12px", fontSize:13 }}>✏️</button>}
+                    {!t.builtin && <button onClick={()=>{ setQuizEditingTheme({ ...t, questions:[...t.questions] }); }} style={{ ...styles.btnGhost, padding:"7px 12px", fontSize:13 }}>✏️</button>}
                     {!t.builtin && <button onClick={()=>deleteQuizTheme(t.id)} style={{ ...styles.btn("#f87171"), padding:"7px 12px", fontSize:13 }}>🗑️</button>}
                   </div>
                 ))}
@@ -7517,7 +7517,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                 <div style={{ display:"flex", gap:8, marginTop:12 }}>
                   <button onClick={saveQuizTheme} disabled={!quizEditingTheme.title.trim() || !quizEditingTheme.questions.length}
                     style={{ ...styles.btn("#34d399"), flex:1, padding:"10px 0", fontSize:13.5, opacity:(!quizEditingTheme.title.trim() || !quizEditingTheme.questions.length)?0.5:1 }}>💾 Salvar tema</button>
-                  <button onClick={()=>setQuizEditingTheme(null)} style={{ ...styles.btn("#3b2a58"), flex:1, padding:"10px 0", fontSize:13.5 }}>Cancelar</button>
+                  <button onClick={()=>setQuizEditingTheme(null)} style={{ ...styles.btnGhost, flex:1, padding:"10px 0", fontSize:13.5 }}>Cancelar</button>
                 </div>
               </div>
             )}
@@ -7647,7 +7647,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <h3 style={{ color:"#fbbf24", textAlign:"center", margin:"8px 0" }}>Encerrar a prova agora?</h3>
                   <p style={{ color:"#d6c9ec", fontSize:14, textAlign:"center", lineHeight:1.6 }}>Os alunos que ainda não terminaram terão a pontuação parcial registrada.</p>
                   <div style={{ display:"flex", gap:10, marginTop:18 }}>
-                    <button onClick={()=>setConfirmEndExam(false)} style={{ ...styles.btn("#3b2a58"), flex:1 }}>Cancelar</button>
+                    <button onClick={()=>setConfirmEndExam(false)} style={{ ...styles.btnGhost, flex:1 }}>Cancelar</button>
                     <button onClick={endExam} style={{ ...styles.btn("#f87171"), flex:1 }}>Encerrar</button>
                   </div>
                 </div>
