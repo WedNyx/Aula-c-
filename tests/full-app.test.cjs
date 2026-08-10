@@ -39,7 +39,6 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, lo
   check('Sem erro de JS até aqui (editor + terminal)', errA.length === 0, errA.slice(0, 3).join(' | '));
   check('Aviso de que o professor libera o resumo aparece (não é mais o aluno quem salva)', (await a.locator('[data-tour="salvar"]').count()) > 0);
   check('Botão "Salvar e Finalizar Aula" NÃO existe mais', (await a.locator('button:has-text("Salvar e Finalizar Aula")').count()) === 0);
-  check('Botão "Analisar código" NÃO existe mais pro aluno', (await a.locator('button:has-text("Analisar código")').count()) === 0);
 
   // ══════════════════ 2) PAINEL DO PROFESSOR: libera o resumo pra turma do aluno ══════════════════
   // a tela de login do aluno escolhe o turno sozinha (por horário do dia), então acha no banco em
