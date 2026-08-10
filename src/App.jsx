@@ -2512,6 +2512,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     header:{ background:"rgba(17,21,42,.85)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", padding:`${scalePx(10)}px ${scalePx(18)}px`, display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #3b2a58", boxShadow:"0 1px 0 #c084fc33, 0 8px 24px rgba(3,5,16,.35)", position:"sticky", top:0, zIndex:40, flexWrap:"wrap", gap:8 },
     card:{ background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:16, padding:scalePx(16), margin:"10px 0", border:"1px solid #3a2a55", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:`${scalePx(10)}px ${scalePx(18)}px`, cursor:"pointer", fontWeight:800, fontSize:scaleSize(14), boxShadow:`0 4px 14px ${c}44` }),
+    // botão neutro pra ações de menu (navegar pra uma tela, abrir um painel) — a cor forte fica
+    // só pra ações com significado de verdade (chamar atenção, confirmar, bloquear/perigo). Uma
+    // parede inteira de botões em cores diferentes sem motivo cansa a vista e não ajuda a achar nada.
+    btnGhost:{ background:"#1c1330", color:"#d6c9ec", border:"1px solid #3b2a58", borderRadius:10, padding:`${scalePx(10)}px ${scalePx(18)}px`, cursor:"pointer", fontWeight:700, fontSize:scaleSize(14) },
     opt:(sel)=>({ background:sel?"#c084fc22":"#1a1029", border:`2px solid ${sel?"#c084fc":"#3a2a55"}`, borderRadius:10, padding:`${scalePx(10)}px ${scalePx(14)}px`, marginBottom:8, cursor:"pointer", color:"#f0e9fb", textAlign:"left", width:"100%", fontSize:scaleSize(14), minHeight:scaleSize(44) }),
   };
   const Stars = ({ value, onChange }) => (
@@ -3620,8 +3624,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               ? <button data-tour="ajuda" onClick={cancelHelp} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="O professor já foi avisado — clique pra cancelar o pedido">✋ Professor avisado! (cancelar)</button>
               : <button data-tour="ajuda" onClick={askHelp} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Acende seu nome no painel do professor pra ele vir te ajudar">✋ Pedir ajuda do professor</button>}
             {!partnerHelped && (wantsPartner
-              ? <button onClick={cancelPartnerRequest} style={{ ...styles.btn("#22d3ee"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Clique pra cancelar o pedido">🙋 Parceiro pedido! (cancelar)</button>
-              : <button onClick={askPartner} style={{ ...styles.btn("#3b2a58"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Avisa o professor que você quer um colega pra ajudar você — ele escolhe quem, por segurança">🤝 Pedir um parceiro pra me ajudar</button>)}
+              ? <button onClick={cancelPartnerRequest} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Clique pra cancelar o pedido">🙋 Parceiro pedido! (cancelar)</button>
+              : <button className="btn-ghost" onClick={askPartner} style={{ ...styles.btnGhost, width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Avisa o professor que você quer um colega pra ajudar você — ele escolhe quem, por segurança">🤝 Pedir um parceiro pra me ajudar</button>)}
             {partnerHelping && (
               <button onClick={()=>{ setPartnerViewActive(0); setShowPartnerHelp(true); }} style={{ ...styles.btn("#22d3ee"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja o código dele(a) (só leitura) e marque como resolvido quando ajudar">
                 🤝 Ajudar {partnerHelping.helped} · ver código
@@ -3631,19 +3635,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
             </button>}
             {studyLang?.preview && (
-              <button onClick={()=>setShowPreview(true)} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja o resultado do seu código rodando de verdade">
+              <button className="btn-ghost" onClick={()=>setShowPreview(true)} style={{ ...styles.btnGhost, width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja o resultado do seu código rodando de verdade">
                 👁️ Prévia ao vivo
               </button>
             )}
             {isLangRoom && studyLang && (
-              <button onClick={()=>setShowSwitchConfirm(true)} style={{ ...styles.btn("#3b2a58"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Guarda o código e os resumos de agora no histórico e começa outra linguagem do zero">
+              <button className="btn-ghost" onClick={()=>setShowSwitchConfirm(true)} style={{ ...styles.btnGhost, width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Guarda o código e os resumos de agora no histórico e começa outra linguagem do zero">
                 🔁 Trocar linguagem
               </button>
             )}
-            <button data-tour="teclado" onClick={()=>setShowKeyboard(true)} style={{ ...styles.btn("#22d3ee"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Aprenda onde fica cada tecla, no seu ritmo — pode treinar quando quiser">
+            <button className="btn-ghost" data-tour="teclado" onClick={()=>setShowKeyboard(true)} style={{ ...styles.btnGhost, width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Aprenda onde fica cada tecla, no seu ritmo — pode treinar quando quiser">
               ⌨️ Tutorial de Teclado
             </button>
-            <button data-tour="hall" onClick={()=>{ setShowHallOfFame(true); getHallOfFame(shift).then(setHallEntries); }} style={{ ...styles.btn("#fbbf24"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja quem se destacou nas cidades por onde a carreta já passou">
+            <button className="btn-ghost" data-tour="hall" onClick={()=>{ setShowHallOfFame(true); getHallOfFame(shift).then(setHallEntries); }} style={{ ...styles.btnGhost, width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja quem se destacou nas cidades por onde a carreta já passou">
               🏆 Hall da Fama
             </button>
             {pendingAbsences.length>0 && (
@@ -3655,26 +3659,26 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <div data-tour="turma" className="cardfx" style={styles.card}>
             <p style={{ color:"#fbbf24", fontWeight:700, marginBottom:8, fontSize:13 }}>🏆 Turma & Você</p>
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-              {!focusMode && <button onClick={()=>setShowRanking(true)} style={{ ...styles.btn("#22d3ee"), fontSize:12, padding:"7px 0" }}>📊 Ranking da turma</button>}
-              <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btn("#a855f7"), fontSize:12, padding:"7px 0" }}>🎖️ Conquistas · {achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/{visibleAchievements(isLangRoom).length}</button>
-              <button onClick={()=>setShowNotebook(true)} style={{ ...styles.btn("#34d399"), fontSize:12, padding:"7px 0" }}>📒 Caderno de resumos</button>
-              <button onClick={()=>setShowTrail(true)} style={{ ...styles.btn("#fbbf24"), fontSize:12, padding:"7px 0" }}>🗺️ Trilha de aprendizado</button>
-              <button onClick={()=>setShowNextSteps(true)} style={{ ...styles.btn("#34d399"), fontSize:12, padding:"7px 0" }}>🚀 Próximos passos</button>
-              <button onClick={()=>setShowPerformance(true)} style={{ ...styles.btn("#06b6d4"), fontSize:12, padding:"7px 0" }}>📊 Meu Desempenho</button>
-              {!focusMode && <button onClick={()=>{ if (!nyxLocks.zeker) setShowDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : ""}
-                style={{ ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:nyxLocks.zeker?0.45:1, cursor:nyxLocks.zeker?"not-allowed":"pointer" }}>
+              {!focusMode && <button className="btn-ghost" onClick={()=>setShowRanking(true)} style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>📊 Ranking da turma</button>}
+              <button className="btn-ghost" onClick={()=>setShowAchievements(true)} style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>🎖️ Conquistas · {achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/{visibleAchievements(isLangRoom).length}</button>
+              <button className="btn-ghost" onClick={()=>setShowNotebook(true)} style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>📒 Caderno de resumos</button>
+              <button className="btn-ghost" onClick={()=>setShowTrail(true)} style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>🗺️ Trilha de aprendizado</button>
+              <button className="btn-ghost" onClick={()=>setShowNextSteps(true)} style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>🚀 Próximos passos</button>
+              <button className="btn-ghost" onClick={()=>setShowPerformance(true)} style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>📊 Meu Desempenho</button>
+              {!focusMode && <button onClick={()=>{ if (!nyxLocks.zeker) setShowDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : ""} className={nyxLocks.zeker ? "" : "btn-ghost"}
+                style={nyxLocks.zeker ? { ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:0.7, cursor:"not-allowed" } : { ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>
                 {nyxLocks.zeker ? "🔒 Duelos bloqueados" : "⚔️ Duelo entre alunos"}
               </button>}
-              {!focusMode && <button onClick={()=>{ if (!nyxLocks.zeker) setShowTeamDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : "Chame 1 parceiro pra jogar em dupla contra outros 2 colegas"}
-                style={{ ...styles.btn("#fb7185"), fontSize:12, padding:"7px 0", opacity:nyxLocks.zeker?0.45:1, cursor:nyxLocks.zeker?"not-allowed":"pointer" }}>
+              {!focusMode && <button onClick={()=>{ if (!nyxLocks.zeker) setShowTeamDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : "Chame 1 parceiro pra jogar em dupla contra outros 2 colegas"} className={nyxLocks.zeker ? "" : "btn-ghost"}
+                style={nyxLocks.zeker ? { ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:0.7, cursor:"not-allowed" } : { ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>
                 {nyxLocks.zeker ? "🔒 Duelos bloqueados" : "🤝⚔️ Duelo em Dupla (2x2)"}
               </button>}
-              {!focusMode && <button onClick={()=>setShowRace(true)} title="Digite um trecho de código contra o relógio — pontos 1x por dia e pódio da turma"
-                style={{ ...styles.btn("#fb923c"), fontSize:12, padding:"7px 0" }}>🏁 Corrida de digitação{typingBest ? ` · ${(typingBest.ms/1000).toFixed(1)}s` : ""}</button>}
-              {!focusMode && <button onClick={()=>setShowKnowledgeTest(true)} title="Teste seu conhecimento da matéria, sem dicas — pode fazer quando quiser, sem precisar finalizar a aula"
-                style={{ ...styles.btn("#6366f1"), fontSize:12, padding:"7px 0" }}>🧠 Testar Conhecimento</button>}
-              {!focusMode && <button onClick={()=>setShowFreeBuild(true)} title="Proponha algo que você quer construir e o Nyx te ajuda a planejar como chegar lá"
-                style={{ ...styles.btn("#34d399"), fontSize:12, padding:"7px 0" }}>🏗️ Desafio Livre da Semana{weeklyChallenge && weeklyChallenge.weekKey===weekKey() && weeklyChallenge.status==="done" ? " ✅" : ""}</button>}
+              {!focusMode && <button className="btn-ghost" onClick={()=>setShowRace(true)} title="Digite um trecho de código contra o relógio — pontos 1x por dia e pódio da turma"
+                style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>🏁 Corrida de digitação{typingBest ? ` · ${(typingBest.ms/1000).toFixed(1)}s` : ""}</button>}
+              {!focusMode && <button className="btn-ghost" onClick={()=>setShowKnowledgeTest(true)} title="Teste seu conhecimento da matéria, sem dicas — pode fazer quando quiser, sem precisar finalizar a aula"
+                style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>🧠 Testar Conhecimento</button>}
+              {!focusMode && <button className="btn-ghost" onClick={()=>setShowFreeBuild(true)} title="Proponha algo que você quer construir e o Nyx te ajuda a planejar como chegar lá"
+                style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>🏗️ Desafio Livre da Semana{weeklyChallenge && weeklyChallenge.weekKey===weekKey() && weeklyChallenge.status==="done" ? " ✅" : ""}</button>}
             </div>
             <div style={{ borderTop:"1px solid #3b2a58", marginTop:10, paddingTop:10 }}>
               <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer" }}>
@@ -6220,6 +6224,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     header:{ background:"rgba(17,21,42,.85)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", padding:"10px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #3b2a58", boxShadow:"0 1px 0 #fbbf2433, 0 8px 24px rgba(3,5,16,.35)", position:"sticky", top:0, zIndex:40, flexWrap:"wrap", gap:8 },
     card:{ background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #3a2a55", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:"8px 16px", cursor:"pointer", fontWeight:800, boxShadow:`0 4px 14px ${c}44` }),
+    btnGhost:{ background:"#1c1330", color:"#d6c9ec", border:"1px solid #3b2a58", borderRadius:10, padding:"8px 16px", cursor:"pointer", fontWeight:700 },
     badge:(c)=>({ background:c+"22", color:c, padding:"2px 10px", borderRadius:12, fontSize:12, fontWeight:700 }),
     tab:(on)=>({ background:on?"linear-gradient(135deg,#fbbf24,#f59310)":"transparent", color:on?"#1c1400":"#a99ac9", border:`1px solid ${on?"#fbbf24":"#3b2a58"}`, borderRadius:10, padding:"6px 14px", cursor:"pointer", fontWeight:800, fontSize:13, boxShadow:on?"0 4px 12px #fbbf2433":"none" }),
   };
@@ -6320,10 +6325,10 @@ function TeacherView({ onLogout, teacherAuth }) {
           <button data-tour-prof="exam" style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle' && tab!=="exam" ? {borderColor:"#fbbf24",color:"#fbbf24"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
           <button data-tour-prof="quiz" style={{ ...styles.tab(tab==="quiz"), ...(quizRoom && tab!=="quiz" ? {borderColor:"#c084fc",color:"#c084fc"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?' ●':''}</button>
           <button data-tour-prof="situacao" style={{ ...styles.btn(needHelp.length>0 ? "#f87171" : "#34d399"), ...(tab==="code"?{padding:"4px 10px",fontSize:12}:{}) }} onClick={()=>setShowQuickStatus(true)} title="Veja rapidinho quem está com dificuldade, sem sair desta tela">👀 Situação{needHelp.length>0 ? ` (${needHelp.length})` : ""}</button>
-          {tab!=="code" && <button data-tour-prof="telao" style={styles.btn("#22d3ee")} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
+          {tab!=="code" && <button className="btn-ghost" data-tour-prof="telao" style={styles.btnGhost} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
           {isMobileScreen && <button style={styles.btn("#c084fc")} onClick={()=>setForceFullMode(false)} title="Volta pra lista simples de acompanhamento, melhor pro celular">📱 Modo simples</button>}
           {tab!=="code" && <button data-tour-prof="reset" style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
-          {tab!=="code" && <button style={styles.btn("#22d3ee")} onClick={()=>{ const first = TEACHER_TOUR_STEPS[0]; if (first.tab) setTab(first.tab); setProfTourStep(0); }} title="Tour guiado por todas as funções do painel do professor, entrando em cada aba pra mostrar de verdade">🧭 Tour</button>}
+          {tab!=="code" && <button className="btn-ghost" style={styles.btnGhost} onClick={()=>{ const first = TEACHER_TOUR_STEPS[0]; if (first.tab) setTab(first.tab); setProfTourStep(0); }} title="Tour guiado por todas as funções do painel do professor, entrando em cada aba pra mostrar de verdade">🧭 Tour</button>}
           <button data-tour-prof="sair" style={{ ...styles.btn("#776798"), fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
         </div>
       </div>

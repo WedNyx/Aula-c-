@@ -47,6 +47,10 @@ button:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.
 button:active:not(:disabled) { transform: translateY(0) scale(.98); }
 button:disabled { cursor: not-allowed; }
 
+/* botões neutros de menu (styles.btnGhost): o hover acende a borda em vez de clarear o fundo
+   inteiro — mantém os botões calmos até o mouse chegar perto */
+.btn-ghost:hover:not(:disabled) { border-color: #c084fc99 !important; background: #241a3a !important; }
+
 input, textarea, select { font-family: inherit; }
 input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 0 3px #c084fc22; }
 
