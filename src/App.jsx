@@ -340,6 +340,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // 🕐 horário automático de aula (do turno) + vistoria (libera este aluno específico fora do horário)
   const [mySchedule, setMySchedule] = useState({});
   const [myAllowWeekend, setMyAllowWeekend] = useState(false);
+  // 🔒 por padrão o editor trava enquanto o Nyx analisa o código (evita editar em cima da análise
+  // em andamento) — o professor pode liberar isso pro aluno continuar digitando durante a análise
+  const [lockDuringAnalysis, setLockDuringAnalysis] = useState(true);
   const [myInspection, setMyInspection] = useState(false);
   const [myClassDays, setMyClassDays] = useState([]);
   const [myContentNames, setMyContentNames] = useState({});
@@ -1471,6 +1474,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         const m = await getTeacherMeta();
         setMySchedule((m.schedule || {})[shift] || {});
         setMyAllowWeekend(!!m.allowWeekend);
+        setLockDuringAnalysis(m.lockDuringAnalysis !== false);
         setMyInspection(await getInspection(shift, studentName));
         currentClassDays = m.classDays || [];
         setMyClassDays(currentClassDays);
@@ -3580,7 +3584,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
 
               <div data-tour="editor">
-                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} errorLines={errorLinesForEditor} locked={analyzing || keyboardLocked} />
+                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} errorLines={errorLinesForEditor} locked={(analyzing && lockDuringAnalysis) || keyboardLocked} />
               </div>
 
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
@@ -5046,6 +5050,12 @@ function TeacherView({ onLogout, teacherAuth }) {
   // fim de semana fecha por padrão (a turma só funciona seg-sex) — esse toggle libera sábado/domingo
   const toggleAllowWeekend = async () => {
     const nm = { ...metaRef.current, allowWeekend: !metaRef.current.allowWeekend };
+    metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth);
+  };
+  // por padrão o editor trava enquanto o Nyx analisa o código do aluno (evita editar em cima da
+  // análise em andamento) — esse toggle libera o aluno pra continuar digitando durante a análise
+  const toggleLockDuringAnalysis = async () => {
+    const nm = { ...metaRef.current, lockDuringAnalysis: metaRef.current.lockDuringAnalysis === false };
     metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth);
   };
 
@@ -7252,6 +7262,15 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
               );
             })()}
+
+            <div data-tour-prof="analise-nyx" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
+              <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>✨ Análise de código do Nyx</h3>
+              <p style={{ color:"#a99ac9", fontSize:12.5, margin:"4px 0 10px", lineHeight:1.5 }}>Enquanto o Nyx analisa o código de um aluno, o editor pode ficar travado até a resposta chegar, ou continuar liberado pra ele seguir digitando.</p>
+              <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:12.5, color:"#a99ac9", cursor:"pointer" }}>
+                <input type="checkbox" checked={meta.lockDuringAnalysis === false} onChange={toggleLockDuringAnalysis} style={{ width:16, height:16, accentColor:"#c084fc" }} />
+                Deixar o aluno continuar escrevendo enquanto o Nyx analisa (por padrão, o editor trava até terminar)
+              </label>
+            </div>
 
             <CodeLab key={codeShift} accent="#fbbf24" files={proFiles} onChange={setProFiles} terminalMaxHeight={420} gear={meta.nyxGear||DEFAULT_NYX_GEAR} onEquip={saveTeacherGear} />
           </div>
