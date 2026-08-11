@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { generateTypingPhrase } from "./lib/ai.js";
 import { phraseMatches } from "./lib/utils.js";
+import { VSEditor } from "./components/CodeEditor.jsx";
 
 // carregado sob demanda (React.lazy) a partir do App.jsx — só quem realmente abre o
 // tutorial de teclado baixa este pedaço, em vez de todo mundo carregar de cara
@@ -112,7 +113,26 @@ const KEYBOARD_LEVELS = [
     { char:"á", accent:true, keys:["´","A"], display:"á", hint:"Aperte o acento agudo (ao lado do P) e DEPOIS a letra A",                          speakText:"Para escrever o A com acento agudo, aperte primeiro o acento agudo, ao lado do P, e depois aperte a letra A." },
     { char:"ã", accent:true, keys:["~","A"], display:"ã", hint:"Aperte o til (ao lado do Ç) e DEPOIS a letra A",                                   speakText:"Para escrever o A com til, aperte primeiro o til, ao lado do cê-cedilha, e depois aperte a letra A." },
   ] },
-  { id:8, title:"Teste final", line: 'int x = 10;\nif (x > 5) { Console.WriteLine("Oi!"); }' },
+  // nível novo: o EDITOR de código da própria plataforma faz coisas que uma tecla isolada não
+  // explica sozinha (fecha parênteses/aspas/chaves automaticamente, organiza blocos com Tab/Enter,
+  // apaga pares junto no Backspace) — cada alvo aqui usa o editor de verdade (VSEditor), então o
+  // aluno pratica exatamente o que vai usar na aula, não uma simulação separada
+  { id:8, title:"Editor de código", targets: [
+    { editor:true, initialValue:"", hint:"Digite um parêntese abrindo — repare que ele fecha sozinho!", speakText:"No editor de código, quando você digita um parêntese abrindo, ele fecha sozinho. Tente digitar um parêntese.",
+      checkSuccess: (v) => v === "()" },
+    { editor:true, initialValue:"", hint:'Digite uma aspas — ela também fecha sozinha!', speakText:"Aspas também fecham sozinhas. Digite uma aspas.",
+      checkSuccess: (v) => v === '""' },
+    { editor:true, initialValue:"", hint:"Digite uma chave abrindo — ela fecha sozinha também!", speakText:"Chaves fecham sozinhas do mesmo jeito. Digite uma chave abrindo.",
+      checkSuccess: (v) => v === "{}" },
+    { editor:true, initialValue:"", hint:"Aperte Tab — ele empurra o código 4 espaços pra dentro (indentação)", speakText:"Aperte a tecla Tab. Ela empurra o código pra dentro, o que chamamos de indentação.",
+      checkSuccess: (v) => v === "    " },
+    { editor:true, initialValue:"", hint:"Digite uma chave abrindo e depois aperte Enter — o editor organiza o bloco sozinho", speakText:"Agora digite uma chave abrindo e, depois, aperte Enter. Repare como o editor organiza o bloco inteiro sozinho.",
+      checkSuccess: (v) => v === "{\n    \n}" },
+    { editor:true, initialValue:"", hint:"Digite um parêntese e depois aperte Backspace — ele apaga os dois de uma vez. Pra terminar, digite a letra x",
+      speakText:"Digite um parêntese, aperte Backspace pra apagar os dois de uma vez, e depois digite a letra x pra terminar.",
+      checkSuccess: (v, history) => v === "x" && history.includes("()") },
+  ] },
+  { id:9, title:"Teste final", line: 'int x = 10;\nif (x > 5) { Console.WriteLine("Oi!"); }' },
 ];
 // versão simplificada pro Modo Guiado (dificuldade de leitura/escrita/motora): só os níveis sem
 // combinação de teclas difícil (fora o Shift, que é bem comum) — sem atalhos de Ctrl, símbolos,
@@ -210,6 +230,11 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
   // de código) pra digitar de verdade, antes de avançar pro próximo alvo — null quando não está
   // nessa fase; { loading, frase, typed } enquanto está
   const [phraseState, setPhraseState] = useState(null);
+  // nível "Editor de código": usa o editor de verdade (VSEditor) em vez do teclado virtual — o
+  // valor atual e o histórico de tudo que já passou por ele (pra detectar sequências tipo "abriu
+  // parêntese e depois apagou com Backspace", que não dá pra saber só olhando o valor final)
+  const [editorValue, setEditorValue] = useState("");
+  const editorHistoryRef = useRef([]);
   const level = levels[levelIdx];
   const target = level.targets ? level.targets[targetIdx] : null;
   // teclado grandão pra enxergar bem as teclas; encolhe sozinho se a janela for estreita
@@ -218,10 +243,20 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
 
   useEffect(() => {
     setWrongCount(0);
+    if (target?.editor) { setEditorValue(target.initialValue || ""); editorHistoryRef.current = [target.initialValue || ""]; }
     if (done) return;
     speak(explanationFor(level, target));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelIdx, targetIdx, done]);
+
+  const onEditorChange = (v) => {
+    setEditorValue(v);
+    editorHistoryRef.current = [...editorHistoryRef.current, v];
+    if (target?.editor && target.checkSuccess(v, editorHistoryRef.current)) {
+      playSound("correct");
+      advanceTarget();
+    }
+  };
 
   // avança pro próximo alvo/nível (ou termina) — chamado depois que o aluno acerta a tecla E
   // termina de digitar a fraze de prática (ou quando a fase de prática é pulada/falha)
@@ -263,7 +298,9 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
   };
 
   useEffect(() => {
-    if (done || level.line || phraseState) return;
+    // no nível "Editor de código", quem cuida das teclas é o próprio VSEditor (onEditorChange
+    // já detecta o sucesso) — não escuta o teclado global aqui, senão os dois se atrapalham
+    if (done || level.line || phraseState || target?.editor) return;
     const onKey = (e) => {
       if (!target) return;
       // com o tutorial aberto, Tab/espaço não devem trocar o foco nem rolar a página
@@ -310,7 +347,7 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
   // qual tecla do desenho corresponde a cada tecla especial (id no KB_ROWS/bloco de setas)
   const SPECIAL_KEYCAP = { " ": "Space", "Enter": "Enter", "Backspace": "Backspace", "Tab": "Tab", "ArrowLeft": "←", "ArrowRight": "→", "ArrowUp": "↑", "ArrowDown": "↓" };
   const highlight = (() => {
-    if (!target) return null;
+    if (!target || target.editor) return null;
     if (target.special) return { keys: [SPECIAL_KEYCAP[target.char]].filter(Boolean), mods: [] };
     if (target.accent) return { keys: target.keys || [], mods: [] };
     if (target.symbol) { const c = SYMBOL_KEYCAP[target.char]; return c ? { keys: [c.key.toUpperCase()], mods: c.mod ? [c.mod] : [] } : null; }
@@ -366,6 +403,14 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
                 <pre style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:10, padding:"12px 14px", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{level.line}</pre>
                 <textarea autoFocus value={finalTyped} onChange={e=>onFinalType(e.target.value)} onPaste={e=>e.preventDefault()} spellCheck={false} autoCorrect="off" autoCapitalize="off"
                   style={{ width:"100%", minHeight:70, marginTop:8, background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"10px 12px", color:"#f0e9fb", fontFamily:"'Courier New',monospace", fontSize:14, outline:"none" }} />
+              </>
+            ) : target?.editor ? (
+              <>
+                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 4px" }}>{targetIdx}/{level.targets.length} desafios neste nível · <b style={{ color:"#fbbf24" }}>{level.title}</b> ({doneTargets}/{totalTargets} no total)</p>
+                <p style={{ color:"#d6c9ec", fontSize:13, margin:"0 0 10px" }}>{target.hint}</p>
+                <div data-testid="kb-editor-wrapper">
+                  <VSEditor value={editorValue} onChange={onEditorChange} filename="Program.cs" />
+                </div>
               </>
             ) : target && (
               <>
