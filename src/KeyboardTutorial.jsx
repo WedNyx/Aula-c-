@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { generateTypingPhrase } from "./lib/ai.js";
+import { phraseMatches } from "./lib/utils.js";
 
 // carregado sob demanda (React.lazy) a partir do App.jsx — só quem realmente abre o
 // tutorial de teclado baixa este pedaço, em vez de todo mundo carregar de cara
@@ -196,7 +198,7 @@ function MiniKeyboard({ highlight, zoom = 1 }) {
     </div>
   );
 }
-export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech, accessMode = false, onEggFound, playSound }) {
+export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech, accessMode = false, onEggFound, playSound, codeContext, studyLang }) {
   const levels = accessMode ? KEYBOARD_LEVELS_EASY : KEYBOARD_LEVELS;
   const [levelIdx, setLevelIdx] = useState(0);
   const [targetIdx, setTargetIdx] = useState(0);
@@ -204,6 +206,10 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
   const [wrongCount, setWrongCount] = useState(0);
   const [finalTyped, setFinalTyped] = useState("");
   const [done, setDone] = useState(false);
+  // depois de acertar uma tecla, entra numa fase de prática: a Nyx gera uma frasezinha (ou linha
+  // de código) pra digitar de verdade, antes de avançar pro próximo alvo — null quando não está
+  // nessa fase; { loading, frase, typed } enquanto está
+  const [phraseState, setPhraseState] = useState(null);
   const level = levels[levelIdx];
   const target = level.targets ? level.targets[targetIdx] : null;
   // teclado grandão pra enxergar bem as teclas; encolhe sozinho se a janela for estreita
@@ -217,8 +223,47 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelIdx, targetIdx, done]);
 
+  // avança pro próximo alvo/nível (ou termina) — chamado depois que o aluno acerta a tecla E
+  // termina de digitar a fraze de prática (ou quando a fase de prática é pulada/falha)
+  const advanceTarget = () => {
+    if (targetIdx + 1 < level.targets.length) setTargetIdx(i => i + 1);
+    else if (levelIdx + 1 < levels.length) { setLevelIdx(l => l + 1); setTargetIdx(0); playSound("levelup"); }
+    // chegou no fim do último nível de teclas: no Modo Guiado treina pra sempre, voltando pro
+    // começo (senão travava aqui — o alvo final ficava "preso" sem nunca avançar nem terminar);
+    // fora do Modo Guiado sempre existe um próximo nível (o "Teste final" com .line), então este
+    // caminho não roda, mas fica como rede de segurança caso os níveis mudem
+    else if (accessMode) { playSound("levelup"); onFinish(); setLevelIdx(0); setTargetIdx(0); }
+    else finishAll();
+  };
+
+  // depois de acertar a tecla, pratica digitando uma frase de verdade (contextualizada com o que
+  // o aluno está aprendendo) em vez de simplesmente pular pro próximo alvo. No Modo Guiado (leitura/
+  // escrita/motora difícil) essa etapa é pulada — o foco lá é só achar a tecla certa, sem carga
+  // extra de digitação livre; se a IA falhar ou não devolver nada, também pula direto sem travar
+  const startPhrase = async () => {
+    if (accessMode) { advanceTarget(); return; }
+    setPhraseState({ loading: true, typed: "", frase: "" });
+    try {
+      const frase = await generateTypingPhrase(level.title, codeContext, studyLang);
+      if (!frase) { setPhraseState(null); advanceTarget(); return; }
+      setPhraseState({ loading: false, typed: "", frase });
+      speak(`Agora escreva: ${frase}`);
+    } catch {
+      setPhraseState(null); advanceTarget();
+    }
+  };
+
+  const onPhraseType = (v) => {
+    setPhraseState(p => ({ ...p, typed: v }));
+    if (phraseState && phraseMatches(v, phraseState.frase)) {
+      playSound("correct");
+      setPhraseState(null);
+      advanceTarget();
+    }
+  };
+
   useEffect(() => {
-    if (done || level.line) return;
+    if (done || level.line || phraseState) return;
     const onKey = (e) => {
       if (!target) return;
       // com o tutorial aberto, Tab/espaço não devem trocar o foco nem rolar a página
@@ -236,14 +281,7 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
       else ok = !e.shiftKey && !e.ctrlKey && e.key.toLowerCase() === target.char.toLowerCase();
       if (ok) {
         playSound("correct");
-        if (targetIdx + 1 < level.targets.length) setTargetIdx(i => i + 1);
-        else if (levelIdx + 1 < levels.length) { setLevelIdx(l => l + 1); setTargetIdx(0); playSound("levelup"); }
-        // chegou no fim do último nível de teclas: no Modo Guiado treina pra sempre, voltando pro
-        // começo (senão travava aqui — o alvo final ficava "preso" sem nunca avançar nem terminar);
-        // fora do Modo Guiado sempre existe um próximo nível (o "Teste final" com .line), então este
-        // caminho não roda, mas fica como rede de segurança caso os níveis mudem
-        else if (accessMode) { playSound("levelup"); onFinish(); setLevelIdx(0); setTargetIdx(0); }
-        else finishAll();
+        startPhrase();
       } else if (!["Shift","Control","Alt","AltGraph","Meta","Tab","CapsLock","Dead"].includes(e.key)) {
         // "Dead" = tecla de acento esperando a letra (´, ~, ^) — não é erro, é o meio do caminho.
         // A cada erro de verdade, a Nyx REPETE a mesma explicação em voz alta — não avança pro
@@ -256,7 +294,7 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [levelIdx, targetIdx, done, level, target]);
+  }, [levelIdx, targetIdx, done, level, target, phraseState]);
 
   const finishAll = async () => {
     setDone(true);
@@ -311,7 +349,18 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
                 </span>
               ))}
             </div>
-            {level.line ? (
+            {phraseState ? (
+              phraseState.loading ? (
+                <p style={{ color:"#a99ac9", fontSize:14, textAlign:"center", padding:"36px 0" }}>✨ A Nyx tá pensando numa frase pra você praticar...</p>
+              ) : (
+                <>
+                  <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 10px" }}>🖊️ Boa! Agora pratique digitando esta frase (não precisa quebrar linha igual, e o que tiver dentro de "" pode ser diferente):</p>
+                  <pre style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:10, padding:"12px 14px", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{phraseState.frase}</pre>
+                  <textarea data-testid="kb-phrase-input" autoFocus value={phraseState.typed} onChange={e=>onPhraseType(e.target.value)} onPaste={e=>e.preventDefault()} spellCheck={false} autoCorrect="off" autoCapitalize="off"
+                    style={{ width:"100%", minHeight:70, marginTop:8, background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"10px 12px", color:"#f0e9fb", fontFamily:"'Courier New',monospace", fontSize:14, outline:"none" }} />
+                </>
+              )
+            ) : level.line ? (
               <>
                 <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 10px" }}>Última etapa! Digite essa linha de código inteira, prestando atenção em cada tecla — sem colar. 💪</p>
                 <pre style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:10, padding:"12px 14px", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{level.line}</pre>

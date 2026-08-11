@@ -4113,7 +4113,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             <span style={{ color:"#a99ac9", fontSize:14 }}>🤔 Carregando o tutorial de teclado...</span>
           </div>
         }>
-          <KeyboardTutorialModal onClose={()=>setShowKeyboard(false)} onFinish={finishKeyboardTutorial} speak={speak} stopSpeech={stopSpeech} accessMode={accessMode} onEggFound={triggerEgg} playSound={playSound} />
+          <KeyboardTutorialModal onClose={()=>setShowKeyboard(false)} onFinish={finishKeyboardTutorial} speak={speak} stopSpeech={stopSpeech} accessMode={accessMode} onEggFound={triggerEgg} playSound={playSound} codeContext={activeCode} studyLang={studyLang} />
         </Suspense>
       )}
       {!checkinDismissed && phase==="coding" && !showJustify && !showNyxPrefs && !showIntro && tourStep < 0 && (

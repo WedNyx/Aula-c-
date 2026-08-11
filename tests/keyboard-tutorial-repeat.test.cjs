@@ -46,11 +46,17 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
   await page.waitForTimeout(300);
   check('Depois de errar DUAS vezes, ainda não avançou', (await page.locator('text=/0\\/36 teclas/').count()) > 0);
 
-  // agora acerta a tecla certa
+  // agora acerta a tecla certa — isso abre a etapa de praticar uma frase (Fase 6) ANTES de avançar
+  // o alvo de verdade; completar a frase é o que efetivamente faz avançar
   await page.keyboard.press('KeyA');
-  await page.waitForTimeout(300);
-  check('Depois de acertar, avança pro próximo alvo (1/36)', (await page.locator('text=/1\\/36 teclas/').count()) > 0);
-  check('A mensagem de repetição some depois de acertar', (await page.locator('text=Sem pressa').count()) === 0);
+  await page.waitForTimeout(600);
+  check('Depois de acertar, a mensagem de repetição some', (await page.locator('text=Sem pressa').count()) === 0);
+  check('Depois de acertar, entra na etapa de praticar uma frase', (await page.locator('text=Agora pratique digitando').count()) > 0);
+  const textarea = page.locator('[data-testid="kb-phrase-input"]');
+  await textarea.click();
+  await textarea.type('Console.WriteLine("qualquer coisa");');
+  await page.waitForTimeout(400);
+  check('Depois de completar a frase, avança pro próximo alvo (1/36)', (await page.locator('text=/1\\/36 teclas/').count()) > 0);
 
   check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 3).join(' | '));
 

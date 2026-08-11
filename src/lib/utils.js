@@ -46,6 +46,20 @@ export function filterValidQuestions(questions) {
   );
 }
 
+// ── compara o que o aluno digitou com a frase-alvo do tutorial de teclado, ignorando: quantas
+// linhas o texto quebra (colapsa todo espaço em branco/quebra de linha num espaço só) e o
+// conteúdo que estiver DENTRO de aspas (só precisa ter aspas no lugar certo, o texto dentro pode
+// ser diferente) — o resto da estrutura precisa bater exatamente ──
+function normalizeForPhraseCompare(s) {
+  return String(s || "")
+    .replace(/"[^"]*"/g, '""')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+export function phraseMatches(typed, target) {
+  return normalizeForPhraseCompare(typed) === normalizeForPhraseCompare(target);
+}
+
 // ── embaralha as alternativas de cada questão (a correta não fica sempre na mesma posição) ──
 export function shuffleQuestions(questions) {
   return (questions || []).map(q => {

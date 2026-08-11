@@ -71,6 +71,22 @@ export async function askClaudeJson(prompt, system, opts = {}) {
     ));
   }
 }
+// ── tutorial de teclado: depois que o aluno acerta uma tecla, a Nyx gera uma frase curtinha (ou
+// linha de código) pra ele PRATICAR DIGITANDO de verdade, focada no que ele está aprendendo agora
+// (o próprio código dele, se já tiver algum) — em vez de só repetir teclas isoladas ──
+export async function generateTypingPhrase(levelTitle, codeContext, studyLang) {
+  const lang = studyLang ? studyLang.label : "C#";
+  const contextBlock = codeContext && codeContext.trim().length > 5
+    ? `O aluno está escrevendo este código agora (use esse contexto pra criar algo do mesmo assunto):\n\`\`\`\n${codeContext.trim().slice(0, 1200)}\n\`\`\`\n`
+    : `O aluno ainda não escreveu nenhum código relevante ainda — use um exemplo simples e genérico de ${lang} pra iniciante.\n`;
+  const parsed = await askClaudeJson(
+    `${contextBlock}\nCrie UMA frase curta pro aluno PRATICAR DIGITAÇÃO, relacionada ao nível "${levelTitle}" que ele acabou de treinar no tutorial de teclado. Pode ser uma frase de texto comum (se o nível for sobre letras/espaço/acentos) ou uma linha de código realista de ${lang} (se o nível for sobre símbolos/operadores/atalhos), sempre BEM curta (no máximo uns 50-60 caracteres) e fácil de digitar de novo do zero, sem precisar copiar nada complicado. Responda APENAS JSON puro, sem markdown: {"frase":"a frase ou linha de código"}`,
+    `Você cria frases curtas de prática de digitação para iniciantes em ${lang}, sempre bem curtas e fáceis. APENAS JSON puro sem markdown.`,
+    { max_tokens: 200 }
+  );
+  return typeof parsed.frase === "string" ? parsed.frase.trim() : "";
+}
+
 // monta o pedido de resumo da aula pro Nyx — "simples" (padrão, frases curtas) ou "detalhado"
 // (mais completo, pra quem quer entender o porquê de cada coisa, não só o quê)
 export function buildSummaryRequest(detail, hasTodayDiff, todayCode, fullCode, lang, nyxPrefs) {
