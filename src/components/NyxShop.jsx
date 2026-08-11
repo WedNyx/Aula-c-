@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { NYX_ITEMS, NyxRobot } from "./NyxRobot.jsx";
+import { useViewportWidth } from "../lib/utils.js";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
 // ════════════════════════════════════════════════════════════════════════════
 export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onClose }) {
+  const vw = useViewportWidth();
+  const isNarrow = vw < 640; // abaixo disso, o Nyx fica em cima e os acessórios embaixo (empilhado)
   // 🥚 o Nyx da loja também entra no personagem: na hora que o chapéu pirata é vestido ou o combo
   // espartano (espada+escudo) se forma, ele fala a frase do Easter Egg com uma animação própria
   const [eggTalk, setEggTalk] = useState(null); // { kind:"pirata"|"espartano", msg, color }
@@ -37,7 +40,7 @@ export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onCl
   };
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:560, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:800, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#c084fc,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎁 Loja do Nyx</h2>
           <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
@@ -46,53 +49,58 @@ export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onCl
           {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa vira 1 ponto. Comprar um item GASTA os pontos — mas o item é seu para sempre! (Seu lugar no ranking não muda: ele conta os pontos que você já ganhou.)"}
         </p>
 
-        {/* fica "grudado" no topo mesmo rolando a lista de itens mais abaixo — assim dá pra ver o
-            Nyx vestindo cada acessório sem perder ele de vista a cada scroll */}
-        <div style={{ position:"sticky", top:0, zIndex:2, display:"flex", alignItems:"center", gap:16, background:"#1e1533", border:`1px solid ${eggTalk ? eggTalk.color+"88" : "#3b2a58"}`, borderRadius:16, padding:16, marginBottom:16, transition:"border-color .3s", boxShadow:"0 10px 20px -6px rgba(3,5,16,.55)" }}>
-          <div style={{ flexShrink:0, animation: eggTalk ? (eggTalk.kind === "pirata" ? "nyx-pirate-sway 2.2s ease-in-out infinite" : "nyx-spartan-idle 2.6s ease-in-out infinite") : "none" }}>
-            <NyxRobot state="ok" size={72} showName={false} gear={gear} />
+        {/* Nyx de um lado (com os pontos embaixo dele), acessórios do outro — assim dá pra ver ele
+            vestindo cada peça sem perder ele de vista. Fica "grudado" no topo enquanto rola a lista
+            de itens ao lado (em telas estreitas empilha: Nyx em cima, acessórios embaixo) */}
+        <div style={{ display:"flex", gap:20, alignItems:"flex-start", flexWrap: isNarrow ? "wrap" : "nowrap" }}>
+          <div style={{ position: isNarrow ? "static" : "sticky", top:0, flex: isNarrow ? "1 1 100%" : "0 0 190px", zIndex:2 }}>
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10, background:"#1e1533", border:`1px solid ${eggTalk ? eggTalk.color+"88" : "#3b2a58"}`, borderRadius:16, padding:16, transition:"border-color .3s", boxShadow:"0 10px 20px -6px rgba(3,5,16,.55)" }}>
+              <div style={{ animation: eggTalk ? (eggTalk.kind === "pirata" ? "nyx-pirate-sway 2.2s ease-in-out infinite" : "nyx-spartan-idle 2.6s ease-in-out infinite") : "none" }}>
+                <NyxRobot state="ok" size={92} showName={false} gear={gear} />
+              </div>
+              <div style={{ textAlign:"center" }}>
+                <div style={{ color:"#fbbf24", fontWeight:900, fontSize:22 }}>💰 {wallet} pts</div>
+                <div style={{ color:"#776798", fontSize:11.5 }}>para gastar · toque num item comprado pra vestir ou tirar</div>
+              </div>
+            </div>
+            {eggTalk && (
+              <div className="pop" style={{ marginTop:10, background:"#1e1430", border:`1.5px solid ${eggTalk.color}66`, borderRadius:12, padding:"10px 14px", color:"#f0e9fb", fontSize:13, lineHeight:1.55, fontWeight:600, whiteSpace:"pre-wrap" }}>
+                {eggTalk.msg}
+              </div>
+            )}
           </div>
-          {eggTalk ? (
-            <div className="pop" style={{ position:"relative", background:"#1e1430", border:`1.5px solid ${eggTalk.color}66`, borderRadius:12, padding:"10px 14px", color:"#f0e9fb", fontSize:13, lineHeight:1.55, fontWeight:600, whiteSpace:"pre-wrap" }}>
-              <span style={{ position:"absolute", left:-8, top:"50%", transform:"translateY(-50%)", width:0, height:0, borderTop:"8px solid transparent", borderBottom:"8px solid transparent", borderRight:`8px solid ${eggTalk.color}66` }} />
-              {eggTalk.msg}
-            </div>
-          ) : (
-            <div>
-              <div style={{ color:"#fbbf24", fontWeight:900, fontSize:22 }}>💰 {wallet} pts</div>
-              <div style={{ color:"#776798", fontSize:12 }}>para gastar · itens comprados: toque para vestir ou tirar</div>
-            </div>
-          )}
-        </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10 }}>
-          {NYX_ITEMS.filter(item => !item.secret || isTestShift || owned.includes(item.id)).map(item => {
-            const has = isTestShift || owned.includes(item.id);
-            const canBuy = !has && wallet >= item.cost;
-            const clickable = has || canBuy;
-            const equipped = gear[item.slot] === item.id;
-            return (
-              <button key={item.id} data-item={item.id} onClick={()=>click(item)} disabled={!clickable}
-                style={{
-                  background: equipped ? "#c084fc26" : "#171026",
-                  border: `2px solid ${equipped ? "#c084fc" : has ? "#34d39966" : canBuy ? "#fbbf2466" : "#241f38"}`,
-                  borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: clickable?"pointer":"default",
-                  opacity: clickable ? 1 : 0.55, position:"relative",
-                }}>
-                <div style={{ fontSize:30, filter: clickable?"none":"grayscale(1)" }}>{item.emoji}</div>
-                <div style={{ color:"#f0e9fb", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
-                {has ? (
-                  equipped
-                    ? <div style={{ color:"#c084fc", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
-                    : <div style={{ color:"#34d399", fontSize:11, fontWeight:700, marginTop:4 }}>✓ Seu · toque para vestir</div>
-                ) : canBuy ? (
-                  <div style={{ color:"#fbbf24", fontSize:11, fontWeight:800, marginTop:4 }}>🛒 Comprar · {item.cost} pts</div>
-                ) : (
-                  <div style={{ color:"#776798", fontSize:11, marginTop:4 }}>🔒 {wallet}/{item.cost} pts</div>
-                )}
-              </button>
-            );
-          })}
+          <div style={{ flex:"1 1 380px", minWidth: isNarrow ? "100%" : 300 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:10 }}>
+              {NYX_ITEMS.filter(item => !item.secret || isTestShift || owned.includes(item.id)).map(item => {
+                const has = isTestShift || owned.includes(item.id);
+                const canBuy = !has && wallet >= item.cost;
+                const clickable = has || canBuy;
+                const equipped = gear[item.slot] === item.id;
+                return (
+                  <button key={item.id} data-item={item.id} onClick={()=>click(item)} disabled={!clickable}
+                    style={{
+                      background: equipped ? "#c084fc26" : "#171026",
+                      border: `2px solid ${equipped ? "#c084fc" : has ? "#34d39966" : canBuy ? "#fbbf2466" : "#241f38"}`,
+                      borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: clickable?"pointer":"default",
+                      opacity: clickable ? 1 : 0.55, position:"relative",
+                    }}>
+                    <div style={{ fontSize:30, filter: clickable?"none":"grayscale(1)" }}>{item.emoji}</div>
+                    <div style={{ color:"#f0e9fb", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
+                    {has ? (
+                      equipped
+                        ? <div style={{ color:"#c084fc", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
+                        : <div style={{ color:"#34d399", fontSize:11, fontWeight:700, marginTop:4 }}>✓ Seu · toque para vestir</div>
+                    ) : canBuy ? (
+                      <div style={{ color:"#fbbf24", fontSize:11, fontWeight:800, marginTop:4 }}>🛒 Comprar · {item.cost} pts</div>
+                    ) : (
+                      <div style={{ color:"#776798", fontSize:11, marginTop:4 }}>🔒 {wallet}/{item.cost} pts</div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </div>

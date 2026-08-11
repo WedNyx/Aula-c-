@@ -24,10 +24,20 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await page1.waitForTimeout(500);
   const nameInput = page1.locator('input[placeholder*="nome" i], input[placeholder*="Nome" i]').first();
   if (await nameInput.count()) await nameInput.fill('AlunoTesteNovo');
+  await page1.click('button:has-text("Avançar")'); // passo 1 (nome/nascimento/CPF) → passo 2 (personalizar o boneco)
   await page1.waitForTimeout(500);
 
   const avatarImgs = page1.locator('img[src^="data:image/svg+xml"]');
   check('Avatar SVG (data URI) renderizado na tela', (await avatarImgs.count()) > 0);
+
+  // layout do passo 2: o boneco fica à ESQUERDA e as opções de personalização à DIREITA
+  const avatarBox = await avatarImgs.first().boundingBox();
+  const bgSwatchBox = await page1.locator('p:has-text("Cor de fundo")').boundingBox();
+  if (avatarBox && bgSwatchBox) {
+    check('As opções de personalização ficam à DIREITA do boneco', bgSwatchBox.x > avatarBox.x + avatarBox.width, `avatarX=${avatarBox.x.toFixed(0)} opcoesX=${bgSwatchBox.x.toFixed(0)}`);
+  } else {
+    check('Consegui medir a posição do boneco vs opções', false, 'boundingBox nulo');
+  }
 
   const surpresaBtn = page1.locator('button:has-text("Surpresa")');
   if (await surpresaBtn.count()) { for (let i = 0; i < 8; i++) { await surpresaBtn.click(); await page1.waitForTimeout(150); } }

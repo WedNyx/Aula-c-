@@ -40,6 +40,18 @@ const NEW_ITEMS = [
   await page.waitForTimeout(600);
   check('Loja do Nyx abriu', (await page.locator('h2:has-text("Loja do Nyx")').count()) > 0);
 
+  // layout: o robô fica de um lado (com os pontos ABAIXO dele) e os acessórios do outro lado —
+  // confirma pela geometria que "pts" está embaixo do robô, não ao lado dele
+  const nyxBox = await page.locator('.pop svg').first().boundingBox();
+  const ptsBox = await page.locator('text=/999 pts/').first().boundingBox();
+  const firstItemBox = await page.locator('[data-item="touca"]').boundingBox();
+  if (nyxBox && ptsBox && firstItemBox) {
+    check('Os pontos (pts) ficam ABAIXO do robô do Nyx (não do lado)', ptsBox.y > nyxBox.y + nyxBox.height * 0.5, `nyxY=${nyxBox.y.toFixed(0)} ptsY=${ptsBox.y.toFixed(0)}`);
+    check('O primeiro item da loja fica à DIREITA do robô do Nyx', firstItemBox.x > nyxBox.x + nyxBox.width, `nyxX=${nyxBox.x.toFixed(0)} itemX=${firstItemBox.x.toFixed(0)}`);
+  } else {
+    check('Consegui medir a posição do robô/pontos/itens na loja', false, 'boundingBox nulo');
+  }
+
   check(`Todos os ${NEW_ITEMS.length} itens novos aparecem na loja`, (await Promise.all(NEW_ITEMS.map(id => page.locator(`[data-item="${id}"]`).count()))).every(c => c === 1));
 
   // um clique já compra E equipa (item novo) — um item de cada encaixe, pra ver o robô com todos ao mesmo tempo

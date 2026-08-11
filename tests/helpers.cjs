@@ -255,6 +255,8 @@ async function loginNewStudent(page, name) {
   await page.click('text=Aluno');
   await page.waitForTimeout(500);
   await page.fill('input[placeholder="Seu nome completo"]', name);
+  await page.click('button:has-text("Avançar")'); // passo 1 (nome/nascimento/CPF) → passo 2 (personalizar o boneco)
+  await page.waitForTimeout(400);
   await page.click('button:has-text("Criar perfil e entrar")');
   await page.waitForTimeout(1200);
   for (let i = 0; i < 25; i++) {

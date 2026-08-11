@@ -53,6 +53,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   check('Não mostra o perfil da turma "vespertino" original (turma nova começa vazia)', (await page2.locator('text=AlunoOriginal').count()) === 0);
 
   await page2.fill('input[placeholder="Seu nome completo"]', 'AlunoNovaTurma');
+  await page2.click('button:has-text("Avançar")');
+  await page2.waitForTimeout(400);
   await page2.click('button:has-text("Criar perfil e entrar")');
   await page2.waitForTimeout(1200);
 

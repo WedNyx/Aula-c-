@@ -67,6 +67,8 @@ export function Login({ onJoin, turmas }) {
   const [profiles, setProfiles] = useState([]);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
+  // criação de perfil novo em 2 passos: 1) nome/nascimento/CPF, 2) personalizar o boneco
+  const [newStudentStep, setNewStudentStep] = useState(1);
   // chute inicial pelo horário do dia: pega a primeira turma do período provável (manhã/tarde) —
   // se o professor tiver mais de uma turma nesse período, o aluno escolhe a certa na lista mesmo assim
   const [shift, setShift] = useState(() => {
@@ -126,8 +128,8 @@ export function Login({ onJoin, turmas }) {
 
   const styles = {
     container:{ minHeight:"100vh", background:PAGE_BG, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:FONT, padding:16 },
-    // a turma de aluno fica bem mais larga: metade esquerda (turma/perfil/nome/prévia) e metade direita (personalização), lado a lado
-    card:{ position:"relative", zIndex:1, background:"linear-gradient(180deg,#231636ee,#1a1029ee)", backdropFilter:"blur(10px)", borderRadius:22, padding:32, width: role==="student" ? 880 : 460, maxWidth:"100%", border:"1px solid #3e2d5e", boxShadow:"0 24px 70px rgba(0,0,0,.5), 0 0 0 1px #c084fc1a" },
+    // passo 2 (personalizar o boneco) fica bem mais largo: boneco de um lado, personalização do outro, lado a lado
+    card:{ position:"relative", zIndex:1, background:"linear-gradient(180deg,#231636ee,#1a1029ee)", backdropFilter:"blur(10px)", borderRadius:22, padding:32, width: role==="student" && newStudentStep===2 ? 880 : 460, maxWidth:"100%", border:"1px solid #3e2d5e", boxShadow:"0 24px 70px rgba(0,0,0,.5), 0 0 0 1px #c084fc1a" },
     input:{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"12px 14px", color:"#f0e9fb", fontSize:15, outline:"none", boxSizing:"border-box" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:12, padding:"12px 0", cursor:"pointer", fontWeight:800, fontSize:15, width:"100%", boxShadow:`0 4px 16px ${c}44` }),
     rBtn:()=>({ background:"#171026", color:"#a99ac9", border:`2px solid #3b2a58`, borderRadius:14, padding:"18px 8px", cursor:"pointer", fontWeight:800, fontSize:14, flex:1 }),
@@ -161,122 +163,129 @@ export function Login({ onJoin, turmas }) {
           </>
         )}
 
-        {role==="student"&&(
+        {role==="student"&&newStudentStep===1&&(
           <>
             <p style={{ color:"#fbbf24", fontWeight:600, marginBottom:10 }}>👤 Entrar como Aluno</p>
 
-            {/* metade esquerda: turma, perfis salvos, nome e prévia do boneco — metade direita: personalização
-                (em telas estreitas as duas colunas empilham, senão ficam lado a lado) */}
-            <div style={{ display:"flex", gap:24, flexWrap:"wrap" }}>
-              <div style={{ flex: isNarrow ? "1 1 100%" : "1 1 300px", minWidth: isNarrow ? 0 : 260 }}>
-                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 8px" }}>🕑 Qual é a sua turma?</p>
-                <div style={{ display:"flex", gap:10, marginBottom:10 }}>
-                  {activeTurmas.map(sh => (
-                    <button key={sh.id} onClick={()=>{ setShift(sh.id); setTestUnlocking(false); setLangUnlocking(false); }}
-                      style={{ ...styles.rBtn(), ...(shift===sh.id ? { borderColor:"#c084fc", color:"#fff", background:"#c084fc22" } : {}) }}>
-                      {sh.emoji} {sh.label}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={()=> shift===TEST_SHIFT.id ? null : openTestShift()}
-                  style={{ background:"transparent", border:"none", color: shift===TEST_SHIFT.id ? "#c084fc" : "#776798", fontSize:12, cursor:"pointer", padding:"2px 0", marginBottom: shift===TEST_SHIFT.id||testUnlocking ? 10 : 18 }}>
-                  {shift===TEST_SHIFT.id ? `✓ ${TEST_SHIFT.emoji} Turma de teste selecionada` : `${TEST_SHIFT.emoji} Sou da turma de teste`}
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 8px" }}>🕑 Qual é a sua turma?</p>
+            <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+              {activeTurmas.map(sh => (
+                <button key={sh.id} onClick={()=>{ setShift(sh.id); setTestUnlocking(false); setLangUnlocking(false); }}
+                  style={{ ...styles.rBtn(), ...(shift===sh.id ? { borderColor:"#c084fc", color:"#fff", background:"#c084fc22" } : {}) }}>
+                  {sh.emoji} {sh.label}
                 </button>
-                {testUnlocking && shift!==TEST_SHIFT.id && (
-                  <div style={{ background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:12, marginBottom:18 }}>
-                    <p style={{ color:"#a99ac9", fontSize:12, margin:"0 0 8px" }}>Digite a senha da turma de teste:</p>
-                    <div style={{ display:"flex", gap:8 }}>
-                      <input type="password" autoFocus value={testPass} onChange={e=>setTestPass(e.target.value)}
-                        onKeyDown={e=>e.key==="Enter"&&confirmTestShift()} placeholder="Senha"
-                        style={{ ...styles.input, padding:"8px 12px", fontSize:14 }} />
-                      <button onClick={confirmTestShift} style={{ ...styles.btn("#c084fc"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
-                    </div>
-                    {testError && <p style={{ color:"#f87171", fontSize:12, marginTop:6 }}>{testError}</p>}
+              ))}
+            </div>
+            <button onClick={()=> shift===TEST_SHIFT.id ? null : openTestShift()}
+              style={{ background:"transparent", border:"none", color: shift===TEST_SHIFT.id ? "#c084fc" : "#776798", fontSize:12, cursor:"pointer", padding:"2px 0", marginBottom: shift===TEST_SHIFT.id||testUnlocking ? 10 : 18 }}>
+              {shift===TEST_SHIFT.id ? `✓ ${TEST_SHIFT.emoji} Turma de teste selecionada` : `${TEST_SHIFT.emoji} Sou da turma de teste`}
+            </button>
+            {testUnlocking && shift!==TEST_SHIFT.id && (
+              <div style={{ background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:12, marginBottom:18 }}>
+                <p style={{ color:"#a99ac9", fontSize:12, margin:"0 0 8px" }}>Digite a senha da turma de teste:</p>
+                <div style={{ display:"flex", gap:8 }}>
+                  <input type="password" autoFocus value={testPass} onChange={e=>setTestPass(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter"&&confirmTestShift()} placeholder="Senha"
+                    style={{ ...styles.input, padding:"8px 12px", fontSize:14 }} />
+                  <button onClick={confirmTestShift} style={{ ...styles.btn("#c084fc"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
+                </div>
+                {testError && <p style={{ color:"#f87171", fontSize:12, marginTop:6 }}>{testError}</p>}
+              </div>
+            )}
+            <button onClick={()=> shift===LANG_SHIFT.id ? null : openLangShift()}
+              style={{ background:"transparent", border:"none", color: shift===LANG_SHIFT.id ? "#22d3ee" : "#776798", fontSize:12, cursor:"pointer", padding:"2px 0", marginBottom: shift===LANG_SHIFT.id||langUnlocking ? 10 : 18 }}>
+              {shift===LANG_SHIFT.id ? `✓ ${LANG_SHIFT.emoji} Sala de linguagens selecionada` : `${LANG_SHIFT.emoji} Sou de fora, quero estudar outra linguagem`}
+            </button>
+            {langUnlocking && shift!==LANG_SHIFT.id && (
+              <div style={{ background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:12, marginBottom:18 }}>
+                <p style={{ color:"#a99ac9", fontSize:12, margin:"0 0 8px" }}>Digite a senha da sala de linguagens:</p>
+                <div style={{ display:"flex", gap:8 }}>
+                  <input type="password" autoFocus value={langPass} onChange={e=>setLangPass(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter"&&confirmLangShift()} placeholder="Senha"
+                    style={{ ...styles.input, padding:"8px 12px", fontSize:14 }} />
+                  <button onClick={confirmLangShift} style={{ ...styles.btn("#22d3ee"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
+                </div>
+                {langError && <p style={{ color:"#f87171", fontSize:12, marginTop:6 }}>{langError}</p>}
+              </div>
+            )}
+
+            <div style={{ marginBottom:16 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                <span style={{ color:"#a99ac9", fontSize:13 }}>Já tem um perfil da turma {shiftMeta(shift, turmas).label}? Toque no seu nome:</span>
+                <button onClick={loadProfiles} style={{ background:"transparent", border:"none", color:"#c084fc", cursor:"pointer", fontSize:12 }}>↻ atualizar</button>
+              </div>
+              {loadingProfiles ? <p style={{ color:"#776798", fontSize:13 }}>Procurando perfis salvos...</p>
+                : profiles.filter(p => (p.shift||activeTurmas[0]?.id||"matutino")===shift).length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum perfil salvo ainda nesta turma. Crie o seu abaixo 👇</p>
+                : (
+                  <div style={{ maxHeight:170, overflowY:"auto", display:"flex", flexDirection:"column", gap:8 }}>
+                    {profiles.filter(p => (p.shift||activeTurmas[0]?.id||"matutino")===shift).map(p=>(
+                      <button key={`${p.shift||"x"}:${p.name}`} onClick={()=>openProfile(p)} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"8px 12px", cursor:"pointer", color:"#f0e9fb", textAlign:"left" }}>
+                        <Avatar cfg={p.avatar} size={32} />
+                        <span style={{ fontWeight:600, flex:1 }}>{p.name}</span>
+                        <span style={{ color:"#c084fc", fontSize:13, fontWeight:700 }}>Entrar →</span>
+                      </button>
+                    ))}
                   </div>
                 )}
-                <button onClick={()=> shift===LANG_SHIFT.id ? null : openLangShift()}
-                  style={{ background:"transparent", border:"none", color: shift===LANG_SHIFT.id ? "#22d3ee" : "#776798", fontSize:12, cursor:"pointer", padding:"2px 0", marginBottom: shift===LANG_SHIFT.id||langUnlocking ? 10 : 18 }}>
-                  {shift===LANG_SHIFT.id ? `✓ ${LANG_SHIFT.emoji} Sala de linguagens selecionada` : `${LANG_SHIFT.emoji} Sou de fora, quero estudar outra linguagem`}
-                </button>
-                {langUnlocking && shift!==LANG_SHIFT.id && (
-                  <div style={{ background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:12, marginBottom:18 }}>
-                    <p style={{ color:"#a99ac9", fontSize:12, margin:"0 0 8px" }}>Digite a senha da sala de linguagens:</p>
-                    <div style={{ display:"flex", gap:8 }}>
-                      <input type="password" autoFocus value={langPass} onChange={e=>setLangPass(e.target.value)}
-                        onKeyDown={e=>e.key==="Enter"&&confirmLangShift()} placeholder="Senha"
-                        style={{ ...styles.input, padding:"8px 12px", fontSize:14 }} />
-                      <button onClick={confirmLangShift} style={{ ...styles.btn("#22d3ee"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
-                    </div>
-                    {langError && <p style={{ color:"#f87171", fontSize:12, marginTop:6 }}>{langError}</p>}
-                  </div>
-                )}
+            </div>
 
-                <div style={{ marginBottom:16 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                    <span style={{ color:"#a99ac9", fontSize:13 }}>Já tem um perfil da turma {shiftMeta(shift, turmas).label}? Toque no seu nome:</span>
-                    <button onClick={loadProfiles} style={{ background:"transparent", border:"none", color:"#c084fc", cursor:"pointer", fontSize:12 }}>↻ atualizar</button>
-                  </div>
-                  {loadingProfiles ? <p style={{ color:"#776798", fontSize:13 }}>Procurando perfis salvos...</p>
-                    : profiles.filter(p => (p.shift||activeTurmas[0]?.id||"matutino")===shift).length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum perfil salvo ainda nesta turma. Crie o seu abaixo 👇</p>
-                    : (
-                      <div style={{ maxHeight:170, overflowY:"auto", display:"flex", flexDirection:"column", gap:8 }}>
-                        {profiles.filter(p => (p.shift||activeTurmas[0]?.id||"matutino")===shift).map(p=>(
-                          <button key={`${p.shift||"x"}:${p.name}`} onClick={()=>openProfile(p)} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"8px 12px", cursor:"pointer", color:"#f0e9fb", textAlign:"left" }}>
-                            <Avatar cfg={p.avatar} size={32} />
-                            <span style={{ fontWeight:600, flex:1 }}>{p.name}</span>
-                            <span style={{ color:"#c084fc", fontSize:13, fontWeight:700 }}>Entrar →</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                </div>
+            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"6px 0 14px" }}>
+              <div style={{ flex:1, height:1, background:"#3b2a58" }}/>
+              <span style={{ color:"#776798", fontSize:12 }}>ou crie um novo perfil na turma {shiftMeta(shift, turmas).label}</span>
+              <div style={{ flex:1, height:1, background:"#3b2a58" }}/>
+            </div>
 
-                <div style={{ display:"flex", alignItems:"center", gap:10, margin:"6px 0 14px" }}>
-                  <div style={{ flex:1, height:1, background:"#3b2a58" }}/>
-                  <span style={{ color:"#776798", fontSize:12 }}>ou crie um novo perfil na turma {shiftMeta(shift, turmas).label}</span>
-                  <div style={{ flex:1, height:1, background:"#3b2a58" }}/>
-                </div>
-
-                <input style={styles.input} placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} />
-                {shift !== LANG_SHIFT.id && (
-                  <>
-                    <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
-                      <div style={{ flex:"1 1 150px" }}>
-                        <label style={{ fontSize:11, color:"#a99ac9" }}>Data de nascimento
-                          <input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)}
-                            style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box" }} />
-                        </label>
-                      </div>
-                      <div style={{ flex:"1 1 150px" }}>
-                        <label style={{ fontSize:11, color:"#a99ac9" }}>CPF (opcional)
-                          <input value={cpf} disabled={cpfUnknown} placeholder="000.000.000-00" onChange={e=>setCpf(e.target.value)}
-                            style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box", opacity:cpfUnknown?0.5:1 }} />
-                        </label>
-                      </div>
-                    </div>
-                    <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, fontSize:11.5, color:"#a99ac9", cursor:"pointer" }}>
-                      <input type="checkbox" checked={cpfUnknown} onChange={e=>{ setCpfUnknown(e.target.checked); if (e.target.checked) setCpf(""); }} />
-                      Não sei o CPF
+            <input style={styles.input} placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} />
+            {shift !== LANG_SHIFT.id && (
+              <>
+                <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
+                  <div style={{ flex:"1 1 150px" }}>
+                    <label style={{ fontSize:11, color:"#a99ac9" }}>Data de nascimento
+                      <input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)}
+                        style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box" }} />
                     </label>
-                    <p style={{ color:"#776798", fontSize:10.5, margin:"4px 0 0", lineHeight:1.5 }}>Só o professor vê isso, e só na hora de gerar a planilha pra fazer certificado — nunca aparece no seu perfil.</p>
-                  </>
-                )}
-                <p style={{ color:"#a99ac9", fontSize:13, margin:"14px 0 8px", textAlign:"center" }}>🎨 Seu boneco:</p>
-                <AvatarPreview value={avatar} onChange={setAvatar} />
-                <AvatarControls value={avatar} onChange={setAvatar} part="basic" />
-              </div>
+                  </div>
+                  <div style={{ flex:"1 1 150px" }}>
+                    <label style={{ fontSize:11, color:"#a99ac9" }}>CPF (opcional)
+                      <input value={cpf} disabled={cpfUnknown} placeholder="000.000.000-00" onChange={e=>setCpf(e.target.value)}
+                        style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box", opacity:cpfUnknown?0.5:1 }} />
+                    </label>
+                  </div>
+                </div>
+                <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, fontSize:11.5, color:"#a99ac9", cursor:"pointer" }}>
+                  <input type="checkbox" checked={cpfUnknown} onChange={e=>{ setCpfUnknown(e.target.checked); if (e.target.checked) setCpf(""); }} />
+                  Não sei o CPF
+                </label>
+                <p style={{ color:"#776798", fontSize:10.5, margin:"4px 0 0", lineHeight:1.5 }}>Só o professor vê isso, e só na hora de gerar a planilha pra fazer certificado — nunca aparece no seu perfil.</p>
+              </>
+            )}
+            {error&&<p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{error}</p>}
+            <div style={{ display:"flex", gap:8, marginTop:16 }}>
+              <button style={{ ...styles.btn("#c084fc"), flex:1 }} onClick={()=>{ if(!name.trim()){ setError("Digite seu nome!"); return; } setError(""); setNewStudentStep(2); }}>Avançar →</button>
+              <button style={{ ...styles.btn("#3b2a58"), width:44, flex:"none" }} onClick={()=>{ setRole(null); setError(""); }}>↩</button>
+            </div>
+          </>
+        )}
 
+        {role==="student"&&newStudentStep===2&&(
+          <>
+            <p style={{ color:"#fbbf24", fontWeight:600, marginBottom:10 }}>🎨 Personalize seu boneco, {name.trim().split(" ")[0]}!</p>
+
+            {/* boneco de um lado, todas as modificações do outro, lado a lado (empilha em telas estreitas) */}
+            <div style={{ display:"flex", gap:24, flexWrap:"wrap" }}>
+              <div style={{ flexShrink:0, margin:"0 auto" }}>
+                <AvatarPreview value={avatar} onChange={setAvatar} />
+              </div>
               <div style={{ flex: isNarrow ? "1 1 100%" : "1 1 440px", minWidth: isNarrow ? 0 : 400 }}>
-                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 8px" }}>Personalize:</p>
                 <div style={{ columnCount: isNarrow ? 1 : 2, columnGap:20 }}>
-                  <AvatarControls value={avatar} onChange={setAvatar} part="rest" />
-                </div>
-                {error&&<p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{error}</p>}
-                <div style={{ display:"flex", gap:8, marginTop:16 }}>
-                  <button style={{ ...styles.btn("#c084fc"), flex:1 }} onClick={handleNewStudent}>Criar perfil e entrar →</button>
-                  <button style={{ ...styles.btn("#3b2a58"), width:44, flex:"none" }} onClick={()=>{ setRole(null); setError(""); }}>↩</button>
+                  <AvatarControls value={avatar} onChange={setAvatar} part="all" />
                 </div>
               </div>
+            </div>
+            {error&&<p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{error}</p>}
+            <div style={{ display:"flex", gap:8, marginTop:16 }}>
+              <button style={{ ...styles.btn("#c084fc"), flex:1 }} onClick={handleNewStudent}>Criar perfil e entrar →</button>
+              <button style={{ ...styles.btn("#3b2a58"), width:44, flex:"none" }} onClick={()=>setNewStudentStep(1)}>↩</button>
             </div>
           </>
         )}
