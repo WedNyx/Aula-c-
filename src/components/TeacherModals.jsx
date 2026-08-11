@@ -484,6 +484,56 @@ export function JustifyModal({ absences, onSubmit, onClose }) {
 }
 
 // ── 🏆 hall da fama: mural com uma placa por cidade encerrada ──
+// 🏆 quando TODOS os alunos presentes numa turma terminam a atividade do dia, revela o ranking
+// um por um (pior pra melhor, construindo a expectativa até o topo) — em vez do badge individual
+// que já aparecia por tile no Monitoramento (esse continua, os dois coexistem)
+export function RankingRevealModal({ turmaLabel, entries, onClose }) {
+  const [revealedCount, setRevealedCount] = useState(0);
+  const order = [...entries].sort((a, b) => a.score - b.score); // pior primeiro — o campeão é revelado por último
+  const total = order.length;
+  useEffect(() => {
+    setRevealedCount(0);
+    const timers = order.map((_, i) => setTimeout(() => setRevealedCount(c => Math.max(c, i + 1)), i * 700 + 300));
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries]);
+  const allRevealed = revealedCount >= total;
+  return (
+    <div data-testid="ranking-reveal-modal" style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.9)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1300, padding:16 }}>
+      {allRevealed && <ConfettiParty level={1} />}
+      <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:480, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h2 style={{ margin:0, fontSize:19, fontWeight:900, background:"linear-gradient(135deg,#fbbf24,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🏆 Turma {turmaLabel} terminou!</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+        <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 14px" }}>Todo mundo terminou a atividade de hoje — confira o ranking!</p>
+        <div style={{ display:"flex", flexDirection:"column-reverse", gap:8 }}>
+          {order.map((s, i) => {
+            const rank = total - i; // posição real (1 = melhor)
+            const isTop = rank === 1;
+            const visible = i < revealedCount;
+            return (
+              <div key={i} data-testid="ranking-row" data-rank={rank} style={{
+                opacity: visible ? 1 : 0,
+                animation: visible ? "rise .5s ease both" : "none",
+                display:"flex", alignItems:"center", gap:10,
+                background: isTop ? "linear-gradient(135deg,#fbbf2422,#fb923c14)" : "#171026",
+                border: `1px solid ${isTop ? "#fbbf24" : "#3b2a58"}`, borderRadius:12,
+                padding: isTop ? "12px 14px" : "9px 12px",
+              }}>
+                <span style={{ fontSize: isTop?20:15, minWidth:26, textAlign:"center" }}>{rank===1?"🥇":rank===2?"🥈":rank===3?"🥉":`${rank}º`}</span>
+                <Avatar cfg={s.avatar} size={isTop?38:30} />
+                <span style={{ flex:1, color:"#f0e9fb", fontWeight: isTop?900:700, fontSize: isTop?15:13 }}>{s.name}</span>
+                <span style={{ color: isTop?"#fbbf24":"#a99ac9", fontWeight:800, fontSize: isTop?15:13 }}>{s.score}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function HallOfFameModal({ entries, onClose }) {
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>

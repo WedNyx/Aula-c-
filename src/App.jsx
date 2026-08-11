@@ -37,7 +37,7 @@ import { ConfettiParty } from "./components/ConfettiParty.jsx";
 import { ErrorHighlightRing, ErrorWalkthroughCard, FloatingErrorBubble, NyxFeedbackModal, ErrorExplainModal } from "./components/ErrorUI.jsx";
 import { NyxShop, RetroOverlay } from "./components/NyxShop.jsx";
 import { AchievementToast, AchievementsModal, RankingModal, ClassGoalBar } from "./components/AchievementUI.jsx";
-import { QuickStatusModal, TelaoModal, JustifyModal, HallOfFameModal, TripOverviewModal } from "./components/TeacherModals.jsx";
+import { QuickStatusModal, TelaoModal, JustifyModal, HallOfFameModal, TripOverviewModal, RankingRevealModal } from "./components/TeacherModals.jsx";
 import { BossStudyModal, LearningTrailModal, NextStepsModal, NotebookModal, CheckinModal, PerformanceModal, CHECKIN_MOODS } from "./components/LearningModals.jsx";
 import { TypingRaceModal, FreeBuildModal, DuelModal, TeamDuelModal, KnowledgeTestModal } from "./components/GameModals.jsx";
 import { MobileMonitorView } from "./components/MobileMonitor.jsx";
@@ -4493,6 +4493,10 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [resumoTriggeredToday, setResumoTriggeredToday] = useState({});
   const [autoNameMsg, setAutoNameMsg] = useState("");
   const autoNameTriedRef = useRef({});
+  // 🏆 fila de revelações de ranking pendentes (uma por turma que terminou a atividade hoje) —
+  // mostra uma de cada vez; o badge 🏆 individual no tile continua existindo do mesmo jeito
+  const [rankingRevealQueue, setRankingRevealQueue] = useState([]);
+  const rankingRevealTriedRef = useRef({});
   // ✋ notificação de pedido de ajuda (toast, igual ao "Reconectando Nyx")
   const [helpNotice, setHelpNotice] = useState("");
   const helpSeenRef = useRef({});
@@ -4730,6 +4734,25 @@ function TeacherView({ onLogout, teacherAuth }) {
         .catch(() => {}); // sem exemplo do professor nem código de aluno ainda — tenta de novo quando alguém escrever
     });
   }, [students, meta.contentNames]);
+  // 🏆 quando TODOS os alunos presentes numa turma hoje terminam a atividade (mesma condição do
+  // badge 🏆 por tile: nota preenchida no MESMO dia), enfileira uma revelação de ranking pra essa
+  // turma — só 1x por turma por dia, igual ao nome automático do conteúdo acima
+  useEffect(() => {
+    const tk = todayKey();
+    activeTurmas.forEach(sh => {
+      const key = `${tk}-${sh.id}`;
+      if (rankingRevealTriedRef.current[key]) return;
+      const todayList = students.filter(s => (s.shift||"sem-turno")===sh.id && (s.shift||"")!==TEST_SHIFT.id && isSameDayTs(s.lastSeen));
+      // "ranking" só faz sentido com mais de 1 aluno — com só 1 presente, o badge 🏆 individual do
+      // tile já mostra a nota dele, sem precisar de uma revelação (evita um "ranking de 1 pessoa só")
+      if (todayList.length < 2) return;
+      const allDone = todayList.every(s => s.score != null && isSameDayTs(s.doneAt));
+      if (!allDone) return;
+      rankingRevealTriedRef.current[key] = true;
+      const entries = todayList.map(s => ({ name: s.name, avatar: s.avatar, score: s.score }));
+      setRankingRevealQueue(q => [...q, { turmaId: sh.id, turmaLabel: shiftMeta(sh.id, turmas).label, entries }]);
+    });
+  }, [students, activeTurmas, turmas]);
   // ✋ toast de pedido de ajuda: dispara na hora que um aluno clica, mesmo se o professor não
   // estiver olhando o Monitoramento — não avisa pedidos que já estavam pendentes ao abrir o painel
   useEffect(() => {
@@ -6413,6 +6436,9 @@ function TeacherView({ onLogout, teacherAuth }) {
       {showTelao && <TelaoModal students={students} shift={shiftFilter} turmas={activeTurmas} onClose={()=>setShowTelao(false)} teacherAuth={teacherAuth} />}
       {showQuickStatus && <QuickStatusModal students={sorted} onClose={()=>setShowQuickStatus(false)} />}
       {showTripOverview && <TripOverviewModal entries={tripHallEntries} currentCity={turmaCalendar(meta, codeShift).cityClosed ? null : turmaCalendar(meta, codeShift).city} onClose={()=>setShowTripOverview(false)} />}
+      {rankingRevealQueue.length > 0 && (
+        <RankingRevealModal turmaLabel={rankingRevealQueue[0].turmaLabel} entries={rankingRevealQueue[0].entries} onClose={()=>setRankingRevealQueue(q=>q.slice(1))} />
+      )}
 
       {dailyPdfModal && (
         <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
