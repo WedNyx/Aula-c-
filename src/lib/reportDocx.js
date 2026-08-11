@@ -22,6 +22,19 @@ function computeNota(student) {
   return nota >= SATISFACTORY_MIN && presencas >= MIN_PRESENCAS_SATISFATORIO ? "Satisfatório" : "Insatisfatório";
 }
 
+// resume a situação do código de CADA aluno individualmente, usando o histórico de erros
+// (errorHistory) + o resultado da última análise do Nyx — não é uma nota, é um retrato de como
+// o aluno escreveu código ao longo da turma inteira
+function codeStatusText(student) {
+  const errorCounts = Object.values(student.errorHistory || {}).filter(n => typeof n === "number");
+  const totalErrors = errorCounts.reduce((a, b) => a + b, 0);
+  if (!student.feedback && totalErrors === 0) return "SITUAÇÃO DO CÓDIGO: sem análises de código registradas ainda.";
+  if (totalErrors === 0) return "SITUAÇÃO DO CÓDIGO: escreveu o código corretamente, sem nenhum erro registrado pelo Nyx ao longo da turma.";
+  const dias = Object.keys(student.errorHistory || {}).length;
+  const aindaComErro = student.feedback ? !student.feedback.ok : false;
+  return `SITUAÇÃO DO CÓDIGO: registrou ${totalErrors} erro(s) de código ao longo de ${dias} dia(s) de aula${aindaComErro ? ", ainda com pendência na última verificação." : ", corrigindo e terminando com o código certo."}`;
+}
+
 function formatDataAssinatura(d) {
   const dia = String(d.getDate()).padStart(2, "0");
   const mes = MESES_PT[d.getMonth()];
@@ -217,6 +230,7 @@ async function buildTurmaXml(turma, students, { cursoTexto, tipoAvaliacao }, img
     xml += fieldPara(`CPF: ${s.cpf || "—"}`);
     xml += fieldPara(`NOTA: ${nota}`);
     xml += fieldPara("ANEXO: Anexo I – Código; Anexo II – Notas das atividades (gráfico de Meu Desempenho); Anexo III – Nota da prova");
+    xml += fieldPara(codeStatusText(s));
     const canvases = [drawCodeImage(s), await renderPerformanceChartCanvas(s), drawExamImage(s)];
     for (const canvas of canvases) {
       const { rId, id } = imgReg.add(canvasToPngBytes(canvas));
