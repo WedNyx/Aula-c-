@@ -36,6 +36,7 @@ import { ClassTrendChart } from "./components/ClassTrendChart.jsx";
 import { ConfettiParty } from "./components/ConfettiParty.jsx";
 import { ErrorHighlightRing, ErrorWalkthroughCard, FloatingErrorBubble, NyxFeedbackModal, ErrorExplainModal } from "./components/ErrorUI.jsx";
 import { NyxShop, RetroOverlay } from "./components/NyxShop.jsx";
+import VLibrasWidget from "./components/VLibrasWidget.jsx";
 import { AchievementToast, AchievementsModal, RankingModal, ClassGoalBar } from "./components/AchievementUI.jsx";
 import { QuickStatusModal, TelaoModal, JustifyModal, HallOfFameModal, TripOverviewModal } from "./components/TeacherModals.jsx";
 import { BossStudyModal, LearningTrailModal, NextStepsModal, NotebookModal, CheckinModal, PerformanceModal, CHECKIN_MOODS } from "./components/LearningModals.jsx";
@@ -7900,7 +7901,7 @@ export default function App() {
     const parts = window.location.pathname.split("/").filter(Boolean);
     return <PortfolioPage shift={decodeURIComponent(parts[1] || "")} name={decodeURIComponent(parts[2] || "")} />;
   }
-  if (!session) return <Login turmas={loginTurmas} onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} />;
-  if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} />;
-  return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} />;
+  if (!session) return <><VLibrasWidget /><Login turmas={loginTurmas} onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} /></>;
+  if (session.role==="teacher") return <><VLibrasWidget /><TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} /></>;
+  return <><VLibrasWidget /><StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} /></>;
 }
