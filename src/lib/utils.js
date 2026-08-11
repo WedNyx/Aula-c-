@@ -36,6 +36,16 @@ export function computeStreak(attendance, classDays) {
   return streak;
 }
 
+// ── descarta questões que a IA gerou sem gabarito válido (correct fora do range de opts, ou
+// menos de 2 alternativas) — sem isso, uma questão malformada fica IMPOSSÍVEL de acertar pra
+// QUALQUER aluno depois do shuffleQuestions (indexOf de um valor que não existe vira -1) ──
+export function filterValidQuestions(questions) {
+  return (questions || []).filter(q =>
+    q && Array.isArray(q.opts) && q.opts.length >= 2 &&
+    Number.isInteger(q.correct) && q.correct >= 0 && q.correct < q.opts.length
+  );
+}
+
 // ── embaralha as alternativas de cada questão (a correta não fica sempre na mesma posição) ──
 export function shuffleQuestions(questions) {
   return (questions || []).map(q => {

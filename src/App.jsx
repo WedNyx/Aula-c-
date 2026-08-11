@@ -17,7 +17,7 @@ import { VSEditor, CodeBlock, GUIDED_BLOCKS, GUIDED_PARTICIPATION_QUIZ } from ".
 import { Terminal } from "./components/Terminal.jsx";
 import { NyxChat } from "./components/NyxChat.jsx";
 import { TOUR_STEPS, TEACHER_TOUR_STEPS, TourOverlay } from "./components/TourOverlay.jsx";
-import { codeForSpeech, useViewportWidth, computeStreak, shuffleQuestions, isDoneActive, gradeInfo, quickCheck } from "./lib/utils.js";
+import { codeForSpeech, useViewportWidth, computeStreak, shuffleQuestions, filterValidQuestions, isDoneActive, gradeInfo, quickCheck } from "./lib/utils.js";
 import { ACHIEVEMENTS, ALL_EGG_ACHIEVEMENT_IDS, achievementInfo, visibleAchievements, CLASS_GOALS, classGoalProgress } from "./lib/achievements.ts";
 import { generateRelatorioDocx, downloadRelatorioDocx } from "./lib/reportDocx.js";
 import { CS_SYSTEM, RUN_SYSTEM, nyxPrefsInstruction, NYX_FUN_SYSTEM, NYX_GUIDED_SYSTEM } from "./lib/ai-prompts.ts";
@@ -2246,7 +2246,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         : (summaryData || { secoes: [] });
       setDynamicSummary(finalSummary);
       const parsed = extractJson(activityResult);
-      const questions = shuffleQuestions(parsed.questions);
+      const rawQuestions = Array.isArray(parsed.questions) ? parsed.questions : [];
+      const validQuestions = filterValidQuestions(rawQuestions);
+      if (validQuestions.length < rawQuestions.length) {
+        reportClientError({ message: `Atividade de ${studentName} (${shift}): ${rawQuestions.length - validQuestions.length} questão(ões) geradas sem gabarito válido foram descartadas automaticamente, sem penalizar o aluno.`, url: window.location.pathname, role: "sistema" });
+      }
+      const questions = shuffleQuestions(validQuestions);
       setDynamicActivity(questions);
       // guarda o resumo de hoje no caderno (para o aluno rever depois) e a "foto" do código
       // usada da próxima vez pra saber o que é realmente novo, se o professor passar mais coisa
@@ -5853,7 +5858,12 @@ function TeacherView({ onLogout, teacherAuth }) {
       // ⏳ 30min de estudo antes da prova poder ser iniciada de verdade — mesmo espírito do
       // chefão: dá tempo pra turma revisar o resumo com calma antes de valer a nota
       const EXAM_STUDY_MS = 30 * 60 * 1000;
-      const newConfig = { status: 'review', questions: shuffleQuestions(parsed.questions), summary: summaryResult.trim(), shift: shiftFilter, startedAt: Date.now(), studyUntil: Date.now() + EXAM_STUDY_MS };
+      const rawExamQuestions = Array.isArray(parsed.questions) ? parsed.questions : [];
+      const validExamQuestions = filterValidQuestions(rawExamQuestions);
+      if (validExamQuestions.length < rawExamQuestions.length) {
+        reportClientError({ message: `Prova da turma ${shiftFilter}: ${rawExamQuestions.length - validExamQuestions.length} questão(ões) geradas sem gabarito válido foram descartadas automaticamente, sem penalizar os alunos.`, url: window.location.pathname, role: "sistema" });
+      }
+      const newConfig = { status: 'review', questions: shuffleQuestions(validExamQuestions), summary: summaryResult.trim(), shift: shiftFilter, startedAt: Date.now(), studyUntil: Date.now() + EXAM_STUDY_MS };
       await setExamState(newConfig, teacherAuth, shiftFilter);
       setExamConfig(newConfig);
       setExamMsg("✅ Prova criada! Os alunos têm 30min pra estudar. Quando todos estiverem prontos, clique em Iniciar Agora (ou espere o tempo passar).");
@@ -6678,7 +6688,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               <button style={{ ...styles.btnGhost, padding:"3px 10px", fontSize:11.5 }} onClick={loadRecentErrors} disabled={errorsLoading}>{errorsLoading ? "..." : "↻ Verificar"}</button>
             }>
               <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.6, margin:"0 0 8px" }}>
-                Erros de JS que quebraram sozinhos na tela de algum aluno ou sua, sem precisar que ninguém perceba e avise. Não mostra código nem dado pessoal — só a mensagem do erro, de onde veio e quando.
+                Erros de JS que quebraram sozinhos na tela de algum aluno ou sua, e avisos do sistema (como uma questão de prova/atividade gerada sem gabarito válido), sem precisar que ninguém perceba e avise. Não mostra código nem dado pessoal — só a mensagem, de onde veio e quando.
               </p>
               {recentErrors === null ? (
                 <p style={{ color:"#776798", fontSize:12 }}>Clique em "↻ Verificar" pra carregar.</p>
@@ -6689,7 +6699,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   {recentErrors.map((e, i) => (
                     <div key={i} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"8px 10px" }}>
                       <div style={{ display:"flex", justifyContent:"space-between", gap:8, fontSize:10.5, color:"#776798", marginBottom:3 }}>
-                        <span>{e.role === "student" ? "🧑‍🎓 aluno" : e.role === "teacher" ? "🧑‍🏫 professor" : "❔ anônimo"} · {e.url || "?"}</span>
+                        <span>{e.role === "student" ? "🧑‍🎓 aluno" : e.role === "teacher" ? "🧑‍🏫 professor" : e.role === "sistema" ? "⚠️ aviso do sistema" : "❔ anônimo"} · {e.url || "?"}</span>
                         <span>{e.at ? new Date(e.at).toLocaleString("pt-BR") : "?"}</span>
                       </div>
                       <p style={{ color:"#f0e9fb", fontSize:12, margin:0, wordBreak:"break-word" }}>{e.message}</p>

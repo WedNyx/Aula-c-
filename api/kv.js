@@ -534,12 +534,17 @@ export default async function handler(req, res) {
         let config
         try { config = JSON.parse(raw) } catch { return res.status(500).json({ error: 'exam_config_corrupted' }) }
         const questions = Array.isArray(config.questions) ? config.questions : []
+        // defesa em profundidade: se alguma questão foi gerada pela IA sem gabarito válido (correct
+        // fora do range de opts), ela nunca conta pra nota nem pro total — sem isso ela zeraria a
+        // chance de TODOS os alunos acertarem essa questão, mesmo já validando na criação da prova
+        const isValidQuestion = (q) => q && Array.isArray(q.opts) && q.opts.length >= 2 && Number.isInteger(q.correct) && q.correct >= 0 && q.correct < q.opts.length
+        const validQuestions = questions.filter(isValidQuestion)
         let pts = 0
-        questions.forEach((q, i) => { if (answers && answers[i] === q.correct) pts++ })
+        questions.forEach((q, i) => { if (isValidQuestion(q) && answers && answers[i] === q.correct) pts++ })
         const rawScore = pts * 10
         const penalty = Math.min(rawScore, Math.max(0, Number(exits) || 0) * 10)
         const finalScore = rawScore - penalty
-        return res.json({ finalScore, raw: rawScore, total: questions.length })
+        return res.json({ finalScore, raw: rawScore, total: validQuestions.length })
       }
       case 'grade_tourney_round': {
         // mesma ideia do grade_exam: o aluno manda só as respostas escolhidas (nunca o gabarito) —
