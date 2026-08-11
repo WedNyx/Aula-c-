@@ -454,6 +454,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [doneAt, setDoneAt] = useState(null);
   // histórico por dia: notas das atividades e resumos das aulas (caderno)
   const [scoreHistory, setScoreHistory] = useState({});
+  // histórico por dia: quantas vezes a análise do Nyx encontrou erro no código (usado pro Hall da
+  // Fama valorizar quem escreve certo, não só quem tira nota alta)
+  const [errorHistory, setErrorHistory] = useState({});
   const [summaryHistory, setSummaryHistory] = useState({});
   // versão detalhada do resumo (pedida sob demanda — alguns alunos preferem o resumo mais completo)
   const [detailedSummary, setDetailedSummary] = useState("");
@@ -524,7 +527,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -600,6 +603,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         applyIfUnedited("portfolioPublic", setPortfolioPublic, (v) => !!v);
         applyIfUnedited("score", setScore, (v) => v ?? null);
         applyIfUnedited("scoreHistory", setScoreHistory, (v) => JSON.stringify(v || {}), (v) => v || {});
+        applyIfUnedited("errorHistory", setErrorHistory, (v) => JSON.stringify(v || {}), (v) => v || {});
         applyIfUnedited("justifications", setJustifications, (v) => JSON.stringify(v || {}), (v) => v || {});
       }
     } catch {} // sem internet ou ainda sem registro salvo: segue só com o que já tinha localmente
@@ -693,6 +697,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       daySnapshot: daySnapshotRef.current || null,
       summarySnapshot: summarySnapshotRef.current || null,
       scoreHistory: s.scoreHistory || {},
+      errorHistory: s.errorHistory || {},
       summaryHistory: s.summaryHistory || {},
       detailedSummary: s.detailedSummary || null,
       detailedSummaryHistory: s.detailedSummaryHistory || {},
@@ -714,6 +719,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         portfolioPublic: finalOf("portfolioPublic", (v) => !!v),
         score: finalOf("score", (v) => v ?? null),
         scoreHistory: finalOf("scoreHistory", (v) => JSON.stringify(v || {})),
+        errorHistory: finalOf("errorHistory", (v) => JSON.stringify(v || {})),
         justifications: finalOf("justifications", (v) => JSON.stringify(v || {})),
       };
     }
@@ -1241,6 +1247,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (Array.isArray(prev.achievements)) setAchievements(prev.achievements.filter(id => achievementInfo(id)));
           if (prev.doneAt) setDoneAt(prev.doneAt);
           if (prev.scoreHistory) setScoreHistory(prev.scoreHistory);
+          if (prev.errorHistory) setErrorHistory(prev.errorHistory);
           if (prev.summaryHistory) setSummaryHistory(prev.summaryHistory);
           if (prev.detailedSummary) setDetailedSummary(prev.detailedSummary);
           if (prev.detailedSummaryHistory) setDetailedSummaryHistory(prev.detailedSummaryHistory);
@@ -1259,6 +1266,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             portfolioPublic: !!prev.portfolioPublic,
             score: prev.score ?? null,
             scoreHistory: JSON.stringify(prev.scoreHistory || {}),
+            errorHistory: JSON.stringify(prev.errorHistory || {}),
             justifications: JSON.stringify(prev.justifications || {}),
           };
         }
@@ -1765,6 +1773,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     setGuidedLessonLoading(false);
   };
 
+  // conta mais um erro de código no dia de hoje (usado pelo Hall da Fama pra valorizar quem
+  // escreve certo, não só quem tira nota alta) — devolve o mapa atualizado pra já entrar no
+  // mesmo persist() que salva o feedback, sem precisar de uma segunda chamada ao servidor
+  const bumpErrorHistory = () => {
+    const tk = todayKey();
+    const prev = stateRef.current.errorHistory || {};
+    const next = { ...prev, [tk]: (prev[tk] || 0) + 1 };
+    setErrorHistory(next);
+    return next;
+  };
+
   // analisa o código tentando os modelos disponíveis em sequência — se o primeiro falhar por
   // qualquer motivo (chave não configurada, instabilidade, etc.), tenta o outro automaticamente
   // e SEM avisar o aluno no meio do caminho; só mostra erro se os dois falharem
@@ -1777,7 +1796,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const fb = { ok:false, message:quick.message, missingChars:quick.missing||[] };
       setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setFeedback(fb);
       setCodeErrors([]); setShowErrorWalkthrough(false);
-      await persist({ feedback:fb, hasError:true });
+      await persist({ feedback:fb, hasError:true, errorHistory: bumpErrorHistory() });
       setAnalyzing(false);
       return;
     }
@@ -1808,7 +1827,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         // o Sonnet 5 é só reserva de emergência, não deve virar o preferido
         if (provider !== "anthropic") lastProviderRef.current = provider;
         setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]); setFeedback(parsed);
-        await persist({ feedback:parsed, hasError:!parsed.ok });
+        await persist(parsed.ok ? { feedback:parsed, hasError:false } : { feedback:parsed, hasError:true, errorHistory: bumpErrorHistory() });
         if (parsed.ok) {
           unlockAchievement("codigo-limpo");
           setCodeErrors([]); setShowErrorWalkthrough(false);
@@ -4936,19 +4955,29 @@ function TeacherView({ onLogout, teacherAuth }) {
     const cal = turmaCalendar(meta, codeShift);
     if (!cal.city) { setHallMsg("❌ Defina o nome da cidade antes de encerrar."); setTimeout(()=>setHallMsg(""), 5000); return; }
     const active = students.filter(s => (s.shift||"sem-turno") === codeShift);
-    const highlightOf = (s) => {
-      const notas = [...Object.values(s.scoreHistory||{}), s.score, s.examScore].filter(n => typeof n === "number");
-      return notas.length ? Math.max(...notas) : 0;
+    // 🏆 mérito acadêmico, não só quem tirou o pico de nota uma vez: constância nas atividades
+    // (média do histórico, não o maior valor isolado) + nota da prova + poucos erros de código —
+    // pontos do Nyx viram só o desempate final, nunca o critério principal
+    const meritOf = (s) => {
+      const notas = [...Object.values(s.scoreHistory||{}), s.score].filter(n => typeof n === "number");
+      const avgScore = notas.length ? notas.reduce((a,b)=>a+b,0) / notas.length : 0;
+      const examScore = typeof s.examScore === "number" ? s.examScore : 0;
+      const totalErrors = Object.values(s.errorHistory||{}).reduce((a,b)=>a+(typeof b==="number"?b:0), 0);
+      // cada erro registrado custa 10 pontos do "índice de poucos erros" (piso em 0) — quem nunca
+      // errou fica com 100 aqui, quem errou 10+ vezes ao longo da turma zera essa parte da fórmula
+      const errorScore = Math.max(0, 100 - totalErrors * 10);
+      const merit = avgScore * 0.5 + examScore * 0.3 + errorScore * 0.2;
+      return { avgScore, examScore, totalErrors, merit };
     };
     const podio = active
-      .map(s => ({ name: s.name, nota: highlightOf(s), pts: s.nyxPoints||0 }))
-      .filter(s => s.nota > 0 || s.pts > 0)
-      .sort((a,b) => (b.nota - a.nota) || (b.pts - a.pts))
+      .map(s => { const m = meritOf(s); return { name: s.name, merit: Math.round(m.merit), avgScore: Math.round(m.avgScore), examScore: m.examScore, totalErrors: m.totalErrors, pts: s.nyxPoints||0 }; })
+      .filter(s => s.merit > 0 || s.pts > 0)
+      .sort((a,b) => (b.merit - a.merit) || (b.pts - a.pts))
       .slice(0, 3)
-      .map(s => ({ name: s.name, highlight: s.nota > 0 ? `nota ${s.nota} · ${s.pts} pts do Nyx` : `${s.pts} pts do Nyx` }));
+      .map(s => ({ name: s.name, highlight: s.merit > 0 ? `média ${s.avgScore}${s.examScore ? ` · prova ${s.examScore}` : ""} · ${s.totalErrors === 0 ? "sem erros de código" : `${s.totalErrors} erro(s) de código`} · ${s.pts} pts do Nyx` : `${s.pts} pts do Nyx` }));
     // estatísticas da cidade inteira, pra "Visão da Viagem" (agregado de todas as cidades encerradas DESTA turma)
-    const notasValidas = active.map(highlightOf).filter(n => n > 0);
-    const avgScore = notasValidas.length ? Math.round(notasValidas.reduce((a,b)=>a+b,0) / notasValidas.length) : 0;
+    const meritosValidos = active.map(s => meritOf(s).merit).filter(n => n > 0);
+    const avgScore = meritosValidos.length ? Math.round(meritosValidos.reduce((a,b)=>a+b,0) / meritosValidos.length) : 0;
     const entries = await getHallOfFame(codeShift);
     // cal.classDays é uma lista que só CRESCE desde sempre (nunca reseta de cidade pra cidade) —
     // "aulas dadas NESTA cidade" precisa ser a diferença desde a última cidade encerrada, senão toda
