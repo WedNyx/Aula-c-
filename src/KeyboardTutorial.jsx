@@ -116,6 +116,18 @@ const KEYBOARD_LEVELS = [
 // combinação de teclas difícil (fora o Shift, que é bem comum) — sem atalhos de Ctrl, símbolos,
 // acentos com tecla morta nem o teste final de digitar uma linha inteira — e treina em loop, sem "fim"
 const KEYBOARD_LEVELS_EASY = KEYBOARD_LEVELS.filter(l => l.id <= 3);
+// mesma explicação usada tanto na primeira fala quanto TODA VEZ que o aluno erra — repetir com as
+// mesmas palavras (em vez de um "errou, tenta de novo" genérico) ajuda mais quem realmente não
+// sabia onde ficava a tecla, e não é uma frase nova pra decorar a cada erro
+function explanationFor(level, target) {
+  if (level.line) return "Última etapa! Digite essa linha de código inteira, prestando atenção em cada tecla, sem colar.";
+  if (!target) return "";
+  if (target.speakText) return target.speakText;
+  if (target.symbol) return `${comboLabel(target.char)}, para escrever o símbolo ${keyName(target.char)}.`;
+  if (target.ctrl) return `Segure a tecla Ctrl e, ao mesmo tempo, aperte a tecla ${target.char.toUpperCase()}. Isso é o atalho de ${target.label}.`;
+  if (target.shift) return `Segure a tecla Shift e, ao mesmo tempo, aperte a tecla ${target.char}, pra sair maiúscula.`;
+  return `Aperte a tecla ${target.char.toUpperCase()}.`;
+}
 function MiniKeyboard({ highlight, zoom = 1 }) {
   // a(s) tecla(s) principais E o(s) modificador(es) brilham juntos — é isso que precisa ser apertado
   // (keys é uma lista pra combinações em sequência, tipo acento agudo + letra A)
@@ -189,6 +201,7 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
   const [levelIdx, setLevelIdx] = useState(0);
   const [targetIdx, setTargetIdx] = useState(0);
   const [wrongFlash, setWrongFlash] = useState(false);
+  const [wrongCount, setWrongCount] = useState(0);
   const [finalTyped, setFinalTyped] = useState("");
   const [done, setDone] = useState(false);
   const level = levels[levelIdx];
@@ -198,16 +211,9 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
   const kbZoom = vw >= 1050 ? 1.4 : vw >= 780 ? 1.05 : 0.85;
 
   useEffect(() => {
+    setWrongCount(0);
     if (done) return;
-    if (level.line) { speak("Última etapa! Digite essa linha de código inteira, prestando atenção em cada tecla, sem colar."); return; }
-    if (!target) return;
-    let text;
-    if (target.speakText) text = target.speakText;
-    else if (target.symbol) text = `${comboLabel(target.char)}, para escrever o símbolo ${keyName(target.char)}.`;
-    else if (target.ctrl) text = `Segure a tecla Ctrl e, ao mesmo tempo, aperte a tecla ${target.char.toUpperCase()}. Isso é o atalho de ${target.label}.`;
-    else if (target.shift) text = `Segure a tecla Shift e, ao mesmo tempo, aperte a tecla ${target.char}, pra sair maiúscula.`;
-    else text = `Aperte a tecla ${target.char.toUpperCase()}.`;
-    speak(text);
+    speak(explanationFor(level, target));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelIdx, targetIdx, done]);
 
@@ -239,9 +245,13 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
         else if (accessMode) { playSound("levelup"); onFinish(); setLevelIdx(0); setTargetIdx(0); }
         else finishAll();
       } else if (!["Shift","Control","Alt","AltGraph","Meta","Tab","CapsLock","Dead"].includes(e.key)) {
-        // "Dead" = tecla de acento esperando a letra (´, ~, ^) — não é erro, é o meio do caminho
+        // "Dead" = tecla de acento esperando a letra (´, ~, ^) — não é erro, é o meio do caminho.
+        // A cada erro de verdade, a Nyx REPETE a mesma explicação em voz alta — não avança pro
+        // próximo alvo enquanto o aluno não acertar (repete quantas vezes precisar)
         playSound("wrong");
         setWrongFlash(true); setTimeout(() => setWrongFlash(false), 300);
+        setWrongCount(n => n + 1);
+        speak(explanationFor(level, target));
       }
     };
     window.addEventListener("keydown", onKey, true);
@@ -318,6 +328,7 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
                   <p style={{ color:"#d6c9ec", fontSize:13, margin:"6px 0 0" }}>
                     {target.hint ? target.hint : target.symbol ? `${comboLabel(target.char)} — isso escreve ${keyName(target.char)}` : target.ctrl ? `Segure Ctrl e aperte ${target.char.toUpperCase()} ao mesmo tempo — ${target.label}` : target.shift ? `Segure Shift e aperte ${target.char} ao mesmo tempo` : `Aperte essa tecla`}
                   </p>
+                  {wrongCount > 0 && <p style={{ color:"#fbbf24", fontSize:12, margin:"8px 0 0", fontWeight:700 }}>🔊 Sem pressa, a Nyx repetiu a dica — pode tentar de novo!</p>}
                 </div>
                 <MiniKeyboard highlight={highlight} zoom={kbZoom} />
               </>
