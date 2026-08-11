@@ -6399,7 +6399,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           {isMobileScreen && <button style={styles.btn("#c084fc")} onClick={()=>setForceFullMode(false)} title="Volta pra lista simples de acompanhamento, melhor pro celular">📱 Modo simples</button>}
           {tab!=="code" && <button data-tour-prof="reset" style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
           {tab!=="code" && <button className="btn-ghost" style={styles.btnGhost} onClick={()=>{ const first = TEACHER_TOUR_STEPS[0]; if (first.tab) setTab(first.tab); setProfTourStep(0); }} title="Tour guiado por todas as funções do painel do professor, entrando em cada aba pra mostrar de verdade">🧭 Tour</button>}
-          <button data-tour-prof="sair" style={{ ...styles.btn("#776798"), fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
+          <button data-tour-prof="sair" style={{ ...styles.btnGhost, fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
         </div>
       </div>
 
@@ -6740,7 +6740,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               ) : <span style={{ color:"#776798" }}>verificando...</span>}
               <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap",alignItems:"center"}}>
                 <button style={{ ...styles.btnGhost, padding:"4px 10px", fontSize:12 }} onClick={()=>{ setDbSetupSQL(null); setDbSetupMsg(""); diagnose().then(setDiag); load(); }}>↻ Verificar agora</button>
-                <button style={{...styles.btn("#166534"),padding:"4px 10px",fontSize:12,opacity:dbSetupLoading?0.6:1}} onClick={setupDb} disabled={dbSetupLoading}>{dbSetupLoading?"...":"🔧 Inicializar banco"}</button>
+                <button style={{...styles.btn("#34d399"),padding:"4px 10px",fontSize:12,opacity:dbSetupLoading?0.6:1}} onClick={setupDb} disabled={dbSetupLoading}>{dbSetupLoading?"...":"🔧 Inicializar banco"}</button>
               </div>
               {dbSetupMsg && (
                 <p style={{color:dbSetupMsg.startsWith("✅")?"#34d399":dbSetupMsg.startsWith("Cole")?"#93c5fd":"#f87171",fontSize:12,marginTop:6}}>{dbSetupMsg}</p>
@@ -7097,7 +7097,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
                       <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>💌 Boletim:</span>
-                      <button onClick={()=>exportBoletins(sel)} disabled={boletimBusy} style={{ ...styles.btn("#ec4899"), padding:"6px 14px", fontSize:12.5, opacity:boletimBusy?0.6:1 }}>{boletimBusy ? "Gerando..." : `Gerar boletim de ${sel.name.split(" ")[0]}`}</button>
+                      <button onClick={()=>exportBoletins(sel)} disabled={boletimBusy} style={{ ...styles.btn("#c084fc"), padding:"6px 14px", fontSize:12.5, opacity:boletimBusy?0.6:1 }}>{boletimBusy ? "Gerando..." : `Gerar boletim de ${sel.name.split(" ")[0]}`}</button>
                       {boletimMsg && <span style={{ color: boletimMsg.startsWith("✅") ? "#34d399" : boletimMsg.startsWith("❌") ? "#f87171" : "#fbbf24", fontSize:11.5, flex:"1 1 160px" }}>{boletimMsg}</span>}
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
@@ -7203,7 +7203,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                         setDailyPdfCode(dayFiles.map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n"));
                         setDailyPdfMsg("");
                         setDailyPdfModal({ shift: sel.shift, studentName: sel.name });
-                      }} disabled={dailyPdfBusy} style={{ ...styles.btn("#fbbf24"), padding:"6px 14px", fontSize:12.5, opacity: dailyPdfBusy ? 0.7 : 1 }}>
+                      }} disabled={dailyPdfBusy} style={{ ...styles.btn("#c084fc"), padding:"6px 14px", fontSize:12.5, opacity: dailyPdfBusy ? 0.7 : 1 }}>
                         {dailyPdfBusy ? "⏳ Gerando..." : "Gerar resumo de hoje em PDF"}
                       </button>
                       <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>Confirme o código de hoje e o Nyx gera a explicação — bom pra mandar pra quem faltou.</span>
@@ -7756,7 +7756,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                     </div>
                     <div style={{ display:"flex", gap:8 }}>
                       <button onClick={activateExam} style={{ ...styles.btn("#34d399") }}>▶ Iniciar Agora ({readyStudents.length} prontos)</button>
-                      <button onClick={resetExam} style={{ ...styles.btn("#776798"), fontSize:13 }}>Cancelar</button>
+                      <button onClick={resetExam} style={{ ...styles.btnGhost, fontSize:13 }}>Cancelar</button>
                     </div>
                   </div>
                   {examMsg && <p style={{ color:"#34d399", fontSize:13, marginTop:10 }}>{examMsg}</p>}
@@ -7820,7 +7820,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <h3 style={{ color:"#34d399", margin:"0 0 4px" }}>✅ Prova Encerrada</h3>
                       <p style={{ color:"#a99ac9", fontSize:13 }}>Resultado final · {doneStudents.length}/{examStudents.length} alunos concluíram</p>
                     </div>
-                    <button onClick={resetExam} style={styles.btn("#776798")}>🔄 Nova Prova</button>
+                    <button onClick={resetExam} style={styles.btnGhost}>🔄 Nova Prova</button>
                   </div>
                 </div>
                 <div className="cardfx" style={{ ...styles.card, borderColor:"#c084fc" }}>
