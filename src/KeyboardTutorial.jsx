@@ -134,6 +134,20 @@ const KEYBOARD_LEVELS = [
   ] },
   { id:9, title:"Teste final", line: 'int x = 10;\nif (x > 5) { Console.WriteLine("Oi!"); }' },
 ];
+// revisão leve no final do treino todo (não é uma prova — não trava nem penaliza, é só reforçar o
+// que foi visto). Versão normal com 4 perguntas; versão fácil (quem tem algum apoio marcado) com só
+// 2, mais concretas/visuais e sem misturar assunto — nunca aparece pra quem está no Modo Guiado, que
+// já sai do treino direto (ver accessMode em advanceTarget)
+const REVIEW_QUESTIONS_NORMAL = [
+  { q: "Qual tecla apaga a última coisa que você digitou?", opts: ["Backspace", "Enter", "Tab", "Shift"], correct: 0 },
+  { q: "Pra que serve a tecla Tab no código?", opts: ["Empurra o código pra dentro (indentação)", "Apaga tudo", "Fecha o programa", "Muda a cor da letra"], correct: 0 },
+  { q: "Quando você digita um parêntese abrindo no editor, o que acontece?", opts: ["Ele fecha sozinho", "Nada acontece", "O teclado trava", "A linha inteira some"], correct: 0 },
+  { q: "Qual atalho copia o que você selecionou?", opts: ["Ctrl + C", "Ctrl + V", "Ctrl + Z", "Ctrl + A"], correct: 0 },
+];
+const REVIEW_QUESTIONS_EASY = [
+  { q: "Qual tecla apaga a última coisa que você digitou?", opts: ["Backspace", "Enter"], correct: 0 },
+  { q: "Quando você digita um parêntese abrindo no editor, o que acontece?", opts: ["Ele fecha sozinho", "Nada acontece"], correct: 0 },
+];
 // versão simplificada pro Modo Guiado (dificuldade de leitura/escrita/motora): só os níveis sem
 // combinação de teclas difícil (fora o Shift, que é bem comum) — sem atalhos de Ctrl, símbolos,
 // acentos com tecla morta nem o teste final de digitar uma linha inteira — e treina em loop, sem "fim"
@@ -218,7 +232,7 @@ function MiniKeyboard({ highlight, zoom = 1 }) {
     </div>
   );
 }
-export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech, accessMode = false, onEggFound, playSound, codeContext, studyLang }) {
+export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech, accessMode = false, onEggFound, playSound, codeContext, studyLang, easyReview = false }) {
   const levels = accessMode ? KEYBOARD_LEVELS_EASY : KEYBOARD_LEVELS;
   const [levelIdx, setLevelIdx] = useState(0);
   const [targetIdx, setTargetIdx] = useState(0);
@@ -235,6 +249,8 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
   // parêntese e depois apagou com Backspace", que não dá pra saber só olhando o valor final)
   const [editorValue, setEditorValue] = useState("");
   const editorHistoryRef = useRef([]);
+  // revisão leve depois do "Teste final" — null até acabar tudo; { qIdx, questions, feedback } enquanto
+  const [reviewState, setReviewState] = useState(null);
   const level = levels[levelIdx];
   const target = level.targets ? level.targets[targetIdx] : null;
   // teclado grandão pra enxergar bem as teclas; encolhe sozinho se a janela for estreita
@@ -339,9 +355,32 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
     playSound("achievement");
     await onFinish();
   };
+  // revisão leve no final: pergunta rápida sobre o que foi visto, sem travar nem penalizar — só
+  // reforça. Nunca acontece no Modo Guiado (esse caminho não roda lá, ver advanceTarget/accessMode)
+  const startReview = () => {
+    const questions = easyReview ? REVIEW_QUESTIONS_EASY : REVIEW_QUESTIONS_NORMAL;
+    setReviewState({ qIdx: 0, questions, feedback: null });
+    speak("Última coisinha! Vamos revisar rapidinho o que você aprendeu.");
+  };
   const onFinalType = (v) => {
     setFinalTyped(v);
-    if (v === level.line) finishAll();
+    if (v === level.line) startReview();
+  };
+  const answerReview = (optIdx) => {
+    if (!reviewState || reviewState.feedback) return;
+    const q = reviewState.questions[reviewState.qIdx];
+    const ok = optIdx === q.correct;
+    playSound(ok ? "correct" : "wrong");
+    setReviewState(r => ({ ...r, feedback: ok ? "certo" : "errado" }));
+    setTimeout(() => {
+      setReviewState(r => {
+        if (!r) return r;
+        const nextIdx = r.qIdx + 1;
+        if (nextIdx < r.questions.length) return { ...r, qIdx: nextIdx, feedback: null };
+        finishAll();
+        return null;
+      });
+    }, 1400);
   };
 
   // qual tecla do desenho corresponde a cada tecla especial (id no KB_ROWS/bloco de setas)
@@ -386,7 +425,23 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
                 </span>
               ))}
             </div>
-            {phraseState ? (
+            {reviewState ? (
+              <div className="pop" style={{ textAlign:"center", padding:"10px 0" }}>
+                <p style={{ color:"#a99ac9", fontSize:12, margin:"0 0 4px" }}>🧠 Revisão rápida ({reviewState.qIdx + 1}/{reviewState.questions.length})</p>
+                <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:16, margin:"0 0 16px" }}>{reviewState.questions[reviewState.qIdx].q}</p>
+                {reviewState.feedback ? (
+                  <p style={{ fontSize:15, fontWeight:800, color: reviewState.feedback === "certo" ? "#34d399" : "#fbbf24" }}>
+                    {reviewState.feedback === "certo" ? "✅ Isso mesmo!" : `💡 Era: ${reviewState.questions[reviewState.qIdx].opts[reviewState.questions[reviewState.qIdx].correct]}`}
+                  </p>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:8, maxWidth:420, margin:"0 auto" }}>
+                    {reviewState.questions[reviewState.qIdx].opts.map((opt, i) => (
+                      <button key={i} onClick={()=>answerReview(i)} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:10, color:"#f0e9fb", padding:"10px 14px", fontSize:13.5, cursor:"pointer", textAlign:"left" }}>{opt}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : phraseState ? (
               phraseState.loading ? (
                 <p style={{ color:"#a99ac9", fontSize:14, textAlign:"center", padding:"36px 0" }}>✨ A Nyx tá pensando numa frase pra você praticar...</p>
               ) : (

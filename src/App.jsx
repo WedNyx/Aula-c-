@@ -501,6 +501,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // PEDAGÓGICA deliberada (Modo Guiado, tutorial de teclado) continua sempre ativa: não é um
   // botão de conveniência, é o próprio jeito da lição ser ensinada
   const ttsAllowed = ttsSupported && (easyRead || highContrast || !!supportFlags.motora || !!selfSupport.motora);
+  // revisão final do tutorial de teclado fica mais leve (menos perguntas, mais concretas) pra quem
+  // tem qualquer apoio marcado — o Modo Guiado nem chega a ver essa revisão (sai do treino direto)
+  const kbReviewEasy = calmMode || focusMode || easyRead || ownPace || highContrast || !!supportFlags.motora || !!selfSupport.motora;
   useEffect(() => { setSoundsCalm(calmMode); return () => setSoundsCalm(false); }, [calmMode]);
   const [guidedBlocks, setGuidedBlocks] = useState([]);
   const [pendingBlock, setPendingBlock] = useState(null);
@@ -4113,7 +4116,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             <span style={{ color:"#a99ac9", fontSize:14 }}>🤔 Carregando o tutorial de teclado...</span>
           </div>
         }>
-          <KeyboardTutorialModal onClose={()=>setShowKeyboard(false)} onFinish={finishKeyboardTutorial} speak={speak} stopSpeech={stopSpeech} accessMode={accessMode} onEggFound={triggerEgg} playSound={playSound} codeContext={activeCode} studyLang={studyLang} />
+          <KeyboardTutorialModal onClose={()=>setShowKeyboard(false)} onFinish={finishKeyboardTutorial} speak={speak} stopSpeech={stopSpeech} accessMode={accessMode} onEggFound={triggerEgg} playSound={playSound} codeContext={activeCode} studyLang={studyLang} easyReview={kbReviewEasy} />
         </Suspense>
       )}
       {!checkinDismissed && phase==="coding" && !showJustify && !showNyxPrefs && !showIntro && tourStep < 0 && (
