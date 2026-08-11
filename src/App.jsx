@@ -496,6 +496,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const easyRead = !!supportFlags.leitura || !!selfSupport.leitura;
   const ownPace = !!supportFlags.ritmo || !!selfSupport.ritmo;
   const highContrast = !!supportFlags.visual || !!selfSupport.visual;
+  // botão de "ouvir em voz alta" só aparece pra quem realmente precisa (leitura fácil, alto
+  // contraste ou apoio motora) — pra não poluir a tela de quem não pediu esse ajuste. A fala
+  // PEDAGÓGICA deliberada (Modo Guiado, tutorial de teclado) continua sempre ativa: não é um
+  // botão de conveniência, é o próprio jeito da lição ser ensinada
+  const ttsAllowed = ttsSupported && (easyRead || highContrast || !!supportFlags.motora || !!selfSupport.motora);
   useEffect(() => { setSoundsCalm(calmMode); return () => setSoundsCalm(false); }, [calmMode]);
   const [guidedBlocks, setGuidedBlocks] = useState([]);
   const [pendingBlock, setPendingBlock] = useState(null);
@@ -2863,7 +2868,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             <p style={{ color:"#e0e7ff", fontSize:scaleSize(15), maxWidth:560, margin:"0 auto", lineHeight:1.6, marginBottom:12 }}>
               {structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. 📒 Anote no caderno!"}
             </p>
-            {ttsSupported && <button onClick={() => handleSpeakSummary(structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. Anote no caderno!")} style={{ background:isSpeaking && currentSpeakingFor==="intro" ? "#fff" : "rgba(255,255,255,0.2)", color:isSpeaking && currentSpeakingFor==="intro" ? "#c084fc" : "#fff", border:"none", borderRadius:8, padding:`${scalePx(10)}px ${scalePx(18)}px`, fontSize:scaleSize(13), fontWeight:700, cursor:"pointer", minHeight:scaleSize(44) }}>{isSpeaking && currentSpeakingFor==="intro" ? "⏸ Pausando" : "🔊 Ouvir intro"}</button>}
+            {ttsAllowed && <button onClick={() => handleSpeakSummary(structured && sum.intro ? sum.intro : "Aqui está tudo o que você aprendeu hoje, explicado passo a passo. Anote no caderno!")} style={{ background:isSpeaking && currentSpeakingFor==="intro" ? "#fff" : "rgba(255,255,255,0.2)", color:isSpeaking && currentSpeakingFor==="intro" ? "#c084fc" : "#fff", border:"none", borderRadius:8, padding:`${scalePx(10)}px ${scalePx(18)}px`, fontSize:scaleSize(13), fontWeight:700, cursor:"pointer", minHeight:scaleSize(44) }}>{isSpeaking && currentSpeakingFor==="intro" ? "⏸ Pausando" : "🔊 Ouvir intro"}</button>}
             <div style={{ display:"flex", justifyContent:"center", gap:8, marginTop:14 }}>
               <button onClick={()=>setSummaryView("simples")} style={{ background: summaryView==="simples" ? "#fff" : "rgba(255,255,255,0.16)", color: summaryView==="simples" ? "#c084fc" : "#fff", border:"none", borderRadius:20, padding:`${scalePx(8)}px ${scalePx(16)}px`, fontSize:scaleSize(12.5), fontWeight:800, cursor:"pointer" }}>🌱 Resumo simples</button>
               <button onClick={fetchDetailedSummary} disabled={detailLoading} style={{ background: summaryView==="detalhado" ? "#fff" : "rgba(255,255,255,0.16)", color: summaryView==="detalhado" ? "#c084fc" : "#fff", border:"none", borderRadius:20, padding:`${scalePx(8)}px ${scalePx(16)}px`, fontSize:scaleSize(12.5), fontWeight:800, cursor: detailLoading ? "wait" : "pointer", opacity: detailLoading ? 0.7 : 1 }}>{detailLoading ? "⏳ Gerando..." : "📖 Resumo detalhado"}</button>
@@ -2886,7 +2891,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                           <h3 style={{ color:"#f0e9fb", fontSize:17, margin:0 }}>{s.titulo}</h3>
                         </div>
                       </div>
-                      {ttsSupported && <button onClick={() => { setCurrentSpeakingFor(`section-${i}`); speak(sectionText); }} style={{ background:isSpeaking && currentSpeakingFor===`section-${i}` ? c : c+"33", border:`1px solid ${c}`, color:c, padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`section-${i}` ? "⏸" : "🔊"}</button>}
+                      {ttsAllowed && <button onClick={() => { setCurrentSpeakingFor(`section-${i}`); speak(sectionText); }} style={{ background:isSpeaking && currentSpeakingFor===`section-${i}` ? c : c+"33", border:`1px solid ${c}`, color:c, padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`section-${i}` ? "⏸" : "🔊"}</button>}
                     </div>
                     {s.explicacao && <p style={{ color:"#d6c9ec", fontSize:15, lineHeight:1.75, margin:"0 0 4px" }}>{s.explicacao}</p>}
                     {s.exemplo && <CodeBlock code={s.exemplo} />}
@@ -2902,7 +2907,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                     <h4 style={{ color:"#fbbf24", margin:"0 0 4px" }}>Dica do Nyx</h4>
                     <p style={{ color:"#fcd9a0", fontSize:15, lineHeight:1.7, margin:0 }}>{sum.dica}</p>
                   </div>
-                  {ttsSupported && <button onClick={() => { setCurrentSpeakingFor("dica"); speak(sum.dica); }} style={{ background:isSpeaking && currentSpeakingFor==="dica" ? "#fbbf24" : "rgba(251,191,36,0.2)", border:"1px solid #fbbf24", color:isSpeaking && currentSpeakingFor==="dica" ? "#000" : "#fbbf24", padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor==="dica" ? "⏸" : "🔊"}</button>}
+                  {ttsAllowed && <button onClick={() => { setCurrentSpeakingFor("dica"); speak(sum.dica); }} style={{ background:isSpeaking && currentSpeakingFor==="dica" ? "#fbbf24" : "rgba(251,191,36,0.2)", border:"1px solid #fbbf24", color:isSpeaking && currentSpeakingFor==="dica" ? "#000" : "#fbbf24", padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor==="dica" ? "⏸" : "🔊"}</button>}
                 </div>
               )}
             </div>
@@ -2957,7 +2962,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                     {q.bonus && <span style={{ background:"#fbbf2422", border:"1px solid #fbbf24", color:"#fbbf24", borderRadius:20, padding:"2px 9px", fontSize:scaleSize(11), fontWeight:800, marginRight:8, whiteSpace:"nowrap" }}>⭐ Bônus opcional</span>}
                     {i+1}. {q.q}
                   </p>
-                  {ttsSupported && <button onClick={() => handleSpeakQuestion(q, i)} style={{ background:isSpeaking && currentSpeakingFor===`q-${i}` ? "#c084fc" : "#c084fc33", border:"1px solid #c084fc", color:"#c084fc", padding:`${scalePx(8)}px ${scalePx(12)}px`, borderRadius:6, fontSize:scaleSize(11), fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`q-${i}` ? "⏸" : "🔊"}</button>}
+                  {ttsAllowed && <button onClick={() => handleSpeakQuestion(q, i)} style={{ background:isSpeaking && currentSpeakingFor===`q-${i}` ? "#c084fc" : "#c084fc33", border:"1px solid #c084fc", color:"#c084fc", padding:`${scalePx(8)}px ${scalePx(12)}px`, borderRadius:6, fontSize:scaleSize(11), fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", minWidth:"max-content" }}>{isSpeaking && currentSpeakingFor===`q-${i}` ? "⏸" : "🔊"}</button>}
                 </div>
                 {q.opts.map((opt,j)=>{
                   const picked = answers[i]===j;
@@ -3049,7 +3054,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                   {fbStructured ? finalFeedback.intro : (typeof finalFeedback === "string" && finalFeedback) ? finalFeedback : "Parabéns por concluir a aula de hoje!"}
                 </p>
               )}
-              {!feedbackLoading && ttsSupported && fbSpeechText && (
+              {!feedbackLoading && ttsAllowed && fbSpeechText && (
                 <button onClick={() => { setCurrentSpeakingFor("feedback"); speak(fbSpeechText); }} style={{ marginTop:10, background:isSpeaking && currentSpeakingFor==="feedback" ? "#fff" : "rgba(255,255,255,0.2)", color:isSpeaking && currentSpeakingFor==="feedback" ? "#c084fc" : "#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer" }}>
                   {isSpeaking && currentSpeakingFor==="feedback" ? "⏸ Pausando" : "🔊 Ouvir feedback"}
                 </button>
@@ -3281,7 +3286,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           )}
           <button style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={toggleMuted} title={muted?"Ativar sons":"Silenciar sons"}>{muted?"🔇":"🔊"}</button>
           <button data-tour="acessibilidade" style={{ ...styles.btn(largeUiMode?"#06b6d4":"#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={()=>{ setLargeUiMode(!largeUiMode); try { localStorage.setItem("nyx_large_ui", !largeUiMode?"1":"0"); } catch {} }} title={largeUiMode?"Desativar modo acessível":"Ativar modo acessível (letras maiores)"}>♿</button>
-          {ttsSupported && <button style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={()=>setShowVoicePicker(true)} title="Escolher a voz do Nyx (leitura em voz alta)">🗣️</button>}
+          {ttsAllowed && <button style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={()=>setShowVoicePicker(true)} title="Escolher a voz do Nyx (leitura em voz alta)">🗣️</button>}
           <button style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={tryFullscreen}>⛶ Tela cheia</button>
           <button style={{ ...styles.btn("#f87171"), padding:"6px 12px", fontSize:12 }} onClick={onLogout}>Sair</button>
         </div>
@@ -3513,7 +3518,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                               <span style={{ background:c+"22", border:`1px solid ${c}`, minWidth:34, height:34, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", fontSize:17 }}>{l.emoji || "🎮"}</span>
                               <h5 style={{ color:"#f0e9fb", margin:0, fontSize:scaleSize(14) }}>{l.titulo}</h5>
                             </div>
-                            {ttsSupported && <button onClick={() => { setCurrentSpeakingFor(`lesson-${l.id}`); speak(lessonSpeech); }} style={{ background:isSpeaking && currentSpeakingFor===`lesson-${l.id}` ? c : c+"33", border:`1px solid ${c}`, color:c, padding:"5px 10px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer" }}>{isSpeaking && currentSpeakingFor===`lesson-${l.id}` ? "⏸" : "🔊"}</button>}
+                            {ttsAllowed && <button onClick={() => { setCurrentSpeakingFor(`lesson-${l.id}`); speak(lessonSpeech); }} style={{ background:isSpeaking && currentSpeakingFor===`lesson-${l.id}` ? c : c+"33", border:`1px solid ${c}`, color:c, padding:"5px 10px", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer" }}>{isSpeaking && currentSpeakingFor===`lesson-${l.id}` ? "⏸" : "🔊"}</button>}
                           </div>
                           {l.codigo && <CodeBlock code={l.codigo} />}
                           {l.oQueFaz && <p style={{ color:"#d6c9ec", fontSize:scaleSize(13), lineHeight:1.7, margin:"6px 0 0" }}>{l.oQueFaz}</p>}
@@ -3641,7 +3646,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             <NyxRobot state={robotState} size={88} gear={nyxGear} />
             {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>
               {robotMsg}
-              {ttsSupported && <div style={{ marginTop:8 }}><button onClick={()=>speak(robotMsg)} style={{ background:"transparent", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, color:robotState==="error"?"#f87171":"#34d399", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>🔊 Ouvir</button></div>}
+              {ttsAllowed && <div style={{ marginTop:8 }}><button onClick={()=>speak(robotMsg)} style={{ background:"transparent", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, color:robotState==="error"?"#f87171":"#34d399", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>🔊 Ouvir</button></div>}
             </div>)}
             {keysToShow.length>0&&(<div style={{ marginTop:10 }}><p style={{ color:"#fbbf24", fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
             {helpAt
@@ -4170,7 +4175,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         accessMode={accessMode}
         nyxPrefs={nyxPrefs}
         language={studyLang}
-        speak={ttsSupported ? speak : null}
+        speak={ttsAllowed ? speak : null}
         onTheme={handleNyxTheme}
         context={() => `Contexto: você conversa com o aluno ${studentName}. Código atual dele (${files[active]?.name || "Program.cs"}):\n${activeCode || "(vazio ainda)"}\n${robotMsg ? `Seu último aviso sobre o código: ${robotMsg}` : ""}`}
       />
