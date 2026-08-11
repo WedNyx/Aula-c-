@@ -46,7 +46,9 @@ export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onCl
           {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa vira 1 ponto. Comprar um item GASTA os pontos — mas o item é seu para sempre! (Seu lugar no ranking não muda: ele conta os pontos que você já ganhou.)"}
         </p>
 
-        <div style={{ display:"flex", alignItems:"center", gap:16, background:"#171026", border:`1px solid ${eggTalk ? eggTalk.color+"88" : "#3b2a58"}`, borderRadius:16, padding:16, marginBottom:16, transition:"border-color .3s" }}>
+        {/* fica "grudado" no topo mesmo rolando a lista de itens mais abaixo — assim dá pra ver o
+            Nyx vestindo cada acessório sem perder ele de vista a cada scroll */}
+        <div style={{ position:"sticky", top:0, zIndex:2, display:"flex", alignItems:"center", gap:16, background:"#1e1533", border:`1px solid ${eggTalk ? eggTalk.color+"88" : "#3b2a58"}`, borderRadius:16, padding:16, marginBottom:16, transition:"border-color .3s", boxShadow:"0 10px 20px -6px rgba(3,5,16,.55)" }}>
           <div style={{ flexShrink:0, animation: eggTalk ? (eggTalk.kind === "pirata" ? "nyx-pirate-sway 2.2s ease-in-out infinite" : "nyx-spartan-idle 2.6s ease-in-out infinite") : "none" }}>
             <NyxRobot state="ok" size={72} showName={false} gear={gear} />
           </div>
