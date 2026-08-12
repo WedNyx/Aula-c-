@@ -28,7 +28,15 @@ const DEFAULT_SYSTEM =
 // garantindo que sobre espaço suficiente para a resposta final.
 const NVIDIA_REASONING = /nemotron-3|reasoning|-r1/i.test(NVIDIA_MODEL)
 
-async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning }) {
+// nenhum dos providers abaixo tinha timeout próprio: se o provedor gratuito simplesmente NÃO
+// respondesse (sem erro nenhum, só travado), o fetch ficava pendurado até a Vercel matar a função
+// inteira pelo maxDuration (vercel.json) — e aí quem chamou nunca recebia um JSON de erro de
+// verdade, só a página de erro da própria plataforma (o "Não consegui falar com o Nyx agora" cru
+// que aparecia pro professor). Timeout POR TENTATIVA garante que sempre sobre um JSON de erro
+// normal pra responder, com folga pra ainda tentar o próximo provedor da fila dentro do maxDuration.
+const DEFAULT_TIMEOUT_MS = 25000
+
+async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning, timeoutMs }) {
   const finalMaxTokens = Math.min(Number(max_tokens) || 2000, 6000)
   const body = {
     model: NVIDIA_MODEL,
@@ -56,6 +64,7 @@ async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasonin
       Accept: 'application/json',
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs || DEFAULT_TIMEOUT_MS),
   })
   const data = await resp.json().catch(() => ({}))
   if (!resp.ok) {
@@ -76,12 +85,14 @@ async function callNvidia(args) {
     // chat_template_kwargs/reasoning_budget não são padrão OpenAI — se a NVIDIA
     // rejeitar esses campos (400/422) para este modelo, tenta de novo sem eles
     // em vez de deixar o Nyx inteiro fora do ar por causa do modo de raciocínio.
-    if (e.status && e.status !== 400 && e.status !== 422) throw e
+    // só retenta nesse caso específico: um timeout (sem status) NÃO deve retentar aqui, senão
+    // dobra o tempo perdido esperando um provedor que já não respondeu a primeira vez
+    if (e.status !== 400 && e.status !== 422) throw e
     return callNvidiaRaw({ ...args, reasoning: false })
   }
 }
 
-async function callOpenRouter({ prompt, system, temperature, max_tokens }) {
+async function callOpenRouter({ prompt, system, temperature, max_tokens, timeoutMs }) {
   const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -100,6 +111,7 @@ async function callOpenRouter({ prompt, system, temperature, max_tokens }) {
       temperature: typeof temperature === 'number' ? temperature : 0.2,
       max_tokens: Math.min(Number(max_tokens) || 2000, 4000),
     }),
+    signal: AbortSignal.timeout(timeoutMs || DEFAULT_TIMEOUT_MS),
   })
   const data = await resp.json().catch(() => ({}))
   if (!resp.ok) {
@@ -110,7 +122,7 @@ async function callOpenRouter({ prompt, system, temperature, max_tokens }) {
   return { content: [{ type: 'text', text }] }
 }
 
-async function callAnthropic({ prompt, system, temperature, max_tokens }) {
+async function callAnthropic({ prompt, system, temperature, max_tokens, timeoutMs }) {
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -125,6 +137,7 @@ async function callAnthropic({ prompt, system, temperature, max_tokens }) {
       system: system || DEFAULT_SYSTEM,
       messages: [{ role: 'user', content: prompt }],
     }),
+    signal: AbortSignal.timeout(timeoutMs || DEFAULT_TIMEOUT_MS),
   })
   const data = await resp.json().catch(() => ({}))
   if (!resp.ok) {
@@ -213,9 +226,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    // quando existe uma 2ª perna possível (Anthropic de reserva) dentro desta MESMA chamada de
+    // função, reserva metade do maxDuration pra cada uma — senão a 1ª tentativa hipoteticamente
+    // travada consome o orçamento inteiro (vercel.json) e a reserva nunca chega a rodar
+    const hasBackupLeg = PROVIDER === 'nvidia' && !!ANTHROPIC_KEY
+    const primaryTimeout = hasBackupLeg ? 14000 : DEFAULT_TIMEOUT_MS
     const data = PROVIDER === 'nvidia'
-      ? await callNvidia({ prompt, system, temperature, max_tokens })
-      : await callAnthropic({ prompt, system, temperature, max_tokens })
+      ? await callNvidia({ prompt, system, temperature, max_tokens, timeoutMs: primaryTimeout })
+      : await callAnthropic({ prompt, system, temperature, max_tokens, timeoutMs: primaryTimeout })
     return res.json(data)
   } catch (e) {
     // se a NVIDIA falhar (chave/modelo com problema, fora do ar, etc.) mas a
@@ -223,7 +241,7 @@ export default async function handler(req, res) {
     // vez de deixar o Nyx inteiro fora do ar por causa de um único provedor.
     if (PROVIDER === 'nvidia' && ANTHROPIC_KEY) {
       try {
-        const data = await callAnthropic({ prompt, system, temperature, max_tokens })
+        const data = await callAnthropic({ prompt, system, temperature, max_tokens, timeoutMs: 14000 })
         return res.json(data)
       } catch (e2) {
         return res.status(e2.status || 500).json({ error: String(e2.message || e2) })
