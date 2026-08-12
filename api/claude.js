@@ -36,7 +36,14 @@ const NVIDIA_REASONING = /nemotron-3|reasoning|-r1/i.test(NVIDIA_MODEL)
 // normal pra responder, com folga pra ainda tentar o próximo provedor da fila dentro do maxDuration.
 const DEFAULT_TIMEOUT_MS = 25000
 
-async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning, timeoutMs }) {
+// alguns modelos (principalmente os "de raciocínio") passaram a rejeitar o parâmetro temperature
+// ("'temperature' is deprecated for this model") — quando for esse o erro específico, quem chama
+// tenta de novo sem esse campo, em vez de deixar a chamada falhar sempre pra esse modelo
+function isTemperatureError(e) {
+  return !!(e && e.status && /temperature/i.test(e.message || ''))
+}
+
+async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning, timeoutMs, skipTemperature }) {
   const finalMaxTokens = Math.min(Number(max_tokens) || 2000, 6000)
   const body = {
     model: NVIDIA_MODEL,
@@ -44,11 +51,11 @@ async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasonin
       { role: 'system', content: system || DEFAULT_SYSTEM },
       { role: 'user', content: prompt },
     ],
-    temperature: typeof temperature === 'number' ? temperature : 0.2,
     top_p: 0.95,
     max_tokens: finalMaxTokens,
     stream: false,
   }
+  if (!skipTemperature) body.temperature = typeof temperature === 'number' ? temperature : 0.2
   if (reasoning) {
     // Equivalente ao `extra_body` do SDK Python: os campos vão soltos no JSON,
     // não aninhados — é assim que a API da NVIDIA espera recebê-los.
@@ -69,7 +76,11 @@ async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasonin
   const data = await resp.json().catch(() => ({}))
   if (!resp.ok) {
     const msg = data?.error?.message || data?.message || `NVIDIA API error ${resp.status}`
-    throw Object.assign(new Error(msg), { status: resp.status })
+    const err = Object.assign(new Error(msg), { status: resp.status })
+    if (!skipTemperature && isTemperatureError(err)) {
+      return callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning, timeoutMs, skipTemperature: true })
+    }
+    throw err
   }
   // O texto final vem em message.content; message.reasoning_content (se vier)
   // é só o "pensamento" interno do modelo e não deve aparecer para o aluno.
@@ -92,7 +103,17 @@ async function callNvidia(args) {
   }
 }
 
-async function callOpenRouter({ prompt, system, temperature, max_tokens, timeoutMs }) {
+async function callOpenRouter({ prompt, system, temperature, max_tokens, timeoutMs, skipTemperature }) {
+  const body = {
+    model: OPENROUTER_MODEL,
+    messages: [
+      { role: 'system', content: system || DEFAULT_SYSTEM },
+      { role: 'user', content: prompt },
+    ],
+    max_tokens: Math.min(Number(max_tokens) || 2000, 4000),
+  }
+  if (!skipTemperature) body.temperature = typeof temperature === 'number' ? temperature : 0.2
+
   const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -102,21 +123,17 @@ async function callOpenRouter({ prompt, system, temperature, max_tokens, timeout
       'HTTP-Referer': 'https://aula-c.vercel.app',
       'X-Title': 'Aula de C# — Nyx',
     },
-    body: JSON.stringify({
-      model: OPENROUTER_MODEL,
-      messages: [
-        { role: 'system', content: system || DEFAULT_SYSTEM },
-        { role: 'user', content: prompt },
-      ],
-      temperature: typeof temperature === 'number' ? temperature : 0.2,
-      max_tokens: Math.min(Number(max_tokens) || 2000, 4000),
-    }),
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs || DEFAULT_TIMEOUT_MS),
   })
   const data = await resp.json().catch(() => ({}))
   if (!resp.ok) {
     const msg = data?.error?.message || data?.message || `OpenRouter API error ${resp.status}`
-    throw Object.assign(new Error(msg), { status: resp.status })
+    const err = Object.assign(new Error(msg), { status: resp.status })
+    if (!skipTemperature && isTemperatureError(err)) {
+      return callOpenRouter({ prompt, system, temperature, max_tokens, timeoutMs, skipTemperature: true })
+    }
+    throw err
   }
   const text = data?.choices?.[0]?.message?.content || ''
   return { content: [{ type: 'text', text }] }
