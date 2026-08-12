@@ -680,7 +680,21 @@ const aiHealthProviderKey = (provider) => `ai:health:${provider}`
 // o Nyx de verdade fora do ar.
 export async function reportAiHealth(ok, provider, global = true) {
   if (global) {
-    try { await kvCall({ action: 'set', key: AI_HEALTH_KEY, value: JSON.stringify({ ok, at: Date.now() }) }) } catch {}
+    try {
+      // "Reconectando Nyx" é um aviso pra sala INTEIRA — uma falha isolada de UM aluno (blip
+      // passageiro de rede, um provedor engasgando por um segundo) não deveria acender esse aviso
+      // pra todo mundo sozinha. Só conta como "Nyx caiu de vez" quando 2 chamadas SEGUIDAS falham
+      // (de qualquer aluno/professor, sem sucesso entre elas) — reseta pra 0 assim que uma dá certo.
+      let streak = 0
+      if (!ok) {
+        try {
+          const prev = await kvCall({ action: 'get', key: AI_HEALTH_KEY })
+          const prevData = prev?.value ? JSON.parse(prev.value) : null
+          streak = (prevData && prevData.ok === false ? (prevData.streak || 1) : 0) + 1
+        } catch { streak = 1 }
+      }
+      await kvCall({ action: 'set', key: AI_HEALTH_KEY, value: JSON.stringify({ ok, at: Date.now(), streak }) })
+    } catch {}
   }
   if (provider) {
     try { await kvCall({ action: 'set', key: aiHealthProviderKey(provider), value: JSON.stringify({ ok, at: Date.now() }) }) } catch {}

@@ -20,6 +20,29 @@ export function isOffline() {
 export function isNetworkError(e) {
   return isOffline() || (e && e.name === "TypeError" && /fetch/i.test(e.message || ""));
 }
+// uma tentativa crua contra /api/claude — separado do resto pra poder ser chamada de novo sozinha
+// em caso de resposta não-JSON (ver askClaude abaixo)
+async function fetchClaudeOnce(prompt, system, bodyOpts) {
+  const resp = await fetch("/api/claude", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ prompt, system, ...bodyOpts })
+  });
+  let data;
+  try { data = await resp.json(); }
+  catch {
+    // a função do servidor travou/estourou o tempo antes de responder em JSON (ex: página de
+    // erro da própria Vercel) — normalmente passageiro, quem chama tenta de novo antes de desistir
+    throw new Error('NON_JSON_RESPONSE');
+  }
+  if (data.error === 'missing_api_key') {
+    const e = new Error('ROBOTKEY_MISSING');
+    e.userMsg = data.message || 'ANTHROPIC_API_KEY não configurada no Vercel.';
+    throw e;
+  }
+  if (!resp.ok) throw new Error(data.error || `API ${resp.status}`);
+  return data;
+}
+
 // "silentHealth": true faz essa chamada NÃO acender/apagar o aviso geral de "Reconectando Nyx" —
 // só usado quando quem chama já sabe que é UMA tentativa dentro de uma sequência com fallback
 // automático (ver analyzeCode em App.jsx), pra uma falha isolada do primeiro modelo tentado não
@@ -29,17 +52,16 @@ export function isNetworkError(e) {
 export async function askClaude(prompt, system, opts = {}){
   const { silentHealth, ...bodyOpts } = opts;
   try {
-    const resp = await fetch("/api/claude", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ prompt, system, ...bodyOpts })
-    });
-    const data = await resp.json();
-    if (data.error === 'missing_api_key') {
-      const e = new Error('ROBOTKEY_MISSING');
-      e.userMsg = data.message || 'ANTHROPIC_API_KEY não configurada no Vercel.';
-      throw e;
+    let data;
+    try {
+      data = await fetchClaudeOnce(prompt, system, bodyOpts);
+    } catch (e) {
+      if (e.message !== 'NON_JSON_RESPONSE') throw e;
+      // resposta não-JSON costuma ser um timeout passageiro da função no servidor — tenta mais 1x
+      // sozinho (sem incomodar quem chamou) antes de virar de vez um "Nyx fora do ar" pra sala toda
+      try { data = await fetchClaudeOnce(prompt, system, bodyOpts); }
+      catch { throw new Error('Não consegui falar com o Nyx agora (o servidor demorou demais pra responder). Tente de novo em instantes.'); }
     }
-    if (!resp.ok) throw new Error(data.error || `API ${resp.status}`);
     reportAiHealth(true, opts.provider, !silentHealth); // avisa o painel do professor (em qualquer navegador) que o Nyx está respondendo
     return data.content?.map(b=>b.text||"").join("")||"";
   } catch (e) {

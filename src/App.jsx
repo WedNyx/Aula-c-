@@ -414,7 +414,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     const check = async () => {
       const [h, nvidia, laguna] = await Promise.all([getAiHealth(), getAiHealthByProvider("nvidia"), getAiHealthByProvider("laguna")]);
       if (!active) return;
-      setAiDown(!!h && h.ok === false && Date.now() - h.at < 5 * 60 * 1000);
+      // só acende "Reconectando Nyx" depois de 2 falhas SEGUIDAS (ver reportAiHealth em storage.js)
+      setAiDown(!!h && h.ok === false && (h.streak || 1) >= 2 && Date.now() - h.at < 5 * 60 * 1000);
       setProviderHealth({ nvidia, laguna });
     };
     check();
@@ -434,6 +435,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // anti-cola geral: true quando o professor está escrevendo em "Meu código" AGORA (não faz muito tempo)
   const [teacherWriting, setTeacherWriting] = useState(false);
   const [duelWins, setDuelWins] = useState(0);
+  // anti-cola: quantas linhas não-vazias o aluno colou (Ctrl+V/menu) no próprio editor, cumulativo —
+  // usado pra tirar do cálculo da conquista "Arquiteto de Código" o que ele colou pronto em vez de escrever
+  const [pastedLines, setPastedLines] = useState(0);
   const [showFreeBuild, setShowFreeBuild] = useState(false);
   const [weeklyChallenge, setWeeklyChallenge] = useState(null);
   // conquistas, ranking, meta da turma, curiosidade do dia, duelo, sons
@@ -535,7 +539,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -700,6 +704,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       cpf: s.cpf || "",
       achievements: s.achievements || [],
       duelWins: s.duelWins || 0,
+      pastedLines: s.pastedLines || 0,
       weeklyChallenge: s.weeklyChallenge || null,
       doneAt: s.doneAt || null,
       daySnapshot: daySnapshotRef.current || null,
@@ -1235,6 +1240,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.nyxPoints) setNyxPoints(prev.nyxPoints);
           if (prev.nyxSpent) setNyxSpent(prev.nyxSpent);
           if (prev.duelWins) setDuelWins(prev.duelWins);
+          if (prev.pastedLines) setPastedLines(prev.pastedLines);
           if (prev.weeklyChallenge) setWeeklyChallenge(prev.weeklyChallenge);
           if (prev.nyxGear) {
             // migra quem já tinha o escudo equipado ANTES da correção (quando ele dividia o mesmo
@@ -1643,9 +1649,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const presences = Object.values(attendanceRef.current).filter(v => v === "present").length;
       if (presences >= 5) unlockAchievement("presencas-5");
       if (presences >= 15) unlockAchievement("presencas-15");
-      // 🏗️ Arquiteto de Código: 100 linhas de verdade (não vazias) somando todos os arquivos
+      // 🏗️ Arquiteto de Código: 100 linhas de verdade (não vazias) somando todos os arquivos — linhas
+      // COLADAS (Ctrl+V) não contam, só o que o aluno realmente escreveu (ver handleEditorPaste)
       const totalLines = (s.files || []).reduce((n, f) => n + (f.code ? f.code.split("\n").filter(l => l.trim()).length : 0), 0);
-      if (totalLines >= 100) unlockAchievement("cem-linhas");
+      const typedLines = Math.max(0, totalLines - (s.pastedLines || 0));
+      if (typedLines >= 100) unlockAchievement("cem-linhas");
     };
     tick();
     const iv = setInterval(tick, 12000);
@@ -1908,6 +1916,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // arquivos — na sala de linguagens a extensão padrão acompanha a linguagem escolhida (.html/.css/.php/.js)
   const fileExt = studyLang ? `.${studyLang.fileName.split(".").pop()}` : ".cs";
   const updateActiveCode = (newCode) => setFiles(fs => fs.map((f,i)=> i===active ? { ...f, code:newCode } : f));
+  // anti-cola: soma quantas linhas não-vazias vieram de um Ctrl+V no editor (cumulativo, nunca some) —
+  // usado só pra tirar da conta da conquista "Arquiteto de Código" (ver tick() acima), não bloqueia nada
+  const handleEditorPaste = (text) => {
+    const n = String(text || "").split("\n").filter(l => l.trim()).length;
+    if (n > 0) setPastedLines(p => p + n);
+  };
   const uniqueName = (base, ignoreIdx=-1) => {
     let name = base, n = 2;
     const extRe = new RegExp(`\\${fileExt}$`, "i");
@@ -3603,7 +3617,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
 
               <div data-tour="editor">
-                <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} errorLines={errorLinesForEditor} locked={(analyzing && lockDuringAnalysis) || keyboardLocked} lockMessage={keyboardLocked ? "🔒 O professor travou o teclado — espere ele liberar de novo" : undefined} />
+                <VSEditor value={activeCode} onChange={updateActiveCode} onPasteText={handleEditorPaste} filename={files[active]?.name} errorLines={errorLinesForEditor} locked={(analyzing && lockDuringAnalysis) || keyboardLocked} lockMessage={keyboardLocked ? "🔒 O professor travou o teclado — espere ele liberar de novo" : undefined} />
               </div>
 
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
@@ -4798,7 +4812,9 @@ function TeacherView({ onLogout, teacherAuth }) {
     const check = async () => {
       const h = await getAiHealth();
       if (!active) return;
-      setAiDown(!!h && h.ok === false && Date.now() - h.at < 5 * 60 * 1000);
+      // só acende "Reconectando Nyx" pra sala inteira depois de 2 falhas SEGUIDAS (ver
+      // reportAiHealth em storage.js) — uma falha isolada não é motivo pra alarmar todo mundo
+      setAiDown(!!h && h.ok === false && (h.streak || 1) >= 2 && Date.now() - h.at < 5 * 60 * 1000);
     };
     check();
     const iv = setInterval(check, 10000);
