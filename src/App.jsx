@@ -4680,9 +4680,12 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [showModels, setShowModels] = useState(false);
   // 🧠 conteúdo pronto por aula salva (nome + explicação + resumo + atividade), gerado 1x pelo
   // professor e reaproveitado depois sempre que o MESMO código dessa aula estiver em uso — em vez
-  // de pedir tudo de novo pro Nyx toda vez (ver findMatchingLesson, usado em computeContentName,
-  // exportPDF/exportDailyPDF e no handleSave do aluno)
+  // de pedir tudo de novo pro Nyx toda vez (ver findMatchingLesson, usado em computeContentName e
+  // no handleSave do aluno)
   const [lessonGenBusy, setLessonGenBusy] = useState(null);
+  // 📥 importar conteúdo já pronto (de um PDF/material antigo, por exemplo) sem chamar o Nyx nenhuma vez
+  const [showImportLesson, setShowImportLesson] = useState(null);
+  const [importText, setImportText] = useState("");
   const [backupBusy, setBackupBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -6265,35 +6268,52 @@ function TeacherView({ onLogout, teacherAuth }) {
     await saveTeacherLessons(next, teacherAuth);
   };
 
-  // 🧠 gera, DE UMA VEZ, o nome do conteúdo + explicação (pro PDF) + resumo e atividade (pro aluno)
-  // dessa aula salva, e guarda tudo junto com ela na biblioteca. Sempre que esse MESMO código for
-  // usado de novo — em qualquer turma, em qualquer dia — computeContentName/exportPDF/exportDailyPDF
-  // e o handleSave do aluno reaproveitam esse conteúdo pronto em vez de pedir tudo de novo pro Nyx.
-  const generateLessonContent = async (idx) => {
+  const lessonContentDone = (lesson) => ({
+    contentName: !!lesson.contentName,
+    explain: !!lesson.explain,
+    resumo: !!lesson.resumo,
+    atividade: Array.isArray(lesson.atividade) && lesson.atividade.length > 0,
+  });
+
+  // 🧠 gera o nome do conteúdo + explicação (pro PDF) + resumo e atividade (pro aluno) dessa aula
+  // salva, e guarda tudo junto com ela na biblioteca. Sempre que esse MESMO código for usado de novo
+  // — em qualquer turma, em qualquer dia — computeContentName e o handleSave do aluno reaproveitam
+  // esse conteúdo pronto em vez de pedir tudo de novo pro Nyx. Por padrão só pede ao Nyx os campos
+  // que AINDA FALTAM (ex: depois de um "📥 Importar" que só trouxe nome+explicação, só gera
+  // resumo+atividade); force=true ignora o que já existe e regenera tudo.
+  const generateLessonContent = async (idx, force = false) => {
     const lesson = myLessons[idx];
     if (!lesson || lessonGenBusy != null) return;
+    const done = lessonContentDone(lesson);
+    const need = {
+      contentName: force || !done.contentName,
+      explain: force || !done.explain,
+      resumo: force || !done.resumo,
+      atividade: force || !done.atividade,
+    };
+    if (!need.contentName && !need.explain && !need.resumo && !need.atividade) return;
     setLessonGenBusy(idx);
     try {
       const code = lesson.files.filter(f => (f.code||"").trim()).map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n");
       const summaryReq = buildSummaryRequest("simples", false, code, code, null, null);
       const [contentNameOut, explainOut, resumoOut, atividadeOut] = await Promise.all([
-        askClaude(
+        need.contentName ? askClaude(
           `Este é o código C# de uma aula:\n\n${code}\n\nANALISE o código com atenção antes de nomear: identifique quais conceitos aparecem de verdade e qual deles é o protagonista da aula.\n\nDepois, gere um NOME DE CONTEÚDO criativo e descritivo para esta aula, em português, que dê orgulho de aparecer no calendário do curso. Pode usar até 12 palavras — capriche: nada de nome genérico tipo "Aula de C#".\n\nResponda APENAS com o nome do conteúdo, sem aspas e sem ponto final.`,
           "Você é um professor criativo que nomeia conteúdos de aulas de C# para iniciantes. Analise o código de verdade e crie um nome específico e caprichado. Responda só com o nome."
-        ),
-        askClaudeJson(
+        ) : Promise.resolve(lesson.contentName),
+        need.explain ? askClaudeJson(
           `Este é o código C# completo de uma aula:\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie uma explicação COMPLETA e didática desse código, para iniciantes que vão receber este material por escrito e estudar sozinhos. Percorra o código NA ORDEM em que ele aparece. NÃO resuma demais nem pule partes só porque parecem simples — se apareceu no código, precisa ter uma seção explicando.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 a 2 frases dizendo o que esse código faz como um todo",\n  "secoes": [ { "titulo": "nome curto do conceito/parte", "explicacao": "explicação clara de 2 a 4 frases, em português simples", "exemplo": "trecho C# bem curto ilustrando (opcional — use \\n para quebrar linha)" } ],\n  "dica": "1 frase final incentivando o estudo"\n}\n\nNão tem número fixo de seções: crie quantas forem necessárias pra cobrir TODOS os conceitos e partes importantes de verdade.`,
           "Você é um professor de C# paciente escrevendo um material de estudo completo por escrito para iniciantes — cobre tudo que foi visto, sem cortar conteúdo pra deixar o material curto. Português correto e simples. Responda APENAS JSON puro válido.",
           { max_tokens: 6000 }
-        ),
-        askClaudeJson(summaryReq.prompt, summaryReq.system),
-        askClaudeJson(
+        ) : Promise.resolve(lesson.explain),
+        need.resumo ? askClaudeJson(summaryReq.prompt, summaryReq.system) : Promise.resolve(lesson.resumo),
+        need.atividade ? askClaudeJson(
           `Este código C# é o material de uma aula pra alunos iniciantes:\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie 8 questões de múltipla escolha focadas em CONCEITOS DE CÓDIGO que aparecem nesse material: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
           "Crie questões sobre conceitos de código C#, não matemática. APENAS JSON puro."
-        ),
+        ) : Promise.resolve({ questions: lesson.atividade }),
       ]);
-      const contentName = contentNameOut.replace(/["\n`]/g,"").trim().slice(0,110);
-      const atividade = filterValidQuestions(Array.isArray(atividadeOut.questions) ? atividadeOut.questions : []);
+      const contentName = need.contentName ? contentNameOut.replace(/["\n`]/g,"").trim().slice(0,110) : lesson.contentName;
+      const atividade = need.atividade ? filterValidQuestions(Array.isArray(atividadeOut.questions) ? atividadeOut.questions : []) : lesson.atividade;
       const next = myLessons.map((l,i) => i===idx ? { ...l, contentName, explain: explainOut, resumo: resumoOut, atividade } : l);
       setMyLessons(next);
       await saveTeacherLessons(next, teacherAuth);
@@ -6304,6 +6324,29 @@ function TeacherView({ onLogout, teacherAuth }) {
       setTimeout(()=>setNameMsg(""), 6000);
     }
     setLessonGenBusy(null);
+  };
+
+  // 📥 importa conteúdo JÁ ESCRITO (de um PDF/material de uma turma anterior, por exemplo) direto
+  // pra dentro da aula salva, SEM chamar o Nyx nenhuma vez — só os campos presentes no JSON colado
+  // são preenchidos, o resto continua como estava (pode completar depois com "Gerar conteúdo pronto").
+  const importLessonContent = async (idx) => {
+    const lesson = myLessons[idx];
+    if (!lesson) return;
+    let parsed;
+    try { parsed = JSON.parse(importText); } catch { setNameMsg("❌ JSON inválido — confira o texto colado."); setTimeout(()=>setNameMsg(""), 6000); return; }
+    const patch = {};
+    if (typeof parsed.contentName === "string" && parsed.contentName.trim()) patch.contentName = parsed.contentName.trim().slice(0,110);
+    if (parsed.explain && typeof parsed.explain === "object") patch.explain = parsed.explain;
+    if (parsed.resumo && typeof parsed.resumo === "object") patch.resumo = parsed.resumo;
+    if (Array.isArray(parsed.atividade)) patch.atividade = filterValidQuestions(parsed.atividade);
+    if (Object.keys(patch).length === 0) { setNameMsg("⚠ Nenhum campo reconhecido no JSON (use contentName/explain/resumo/atividade)."); setTimeout(()=>setNameMsg(""), 6000); return; }
+    const next = myLessons.map((l,i) => i===idx ? { ...l, ...patch } : l);
+    setMyLessons(next);
+    await saveTeacherLessons(next, teacherAuth);
+    setShowImportLesson(null);
+    setImportText("");
+    setNameMsg(`✅ Conteúdo importado pra "${lesson.title}" sem gastar o Nyx.`);
+    setTimeout(()=>setNameMsg(""), 8000);
   };
 
   // 📦 backup completo: baixa tudo do banco num JSON (seguro antes de resetar/trocar de cidade)
@@ -6617,21 +6660,30 @@ function TeacherView({ onLogout, teacherAuth }) {
               <p style={{ color:"#776798", fontSize:13, marginBottom:14 }}>Você ainda não salvou nenhuma aula. Programe na aba Meu código e clique em Salvar acima — ela aparece aqui pra sempre.</p>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
-                {myLessons.map((lesson, li) => (
+                {myLessons.map((lesson, li) => {
+                  const done = lessonContentDone(lesson);
+                  const allDone = done.contentName && done.explain && done.resumo && done.atividade;
+                  const anyDone = done.contentName || done.explain || done.resumo || done.atividade;
+                  const genLabel = lessonGenBusy===li ? "🧠 Gerando..." : allDone ? "🔄 Atualizar tudo" : anyDone ? "🧠 Completar conteúdo" : "🧠 Gerar conteúdo pronto";
+                  return (
                   <div key={li} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"10px 14px", flexWrap:"wrap" }}>
                     <div style={{ flex:"1 1 220px" }}>
                       <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
                       <p style={{ color:"#776798", fontSize:11.5, margin:"3px 0 0" }}>salva em {new Date(lesson.at).toLocaleDateString("pt-BR")} · {lesson.files.length} arquivo{lesson.files.length!==1?"s":""}</p>
-                      {lesson.contentName
+                      {allDone
                         ? <span title="Nome, explicação, resumo e atividade prontos — reaproveitados sozinhos toda vez que essa aula for usada, sem gastar o Nyx de novo" style={{ display:"inline-block", marginTop:5, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:20, padding:"1px 9px", fontSize:10.5, fontWeight:800 }}>🧠 Conteúdo pronto</span>
+                        : anyDone
+                        ? <span title="Só uma parte do conteúdo está pronta ainda" style={{ display:"inline-block", marginTop:5, background:"#fbbf2422", border:"1px solid #fbbf24", color:"#fbbf24", borderRadius:20, padding:"1px 9px", fontSize:10.5, fontWeight:800 }}>🧩 Conteúdo parcial</span>
                         : <span style={{ display:"inline-block", marginTop:5, color:"#776798", fontSize:10.5 }}>Sem conteúdo pronto ainda</span>}
                     </div>
-                    <button onClick={()=>generateLessonContent(li)} disabled={lessonGenBusy!=null} title="Gera o nome, a explicação, o resumo e a atividade dessa aula de uma vez, e guarda pronto — reaproveitado sozinho toda vez que esse código for usado de novo" style={{ ...styles.btn("#c084fc"), padding:"7px 12px", fontSize:12, opacity:lessonGenBusy!=null?0.6:1 }}>{lessonGenBusy===li ? "🧠 Gerando..." : lesson.contentName ? "🔄 Atualizar" : "🧠 Gerar conteúdo pronto"}</button>
+                    <button onClick={()=>generateLessonContent(li, allDone)} disabled={lessonGenBusy!=null} title="Gera (só o que ainda falta) o nome, a explicação, o resumo e a atividade dessa aula, e guarda pronto — reaproveitado sozinho toda vez que esse código for usado de novo" style={{ ...styles.btn("#c084fc"), padding:"7px 12px", fontSize:12, opacity:lessonGenBusy!=null?0.6:1 }}>{genLabel}</button>
+                    <button onClick={()=>{ setShowImportLesson(li); setImportText(""); }} disabled={lessonGenBusy!=null} title="Cole um JSON com conteúdo já pronto (de um PDF/material antigo, por exemplo) sem gastar o Nyx" style={{ background:"transparent", border:"1px solid #22d3ee", color:"#22d3ee", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer" }}>📥 Importar</button>
                     <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift, turmas).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
                       style={{ ...styles.btn("#34d399"), padding:"7px 14px", fontSize:12.5 }}>Usar esta aula →</button>
                     <button onClick={()=>deleteLesson(li)} title="Excluir esta aula da biblioteca" style={{ background:"transparent", border:"1px solid #f8717155", color:"#f87171", borderRadius:8, padding:"6px 10px", fontSize:12, cursor:"pointer" }}>✕</button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -6653,6 +6705,24 @@ function TeacherView({ onLogout, teacherAuth }) {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 📥 importar conteúdo já pronto (colado como JSON) sem chamar o Nyx */}
+      {showImportLesson != null && myLessons[showImportLesson] && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:560, width:"100%", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+              <h2 style={{ margin:0, fontSize:18, fontWeight:900, color:"#22d3ee" }}>📥 Importar conteúdo pronto</h2>
+              <button onClick={()=>{ setShowImportLesson(null); setImportText(""); }} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+            </div>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 12px" }}>
+              Pra "{myLessons[showImportLesson].title}". Cole um JSON com o conteúdo que você já tem pronto (de um PDF ou material de uma turma anterior, por exemplo) — nenhuma chamada ao Nyx é feita. Só os campos presentes são preenchidos; o resto pode ser completado depois com "Gerar conteúdo pronto".
+            </p>
+            <textarea value={importText} onChange={e=>setImportText(e.target.value)} placeholder={'{\n  "contentName": "...",\n  "explain": { "intro": "...", "secoes": [...], "dica": "..." },\n  "resumo": { "intro": "...", "secoes": [...], "dica": "..." },\n  "atividade": [ { "q": "...", "opts": ["A","B","C","D"], "correct": 0 } ]\n}'}
+              rows={10} style={{ width:"100%", background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"10px 12px", color:"#f0e9fb", fontSize:12.5, fontFamily:"monospace", outline:"none", resize:"vertical", boxSizing:"border-box" }} />
+            <button onClick={()=>importLessonContent(showImportLesson)} disabled={!importText.trim()} style={{ ...styles.btn("#22d3ee"), width:"100%", padding:"9px 0", fontSize:13, marginTop:12, opacity:importText.trim()?1:0.6 }}>📥 Importar sem gastar o Nyx</button>
           </div>
         </div>
       )}
