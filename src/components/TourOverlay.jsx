@@ -15,9 +15,8 @@ export const TOUR_STEPS = [
   { sel:'[data-tour="terminal"]', emoji:"⌨️", title:"Terminal como o do VS Code", text:"Digite dotnet run e aperte Enter para executar seu programa! Também tem dotnet build, dir, cls e ajuda. Quando o programa pedir algo, é só digitar." },
   { sel:'[data-tour="salvar"]',   emoji:"📚", title:"Resumo da aula",        text:"Não precisa clicar em nada! Quando o professor liberar o resumo da turma, eu crio um resumo da aula e uma atividade feita só para você, na hora." },
   { sel:'[data-tour="turma"]',    emoji:"🏆", title:"Turma & Você",           text:"Aqui você acompanha o ranking da turma, suas conquistas, o caderno de resumos, seu desempenho, duelos contra colegas e a corrida de digitação!" },
-  { sel:'[data-tour="tema"]',     emoji:"🎨", title:"Tema do fundo",         text:"Prefere claro ou escuro? Troque aqui. Quer outra cor? É só me pedir no chat que eu mudo para você!" },
+  { sel:'[data-tour="tema"]',     emoji:"🎨", title:"Tema do fundo",         text:"Prefere claro ou escuro? Troque aqui. E logo do lado tem o botão 🎨 Cores, pra pintar o fundo da cor que você quiser!" },
   { sel:'[data-tour="acessibilidade"]', emoji:"♿", title:"Deixe do seu jeito", text:"Letras maiores, eu lendo tudo em voz alta com a voz que você escolher, ou tela cheia — esses botões deixam a plataforma mais confortável pra você." },
-  { sel:'[data-tour="chat"]',     emoji:"💬", title:"Fale comigo!",          text:"Qualquer dúvida de C#, abre este botão e conversa comigo. Estou sempre por aqui. Bora programar? 🚀" },
 ];
 
 // tour do painel do professor — acionado por um botão (🧭 Tour), não aparece sozinho. Cada passo diz

@@ -9,6 +9,7 @@ import { setSoundsCalm, playSound, setSoundsMuted, loadSoundsMuted, CONFETTI_COL
 import { codeBackupKey, saveCodeBackupLocal, loadCodeBackupLocal } from "./lib/codeBackup.ts";
 import { listPtVoices, bestPtVoice, useSpeech } from "./lib/speech.js";
 import { VoicePickerModal } from "./components/VoicePickerModal.jsx";
+import { ColorPickerModal } from "./components/ColorPickerModal.jsx";
 import { KEY_IMAGES, KeyVisual } from "./components/KeyVisual.jsx";
 import { NYX_ITEMS, DEFAULT_NYX_GEAR, NyxRobot } from "./components/NyxRobot.jsx";
 import { PerformanceChart } from "./components/PerformanceChart.jsx";
@@ -42,6 +43,9 @@ import { BossStudyModal, LearningTrailModal, NextStepsModal, NotebookModal, Chec
 import { TypingRaceModal, FreeBuildModal, DuelModal, TeamDuelModal, KnowledgeTestModal } from "./components/GameModals.jsx";
 import { MobileMonitorView } from "./components/MobileMonitor.jsx";
 
+// desliga o "aquecimento" (revisão automática que chamava o Nyx sozinha, sem clique nenhum) —
+// ver o useEffect que usa essa flag, dentro de StudentView
+const WARMUP_ENABLED = false;
 
 // caderno: lista os resumos por data e mostra o escolhido
 // ── 🔮 Nyx Vidente: previsão do dia, maluca e personalizada (determinística: nome+data → mesma previsão o dia todo) ──
@@ -473,6 +477,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [showNextSteps, setShowNextSteps] = useState(false);
   // seletor de voz da leitura em voz alta (🗣️ no cabeçalho)
   const [showVoicePicker, setShowVoicePicker] = useState(false);
+  // seletor de cor do fundo (🎨 no cabeçalho) — direto, sem passar pelo chat do Nyx
+  const [showColorPicker, setShowColorPicker] = useState(false);
   // festa quando a turma sobe de nível na meta coletiva
   const [goalParty, setGoalParty] = useState(null);
   const goalLevelRef = useRef(null);
@@ -932,7 +938,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // 🔥 aquecimento do dia (revisão espaçada): assim que o aluno entra — depois do onboarding e do
   // tour — o Nyx monta 3 perguntinhas rápidas sobre o resumo da aula ANTERIOR. Concluiu, ganha
   // pontos e não aparece de novo no dia; "Agora não" também silencia pelo resto do dia.
+  // DESLIGADO (WARMUP_ENABLED=false) a pedido do professor: era a única chamada ao Nyx no app
+  // inteiro que disparava sozinha, sem NINGUÉM clicar em nada — pra economizar créditos, só o
+  // resto (sob demanda, ou liberado explicitamente pelo professor) continua gerando.
   useEffect(() => {
+    if (!WARMUP_ENABLED) return;
     if (!loaded || accessMode || phase !== "coding") return;
     if (showNyxPrefs || showIntro || tourStep >= 0) return;
     if (warmupRequestedRef.current) return;
@@ -1956,7 +1966,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   };
   const cancelRename = () => { setRenaming(null); setRenameValue(""); };
 
-  const setThemeAndSave = (t) => { setTheme(t); persist({ theme: t }); };
+  // atualiza stateRef.current na hora (não só via useEffect no próximo render) — sem isso, quando
+  // handleNyxTheme chama unlockAchievement logo em seguida, o persist() do achievement ainda vê o
+  // theme ANTIGO em stateRef.current (o React ainda não re-renderizou) e salva por cima, apagando a
+  // cor que acabou de ser escolhida — mesma classe de corrida já corrigida pro nyxPoints antes
+  const setThemeAndSave = (t) => { setTheme(t); stateRef.current = { ...stateRef.current, theme: t }; persist({ theme: t }); };
   const handleNyxTheme = (t) => { setThemeAndSave(t); if (String(t).startsWith("#")) unlockAchievement("artista"); };
 
   // 🌟 portfólio público: só o próprio aluno liga (opt-in) — o professor pode desligar se precisar
@@ -3294,6 +3308,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <span style={{ background:"#171026", border:"1px solid #3b2a58", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#a99ac9" }}>{shiftLabel(shift, myTurmas)}</span>
           {streakCount >= 2 && <span title="Dias de aula seguidos que você participou" style={{ background:"#f8717122", border:"1px solid #f87171", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#fca5a5", fontWeight:800 }}>🔥 {streakCount} dias seguidos</span>}
           <button data-tour="tema" style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
+          <button style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={()=>setShowColorPicker(true)} title="Escolher a cor do fundo">🎨 Cores</button>
           {isSpartan && (
             <button style={{ ...styles.btn("#b45309"), padding:"6px 12px", fontSize:12 }}
               onClick={()=>setThemeAndSave(theme==="spartan" ? (themeBeforeSpartan||"dark") : "spartan")}
@@ -4111,6 +4126,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {showTrail && <LearningTrailModal history={summaryHistory} onClose={()=>setShowTrail(false)} />}
       {showNextSteps && <NextStepsModal onClose={()=>setShowNextSteps(false)} />}
       {showVoicePicker && <VoicePickerModal onClose={()=>setShowVoicePicker(false)} />}
+      {showColorPicker && <ColorPickerModal current={theme} onChoose={(t)=>{ handleNyxTheme(t); setShowColorPicker(false); }} onClose={()=>setShowColorPicker(false)} />}
       {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
       {showKnowledgeTest && (
         <KnowledgeTestModal
@@ -4184,18 +4200,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           onClose={()=>setShowFreeBuild(false)}
         />
       )}
-
-      <NyxChat
-        who="student"
-        dataTour="chat"
-        gear={nyxGear}
-        accessMode={accessMode}
-        nyxPrefs={nyxPrefs}
-        language={studyLang}
-        speak={ttsAllowed ? speak : null}
-        onTheme={handleNyxTheme}
-        context={() => `Contexto: você conversa com o aluno ${studentName}. Código atual dele (${files[active]?.name || "Program.cs"}):\n${activeCode || "(vazio ainda)"}\n${robotMsg ? `Seu último aviso sobre o código: ${robotMsg}` : ""}`}
-      />
     </div>
   );
 }
@@ -4627,6 +4631,10 @@ function TeacherView({ onLogout, teacherAuth }) {
   // análise do Nyx (período + prova)
   const [examAnalysis, setExamAnalysis] = useState("");
   const [analyzingExam, setAnalyzingExam] = useState(false);
+  // 🔍 analisar o código de toda a turma de uma vez (em vez de cada aluno precisar clicar) — pensado
+  // pra economizar chamadas ao Nyx: o professor decide quando vale a pena checar todo mundo
+  const [batchAnalyzing, setBatchAnalyzing] = useState(false);
+  const [batchAnalyzeMsg, setBatchAnalyzeMsg] = useState("");
   // saúde do Nyx: reflete a última chamada de IA de QUALQUER aluno/professor — se foi erro, mostra "Reconectando"
   const [aiDown, setAiDown] = useState(false);
   // telão da turma: tela cheia só de visualização, pra projetar (ranking, meta, combos)
@@ -6026,6 +6034,40 @@ function TeacherView({ onLogout, teacherAuth }) {
     setAnalyzingExam(false);
   };
 
+  // 🔍 analisa o código de todo mundo que está sendo mostrado agora (respeita o filtro de turma) de
+  // uma vez só, em vez de cada aluno precisar clicar "Analisar código" — pensado pra quando o
+  // professor prefere controlar quando o Nyx é chamado, em vez de deixar sob demanda de cada um.
+  // Não conta como erro no histórico de mérito do aluno (isso é só um retrato de agora, tirado pelo
+  // professor — o errorHistory reflete o próprio processo de tentativa do aluno, não uma checagem externa).
+  const analyzeClassCode = async () => {
+    if (batchAnalyzing) return;
+    const targets = shown.filter(s => {
+      const files = Array.isArray(s.files) && s.files.length ? s.files : (s.code ? [{ name:"Program.cs", code:s.code }] : []);
+      return files.some(f => (f.code||"").trim().length >= 12);
+    });
+    if (!targets.length) { setBatchAnalyzeMsg("⚠ Ninguém com código suficiente pra analisar agora."); setTimeout(()=>setBatchAnalyzeMsg(""), 5000); return; }
+    setBatchAnalyzing(true);
+    setBatchAnalyzeMsg(`🧠 Analisando o código de ${targets.length} aluno(s)...`);
+    let okCount = 0, errCount = 0, failCount = 0;
+    await Promise.all(targets.map(async (s) => {
+      try {
+        const files = Array.isArray(s.files) && s.files.length ? s.files : [{ name:"Program.cs", code:s.code||"" }];
+        const code = files.map(f => `// ===== ${f.name} =====\n${f.code||""}`).join("\n\n");
+        const parsed = await askClaudeJson(
+          `Revise o código C# de um aluno iniciante como um COMPILADOR faria, considerando todos os arquivos do projeto dele juntos:\n\n${code}\n\nTop-level statements e ausência de using System são válidos — não são erro. Não invente erro em código correto; na dúvida real, prefira ok=true.\n\nResponda APENAS JSON puro: {"ok": true ou false, "message": "se tudo certo: elogio bem curto; se houver erro: qual é e como corrigir, em 1 a 3 frases gentis"}`,
+          CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
+          { temperature: 0 }
+        );
+        const fb = { ok: !!parsed.ok, message: parsed.message || "" };
+        await patchStudent(s.shift, s.name, { feedback: fb, hasError: !fb.ok });
+        if (fb.ok) okCount++; else errCount++;
+      } catch { failCount++; }
+    }));
+    setBatchAnalyzeMsg(`✅ ${okCount} sem erro · ⚠️ ${errCount} com erro${failCount ? ` · ❌ ${failCount} não deu pra analisar` : ""}`);
+    setBatchAnalyzing(false);
+    setTimeout(()=>setBatchAnalyzeMsg(""), 12000);
+  };
+
   const now = Date.now();
   const tk = todayKey();
   const isOnline = (s) => s.lastSeen && (now - s.lastSeen) < 30000;
@@ -6849,6 +6891,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             <div data-tour-prof="monitor-grid" className="cardfx" style={styles.card} {...(isMobileScreen ? {} : { onMouseEnter:()=>setMonitorHover(true), onMouseLeave:()=>setMonitorHover(false) })}>
               <h3 style={{ color:"#fbbf24", marginBottom:12, display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                 <span>👥 Monitoramento ({shown.length})</span>
+                <button onClick={analyzeClassCode} disabled={batchAnalyzing} title="Analisa o código de todo mundo mostrado aqui de uma vez, em vez de cada aluno precisar clicar Analisar código" style={{ ...styles.btn("#c084fc"), padding:"4px 10px", fontSize:11.5, opacity:batchAnalyzing?0.6:1 }}>{batchAnalyzing?"🧠 Analisando...":"🔍 Analisar turma"}</button>
                 {isMobileScreen && monitorHover && (
                   <button onClick={()=>setMonitorHover(false)} style={{ background:"transparent", border:"1px solid #3b2a58", color:"#a99ac9", borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>🙈 Ocultar</button>
                 )}
@@ -6873,6 +6916,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   </div>
                 )}
               </h3>
+              {batchAnalyzeMsg && <p style={{ color:batchAnalyzeMsg.startsWith("⚠")?"#fbbf24":"#a99ac9", fontSize:12, margin:"-6px 0 10px" }}>{batchAnalyzeMsg}</p>}
               {shown.length===0 && <p style={{ color:"#776798", fontSize:13 }}>{students.length===0 ? "Aguardando alunos entrarem..." : "Nenhum aluno nesta turma. Veja outra turma no filtro acima."}</p>}
               {shown.length > 0 && !monitorHover && (
                 <div onClick={()=>setMonitorHover(true)} style={{ padding:"36px 0", textAlign:"center", color:"#776798", fontSize:13, cursor:"pointer" }}>
