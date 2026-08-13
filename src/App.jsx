@@ -18,7 +18,7 @@ import { VSEditor, CodeBlock, GUIDED_BLOCKS, GUIDED_PARTICIPATION_QUIZ } from ".
 import { Terminal } from "./components/Terminal.jsx";
 import { NyxChat } from "./components/NyxChat.jsx";
 import { TOUR_STEPS, TEACHER_TOUR_STEPS, TourOverlay } from "./components/TourOverlay.jsx";
-import { codeForSpeech, useViewportWidth, computeStreak, shuffleQuestions, filterValidQuestions, isDoneActive, gradeInfo, quickCheck } from "./lib/utils.js";
+import { codeForSpeech, useViewportWidth, computeStreak, shuffleQuestions, filterValidQuestions, isDoneActive, gradeInfo, quickCheck, findMatchingLesson } from "./lib/utils.js";
 import { ACHIEVEMENTS, ALL_EGG_ACHIEVEMENT_IDS, achievementInfo, visibleAchievements, CLASS_GOALS, classGoalProgress } from "./lib/achievements.ts";
 import { generateRelatorioDocx, downloadRelatorioDocx } from "./lib/reportDocx.js";
 import { CS_SYSTEM, RUN_SYSTEM, nyxPrefsInstruction, NYX_FUN_SYSTEM, NYX_GUIDED_SYSTEM } from "./lib/ai-prompts.ts";
@@ -2274,23 +2274,48 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         adaptiveTier === "baixa" ? `\n\nComo esse aluno tem tido dificuldade, adicione em CADA questão um campo "dica": uma frase curta que ajuda a lembrar do conceito certo SEM entregar qual alternativa é a correta.` :
         adaptiveTier === "alta" ? `\n\nComo esse aluno tem ido muito bem, crie TAMBÉM UMA questão BÔNUS a mais (além das ${ownPace ? "4" : "8"} normais), mais desafiadora que as outras, marcada com "bonus": true no JSON — ela é opcional pro aluno, vale um ponto extra se acertar e não desconta nada se ele pular ou errar.` :
         "";
-      // resumo e atividade são pedidos ao Nyx AO MESMO TEMPO (não um depois do outro) para não somar o tempo de espera dos dois
-      const [summaryResult, activityResult] = await Promise.all([
-        askClaude(simpleReq.prompt, simpleReq.system),
-        askClaude(
-          `Um aluno de ${studyLang ? studyLang.label : "C#"} escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`${studyLang ? studyLang.codeLang : "csharp"}\n${fullCode}\n\`\`\`\n\nCrie ${ownPace ? "4" : "8"} questões de múltipla escolha${ownPace ? " BEM diretas e fáceis (uma ideia por questão, frases curtas)" : ""} focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.${difficultyHint || ""}${adaptiveExtra}\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0,"dica":"(opcional, só se pedido acima) dica que não entrega a resposta","bonus":false}]}`,
-          `Crie questões sobre conceitos de código ${studyLang ? studyLang.label : "C#"}, não matemática. APENAS JSON puro.`
-        ),
-      ]);
-      let summaryData;
-      try { summaryData = extractJson(summaryResult); }
-      catch {
-        // primeira resposta veio malformada — insiste uma vez em JSON puro em vez de cair pro texto
-        // cru da IA (era isso que aparecia como "escrita confusa" pro aluno)
+      // essa aula (o código que o professor passou HOJE pra esse turno) já tem resumo e atividade
+      // prontos na biblioteca "Minhas aulas" dele? só reaproveita no caso simples (sem continuação/
+      // ponte de dias, sem dificuldade adaptativa — esses casos continuam personalizados por aluno,
+      // como sempre) — economiza as 2 chamadas ao Nyx pra CADA aluno da turma que usa esse material
+      let matchedLesson = null;
+      if (!isContinuation && !difficultyHint && !adaptiveTier) {
         try {
-          const retryResult = await askClaude(simpleReq.prompt + "\n\nATENÇÃO: responda SOMENTE o objeto JSON válido, sem nenhum texto antes ou depois.", simpleReq.system);
-          summaryData = extractJson(retryResult);
-        } catch { summaryData = null; }
+          const [teacherCode, lessons] = await Promise.all([getTeacherCode(shift), getTeacherLessons()]);
+          matchedLesson = teacherCode ? findMatchingLesson(lessons, teacherCode.files) : null;
+        } catch { matchedLesson = null; }
+      }
+      const hasReadyContent = matchedLesson?.resumo && Array.isArray(matchedLesson?.atividade) && matchedLesson.atividade.length > 0;
+
+      let summaryData, questions;
+      if (hasReadyContent) {
+        summaryData = matchedLesson.resumo;
+        questions = shuffleQuestions(matchedLesson.atividade);
+      } else {
+        // resumo e atividade são pedidos ao Nyx AO MESMO TEMPO (não um depois do outro) para não somar o tempo de espera dos dois
+        const [summaryResult, activityResult] = await Promise.all([
+          askClaude(simpleReq.prompt, simpleReq.system),
+          askClaude(
+            `Um aluno de ${studyLang ? studyLang.label : "C#"} escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`${studyLang ? studyLang.codeLang : "csharp"}\n${fullCode}\n\`\`\`\n\nCrie ${ownPace ? "4" : "8"} questões de múltipla escolha${ownPace ? " BEM diretas e fáceis (uma ideia por questão, frases curtas)" : ""} focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.${difficultyHint || ""}${adaptiveExtra}\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0,"dica":"(opcional, só se pedido acima) dica que não entrega a resposta","bonus":false}]}`,
+            `Crie questões sobre conceitos de código ${studyLang ? studyLang.label : "C#"}, não matemática. APENAS JSON puro.`
+          ),
+        ]);
+        try { summaryData = extractJson(summaryResult); }
+        catch {
+          // primeira resposta veio malformada — insiste uma vez em JSON puro em vez de cair pro texto
+          // cru da IA (era isso que aparecia como "escrita confusa" pro aluno)
+          try {
+            const retryResult = await askClaude(simpleReq.prompt + "\n\nATENÇÃO: responda SOMENTE o objeto JSON válido, sem nenhum texto antes ou depois.", simpleReq.system);
+            summaryData = extractJson(retryResult);
+          } catch { summaryData = null; }
+        }
+        const parsed = extractJson(activityResult);
+        const rawQuestions = Array.isArray(parsed.questions) ? parsed.questions : [];
+        const validQuestions = filterValidQuestions(rawQuestions);
+        if (validQuestions.length < rawQuestions.length) {
+          reportClientError({ message: `Atividade de ${studentName} (${shift}): ${rawQuestions.length - validQuestions.length} questão(ões) geradas sem gabarito válido foram descartadas automaticamente, sem penalizar o aluno.`, url: window.location.pathname, role: "sistema" });
+        }
+        questions = shuffleQuestions(validQuestions);
       }
       // continuação do MESMO dia: soma no resumo de hoje que já existia (mesmo registro). Ponte de
       // dias anteriores: o resumo de hoje é só o que foi gerado agora (o resumo antigo continua
@@ -2300,13 +2325,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         ? (summaryData ? mergeSummaryContinuation(existingSummary, summaryData) : existingSummary)
         : (summaryData || { secoes: [] });
       setDynamicSummary(finalSummary);
-      const parsed = extractJson(activityResult);
-      const rawQuestions = Array.isArray(parsed.questions) ? parsed.questions : [];
-      const validQuestions = filterValidQuestions(rawQuestions);
-      if (validQuestions.length < rawQuestions.length) {
-        reportClientError({ message: `Atividade de ${studentName} (${shift}): ${rawQuestions.length - validQuestions.length} questão(ões) geradas sem gabarito válido foram descartadas automaticamente, sem penalizar o aluno.`, url: window.location.pathname, role: "sistema" });
-      }
-      const questions = shuffleQuestions(validQuestions);
       setDynamicActivity(questions);
       // guarda o resumo de hoje no caderno (para o aluno rever depois) e a "foto" do código
       // usada da próxima vez pra saber o que é realmente novo, se o professor passar mais coisa
@@ -4660,6 +4678,11 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [myLessons, setMyLessons] = useState([]);
   const [lessonName, setLessonName] = useState("");
   const [showModels, setShowModels] = useState(false);
+  // 🧠 conteúdo pronto por aula salva (nome + explicação + resumo + atividade), gerado 1x pelo
+  // professor e reaproveitado depois sempre que o MESMO código dessa aula estiver em uso — em vez
+  // de pedir tudo de novo pro Nyx toda vez (ver findMatchingLesson, usado em computeContentName,
+  // exportPDF/exportDailyPDF e no handleSave do aluno)
+  const [lessonGenBusy, setLessonGenBusy] = useState(null);
   const [backupBusy, setBackupBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -5180,14 +5203,21 @@ function TeacherView({ onLogout, teacherAuth }) {
       if (codes) { source = codes; origem = "alunos"; }
     }
     if (!source) throw new Error(`Programe o exemplo de ${shiftMeta(shift, turmas).label} na aba "Meu código" (ou espere os alunos dessa turma começarem a escrever).`);
-    const ctx = origem === "professor"
-      ? "Este é o código C# que o professor escreveu como exemplo na aula de hoje"
-      : "Estes são os códigos C# que os alunos escreveram na aula de hoje";
-    const out = await askClaude(
-      `${ctx}:\n\n${source}\n\nANALISE o código com atenção antes de nomear: identifique quais conceitos aparecem de verdade (tipos usados, estruturas de controle, entrada/saída, métodos, o que o programa FAZ quando roda) e qual deles é o protagonista da aula.\n\nDepois, gere um NOME DE CONTEÚDO criativo e descritivo para esta aula, em português, que dê orgulho de aparecer no calendário do curso. Pode usar até 12 palavras — capriche: nada de nome genérico tipo "Aula de C#". Bons exemplos: "Variáveis e o primeiro diálogo com o usuário", "Tomando decisões: if, else e a nota da prova", "O jogo de adivinhação: while, Random e lógica de tentativas".\n\nResponda APENAS com o nome do conteúdo, sem aspas e sem ponto final.`,
-      "Você é um professor criativo que nomeia conteúdos de aulas de C# para iniciantes. Analise o código de verdade e crie um nome específico e caprichado. Responda só com o nome."
-    );
-    const title = out.replace(/["\n`]/g,"").trim().slice(0,110);
+    // já existe uma aula salva com ESSE MESMO código, com o nome já pronto? reaproveita, sem chamar o Nyx
+    const matched = origem === "professor" ? findMatchingLesson(myLessons, proFilesByShift[shift]) : null;
+    let title;
+    if (matched?.contentName) {
+      title = matched.contentName;
+    } else {
+      const ctx = origem === "professor"
+        ? "Este é o código C# que o professor escreveu como exemplo na aula de hoje"
+        : "Estes são os códigos C# que os alunos escreveram na aula de hoje";
+      const out = await askClaude(
+        `${ctx}:\n\n${source}\n\nANALISE o código com atenção antes de nomear: identifique quais conceitos aparecem de verdade (tipos usados, estruturas de controle, entrada/saída, métodos, o que o programa FAZ quando roda) e qual deles é o protagonista da aula.\n\nDepois, gere um NOME DE CONTEÚDO criativo e descritivo para esta aula, em português, que dê orgulho de aparecer no calendário do curso. Pode usar até 12 palavras — capriche: nada de nome genérico tipo "Aula de C#". Bons exemplos: "Variáveis e o primeiro diálogo com o usuário", "Tomando decisões: if, else e a nota da prova", "O jogo de adivinhação: while, Random e lógica de tentativas".\n\nResponda APENAS com o nome do conteúdo, sem aspas e sem ponto final.`,
+        "Você é um professor criativo que nomeia conteúdos de aulas de C# para iniciantes. Analise o código de verdade e crie um nome específico e caprichado. Responda só com o nome."
+      );
+      title = out.replace(/["\n`]/g,"").trim().slice(0,110);
+    }
     const nm = { ...metaRef.current, contentNames: withContentName(metaRef.current.contentNames, tk, shift, title) };
     metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth);
     return { title, origem };
@@ -6235,6 +6265,47 @@ function TeacherView({ onLogout, teacherAuth }) {
     await saveTeacherLessons(next, teacherAuth);
   };
 
+  // 🧠 gera, DE UMA VEZ, o nome do conteúdo + explicação (pro PDF) + resumo e atividade (pro aluno)
+  // dessa aula salva, e guarda tudo junto com ela na biblioteca. Sempre que esse MESMO código for
+  // usado de novo — em qualquer turma, em qualquer dia — computeContentName/exportPDF/exportDailyPDF
+  // e o handleSave do aluno reaproveitam esse conteúdo pronto em vez de pedir tudo de novo pro Nyx.
+  const generateLessonContent = async (idx) => {
+    const lesson = myLessons[idx];
+    if (!lesson || lessonGenBusy != null) return;
+    setLessonGenBusy(idx);
+    try {
+      const code = lesson.files.filter(f => (f.code||"").trim()).map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n");
+      const summaryReq = buildSummaryRequest("simples", false, code, code, null, null);
+      const [contentNameOut, explainOut, resumoOut, atividadeOut] = await Promise.all([
+        askClaude(
+          `Este é o código C# de uma aula:\n\n${code}\n\nANALISE o código com atenção antes de nomear: identifique quais conceitos aparecem de verdade e qual deles é o protagonista da aula.\n\nDepois, gere um NOME DE CONTEÚDO criativo e descritivo para esta aula, em português, que dê orgulho de aparecer no calendário do curso. Pode usar até 12 palavras — capriche: nada de nome genérico tipo "Aula de C#".\n\nResponda APENAS com o nome do conteúdo, sem aspas e sem ponto final.`,
+          "Você é um professor criativo que nomeia conteúdos de aulas de C# para iniciantes. Analise o código de verdade e crie um nome específico e caprichado. Responda só com o nome."
+        ),
+        askClaudeJson(
+          `Este é o código C# completo de uma aula:\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie uma explicação COMPLETA e didática desse código, para iniciantes que vão receber este material por escrito e estudar sozinhos. Percorra o código NA ORDEM em que ele aparece. NÃO resuma demais nem pule partes só porque parecem simples — se apareceu no código, precisa ter uma seção explicando.\n\nResponda APENAS em JSON puro válido, sem markdown:\n{\n  "intro": "1 a 2 frases dizendo o que esse código faz como um todo",\n  "secoes": [ { "titulo": "nome curto do conceito/parte", "explicacao": "explicação clara de 2 a 4 frases, em português simples", "exemplo": "trecho C# bem curto ilustrando (opcional — use \\n para quebrar linha)" } ],\n  "dica": "1 frase final incentivando o estudo"\n}\n\nNão tem número fixo de seções: crie quantas forem necessárias pra cobrir TODOS os conceitos e partes importantes de verdade.`,
+          "Você é um professor de C# paciente escrevendo um material de estudo completo por escrito para iniciantes — cobre tudo que foi visto, sem cortar conteúdo pra deixar o material curto. Português correto e simples. Responda APENAS JSON puro válido.",
+          { max_tokens: 6000 }
+        ),
+        askClaudeJson(summaryReq.prompt, summaryReq.system),
+        askClaudeJson(
+          `Este código C# é o material de uma aula pra alunos iniciantes:\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie 8 questões de múltipla escolha focadas em CONCEITOS DE CÓDIGO que aparecem nesse material: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
+          "Crie questões sobre conceitos de código C#, não matemática. APENAS JSON puro."
+        ),
+      ]);
+      const contentName = contentNameOut.replace(/["\n`]/g,"").trim().slice(0,110);
+      const atividade = filterValidQuestions(Array.isArray(atividadeOut.questions) ? atividadeOut.questions : []);
+      const next = myLessons.map((l,i) => i===idx ? { ...l, contentName, explain: explainOut, resumo: resumoOut, atividade } : l);
+      setMyLessons(next);
+      await saveTeacherLessons(next, teacherAuth);
+      setNameMsg(`✅ Conteúdo pronto gerado pra "${lesson.title}" — vai ser reaproveitado toda vez que essa aula for usada.`);
+      setTimeout(()=>setNameMsg(""), 8000);
+    } catch {
+      setNameMsg("❌ Não consegui gerar o conteúdo pronto agora. Tente de novo em instantes.");
+      setTimeout(()=>setNameMsg(""), 6000);
+    }
+    setLessonGenBusy(null);
+  };
+
   // 📦 backup completo: baixa tudo do banco num JSON (seguro antes de resetar/trocar de cidade)
   const exportBackup = async () => {
     setBackupBusy(true);
@@ -6551,7 +6622,11 @@ function TeacherView({ onLogout, teacherAuth }) {
                     <div style={{ flex:"1 1 220px" }}>
                       <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
                       <p style={{ color:"#776798", fontSize:11.5, margin:"3px 0 0" }}>salva em {new Date(lesson.at).toLocaleDateString("pt-BR")} · {lesson.files.length} arquivo{lesson.files.length!==1?"s":""}</p>
+                      {lesson.contentName
+                        ? <span title="Nome, explicação, resumo e atividade prontos — reaproveitados sozinhos toda vez que essa aula for usada, sem gastar o Nyx de novo" style={{ display:"inline-block", marginTop:5, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:20, padding:"1px 9px", fontSize:10.5, fontWeight:800 }}>🧠 Conteúdo pronto</span>
+                        : <span style={{ display:"inline-block", marginTop:5, color:"#776798", fontSize:10.5 }}>Sem conteúdo pronto ainda</span>}
                     </div>
+                    <button onClick={()=>generateLessonContent(li)} disabled={lessonGenBusy!=null} title="Gera o nome, a explicação, o resumo e a atividade dessa aula de uma vez, e guarda pronto — reaproveitado sozinho toda vez que esse código for usado de novo" style={{ ...styles.btn("#c084fc"), padding:"7px 12px", fontSize:12, opacity:lessonGenBusy!=null?0.6:1 }}>{lessonGenBusy===li ? "🧠 Gerando..." : lesson.contentName ? "🔄 Atualizar" : "🧠 Gerar conteúdo pronto"}</button>
                     <button onClick={()=>{ setProFiles(lesson.files.map(f => ({ ...f }))); setShowLessons(false); setNameMsg(`✅ "${lesson.title}" carregada na turma ${shiftMeta(codeShift, turmas).label}! O código já está no editor.`); setTimeout(()=>setNameMsg(""), 7000); }}
                       style={{ ...styles.btn("#34d399"), padding:"7px 14px", fontSize:12.5 }}>Usar esta aula →</button>
                     <button onClick={()=>deleteLesson(li)} title="Excluir esta aula da biblioteca" style={{ background:"transparent", border:"1px solid #f8717155", color:"#f87171", borderRadius:8, padding:"6px 10px", fontSize:12, cursor:"pointer" }}>✕</button>
