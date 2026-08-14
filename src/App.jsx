@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, getDailyCuriosity, setDailyCuriosity, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getTurmas, saveTurmas } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getTurmas, saveTurmas } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -21,7 +21,7 @@ import { TOUR_STEPS, TEACHER_TOUR_STEPS, TourOverlay } from "./components/TourOv
 import { codeForSpeech, useViewportWidth, computeStreak, shuffleQuestions, filterValidQuestions, isDoneActive, gradeInfo, quickCheck, findMatchingLesson } from "./lib/utils.js";
 import { ACHIEVEMENTS, ALL_EGG_ACHIEVEMENT_IDS, achievementInfo, visibleAchievements, CLASS_GOALS, classGoalProgress } from "./lib/achievements.ts";
 import { generateRelatorioDocx, downloadRelatorioDocx } from "./lib/reportDocx.js";
-import { CS_SYSTEM, RUN_SYSTEM, nyxPrefsInstruction, NYX_FUN_SYSTEM, NYX_GUIDED_SYSTEM } from "./lib/ai-prompts.ts";
+import { CS_SYSTEM, RUN_SYSTEM, nyxPrefsInstruction, NYX_GUIDED_SYSTEM } from "./lib/ai-prompts.ts";
 import { STUDY_LANGUAGES, langById, reviewChecklistFor, buildPreviewDoc, otherFilesCtx, findLineIndex } from "./lib/languages.ts";
 import { BRACKET_COLORS, highlight, highlightCSharp, highlightJS, highlightPHP, highlightCSS, highlightHTML } from "./lib/highlight.jsx";
 import { ANALYZE_PROVIDERS, PARTNER_REWARD, isOffline, isNetworkError, askClaude, extractJson, askClaudeJson, buildSummaryRequest, buildContinuationSummaryRequest, mergeSummaryContinuation, recentDifficultyHint, adaptiveDifficultyTier } from "./lib/ai.js";
@@ -48,30 +48,6 @@ import { MobileMonitorView } from "./components/MobileMonitor.jsx";
 const WARMUP_ENABLED = false;
 
 // caderno: lista os resumos por data e mostra o escolhido
-// ── 🔮 Nyx Vidente: previsão do dia, maluca e personalizada (determinística: nome+data → mesma previsão o dia todo) ──
-const VIDENTE_PREVISOES = [
-  "{nome}, os astros dizem que hoje você não vai esquecer NENHUM ponto e vírgula. Nenhum!",
-  "Sinto uma energia de nota 100 vindo na sua direção, {nome}... ela está próxima!",
-  "{nome}, a bola de cristal mostrou você encontrando um bug... e derrotando ele em segundos. 🐛⚔️",
-  "Hoje o universo conspira a favor das suas chaves { }. Elas vão fechar sozinhas, {nome}!",
-  "Vejo... vejo um combo de acertos seguidos no seu futuro, {nome}. As cartas não mentem!",
-  "{nome}, Mercúrio saiu do modo retrógrado do seu código: hoje TUDO compila de primeira!",
-  "Os espíritos do C# sussurram: '{nome} vai impressionar o professor hoje.' Eu só repito o que ouço!",
-  "Cuidado, {nome}: previsão de chuva de pontos do Nyx na sua conta ainda hoje. Leve um balde!",
-  "{nome}, hoje sua variável favorita será o double. Não me pergunte como eu sei. 🔮",
-  "A sorte do dia diz: quem digita com calma, como você fará hoje {nome}, erra menos que o compilador espera.",
-  "Vejo você descobrindo algo escondido na plataforma, {nome}... explore com atenção! 👀",
-  "{nome}, hoje seu Console.WriteLine vai imprimir coisas LENDÁRIAS. A bola de cristal nunca erra (quase).",
-  "Alerta cósmico: {nome} está 87% mais inteligente hoje. Os outros 13% chegam depois do lanche.",
-  "As estrelas formaram um 'if' no céu essa noite, {nome}. É um sinal: suas decisões de código serão perfeitas.",
-  "{nome}, sinto que um loop infinito tentará te pegar hoje... mas você vai escapar com um break elegante!",
-  "Previsão do dia: {nome} termina a atividade e ainda sobra tempo pra ajudar um colega. Que nobre!",
-  "O oráculo do .NET falou, {nome}: 'hoje é dia de código limpo e mente tranquila.'",
-  "{nome}, vejo pontos... muitos pontos... e um item novo da loja no seu futuro próximo! 🛍️",
-  "Hmm... a bola de cristal embaçou. Só consegui ver isto: {nome} + teclado = magia. ✨",
-  "Segundo meu horóscopo binário, {nome}, seu número da sorte hoje é 01000001. (É um 'A' de Aprovado!)",
-];
-function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
 
 // ── 🎁 presente misterioso do dia (aparece ao concluir a atividade, 1x por dia) ──
 const GIFT_TIERS = [
@@ -394,11 +370,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // relógio próprio (1x por segundo) só pra a contagem regressiva do intervalo/fim de aula ficar fluida
   const [clockNow, setClockNow] = useState(() => Date.now());
   useEffect(() => { const iv = setInterval(() => setClockNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
-  // 🔮 previsão do dia (dispensável; lembrada por dia no navegador, por ALUNO — mesmo motivo do
-  // aviso de retomada acima: o notebook da carreta é compartilhado entre vários alunos por dia)
-  const [videnteDismissed, setVidenteDismissed] = useState(() => {
-    try { return localStorage.getItem(`nyx_vidente_${todayKey()}_${shift}_${studentName}`) === "1"; } catch { return false; }
-  });
   const [kbSuggestDismissed, setKbSuggestDismissed] = useState(() => {
     try { return localStorage.getItem(`nyx_kbsuggest_${todayKey()}_${shift}_${studentName}`) === "1"; } catch { return false; }
   });
@@ -444,14 +415,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [pastedLines, setPastedLines] = useState(0);
   const [showFreeBuild, setShowFreeBuild] = useState(false);
   const [weeklyChallenge, setWeeklyChallenge] = useState(null);
-  // conquistas, ranking, meta da turma, curiosidade do dia, duelo, sons
+  // conquistas, ranking, meta da turma, duelo, sons
   const [achievements, setAchievements] = useState([]);
   const [newAchievement, setNewAchievement] = useState(null);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showRanking, setShowRanking] = useState(false);
   const [classPointsSum, setClassPointsSum] = useState(0);
-  const [curiosity, setCuriosity] = useState(null);
-  const [curiosityDismissed, setCuriosityDismissed] = useState(false);
   const [muted, setMuted] = useState(() => loadSoundsMuted());
   const [showDuel, setShowDuel] = useState(false);
   const [showTeamDuel, setShowTeamDuel] = useState(false);
@@ -1341,39 +1310,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     if (!loaded) return; // só depois de carregar o que já existia, pra não sobrescrever um backup bom com o estado inicial vazio
     saveCodeBackupLocal(shift, studentName, files);
   }, [files, loaded, shift, studentName]);
-
-  // busca a curiosidade do dia (gerada uma única vez por dia, reaproveitada por todos os alunos)
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const today = todayKey();
-      let c = await getDailyCuriosity(today);
-      if (!c && alive) {
-        try {
-          // pega as curiosidades dos últimos 14 dias pra IA não repetir sempre a mesma "clássica"
-          const past = [];
-          const d = new Date();
-          for (let i = 1; i <= 14; i++) {
-            d.setDate(d.getDate() - 1);
-            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-            past.push(key);
-          }
-          const prevCuriosities = (await Promise.all(past.map(k => getDailyCuriosity(k))))
-            .map(x => x?.text).filter(Boolean);
-          const text = await askClaude(
-            `Dê UMA curiosidade curta (1-2 frases), divertida e surpreendente sobre programação, C#, tecnologia ou história da computação, para adolescentes que estão começando a programar agora. Sem introdução, direto na curiosidade.` +
-            (prevCuriosities.length ? `\n\nCuriosidades já usadas nos últimos dias (NÃO repita nenhuma delas, nem outra bem parecida — traga algo diferente):\n${prevCuriosities.map(t=>`- ${t}`).join("\n")}` : ""),
-            NYX_FUN_SYSTEM,
-            { temperature: 1 }
-          );
-          c = { text: text.trim() };
-          if (c.text) await setDailyCuriosity(today, c.text);
-        } catch { c = null; }
-      }
-      if (alive && c?.text) setCuriosity(c.text);
-    })();
-    return () => { alive = false; };
-  }, []);
 
   // ranking e meta da turma: soma/ordena os pontos de todo mundo da mesma turma
   useEffect(() => {
@@ -3457,19 +3393,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         </div>
       )}
 
-      {!videnteDismissed && !focusMode && phase==="coding" && (
-        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
-          <div style={{ position:"relative", background:"linear-gradient(120deg,#1e1b4b,#3b0764,#1e1b4b)", border:"1px solid #8b5cf6", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10, overflow:"hidden" }}>
-            <span style={{ fontSize:22, animation:"nyx-float 3s ease-in-out infinite", flexShrink:0 }}>🔮</span>
-            <span style={{ flex:1, color:"#ddd6fe", lineHeight:1.6 }}>
-              <b className="shine" style={{ background:"linear-gradient(120deg,#c4b5fd,#f0abfc,#c4b5fd)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Nyx Vidente prevê:</b>{" "}
-              {VIDENTE_PREVISOES[hashStr(studentName + todayKey()) % VIDENTE_PREVISOES.length].replace("{nome}", () => String(studentName).split(" ")[0])} ✨
-            </span>
-            <button onClick={()=>{ setVidenteDismissed(true); try { localStorage.setItem(`nyx_vidente_${todayKey()}_${shift}_${studentName}`, "1"); } catch {} }} style={{ background:"transparent", border:"none", color:"#8b5cf6", fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
-          </div>
-        </div>
-      )}
-
       {!kbSuggestDismissed && !keyboardDone && (easyRead || supportFlags.motora || selfSupport.motora) && phase==="coding" && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
           <div style={{ background:"linear-gradient(90deg,#0e749922,#22d3ee22)", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
@@ -3477,16 +3400,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             <span style={{ flex:1, color:"#a5f3fc" }}><b style={{ color:"#22d3ee" }}>Quer treinar o teclado?</b> O Nyx te mostra tecla por tecla, no seu ritmo — pode fazer quando quiser.</span>
             <button onClick={()=>{ setShowKeyboard(true); setKbSuggestDismissed(true); try { localStorage.setItem(`nyx_kbsuggest_${todayKey()}_${shift}_${studentName}`, "1"); } catch {} }} style={{ ...styles.btn("#22d3ee"), padding:"6px 12px", fontSize:12.5 }}>Treinar agora</button>
             <button onClick={()=>{ setKbSuggestDismissed(true); try { localStorage.setItem(`nyx_kbsuggest_${todayKey()}_${shift}_${studentName}`, "1"); } catch {} }} style={{ background:"transparent", border:"none", color:"#22d3ee", fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
-          </div>
-        </div>
-      )}
-
-      {curiosity && !curiosityDismissed && !focusMode && phase==="coding" && (
-        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
-          <div style={{ background:"#22d3ee18", border:"1px solid #22d3ee", borderRadius:12, padding:"10px 14px", fontSize:13, display:"flex", alignItems:"center", gap:10 }}>
-            <span style={{ fontSize:18 }}>💡</span>
-            <span style={{ flex:1, color:"#c7f5f9" }}><b style={{ color:"#22d3ee" }}>Curiosidade do dia:</b> {curiosity}</span>
-            <button onClick={()=>setCuriosityDismissed(true)} style={{ background:"transparent", border:"none", color:"#776798", fontSize:16, cursor:"pointer" }}>✕</button>
           </div>
         </div>
       )}
@@ -3780,7 +3693,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                     {[
                       ["sensorial", "🧘 Sensorial", "Desliga sons, confete e animações de festa — pra quando os estímulos estão demais."],
-                      ["foco", "🎯 Foco", "Some com ranking, loja, duelos e curiosidade — sobra só o essencial pra você se concentrar."],
+                      ["foco", "🎯 Foco", "Some com ranking, loja e duelos — sobra só o essencial pra você se concentrar."],
                       ["leitura", "📖 Leitura", "Deixa as letras e linhas mais espaçadas na sua tela."],
                       ["ritmo", "🐢 Ritmo próprio", "A atividade do dia fica com 4 questões em vez de 8."],
                       ["motora", "🖐️ Motora", "Te sugere o tutorial de teclado, pra ajudar a digitar."],
@@ -7332,7 +7245,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                           {[
                             ["sensorial", "🧘 Sensorial", "Modo calmo: sem sons, confete e animações de festa — pra quem se sobrecarrega com estímulos."],
-                            ["foco", "🎯 Foco", "Esconde ranking, loja, duelos e curiosidade — sobra só o essencial: editor, Nyx e salvar."],
+                            ["foco", "🎯 Foco", "Esconde ranking, loja e duelos — sobra só o essencial: editor, Nyx e salvar."],
                             ["leitura", "📖 Leitura", "Letras e linhas mais espaçadas em toda a tela do aluno — ajuda na dislexia."],
                             ["ritmo", "🐢 Ritmo próprio", "Atividade do dia com 4 questões bem diretas em vez de 8 — termina junto com a turma."],
                             ["motora", "🖐️ Motora", "Sugere o tutorial de teclado pra esse aluno automaticamente — ajuda quem tem dificuldade motora pra digitar."],

@@ -35,10 +35,6 @@ function teacherCodeKey(shift) {
   return `teachercode:${shift || 'matutino'}`
 }
 
-function curiosityKey(dateStr) {
-  return `curiosity:${dateStr}`
-}
-
 const DUEL_PREFIX = 'duel:'
 function duelKeyFor(shift, nameA, nameB) {
   const [x, y] = [safeName(nameA), safeName(nameB)].sort()
@@ -479,20 +475,6 @@ export async function listCheckinsForDate(dateStr, auth) {
     }
     return map
   } catch { return {} }
-}
-
-export async function getDailyCuriosity(dateStr) {
-  try {
-    const r = await kvCall({ action: 'get', key: curiosityKey(dateStr) })
-    return r.value ? JSON.parse(r.value) : null
-  } catch { return null }
-}
-
-export async function setDailyCuriosity(dateStr, text) {
-  try {
-    await kvCall({ action: 'set', key: curiosityKey(dateStr), value: JSON.stringify({ text, at: Date.now() }) })
-    return true
-  } catch { return false }
 }
 
 export async function setDuel(shift, nameA, nameB, data) {

@@ -38,7 +38,11 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginNewStudent,
     await page.waitForTimeout(1500);
     check('O seletor fecha sozinho depois de escolher', (await page.locator('text=🎨 Cor do fundo').count()) === 0);
 
-    const saved = JSON.parse(kvStore.get('student:matutino:AlunoCores') || '{}');
+    // não fixa o turno: o app atribui o turno pela HORA REAL do relógio (loginNewStudent não
+    // escolhe um turno explicitamente), então o aluno pode cair em matutino ou vespertino
+    // dependendo de quando o teste roda — acha a chave salva de verdade em vez de supor qual foi
+    const studentKey = [...kvStore.keys()].find(k => k.startsWith('student:') && k.endsWith(':AlunoCores'));
+    const saved = JSON.parse((studentKey && kvStore.get(studentKey)) || '{}');
     check('A cor escolhida foi salva no perfil do aluno', saved.theme === '#34d399', JSON.stringify(saved.theme));
     check('Trocar a cor NÃO chamou o Nyx nenhuma vez', claudePosts.length === callsBeforeColor, JSON.stringify(claudePosts));
     check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 5).join(' | '));

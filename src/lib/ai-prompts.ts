@@ -58,10 +58,6 @@ export const nyxPrefsInstruction = (prefs: NyxPrefs | null | undefined): string 
   return `\n\nPREFERÊNCIA DESTE ALUNO (escolhida por ele mesmo, respeite sempre): ${tomTxt} ${estiloTxt}`;
 };
 
-// ── Nyx no modo leve/divertido: usado só para conteúdo casual (curiosidade do dia), NUNCA para revisar código ──
-// Propositalmente separado do CS_SYSTEM: aqui o Nyx não é o revisor rigoroso, é só o mascote animando a turma.
-export const NYX_FUN_SYSTEM = "Você é Nyx, o robô mascote animado de uma turma de adolescentes aprendendo C#. Aqui você está no seu modo leve e divertido — nada de revisar código ou dar aula formal. Seja breve, empolgado e use no máximo 1 emoji. Português brasileiro bem informal, do jeito que se fala com adolescente.";
-
 // ── Nyx no Modo Guiado: persona usada só para os alunos com acessibilidade ativada (não leem/escrevem bem
 // ou têm dificuldade motora). Aqui o Nyx é professor-pedagogo + apoio emocional + instrutor de criação de jogos,
 // tudo junto — o C# é ensinado através de exemplos de jogos, pensado para ser OUVIDO (texto-por-voz), não lido. ──
