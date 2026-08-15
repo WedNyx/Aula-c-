@@ -1518,6 +1518,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           setPortfolioPublic(false);
           await clearScoreFix(shift, studentName);
           await persist({ portfolioPublic: false });
+        } else if (fix && fix.kind === "attendance" && fix.dateKey) {
+          // professor marcou/desmarcou a presença de um dia na mão (ver markPresentToday/
+          // unmarkPresentToday) — aplica no ref antes que o autosave periódico regrave a presença
+          // usando só o cálculo automático local, desfazendo a correção do professor
+          const cur = { ...attendanceRef.current };
+          if (fix.status) cur[fix.dateKey] = fix.status; else delete cur[fix.dateKey];
+          attendanceRef.current = cur;
+          await clearScoreFix(shift, studentName);
+          await persist({});
         } else if (fix && fix.kind === "boss-bonus" && typeof fix.amount === "number") {
           // 👾 bônus de pontos por ter causado dano no chefão quando ele foi derrotado
           const np = (stateRef.current.nyxPoints || 0) + fix.amount;
@@ -2033,7 +2042,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     checkAllEggsFound();
     checkPointsAchievements(np);
     setRobotState("ok");
-    setRobotMsg("🏴‍☠️ VOCÊ ACHOU O TESOURO ESCONDIDO! +500 pontos do Nyx! Muito bem, caçador(a)!");
+    setRobotMsg("🏴‍☠️ VOCÊ ACHOU O TESOURO ESCONDIDO! +700 pontos do Nyx! Muito bem, caçador(a)!");
     setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 8000);
   };
 
@@ -4589,6 +4598,13 @@ function TeacherView({ onLogout, teacherAuth }) {
   // biblioteca de aulas (as SUAS aulas salvas + modelos de exemplo) + backup completo
   const [showLessons, setShowLessons] = useState(false);
   const [myLessons, setMyLessons] = useState([]);
+  // espelha myLessons pra sempre ler a versão MAIS RECENTE dentro de generateLessonContent/
+  // importLessonContent — geração de conteúdo pronto demora vários segundos (chamadas ao Nyx em
+  // paralelo); sem isso, excluir ou salvar outra aula ENQUANTO a geração está rodando fazia o
+  // merge final trabalhar em cima do array antigo (fechado no closure), ressuscitando uma aula já
+  // excluída ou perdendo uma aula nova salva nesse meio tempo
+  const myLessonsRef = useRef([]);
+  useEffect(() => { myLessonsRef.current = myLessons; }, [myLessons]);
   const [lessonName, setLessonName] = useState("");
   const [showModels, setShowModels] = useState(false);
   // 🧠 conteúdo pronto por aula salva (nome + explicação + resumo + atividade), gerado 1x pelo
@@ -5805,6 +5821,10 @@ function TeacherView({ onLogout, teacherAuth }) {
   // (o atraso só é calculado pelo 1º acesso do aluno, que nem existe quando ele não loga).
   const markPresentToday = async (s) => {
     const ok = await patchStudent(s.shift, s.name, { attendance: { ...(s.attendance||{}), [tk]: "present" } });
+    // se o aluno estiver com a aba aberta, o autosave periódico dele (que recalcula a presença de
+    // hoje sozinho a cada 12s) sobrescreveria essa correção manual sem essa flag — mesma proteção
+    // já usada em doSetScore/doApproveJustification/doDisablePortfolio
+    if (ok) await setScoreFix(s.shift, s.name, { kind: "attendance", dateKey: tk, status: "present" }, teacherAuth);
     flashMgmt(ok ? `✅ Presença de hoje marcada pra ${s.name}.` : "❌ Não consegui marcar agora. Tente de novo.");
     load();
   };
@@ -5812,6 +5832,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     const att = { ...(s.attendance||{}) };
     delete att[tk];
     const ok = await patchStudent(s.shift, s.name, { attendance: att });
+    if (ok) await setScoreFix(s.shift, s.name, { kind: "attendance", dateKey: tk, status: null }, teacherAuth);
     flashMgmt(ok ? `↩️ Presença manual de ${s.name} desfeita.` : "❌ Não consegui desfazer agora. Tente de novo.");
     load();
   };
@@ -5858,7 +5879,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const startExam = async () => {
     const examShifts = shiftFilter === "all" ? activeTurmas.map(t=>t.id) : [shiftFilter];
     const proCode = examShifts.flatMap(sh => proFilesByShift[sh]||[]).map(f => (f.code||"")).join("\n").trim();
-    const examStudents = shiftFilter === "all" ? students : students.filter(s=>(s.shift||"sem-turno")===shiftFilter);
+    const examStudents = shiftFilter === "all" ? students.filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id && (s.shift||"sem-turno") !== LANG_SHIFT.id) : students.filter(s=>(s.shift||"sem-turno")===shiftFilter);
     // pega o código de TODOS os arquivos que cada aluno escreveu ao longo da aula (não só um trecho) —
     // o teto é bem mais generoso que o de outras chamadas porque aqui é o CONTEXTO de entrada (não a
     // resposta), e o resumo da prova precisa enxergar o código de todo mundo, não só uma amostra
@@ -6026,7 +6047,12 @@ function TeacherView({ onLogout, teacherAuth }) {
   const dataHora = t => t ? new Date(t).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "—";
 
   // filtro por turno
-  const shown = shiftFilter==="all" ? students : students.filter(s => (s.shift||"sem-turno")===shiftFilter);
+  // "Todos" é só as turmas de verdade (Manhã/Tarde) — turma de teste e sala de idiomas têm aba
+  // própria de propósito (ver comentário de TEST_SHIFT em lib/shifts.ts) e não devem poluir
+  // contagens/alertas/ranking da turma real quando o professor está usando a própria conta de teste
+  const shown = shiftFilter==="all"
+    ? students.filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id && (s.shift||"sem-turno") !== LANG_SHIFT.id)
+    : students.filter(s => (s.shift||"sem-turno")===shiftFilter);
   const sorted = [...shown].sort((a,b)=>(a.name||"").localeCompare(b.name||"","pt-BR"));
   // chave composta (turno+nome) — se o mesmo nome existir em mais de um turno (ex: sobrou uma cópia
   // velha de uma mudança de turno que falhou), cada card precisa ser selecionável/identificável
@@ -6197,6 +6223,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const generateLessonContent = async (idx, force = false) => {
     const lesson = myLessons[idx];
     if (!lesson || lessonGenBusy != null) return;
+    const targetAt = lesson.at; // identidade estável da aula-alvo — não confia mais no índice depois das chamadas ao Nyx (ver myLessonsRef acima)
     const done = lessonContentDone(lesson);
     const need = {
       contentName: force || !done.contentName,
@@ -6227,7 +6254,18 @@ function TeacherView({ onLogout, teacherAuth }) {
       ]);
       const contentName = need.contentName ? contentNameOut.replace(/["\n`]/g,"").trim().slice(0,110) : lesson.contentName;
       const atividade = need.atividade ? filterValidQuestions(Array.isArray(atividadeOut.questions) ? atividadeOut.questions : []) : lesson.atividade;
-      const next = myLessons.map((l,i) => i===idx ? { ...l, contentName, explain: explainOut, resumo: resumoOut, atividade } : l);
+      // relê a biblioteca MAIS RECENTE (não o "myLessons" fechado no closure) e acha a aula-alvo pelo
+      // "at": se o professor excluiu ou salvou outras aulas enquanto essas chamadas rodavam, o índice
+      // original pode não apontar mais pra aula certa (ou ela pode nem existir mais)
+      const latestLessons = myLessonsRef.current;
+      const targetIdx = latestLessons.findIndex(l => l.at === targetAt);
+      if (targetIdx === -1) {
+        setNameMsg(`⚠ "${lesson.title}" foi excluída enquanto o conteúdo era gerado — nada foi salvo.`);
+        setTimeout(()=>setNameMsg(""), 8000);
+        setLessonGenBusy(null);
+        return;
+      }
+      const next = latestLessons.map((l,i) => i===targetIdx ? { ...l, contentName, explain: explainOut, resumo: resumoOut, atividade } : l);
       setMyLessons(next);
       await saveTeacherLessons(next, teacherAuth);
       setNameMsg(`✅ Conteúdo pronto gerado pra "${lesson.title}" — vai ser reaproveitado toda vez que essa aula for usada.`);
@@ -7820,7 +7858,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       {tab==="exam" && (() => {
         // cada turma tem sua própria prova independente (ver storage.js) — usa o mesmo filtro de
         // turma (shiftFilter) do topo da tela pra saber qual prova mostrar/gerenciar aqui
-        const examStudents = (examConfig.shift && examConfig.shift !== "all") ? students.filter(s=>(s.shift||"sem-turno")===examConfig.shift) : students;
+        const examStudents = (examConfig.shift && examConfig.shift !== "all") ? students.filter(s=>(s.shift||"sem-turno")===examConfig.shift) : students.filter(s => (s.shift||"sem-turno") !== TEST_SHIFT.id && (s.shift||"sem-turno") !== LANG_SHIFT.id);
         const readyStudents = examStudents.filter(s => s.examReady);
         const doneStudents  = examStudents.filter(s => s.examDone);
         const ranking = [...examStudents].filter(s=>s.examScore!=null).sort((a,b)=>(b.examScore||0)-(a.examScore||0));

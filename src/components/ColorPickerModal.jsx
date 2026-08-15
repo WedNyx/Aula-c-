@@ -11,8 +11,14 @@ const PRESET_COLORS = [
   { hex: "#fbbf24", label: "Amarelo" },
 ];
 
+// antes desse seletor existir, o aluno podia pedir pro Nyx (via chat, já removido) um degradê de
+// até 3 cores ("[TEMA:#rrggbb,#rrggbb]") — um perfil antigo salvo no computador da carreta ainda
+// pode ter um "theme" assim guardado. Sem essa checagem, um valor "#rrggbb,#rrggbb" ia direto pro
+// <input type="color">, que não entende vírgula e mostra uma cor errada (geralmente preto) sem
+// avisar ninguém — só reconhece como "cor própria" um hex único de verdade
+const SINGLE_HEX = /^#[0-9a-fA-F]{6}$/;
 export function ColorPickerModal({ current, onChoose, onClose }) {
-  const isCustom = typeof current === "string" && current.startsWith("#");
+  const isCustom = typeof current === "string" && SINGLE_HEX.test(current);
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
       <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:440, width:"100%", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>

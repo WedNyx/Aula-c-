@@ -43,7 +43,22 @@ function isTemperatureError(e) {
   return !!(e && e.status && /temperature/i.test(e.message || ''))
 }
 
-async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning, timeoutMs, skipTemperature }) {
+// callNvidiaRaw/callNvidia/callOpenRouter podem se rechamar sozinhas (retry sem temperature, retry
+// sem modo de raciocínio) — cada retentativa usava um NOVO AbortSignal.timeout(timeoutMs) do zero,
+// então "N tentativas × timeoutMs" podia passar muito do maxDuration da função (vercel.json),
+// principalmente quando também existe uma 2ª perna (Anthropic de reserva) na MESMA chamada — a
+// Vercel matava a função no meio e quem chamou só via a página de erro crua da plataforma, o mesmo
+// sintoma que o timeout por tentativa foi criado pra evitar. Em vez de um "timeoutMs" fixo repetido
+// a cada tentativa, cada retentativa recebe o que SOBROU até um prazo-limite ÚNICO compartilhado
+// (deadlineAt, um instante absoluto) — o tempo total de todas as tentativas juntas nunca passa do
+// orçamento original, com um piso mínimo pra retentativa não nascer já fadada a estourar na hora.
+const MIN_RETRY_TIMEOUT_MS = 3000
+function timeoutFromDeadline(deadlineAt) {
+  if (!deadlineAt) return DEFAULT_TIMEOUT_MS
+  return Math.max(MIN_RETRY_TIMEOUT_MS, deadlineAt - Date.now())
+}
+
+async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning, deadlineAt, skipTemperature }) {
   const finalMaxTokens = Math.min(Number(max_tokens) || 2000, 6000)
   const body = {
     model: NVIDIA_MODEL,
@@ -71,14 +86,14 @@ async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasonin
       Accept: 'application/json',
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs || DEFAULT_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutFromDeadline(deadlineAt)),
   })
   const data = await resp.json().catch(() => ({}))
   if (!resp.ok) {
     const msg = data?.error?.message || data?.message || `NVIDIA API error ${resp.status}`
     const err = Object.assign(new Error(msg), { status: resp.status })
     if (!skipTemperature && isTemperatureError(err)) {
-      return callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning, timeoutMs, skipTemperature: true })
+      return callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning, deadlineAt, skipTemperature: true })
     }
     throw err
   }
@@ -103,7 +118,7 @@ async function callNvidia(args) {
   }
 }
 
-async function callOpenRouter({ prompt, system, temperature, max_tokens, timeoutMs, skipTemperature }) {
+async function callOpenRouter({ prompt, system, temperature, max_tokens, deadlineAt, skipTemperature }) {
   const body = {
     model: OPENROUTER_MODEL,
     messages: [
@@ -124,14 +139,14 @@ async function callOpenRouter({ prompt, system, temperature, max_tokens, timeout
       'X-Title': 'Aula de C# — Nyx',
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs || DEFAULT_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutFromDeadline(deadlineAt)),
   })
   const data = await resp.json().catch(() => ({}))
   if (!resp.ok) {
     const msg = data?.error?.message || data?.message || `OpenRouter API error ${resp.status}`
     const err = Object.assign(new Error(msg), { status: resp.status })
     if (!skipTemperature && isTemperatureError(err)) {
-      return callOpenRouter({ prompt, system, temperature, max_tokens, timeoutMs, skipTemperature: true })
+      return callOpenRouter({ prompt, system, temperature, max_tokens, deadlineAt, skipTemperature: true })
     }
     throw err
   }
@@ -168,16 +183,17 @@ async function callAnthropic({ prompt, system, temperature, max_tokens, timeoutM
 // aqui não tem troca automática pra outro provedor: se o modelo escolhido não estiver configurado ou
 // falhar, o erro sobe direto pra tela, porque a pessoa escolheu ESSE modelo de propósito.
 async function callExplicitProvider(provider, args) {
+  const withDeadline = { ...args, deadlineAt: Date.now() + DEFAULT_TIMEOUT_MS }
   if (provider === 'laguna') {
     if (!OPENROUTER_KEY) {
       throw Object.assign(new Error('Laguna ainda não está configurado: falta OPENROUTER_API_KEY no Vercel.'), { status: 503, missingKey: true })
     }
-    return callOpenRouter(args)
+    return callOpenRouter(withDeadline)
   }
   if (!(NVIDIA_KEY && NVIDIA_MODEL)) {
     throw Object.assign(new Error('Nemotron ainda não está configurado: falta NVIDIA_API_KEY e NVIDIA_MODEL no Vercel.'), { status: 503, missingKey: true })
   }
-  return callNvidia(args)
+  return callNvidia(withDeadline)
 }
 
 export default async function handler(req, res) {
@@ -248,8 +264,9 @@ export default async function handler(req, res) {
     // travada consome o orçamento inteiro (vercel.json) e a reserva nunca chega a rodar
     const hasBackupLeg = PROVIDER === 'nvidia' && !!ANTHROPIC_KEY
     const primaryTimeout = hasBackupLeg ? 14000 : DEFAULT_TIMEOUT_MS
+    const primaryDeadline = Date.now() + primaryTimeout
     const data = PROVIDER === 'nvidia'
-      ? await callNvidia({ prompt, system, temperature, max_tokens, timeoutMs: primaryTimeout })
+      ? await callNvidia({ prompt, system, temperature, max_tokens, deadlineAt: primaryDeadline })
       : await callAnthropic({ prompt, system, temperature, max_tokens, timeoutMs: primaryTimeout })
     return res.json(data)
   } catch (e) {

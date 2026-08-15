@@ -1,7 +1,7 @@
 // geradores de perguntas/planos por IA compartilhados entre os modais de duelo (1x1 e dupla),
 // teste de conhecimento avulso e desafio livre da semana
 import { askClaude, askClaudeJson, extractJson } from "./ai.js";
-import { shuffleQuestions } from "./utils.js";
+import { shuffleQuestions, filterValidQuestions } from "./utils.js";
 import { CS_SYSTEM } from "./ai-prompts.ts";
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -16,7 +16,7 @@ export async function generateDuelQuestions() {
     { temperature: 0.7 }
   );
   const parsed = extractJson(res);
-  return shuffleQuestions(parsed.questions || []);
+  return shuffleQuestions(filterValidQuestions(parsed.questions || []));
 }
 
 // 🧠 teste de conhecimento por conta própria: o aluno pode se testar a qualquer momento da aula,
@@ -29,7 +29,7 @@ export async function generateKnowledgeTestQuestions() {
     { temperature: 0.7 }
   );
   const parsed = extractJson(res);
-  return shuffleQuestions(parsed.questions || []);
+  return shuffleQuestions(filterValidQuestions(parsed.questions || []));
 }
 
 // ════════════════════════════════════════════════════════════════════════════

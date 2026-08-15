@@ -9,8 +9,13 @@ const TABLE = 'kv_store'
 // si aceitava qualquer pedido. Agora, as ações que só o professor deveria poder fazer
 // (apagar tudo, mexer nas configurações da turma) exigem a senha de verdade aqui no
 // servidor, verificada no campo "auth" do pedido.
-const SET_PROTECTED_PREFIXES = ['teachercode:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'resumotrigger:', 'quiz:', 'backup:', 'turmas:']
-const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'nyxlocks:', 'exam:config', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'quiz:', 'backup:', 'turmas:']
+const SET_PROTECTED_PREFIXES = ['teachercode:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'resumotrigger:', 'quiz:', 'backup:', 'turmas:', 'errorlog:']
+// "errorlog:" e "kbdlock:" faltavam aqui: a leitura já exigia senha (GET_PROTECTED_PREFIXES /
+// SET_PROTECTED_PREFIXES respectivamente), mas sem entrar também em DELETE_PROTECTED_PREFIXES
+// qualquer sessão anônima podia apagar o log de erros inteiro ou destravar o teclado da turma
+// (kbdlock) sem senha nenhuma, chamando "delete" direto — mesmo com o "log_error"/"set" continuando
+// devidamente livres pra quem só está registrando um erro de verdade ou o professor travando
+const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'nyxlocks:', 'exam:config', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'quiz:', 'backup:', 'turmas:', 'errorlog:']
 // list_with_values (listagem em massa) é NEGADA por padrão — só esses prefixos continuam
 // listáveis sem senha, porque são dados que o próprio app precisa ler sem professor logado
 // (seletor de perfil na tela de login, /impacto, portfólio público, estado de duelo/parceiro
@@ -159,6 +164,25 @@ function redactDuelQuestions(key, value, authorized) {
   } catch {
     return value
   }
+}
+
+// ─── trava a nota do duelo/duelo em dupla contra forjamento direto ──────────────────────────────
+// "grade_duel"/"grade_team_duel" existem JUSTAMENTE pra nota nunca ser calculada nem gravada pelo
+// cliente (ver comentário deles mais abaixo) — mas a ação genérica "set" (usada de verdade pra
+// criar o convite e pra aceitar) aceitava, sem senha nenhuma, um documento "duel:"/"teamduel:"
+// inteiro por cima, JÁ COM scoreFrom/scoreTo/scores preenchidos. Bastava um aluno chamar /api/kv
+// direto (fora do app) com um "set" contendo a nota que quisesse pra vencer qualquer duelo sem
+// responder nada, furando toda a proteção de "grade_duel". O cliente nunca precisa (e nunca
+// precisou) mandar essas notas via "set" — só cria o duelo com elas em null e muda "status" no
+// aceite — então bloquear qualquer "set" que já venha com nota preenchida não quebra nada legítimo.
+function isDuelScoreForgery(key, rawValue) {
+  const k = String(key || '')
+  if (!k.startsWith('duel:') && !k.startsWith('teamduel:')) return false
+  let obj
+  try { obj = JSON.parse(rawValue) } catch { return false }
+  if (obj == null || typeof obj !== 'object') return false
+  if (k.startsWith('duel:')) return obj.scoreFrom != null || obj.scoreTo != null
+  return !!(obj.scores && typeof obj.scores === 'object' && Object.keys(obj.scores).length > 0)
 }
 
 // ─── mesma derivação de chave usada em src/storage.js pra "duel:"/"teamduel:" — duplicada aqui de
@@ -507,6 +531,9 @@ export default async function handler(req, res) {
     switch (action) {
       case 'set': {
         if (!(await checkKvRateLimit(res, 'kvset', ip))) return
+        if (isDuelScoreForgery(key, value)) {
+          return res.status(403).json({ error: 'forbidden', message: 'A nota do duelo só pode ser gravada pelo servidor, ao corrigir as respostas.' })
+        }
         await store.set(key, value)
         return res.json({ ok: true })
       }
