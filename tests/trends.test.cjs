@@ -4,7 +4,12 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 (async () => {
   const classDays = ['2026-07-13', '2026-07-15', '2026-07-17', '2026-07-20', '2026-07-22'];
   const kvStore = baseKvStore({ classDays });
-  const enrolledSince = Date.now() - 30 * 86400000;
+  // fixo, bem ANTES do primeiro dia de aula do teste (2026-07-13) — não pode ser relativo a
+  // Date.now(): como o teste é rodado em sessões que às vezes duram muitas horas seguidas, um
+  // "matriculado há 30 dias" calculado na hora podia avançar pra DEPOIS de 13/07 ou 15/07 (se a
+  // sessão atravessasse a meia-noite tempo suficiente), fazendo esses dias sumirem do gráfico por
+  // engano (contados como "antes de entrar na turma") e mudando a tendência calculada
+  const enrolledSince = new Date('2026-06-01T00:00:00Z').getTime();
   // AlunoX: presente em todos os dias, notas subindo (60 → 90) — presença 100%, tendência de nota "Melhorando"
   kvStore.set('student:matutino:AlunoX', JSON.stringify({
     name: 'AlunoX', shift: 'matutino', avatar: {}, files: [{ name: 'Program.cs', code: 'int x=1;' }], phase: 'coding',

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import gsap from "gsap";
 import { shade } from "../lib/colors.ts";
 
@@ -81,8 +81,12 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
   // 🎬 GSAP: dá vida ao Nyx sem mexer no sistema de humores/quirks/Espartano acima — olhos que
   // seguem o mouse, antena com física de mola, orelha que treme sozinha, pulo no clique e a cor
   // "escorrendo" suavemente entre os humores (em vez da troca seca de antes). As cores dos elementos
-  // abaixo NÃO ficam mais presas a {P.main/P.dark/P.eye} no JSX — só o GSAP escreve nelas depois do
-  // primeiro paint, senão qualquer re-render (ex: quirk mudando) resetaria a transição no meio do caminho
+  // abaixo NÃO podem ficar presas a {P.main/P.dark/P.eye} no JSX — só o GSAP escreve nelas (via
+  // useLayoutEffect, antes do navegador pintar, pra não piscar sem cor no primeiro quadro). Se o JSX
+  // também tivesse essas cores, o React escrevia a cor NOVA no elemento antes do GSAP entrar em ação
+  // (a mudança de estado já é o motivo do re-render) — o GSAP então animava "da cor nova pra cor
+  // nova", sem efeito nenhum: a troca ficava seca de novo, com a transição suave virando decoração
+  // morta no código.
   const bounceWrapRef = useRef(null);
   const headGroupRef = useRef(null);
   const eyesLookRef = useRef(null);
@@ -104,7 +108,7 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
   const footLRef = useRef(null);
   const footRRef = useRef(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const firstPaint = !headGroupRef.current.dataset.painted;
     headGroupRef.current.dataset.painted = "1";
     const targets = [
@@ -201,12 +205,12 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
         <svg width={size} height={size*1.15} viewBox="0 0 120 138" style={{ display:"block", overflow:"visible" }}>
           <defs>
             <linearGradient id={uid+"h"} x1="0" y1="0" x2="0" y2="1">
-              <stop ref={headStop1Ref} offset="0" stopColor={shade(P.main, 0.25)} />
-              <stop ref={headStop2Ref} offset="1" stopColor={P.main} />
+              <stop ref={headStop1Ref} offset="0" />
+              <stop ref={headStop2Ref} offset="1" />
             </linearGradient>
             <linearGradient id={uid+"b"} x1="0" y1="0" x2="0" y2="1">
-              <stop ref={bodyStop1Ref} offset="0" stopColor={P.main} />
-              <stop ref={bodyStop2Ref} offset="1" stopColor={P.dark} />
+              <stop ref={bodyStop1Ref} offset="0" />
+              <stop ref={bodyStop2Ref} offset="1" />
             </linearGradient>
             <radialGradient id={uid+"g"}>
               <stop offset="0" stopColor={P.main} stopOpacity=".5" />
@@ -230,12 +234,12 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
           {/* orelhas em formato de morcego — criatura da noite (cada uma no seu grupo, pra poder
               tremer sozinha de vez em quando sem mexer no resto da cabeça) */}
           <g ref={earLGroupRef}>
-            <path ref={earLFillRef} d="M18 44 Q14 28 26 16 Q31 28 34 40 Q26 44 18 44 Z" fill={P.dark} stroke={shade(P.dark, -0.3)} strokeWidth="1" />
+            <path ref={earLFillRef} d="M18 44 Q14 28 26 16 Q31 28 34 40 Q26 44 18 44 Z" strokeWidth="1" />
             <path d="M21 40 Q19 28 26 22 Q29 29 31 38 Q26 41 21 40 Z" fill={P.main} opacity="0.5" />
             <path d="M23 38 Q22 28 26 20" stroke="#a5adf8" strokeWidth="0.8" opacity="0.55" fill="none" strokeLinecap="round" />
           </g>
           <g ref={earRGroupRef}>
-            <path ref={earRFillRef} d="M86 40 Q89 28 94 16 Q106 28 102 44 Q94 44 86 40 Z" fill={P.dark} stroke={shade(P.dark, -0.3)} strokeWidth="1" />
+            <path ref={earRFillRef} d="M86 40 Q89 28 94 16 Q106 28 102 44 Q94 44 86 40 Z" strokeWidth="1" />
             <path d="M99 40 Q101 28 94 22 Q91 29 89 38 Q94 41 99 40 Z" fill={P.main} opacity="0.5" />
             <path d="M97 38 Q98 28 94 20" stroke="#a5adf8" strokeWidth="0.8" opacity="0.55" fill="none" strokeLinecap="round" />
           </g>
@@ -434,9 +438,9 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
 
           {/* antena (sempre por cima) — agrupada pra poder balançar como mola quando o mouse chega perto */}
           <g ref={antennaGroupRef}>
-            <path ref={antennaLineRef} d="M60 22 Q56 18 60 15 Q64 12 60 9" fill="none" stroke={P.dark} strokeWidth="3.4" strokeLinecap="round" />
+            <path ref={antennaLineRef} d="M60 22 Q56 18 60 15 Q64 12 60 9" fill="none" strokeWidth="3.4" strokeLinecap="round" />
             <circle cx="60" cy="7" r="7" fill={P.main} opacity="0.25" />
-            <circle ref={antennaTipRef} cx="60" cy="7" r="4" fill={P.eye} style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite` }} />
+            <circle ref={antennaTipRef} cx="60" cy="7" r="4" style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite` }} />
           </g>
 
           {/* visor */}
@@ -546,7 +550,7 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
           </g>
 
           {/* pescoço */}
-          <rect ref={neckRef} x="53" y="62" width="14" height="8" rx="3" fill={P.dark} />
+          <rect ref={neckRef} x="53" y="62" width="14" height="8" rx="3" />
 
           {/* laço no pescoço */}
           {G.neck === "laco" && (
@@ -583,8 +587,8 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
           )}
 
           {/* braços */}
-          <rect ref={armLRef} x="26" y="74" width="10" height="24" rx="5" fill={P.dark} transform={state==="ok" ? "rotate(-38 31 76)" : "rotate(8 31 76)"} style={{ transition:"transform .3s" }} />
-          <rect ref={armRRef} x="84" y="74" width="10" height="24" rx="5" fill={P.dark} transform={state==="ok" ? "rotate(38 89 76)" : "rotate(-8 89 76)"} style={{ transition:"transform .3s" }} />
+          <rect ref={armLRef} x="26" y="74" width="10" height="24" rx="5" transform={state==="ok" ? "rotate(-38 31 76)" : "rotate(8 31 76)"} style={{ transition:"transform .3s" }} />
+          <rect ref={armRRef} x="84" y="74" width="10" height="24" rx="5" transform={state==="ok" ? "rotate(38 89 76)" : "rotate(-8 89 76)"} style={{ transition:"transform .3s" }} />
 
           {/* escudo (sempre na mão esquerda) */}
           {G.shield === "escudo" && (
@@ -825,14 +829,14 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
           {/* núcleo de energia no peito, em formato de lua crescente, com anel de energia ao redor */}
           <circle cx="60" cy="86" r="11" fill="none" stroke={P.eye} strokeWidth="0.6" opacity="0.35" />
           <circle cx="60" cy="86" r="9.5" fill="#0b0e1d" />
-          <circle ref={coreRef} cx="60" cy="86" r="6.5" fill={P.eye} style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite`, filter:`drop-shadow(0 0 4px ${P.eye})` }} />
+          <circle ref={coreRef} cx="60" cy="86" r="6.5" style={{ animation:`nyx-antenna ${antennaSpeed} ease-in-out infinite`, filter:`drop-shadow(0 0 4px ${P.eye})` }} />
           <circle cx="63.2" cy="83.2" r="5.5" fill="#0b0e1d" />
 
           {/* pés */}
           <ellipse cx="50" cy="117" rx="8" ry="1.8" fill="#000" opacity="0.25" />
           <ellipse cx="70" cy="117" rx="8" ry="1.8" fill="#000" opacity="0.25" />
-          <rect ref={footLRef} x="43" y="106" width="14" height="10" rx="5" fill={P.dark} />
-          <rect ref={footRRef} x="63" y="106" width="14" height="10" rx="5" fill={P.dark} />
+          <rect ref={footLRef} x="43" y="106" width="14" height="10" rx="5" />
+          <rect ref={footRRef} x="63" y="106" width="14" height="10" rx="5" />
         </svg>
         </div>
       </div>
