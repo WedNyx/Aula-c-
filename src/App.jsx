@@ -8054,7 +8054,6 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       <NyxChat
-        who="teacher"
         dataTour="chat-prof"
         accent="#fbbf24"
         onCommand={async (t) => {

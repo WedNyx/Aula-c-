@@ -185,6 +185,37 @@ function isDuelScoreForgery(key, rawValue) {
   return !!(obj.scores && typeof obj.scores === 'object' && Object.keys(obj.scores).length > 0)
 }
 
+// ─── grava um merge no documento com releitura-e-repetição, pra "grade_duel"/"grade_team_duel" ──
+// entre o "get" já feito acima (usado só pra validar o pedido e calcular a nota) e o "set" que
+// grava, outra sessão pode escrever por cima — ex: 3+ jogadores de um duelo em dupla respondendo
+// quase no mesmo instante. A primeira versão desta função só reagia a UMA escrita concorrente por
+// vez (relia numa base capturada uma única vez no início, só trocando ela quando A PRÓPRIA escrita
+// falhava) — com 3+ gravações correndo ao mesmo tempo, dava pra um jogador B escrever por cima da
+// nota de A com sucesso (o "set" e a releitura de B batiam certinho), mesmo que a base de B já
+// estivesse desatualizada por não incluir a nota de A ainda, apagando A silenciosamente sem que
+// NINGUÉM detectasse (nem A, que já tinha confirmado sucesso antes; nem B, que só confere a própria
+// nota). Por isso cada TENTATIVA (não só as repetições) relê o documento na hora, bem em cima da
+// escrita, encolhendo ao máximo a janela em que outra escrita pode se intrometer — sem precisar de
+// um mecanismo de trava no banco (que os 3 backends suportados aqui — Supabase, Postgres direto,
+// Redis via Upstash — não expõem de forma unificada).
+async function writeMergedWithRetry(key, buildMerge, verifyMerge, maxAttempts = 6) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const raw = await store.get(key)
+    if (!raw) return { merged: null, ok: false }
+    let config
+    try { config = JSON.parse(raw) } catch { return { merged: null, ok: false } }
+    const merged = buildMerge(config)
+    await store.set(key, JSON.stringify(merged))
+    const freshRaw = await store.get(key)
+    let fresh
+    try { fresh = JSON.parse(freshRaw) } catch { fresh = null }
+    if (fresh && verifyMerge(fresh)) return { merged: fresh, ok: true }
+    // outra escrita se intrometeu entre o nosso "get" e a releitura — tenta de novo do zero,
+    // relendo na hora (não reaproveita nada da tentativa anterior)
+  }
+  return { merged: null, ok: false }
+}
+
 // ─── mesma derivação de chave usada em src/storage.js pra "duel:"/"teamduel:" — duplicada aqui de
 // propósito (mesmo padrão já usado pra "exam:config:"/"tourney:config"): o servidor precisa achar o
 // documento certo pra corrigir de verdade, sem depender do cliente mandar a chave pronta.
@@ -625,9 +656,16 @@ export default async function handler(req, res) {
         if (config[scoreField] != null) return res.json({ score: config[scoreField], total: questions.length, already: true })
         let score = 0
         questions.forEach((q, i) => { if (answers && answers[i] === q.correct) score++ })
-        const merged = { ...config, [answersField]: answers || {}, [scoreField]: score }
-        if (merged.scoreFrom != null && merged.scoreTo != null) merged.status = 'done'
-        await store.set(dKey, JSON.stringify(merged))
+        const { ok } = await writeMergedWithRetry(
+          dKey,
+          (c) => {
+            const m = { ...c, [answersField]: answers || {}, [scoreField]: score }
+            if (m.scoreFrom != null && m.scoreTo != null) m.status = 'done'
+            return m
+          },
+          (fresh) => fresh[scoreField] === score
+        )
+        if (!ok) return res.status(409).json({ error: 'duel_grade_conflict', message: 'Muita gente respondendo ao mesmo tempo — tente enviar de novo.' })
         return res.json({ score, total: questions.length })
       }
       case 'grade_team_duel': {
@@ -648,11 +686,17 @@ export default async function handler(req, res) {
         }
         let score = 0
         questions.forEach((q, i) => { if (answers && answers[i] === q.correct) score++ })
-        const scores = { ...(config.scores || {}), [myName]: score }
-        const answersMap = { ...(config.answers || {}), [myName]: answers || {} }
-        const allDone = (config.players || []).every(p => scores[p.name] != null)
-        const merged = { ...config, scores, answers: answersMap, status: allDone ? 'done' : config.status }
-        await store.set(tKey, JSON.stringify(merged))
+        const { ok } = await writeMergedWithRetry(
+          tKey,
+          (c) => {
+            const scores = { ...(c.scores || {}), [myName]: score }
+            const answersMap = { ...(c.answers || {}), [myName]: answers || {} }
+            const allDone = (c.players || []).every(p => scores[p.name] != null)
+            return { ...c, scores, answers: answersMap, status: allDone ? 'done' : c.status }
+          },
+          (fresh) => fresh.scores && fresh.scores[myName] === score
+        )
+        if (!ok) return res.status(409).json({ error: 'duel_grade_conflict', message: 'Muita gente respondendo ao mesmo tempo — tente enviar de novo.' })
         return res.json({ score, total: questions.length })
       }
       case 'log_error': {
