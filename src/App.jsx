@@ -3057,7 +3057,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
   // ── CODING ──
   return (
-    <div className={supportClass} style={styles.container}>
+    <div className={supportClass} style={{ ...styles.container, position:"relative" }}>
+      <Sparkles id="nyx-student-sparkles" position="absolute" count={26} />
       {routineBar}
       {renderHiddenEggs()}
       {/* pergunta de preferência de interação do Nyx — perfil novo, antes até da apresentação e do tour */}
