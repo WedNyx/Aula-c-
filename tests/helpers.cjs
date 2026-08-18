@@ -32,12 +32,6 @@ function resetCounters() { pass = 0; fail = 0; results.length = 0; }
 // espera (perguntas de atividade vs. resumo de aula vs. genérico) — o mesmo em todos os testes
 function mockClaudeBody(prompt) {
   const p = String(prompt || '');
-  // tutorial de teclado: frase de prática digitada depois de acertar uma tecla (Fase 6) —
-  // devolve algo previsível e fácil de testar, incluindo aspas de propósito (pra cobrir o caso
-  // de "o que tá dentro das aspas não precisa bater")
-  if (p.includes('"frase"')) {
-    return JSON.stringify({ frase: 'Console.WriteLine("teste");' });
-  }
   if (p.includes('"questions"')) {
     return JSON.stringify({ questions: Array.from({ length: 4 }, (_, i) => ({ q: `Pergunta de teste ${i + 1}?`, opts: ['A', 'B', 'C', 'D'], correct: 0 })) });
   }

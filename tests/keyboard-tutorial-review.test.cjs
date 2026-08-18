@@ -15,8 +15,9 @@ async function completePhraseIfPresent(page) {
     await page.waitForTimeout(50);
   }
   if (await ph.count()) {
-    await ph.click();
-    await ph.type('Console.WriteLine("x");');
+    // digita de volta a MESMA frase mostrada (banco fixo por nível, sem IA) — garante que bate
+    const frase = await page.locator('[data-testid="kb-phrase-text"]').innerText();
+    await ph.fill(frase);
     await page.waitForTimeout(120);
   }
 }

@@ -52,9 +52,10 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
   await page.waitForTimeout(600);
   check('Depois de acertar, a mensagem de repetição some', (await page.locator('text=Sem pressa').count()) === 0);
   check('Depois de acertar, entra na etapa de praticar uma frase', (await page.locator('text=Agora pratique digitando').count()) > 0);
+  // digita de volta a MESMA frase mostrada (banco fixo, sem IA) — garante que bate a estrutura
+  const frase = await page.locator('[data-testid="kb-phrase-text"]').innerText();
   const textarea = page.locator('[data-testid="kb-phrase-input"]');
-  await textarea.click();
-  await textarea.type('Console.WriteLine("qualquer coisa");');
+  await textarea.fill(frase);
   await page.waitForTimeout(400);
   check('Depois de completar a frase, avança pro próximo alvo (1/36)', (await page.locator('text=/1\\/36 teclas/').count()) > 0);
 

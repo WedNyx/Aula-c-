@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { generateTypingPhrase } from "./lib/ai.js";
 import { phraseMatches } from "./lib/utils.js";
 import { VSEditor } from "./components/CodeEditor.jsx";
 
@@ -134,6 +133,18 @@ const KEYBOARD_LEVELS = [
   ] },
   { id:9, title:"Teste final", line: 'int x = 10;\nif (x > 5) { Console.WriteLine("Oi!"); }' },
 ];
+// frases curtas de prática (banco fixo, sem chamar IA) — 5 por nível, sorteia uma a cada vez que o
+// aluno acerta uma tecla; nível 8 ("Editor de código") não passa por aqui, quem valida ele é o
+// próprio checkSuccess do editor (ver onEditorChange), e o 9 é o teste final em si
+const PRACTICE_PHRASES = {
+  1: ['string nome = "Ana";', 'string cidade = "Brasília";', 'string turma = "manhã";', 'string materia = "C#";', 'string aluno = "novo";'],
+  2: ['Console.WriteLine("Oi");', 'int total = 0;', 'string cor = "azul";', 'Console.WriteLine("Bom dia!");', 'int idade = 12;'],
+  3: ['class Aluno {}', 'string Nome = "NYX";', 'Console.WriteLine("OI");', 'class Programa {}', 'int NOTA = 10;'],
+  4: ['int soma = 1 + 2;', 'string oi = "ola";', 'bool ok = true;', 'int total = 100;', 'int contador = 0;'],
+  5: ['if (x > 5) {}', 'Console.WriteLine("Oi, mundo!");', 'int[] nums = {1, 2, 3};', 'if (nota >= 60) {}', 'string s = "a,b,c";'],
+  6: ['int soma = 2 + 3;', 'int resto = 10 % 3;', 'double media = 10 / 2;', 'int dobro = 5 * 2;', 'bool ok = true && false;'],
+  7: ['string coração = "feliz";', 'string irmã = "Maria";', 'string função = "somar";', 'string maçã = "vermelha";', 'string está = "pronto";'],
+};
 // revisão leve no final do treino todo (não é uma prova — não trava nem penaliza, é só reforçar o
 // que foi visto). Versão normal com 4 perguntas; versão fácil (quem tem algum apoio marcado) com só
 // 2, mais concretas/visuais e sem misturar assunto — nunca aparece pra quem está no Modo Guiado, que
@@ -232,7 +243,7 @@ function MiniKeyboard({ highlight, zoom = 1 }) {
     </div>
   );
 }
-export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech, accessMode = false, onEggFound, playSound, codeContext, studyLang, easyReview = false }) {
+export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSpeech, accessMode = false, onEggFound, playSound, easyReview = false }) {
   const levels = accessMode ? KEYBOARD_LEVELS_EASY : KEYBOARD_LEVELS;
   const [levelIdx, setLevelIdx] = useState(0);
   const [targetIdx, setTargetIdx] = useState(0);
@@ -240,6 +251,18 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
   const [wrongCount, setWrongCount] = useState(0);
   const [finalTyped, setFinalTyped] = useState("");
   const [done, setDone] = useState(false);
+  // a Nyx falar em voz alta é opcional agora — cada aluno liga/desliga do jeito que preferir,
+  // fica salvo no aparelho (não é por aluno, é por dispositivo, igual outras preferências de UI)
+  const [voiceOn, setVoiceOn] = useState(() => { try { return localStorage.getItem("nyx_kb_voice") !== "0"; } catch { return true; } });
+  const say = (text) => { if (voiceOn) speak(text); };
+  const toggleVoice = () => {
+    setVoiceOn(v => {
+      const next = !v;
+      try { localStorage.setItem("nyx_kb_voice", next ? "1" : "0"); } catch {}
+      if (!next) stopSpeech?.();
+      return next;
+    });
+  };
   // depois de acertar uma tecla, entra numa fase de prática: a Nyx gera uma frasezinha (ou linha
   // de código) pra digitar de verdade, antes de avançar pro próximo alvo — null quando não está
   // nessa fase; { loading, frase, typed } enquanto está
@@ -261,9 +284,9 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
     setWrongCount(0);
     if (target?.editor) { setEditorValue(target.initialValue || ""); editorHistoryRef.current = [target.initialValue || ""]; }
     if (done) return;
-    speak(explanationFor(level, target));
+    say(explanationFor(level, target));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [levelIdx, targetIdx, done]);
+  }, [levelIdx, targetIdx, done, voiceOn]);
 
   const onEditorChange = (v) => {
     setEditorValue(v);
@@ -287,21 +310,17 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
     else finishAll();
   };
 
-  // depois de acertar a tecla, pratica digitando uma frase de verdade (contextualizada com o que
-  // o aluno está aprendendo) em vez de simplesmente pular pro próximo alvo. No Modo Guiado (leitura/
-  // escrita/motora difícil) essa etapa é pulada — o foco lá é só achar a tecla certa, sem carga
-  // extra de digitação livre; se a IA falhar ou não devolver nada, também pula direto sem travar
-  const startPhrase = async () => {
+  // depois de acertar a tecla, pratica digitando uma frase de verdade (sorteada do banco fixo do
+  // nível) em vez de simplesmente pular pro próximo alvo. No Modo Guiado (leitura/escrita/motora
+  // difícil) essa etapa é pulada — o foco lá é só achar a tecla certa, sem carga extra de digitação
+  // livre; níveis sem frase no banco (não deveria acontecer, mas por segurança) também pulam direto
+  const startPhrase = () => {
     if (accessMode) { advanceTarget(); return; }
-    setPhraseState({ loading: true, typed: "", frase: "" });
-    try {
-      const frase = await generateTypingPhrase(level.title, codeContext, studyLang);
-      if (!frase) { setPhraseState(null); advanceTarget(); return; }
-      setPhraseState({ loading: false, typed: "", frase });
-      speak(`Agora escreva: ${frase}`);
-    } catch {
-      setPhraseState(null); advanceTarget();
-    }
+    const pool = PRACTICE_PHRASES[level.id];
+    if (!pool || !pool.length) { advanceTarget(); return; }
+    const frase = pool[Math.floor(Math.random() * pool.length)];
+    setPhraseState({ typed: "", frase });
+    say(`Agora escreva: ${frase}`);
   };
 
   const onPhraseType = (v) => {
@@ -342,12 +361,12 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
         playSound("wrong");
         setWrongFlash(true); setTimeout(() => setWrongFlash(false), 300);
         setWrongCount(n => n + 1);
-        speak(explanationFor(level, target));
+        say(explanationFor(level, target));
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [levelIdx, targetIdx, done, level, target, phraseState]);
+  }, [levelIdx, targetIdx, done, level, target, phraseState, voiceOn]);
 
   const finishAll = async () => {
     setDone(true);
@@ -360,7 +379,7 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
   const startReview = () => {
     const questions = easyReview ? REVIEW_QUESTIONS_EASY : REVIEW_QUESTIONS_NORMAL;
     setReviewState({ qIdx: 0, questions, feedback: null });
-    speak("Última coisinha! Vamos revisar rapidinho o que você aprendeu.");
+    say("Última coisinha! Vamos revisar rapidinho o que você aprendeu.");
   };
   const onFinalType = (v) => {
     setFinalTyped(v);
@@ -405,6 +424,7 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>⌨️ Tutorial de Teclado</h2>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
             {onEggFound && <span onClick={()=>onEggFound("sanduiche")} title="" style={{ fontSize:15, opacity:0.16, cursor:"default", userSelect:"none" }}>🥪</span>}
+            <button onClick={toggleVoice} title={voiceOn ? "Desativar a voz da Nyx" : "Ativar a voz da Nyx"} style={{ background:"transparent", border:`1px solid ${voiceOn?"#22d3ee":"#3b2a58"}`, borderRadius:8, color: voiceOn ? "#22d3ee" : "#776798", fontSize:15, cursor:"pointer", padding:"4px 9px", lineHeight:1 }}>{voiceOn ? "🔊 Voz" : "🔇 Voz"}</button>
             <button onClick={()=>{ stopSpeech?.(); onClose(); }} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
           </div>
         </div>
@@ -442,16 +462,12 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
                 )}
               </div>
             ) : phraseState ? (
-              phraseState.loading ? (
-                <p style={{ color:"#a99ac9", fontSize:14, textAlign:"center", padding:"36px 0" }}>✨ A Nyx tá pensando numa frase pra você praticar...</p>
-              ) : (
-                <>
-                  <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 10px" }}>🖊️ Boa! Agora pratique digitando esta frase (não precisa quebrar linha igual, e o que tiver dentro de "" pode ser diferente):</p>
-                  <pre style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:10, padding:"12px 14px", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{phraseState.frase}</pre>
-                  <textarea data-testid="kb-phrase-input" autoFocus value={phraseState.typed} onChange={e=>onPhraseType(e.target.value)} onPaste={e=>e.preventDefault()} spellCheck={false} autoCorrect="off" autoCapitalize="off"
-                    style={{ width:"100%", minHeight:70, marginTop:8, background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"10px 12px", color:"#f0e9fb", fontFamily:"'Courier New',monospace", fontSize:14, outline:"none" }} />
-                </>
-              )
+              <>
+                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 10px" }}>🖊️ Boa! Agora pratique digitando esta frase (não precisa quebrar linha igual, e o que tiver dentro de "" pode ser diferente):</p>
+                <pre data-testid="kb-phrase-text" style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:10, padding:"12px 14px", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{phraseState.frase}</pre>
+                <textarea data-testid="kb-phrase-input" autoFocus value={phraseState.typed} onChange={e=>onPhraseType(e.target.value)} onPaste={e=>e.preventDefault()} spellCheck={false} autoCorrect="off" autoCapitalize="off"
+                  style={{ width:"100%", minHeight:70, marginTop:8, background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"10px 12px", color:"#f0e9fb", fontFamily:"'Courier New',monospace", fontSize:14, outline:"none" }} />
+              </>
             ) : level.line ? (
               <>
                 <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 10px" }}>Última etapa! Digite essa linha de código inteira, prestando atenção em cada tecla — sem colar. 💪</p>
@@ -477,7 +493,7 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
                   <p style={{ color:"#d6c9ec", fontSize:13, margin:"6px 0 0" }}>
                     {target.hint ? target.hint : target.symbol ? `${comboLabel(target.char)} — isso escreve ${keyName(target.char)}` : target.ctrl ? `Segure Ctrl e aperte ${target.char.toUpperCase()} ao mesmo tempo — ${target.label}` : target.shift ? `Segure Shift e aperte ${target.char} ao mesmo tempo` : `Aperte essa tecla`}
                   </p>
-                  {wrongCount > 0 && <p style={{ color:"#fbbf24", fontSize:12, margin:"8px 0 0", fontWeight:700 }}>🔊 Sem pressa, a Nyx repetiu a dica — pode tentar de novo!</p>}
+                  {wrongCount > 0 && <p style={{ color:"#fbbf24", fontSize:12, margin:"8px 0 0", fontWeight:700 }}>{voiceOn ? "🔊 Sem pressa, a Nyx repetiu a dica — pode tentar de novo!" : "💡 Sem pressa, dá uma olhada na dica de novo — pode tentar!"}</p>}
                 </div>
                 <MiniKeyboard highlight={highlight} zoom={kbZoom} />
               </>
