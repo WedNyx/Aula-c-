@@ -3203,15 +3203,21 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         </div>
       </div>
 
-      {/* navegação rápida — deixa Jornada/Conquistas/Loja/Duelo/Hall visíveis e ao alcance logo no
-          topo, em vez de só lá embaixo no card lateral; continuam existindo nos dois lugares, não
-          tira nada de onde já estava. Some no modo foco, junto com o resto da gamificação. */}
+      {/* navegação rápida — deixa toda a parte de gamificação (Jornada, Conquistas, Loja, Ranking,
+          os 3 formatos de Duelo, Corrida de digitação, Testar Conhecimento, Desafio Livre, Hall da
+          Fama) visível e ao alcance logo no topo, em vez de só lá embaixo no card lateral;
+          continuam existindo nos dois lugares, não tira nada de onde já estava. Some no modo foco. */}
       {!focusMode && (
         <div style={{ maxWidth:1180, margin:"12px auto 0", padding:"0 14px", display:"flex", gap:8, flexWrap:"wrap" }}>
           <button onClick={()=>{ setShowTrail(true); }} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🗺️ Jornada</button>
           <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🎖️ Conquistas · {achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/{visibleAchievements(isLangRoom).length}</button>
           <button onClick={()=>setShowNyxShop(true)} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🎁 Loja do Nyx</button>
+          <button onClick={()=>setShowRanking(true)} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>📊 Ranking da turma</button>
           {!nyxLocks.zeker && <button onClick={()=>setShowDuel(true)} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>⚔️ Duelo</button>}
+          {!nyxLocks.zeker && <button onClick={()=>setShowTeamDuel(true)} title="Chame 1 parceiro pra jogar em dupla contra outros 2 colegas" style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🤝⚔️ Duelo em Dupla</button>}
+          <button onClick={()=>setShowRace(true)} title="Digite um trecho de código contra o relógio — pontos 1x por dia e pódio da turma" style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🏁 Corrida de digitação{typingBest ? ` · ${(typingBest.ms/1000).toFixed(1)}s` : ""}</button>
+          <button onClick={()=>setShowKnowledgeTest(true)} title="Teste seu conhecimento da matéria, sem dicas" style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🧠 Testar Conhecimento</button>
+          <button onClick={()=>setShowFreeBuild(true)} title="Proponha algo que você quer construir e o Nyx te ajuda a planejar como chegar lá" style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🏗️ Desafio Livre{weeklyChallenge && weeklyChallenge.weekKey===weekKey() && weeklyChallenge.status==="done" ? " ✅" : ""}</button>
           <button onClick={()=>{ setShowHallOfFame(true); getHallOfFame(shift).then(setHallEntries); }} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>👑 Hall da Fama</button>
         </div>
       )}
