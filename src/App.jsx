@@ -3203,6 +3203,19 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         </div>
       </div>
 
+      {/* navegação rápida — deixa Jornada/Conquistas/Loja/Duelo/Hall visíveis e ao alcance logo no
+          topo, em vez de só lá embaixo no card lateral; continuam existindo nos dois lugares, não
+          tira nada de onde já estava. Some no modo foco, junto com o resto da gamificação. */}
+      {!focusMode && (
+        <div style={{ maxWidth:1180, margin:"12px auto 0", padding:"0 14px", display:"flex", gap:8, flexWrap:"wrap" }}>
+          <button onClick={()=>{ setShowTrail(true); }} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🗺️ Jornada</button>
+          <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🎖️ Conquistas · {achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/{visibleAchievements(isLangRoom).length}</button>
+          <button onClick={()=>setShowNyxShop(true)} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🎁 Loja do Nyx</button>
+          {!nyxLocks.zeker && <button onClick={()=>setShowDuel(true)} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>⚔️ Duelo</button>}
+          <button onClick={()=>{ setShowHallOfFame(true); getHallOfFame(shift).then(setHallEntries); }} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>👑 Hall da Fama</button>
+        </div>
+      )}
+
       <AchievementToast achievement={newAchievement} />
         {goalParty && !calmMode && <ConfettiParty level={goalParty} />}
 
