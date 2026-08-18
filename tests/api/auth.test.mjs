@@ -2,7 +2,7 @@
 // seguida do mesmo IP, e reset do contador assim que a senha certa é digitada.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -29,7 +29,7 @@ function mockReqRes(password) {
   return { req, res };
 }
 
-const { default: handler } = await import('file:///home/user/Aula-c-/api/auth.js');
+const { default: handler } = await import(pathToFileURL(path.join(__dirname, '../../api/auth.js')).href);
 
 // 5 tentativas erradas seguidas — mede se o atraso cresce a cada uma
 const delays = [];

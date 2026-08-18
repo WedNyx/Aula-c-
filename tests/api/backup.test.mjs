@@ -2,7 +2,7 @@
 // professor), exclusão de chaves técnicas, listagem e rotação dos backups mais antigos.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -33,8 +33,8 @@ function mockRes() {
   return res;
 }
 
-const backupHandler = (await import('file:///home/user/Aula-c-/api/backup.js')).default;
-const kvHandler = (await import('file:///home/user/Aula-c-/api/kv.js')).default;
+const backupHandler = (await import(pathToFileURL(path.join(__dirname, '../../api/backup.js')).href)).default;
+const kvHandler = (await import(pathToFileURL(path.join(__dirname, '../../api/kv.js')).href)).default;
 
 // pré-popula o "banco" com algumas chaves via /api/kv, como a app faria de verdade
 // (teachermeta: é uma chave protegida — precisa da senha do professor pra gravar, igual na app real)

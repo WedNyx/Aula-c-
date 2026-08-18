@@ -8,7 +8,7 @@
 // depois da correção (não é apagado pelo merge do servidor).
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -34,7 +34,7 @@ function mockRes() {
   return res;
 }
 
-const { default: kvHandler } = await import('file:///home/user/Aula-c-/api/kv.js');
+const { default: kvHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/kv.js')).href);
 
 // 5 perguntas, gabarito [0,1,2,3,0] — igual ao formato real gerado por generateDuelQuestions
 const QUESTIONS = Array.from({ length: 5 }, (_, i) => ({ q: `Pergunta ${i + 1}?`, opts: ['A', 'B', 'C', 'D'], correct: i % 4 }));

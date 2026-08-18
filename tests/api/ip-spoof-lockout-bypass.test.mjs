@@ -7,7 +7,7 @@
 // presente), então forjar o início da lista não escapa mais do atraso crescente.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -26,8 +26,8 @@ process.env.FAKE_REDIS_PORT = String(PORT);
 const server = spawn('node', [path.join(__dirname, 'fake-redis-server.mjs')], { stdio: 'inherit', env: process.env });
 await new Promise(r => setTimeout(r, 500));
 
-const { clientIp } = await import('file:///home/user/Aula-c-/api/_ip.js');
-const { default: kvHandler } = await import('file:///home/user/Aula-c-/api/kv.js');
+const { clientIp } = await import(pathToFileURL(path.join(__dirname, '../../api/_ip.js')).href);
+const { default: kvHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/kv.js')).href);
 
 function mockRes() {
   let statusCode = 200;

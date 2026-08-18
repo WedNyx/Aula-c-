@@ -5,7 +5,7 @@
 // conseguir gravar uma config malformada de outro jeito).
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -31,7 +31,7 @@ function mockRes() {
   return res;
 }
 
-const { default: kvHandler } = await import('file:///home/user/Aula-c-/api/kv.js');
+const { default: kvHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/kv.js')).href);
 
 // 5 questões válidas + 2 malformadas (correct fora do range / undefined) — como se a IA tivesse
 // devolvido isso sem passar pela validação do cliente

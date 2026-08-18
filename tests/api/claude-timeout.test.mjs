@@ -1,3 +1,7 @@
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Nenhuma das chamadas a provedores de IA (NVIDIA/OpenRouter/Anthropic) em api/claude.js tinha
 // timeout próprio: se o provedor gratuito simplesmente NUNCA respondesse (sem erro, só travado),
 // o fetch ficava pendurado até a Vercel matar a função inteira pelo maxDuration (vercel.json) — e
@@ -54,7 +58,7 @@ global.fetch = async (url, opts = {}) => {
   throw new Error('fetch inesperado no teste: ' + u);
 };
 
-const { default: claudeHandler } = await import('file:///home/user/Aula-c-/api/claude.js');
+const { default: claudeHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/claude.js')).href);
 
 // 1) NVIDIA travada (nunca responde) + Anthropic configurada como reserva: a função NÃO pode ficar
 // pendurada pra sempre — precisa desistir da NVIDIA sozinha (dentro do orçamento da função) e cair

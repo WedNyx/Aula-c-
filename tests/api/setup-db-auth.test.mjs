@@ -4,7 +4,7 @@
 // tentativa errada usado no resto do painel.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -31,7 +31,7 @@ function mockRes() {
   return res;
 }
 
-const { default: setupDbHandler } = await import('file:///home/user/Aula-c-/api/setup-db.js');
+const { default: setupDbHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/setup-db.js')).href);
 
 // 1) sem "auth" nenhum → bloqueado
 {

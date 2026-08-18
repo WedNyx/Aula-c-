@@ -3,7 +3,7 @@
 // nunca cresce sem limite (capa nas últimas ERROR_LOG_MAX entradas) e tem rate limit por IP.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -29,7 +29,7 @@ function mockRes() {
   return res;
 }
 
-const { default: kvHandler } = await import('file:///home/user/Aula-c-/api/kv.js');
+const { default: kvHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/kv.js')).href);
 
 // 1) registrar um erro NÃO exige senha (o objetivo é pegar erro de quem nem sabe que precisa avisar)
 {

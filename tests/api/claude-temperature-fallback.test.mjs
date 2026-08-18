@@ -1,3 +1,7 @@
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Alguns modelos gratuitos (principalmente "de raciocínio") passaram a rejeitar o parâmetro
 // temperature ("'temperature' is deprecated for this model") — um erro real visto em produção que
 // derrubava TODA chamada pra esse modelo, sempre, sem chance de recuperação. Agora, quando esse é
@@ -22,7 +26,7 @@ function mockRes() {
   return res;
 }
 
-const { default: claudeHandler } = await import('file:///home/user/Aula-c-/api/claude.js');
+const { default: claudeHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/claude.js')).href);
 
 // 1) NVIDIA rejeita "temperature" na 1ª tentativa, mas aceita normalmente sem esse campo — a
 // chamada não pode falhar pra sempre por causa disso, precisa se recuperar sozinha

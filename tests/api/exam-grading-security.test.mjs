@@ -5,7 +5,7 @@
 // acontece no servidor via a ação "grade_exam", que nunca devolve o gabarito, só a nota final.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -31,7 +31,7 @@ function mockRes() {
   return res;
 }
 
-const { default: kvHandler } = await import('file:///home/user/Aula-c-/api/kv.js');
+const { default: kvHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/kv.js')).href);
 
 const questions = [
   { q: 'O que faz Console.WriteLine?', opts: ['Mostra texto', 'Apaga variável', 'Cria classe', 'Fecha o programa'], correct: 0 },

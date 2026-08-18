@@ -7,7 +7,7 @@
 // confirma que a chamada seguinte já cai no 429 — e que OUTRO IP não é afetado.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -33,7 +33,7 @@ function mockRes() {
   return res;
 }
 
-const { default: kvHandler } = await import('file:///home/user/Aula-c-/api/kv.js');
+const { default: kvHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/kv.js')).href);
 
 async function seedBucket(bucket, ip, count) {
   const key = `ratelimit:${bucket}:${ip}`;

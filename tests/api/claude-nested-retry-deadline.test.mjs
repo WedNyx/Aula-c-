@@ -1,3 +1,7 @@
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // callNvidiaRaw pode se rechamar sozinha até duas vezes seguidas (retry sem modo de raciocínio,
 // depois retry sem "temperature") quando o provedor rejeita esses parâmetros — antes desta correção,
 // CADA retentativa abria um AbortSignal.timeout(timeoutMs) do ZERO, com o mesmo orçamento cheio da
@@ -42,7 +46,7 @@ function slowRejectingFetch(delayMs, errorBody) {
 }
 
 const originalFetch = global.fetch;
-const { default: claudeHandler } = await import('file:///home/user/Aula-c-/api/claude.js');
+const { default: claudeHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/claude.js')).href);
 
 // 1ª tentativa (com reasoning) rejeitada em ~4s (erro de reasoning) → retry sem reasoning, ainda
 // COM temperature, rejeitado em ~4s (erro de temperature) → retry final sem nenhum dos dois, que
