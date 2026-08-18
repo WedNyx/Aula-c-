@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getTurmas, saveTurmas } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -4383,6 +4383,11 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [recentErrors, setRecentErrors] = useState(null);
   const [errorsLoading, setErrorsLoading] = useState(false);
   const loadRecentErrors = async () => { setErrorsLoading(true); setRecentErrors(await getRecentErrors(teacherAuth)); setErrorsLoading(false); };
+  // 🔐 log das ações que exigiram a senha do professor (apagar, travar teclado, mudar
+  // configuração de turma etc.) — dá visibilidade de quando a senha foi usada e pra quê
+  const [adminLog, setAdminLog] = useState(null);
+  const [adminLogLoading, setAdminLogLoading] = useState(false);
+  const loadAdminLog = async () => { setAdminLogLoading(true); setAdminLog(await getAdminLog(teacherAuth)); setAdminLogLoading(false); };
   const [tab, setTab] = useState("monitor");
   // 🏫 turmas: pode ter mais de uma no mesmo turno (ex: duas de tarde) — cada turma é seu próprio
   // "turno" pra todo o resto do sistema (aluno, prova, código, monitoramento já funcionam com
@@ -6920,6 +6925,31 @@ function TeacherView({ onLogout, teacherAuth }) {
                         <span>{e.at ? new Date(e.at).toLocaleString("pt-BR") : "?"}</span>
                       </div>
                       <p style={{ color:"#f0e9fb", fontSize:12, margin:0, wordBreak:"break-word" }}>{e.message}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CollapsibleCard>
+
+            <CollapsibleCard title="🔐 Ações administrativas" color="#c084fc" headerRight={
+              <button style={{ ...styles.btnGhost, padding:"3px 10px", fontSize:11.5 }} onClick={loadAdminLog} disabled={adminLogLoading}>{adminLogLoading ? "..." : "↻ Verificar"}</button>
+            }>
+              <p style={{ color:"#776798", fontSize:11.5, lineHeight:1.6, margin:"0 0 8px" }}>
+                Toda ação que exigiu a senha do professor (apagar, travar teclado, mudar configuração de turma etc.) — pra você saber quando a senha foi usada e pra quê, mesmo que não tenha sido você.
+              </p>
+              {adminLog === null ? (
+                <p style={{ color:"#776798", fontSize:12 }}>Clique em "↻ Verificar" pra carregar.</p>
+              ) : adminLog.length === 0 ? (
+                <p style={{ color:"#34d399", fontSize:12.5 }}>✅ Nenhuma ação registrada ainda.</p>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:260, overflowY:"auto" }}>
+                  {adminLog.map((a, i) => (
+                    <div key={i} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"8px 10px" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", gap:8, fontSize:10.5, color:"#776798", marginBottom:3 }}>
+                        <span>{a.action} · {a.ip || "?"}</span>
+                        <span>{a.at ? new Date(a.at).toLocaleString("pt-BR") : "?"}</span>
+                      </div>
+                      <p style={{ color:"#f0e9fb", fontSize:12, margin:0, wordBreak:"break-word" }}>{a.key || "(sem chave)"}</p>
                     </div>
                   ))}
                 </div>

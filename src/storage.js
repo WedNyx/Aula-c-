@@ -286,6 +286,14 @@ export async function getRecentErrors(auth) {
     return r.errors || []
   } catch { return [] }
 }
+// log das ações que exigiram a senha do professor (apagar, travar teclado, mudar configuração de
+// turma etc.) — dá visibilidade de quando a senha foi usada e pra quê, ver recordAdminAction em api/kv.js
+export async function getAdminLog(auth) {
+  try {
+    const r = await kvCall({ action: 'get_admin_log', auth })
+    return r.actions || []
+  } catch { return [] }
+}
 
 // todos os perfis de apoio de uma vez (pro indicador 💙 nos tiles do monitoramento) — só o
 // professor pode listar em massa (o servidor exige a senha pra essa listagem)

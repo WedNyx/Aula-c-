@@ -9,13 +9,13 @@ const TABLE = 'kv_store'
 // si aceitava qualquer pedido. Agora, as ações que só o professor deveria poder fazer
 // (apagar tudo, mexer nas configurações da turma) exigem a senha de verdade aqui no
 // servidor, verificada no campo "auth" do pedido.
-const SET_PROTECTED_PREFIXES = ['teachercode:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'resumotrigger:', 'quiz:', 'backup:', 'turmas:', 'errorlog:']
+const SET_PROTECTED_PREFIXES = ['teachercode:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'resumotrigger:', 'quiz:', 'backup:', 'turmas:', 'errorlog:', 'adminlog:']
 // "errorlog:" e "kbdlock:" faltavam aqui: a leitura já exigia senha (GET_PROTECTED_PREFIXES /
 // SET_PROTECTED_PREFIXES respectivamente), mas sem entrar também em DELETE_PROTECTED_PREFIXES
 // qualquer sessão anônima podia apagar o log de erros inteiro ou destravar o teclado da turma
 // (kbdlock) sem senha nenhuma, chamando "delete" direto — mesmo com o "log_error"/"set" continuando
 // devidamente livres pra quem só está registrando um erro de verdade ou o professor travando
-const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'nyxlocks:', 'exam:config', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'quiz:', 'backup:', 'turmas:', 'errorlog:']
+const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'nyxlocks:', 'exam:config', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'quiz:', 'backup:', 'turmas:', 'errorlog:', 'adminlog:']
 // list_with_values (listagem em massa) é NEGADA por padrão — só esses prefixos continuam
 // listáveis sem senha, porque são dados que o próprio app precisa ler sem professor logado
 // (seletor de perfil na tela de login, /impacto, portfólio público, estado de duelo/parceiro
@@ -35,6 +35,7 @@ const GET_PROTECTED_PREFIXES = ['backup:', 'errorlog:']
 function needsTeacherAuth(action, key) {
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
   if (action === 'get_recent_errors') return true // lista os erros de todo mundo — sempre só-do-professor
+  if (action === 'get_admin_log') return true // lista as ações administrativas — sempre só-do-professor
   const k = String(key || '')
   if (action === 'set') return SET_PROTECTED_PREFIXES.some(p => k.startsWith(p))
   if (action === 'delete') return DELETE_PROTECTED_PREFIXES.some(p => k.startsWith(p))
@@ -464,7 +465,7 @@ export async function clearLoginFailures(bucketKey) {
 // mais antigos além do limite. Não é backup "fora do banco" (se o banco inteiro sumir, o backup
 // some junto), mas já protege contra bug/ação errada apagando ou corrompendo chaves específicas ──
 const BACKUP_PREFIX = 'backup:'
-const BACKUP_EXCLUDE = /^(ratelimit:|aihealth|loginfail:|backup:|errorlog:)/
+const BACKUP_EXCLUDE = /^(ratelimit:|aihealth|loginfail:|backup:|errorlog:|adminlog:)/
 
 // ─── log de erros de JS não tratados, mandado sozinho por qualquer sessão (aluno ou professor) —
 // ver reportClientError em storage.js / o listener global em App.jsx. Uma lista só, capada nas
@@ -472,6 +473,24 @@ const BACKUP_EXCLUDE = /^(ratelimit:|aihealth|loginfail:|backup:|errorlog:)/
 // antigo individualmente, só a lista recente inteira) ──
 const ERROR_LOG_KEY = 'errorlog:recent'
 const ERROR_LOG_MAX = 50
+
+// ─── auditoria das ações só-do-professor: toda ação que passou pela verificação de senha em
+// needsTeacherAuth (apagar, travar teclado, mudar configuração de turma etc.) fica registrada aqui
+// — não pra desconfiar do professor, mas pra dar visibilidade de quando alguém mais usou a senha
+// (compartilhada sem querer, adivinhada, etc.) e o que foi feito com ela. Mesmo padrão de lista
+// única capada do log de erros acima; nunca guarda o valor em si, só a ação/chave/IP/quando ──
+const ADMIN_LOG_KEY = 'adminlog:recent'
+const ADMIN_LOG_MAX = 300
+async function recordAdminAction(action, key, ip) {
+  try {
+    const raw = await store.get(ADMIN_LOG_KEY)
+    let entries = []
+    try { entries = raw ? JSON.parse(raw) : [] } catch { entries = [] }
+    entries.push({ action: String(action || '').slice(0, 40), key: String(key || '').slice(0, 200), ip: String(ip || '').slice(0, 60), at: Date.now() })
+    if (entries.length > ADMIN_LOG_MAX) entries = entries.slice(entries.length - ADMIN_LOG_MAX)
+    await store.set(ADMIN_LOG_KEY, JSON.stringify(entries))
+  } catch {}
+}
 export async function createBackupSnapshot(keep = 14) {
   if (!BACKEND) return { ok: false, reason: 'no_backend' }
   const items = await store.listWithValues('')
@@ -536,6 +555,11 @@ export default async function handler(req, res) {
     if (!(await checkTeacherAuth(ip, auth))) {
       return res.status(403).json({ error: 'forbidden', message: 'Essa ação é só do professor — senha inválida ou ausente.' })
     }
+    // ação privilegiada de verdade (senha conferida agora mesmo) — registra quem fez o quê, sem
+    // guardar o valor em si. "get_admin_log" fica de fora de propósito: só consultar o próprio log
+    // não é uma ação administrativa que valha a pena registrar (senão cada consulta gerava uma
+    // entrada nova só de olhar a lista)
+    if (action !== 'get_admin_log') await recordAdminAction(action, authKey, ip)
   }
 
   if (action === 'check') {
@@ -728,6 +752,13 @@ export default async function handler(req, res) {
         let entries = []
         try { entries = raw ? JSON.parse(raw) : [] } catch { entries = [] }
         return res.json({ errors: entries.slice().reverse() })
+      }
+      case 'get_admin_log': {
+        // senha já verificada acima — mesma proteção de "get_recent_errors"
+        const raw = await store.get(ADMIN_LOG_KEY)
+        let entries = []
+        try { entries = raw ? JSON.parse(raw) : [] } catch { entries = [] }
+        return res.json({ actions: entries.slice().reverse() })
       }
       case 'list_with_values': {
         if (!(await checkKvRateLimit(res, 'kvlist', ip))) return
