@@ -61,13 +61,22 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
     }
   }
 
+  // Duelo/Duelo em Dupla/Corrida saíram de "Turma & Você" e agora vivem só no menu "🎮 Games"
+  // (sidebar ou barra rápida) — abre o menu e clica no jogo específico.
+  async function openGame(page, label) {
+    await page.click('button:has-text("🎮 Games")');
+    await page.waitForTimeout(300);
+    // .first() pq "⚔️ Duelo" é substring de "🤝⚔️ Duelo em Dupla" também
+    await page.locator(`button:has-text("${label}")`).first().click();
+  }
+
   await loginExisting(pageA, 'AlunoDuelA');
   await loginExisting(pageB, 'AlunoDuelB');
 
   // AlunoDuelA abre o duelo (já ativo) e responde — SEMPRE a 1ª opção, pra combinar exatamente
   // com o que AlunoDuelB também vai responder (garante empate = +2 pra cada um, sem depender de
   // acertar a pergunta de verdade)
-  await pageA.click('button:has-text("⚔️ Duelo entre alunos")');
+  await openGame(pageA, '⚔️ Duelo');
   await pageA.waitForTimeout(500);
   check('AlunoDuelA cai direto na tela de responder (duelo já ativo)', (await pageA.locator('button:has-text("Enviar respostas")').count()) > 0);
   await answerFirstOptionEveryQuestion(pageA);
@@ -79,7 +88,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
   check('AlunoDuelA AINDA não ganhou pontos (o outro ainda não respondeu)', (aAfterOwnSubmit.nyxPoints || 0) === 0, `nyxPoints=${aAfterOwnSubmit.nyxPoints}`);
 
   // agora AlunoDuelB responde (segundo a responder) — mesma 1ª opção em todas, garantindo empate
-  await pageB.click('button:has-text("⚔️ Duelo entre alunos")');
+  await openGame(pageB, '⚔️ Duelo');
   await pageB.waitForTimeout(500);
   check('AlunoDuelB cai direto na tela de responder (duelo já ativo)', (await pageB.locator('button:has-text("Enviar respostas")').count()) > 0);
   await answerFirstOptionEveryQuestion(pageB);

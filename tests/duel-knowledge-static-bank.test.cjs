@@ -57,8 +57,12 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
   // ── Duelo 1x1: abre a lista de alunos pra duelar (precisa de outro aluno online pra desafiar de
   // verdade, então só confirmamos aqui que abrir o modal não gasta Nyx nenhuma — a geração das 5
   // perguntas só acontece ao clicar "Desafiar", coberta indiretamente pelo mesmo generateDuelQuestions) ──
+  // Duelo/Duelo em Dupla/Corrida saíram de "Turma & Você" e agora vivem só no menu "🎮 Games".
   const callsBeforeDuel = claudePrompts.length;
-  await page.click('button:has-text("Duelo entre alunos")').catch(() => {});
+  await page.click('button:has-text("🎮 Games")');
+  await page.waitForTimeout(300);
+  // .first() pq "⚔️ Duelo" é substring de "🤝⚔️ Duelo em Dupla" também
+  await page.locator('button:has-text("⚔️ Duelo")').first().click();
   await page.waitForTimeout(500);
   check('Abrir o Duelo NÃO chamou o Nyx', claudePrompts.length === callsBeforeDuel, JSON.stringify(claudePrompts.slice(callsBeforeDuel)));
 

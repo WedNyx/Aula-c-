@@ -3616,16 +3616,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               <button className="btn-ghost" onClick={()=>setShowTrail(true)} style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>🗺️ Trilha de aprendizado</button>
               <button className="btn-ghost" onClick={()=>setShowNextSteps(true)} style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>🚀 Próximos passos</button>
               <button className="btn-ghost" onClick={()=>setShowPerformance(true)} style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>📊 Meu Desempenho</button>
-              {!focusMode && <button onClick={()=>{ if (!nyxLocks.zeker) setShowDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : ""} className={nyxLocks.zeker ? "" : "btn-ghost"}
-                style={nyxLocks.zeker ? { ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:0.7, cursor:"not-allowed" } : { ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>
-                {nyxLocks.zeker ? "🔒 Duelos bloqueados" : "⚔️ Duelo entre alunos"}
-              </button>}
-              {!focusMode && <button onClick={()=>{ if (!nyxLocks.zeker) setShowTeamDuel(true); }} disabled={nyxLocks.zeker} title={nyxLocks.zeker ? "O professor bloqueou os duelos por enquanto" : "Chame 1 parceiro pra jogar em dupla contra outros 2 colegas"} className={nyxLocks.zeker ? "" : "btn-ghost"}
-                style={nyxLocks.zeker ? { ...styles.btn("#f87171"), fontSize:12, padding:"7px 0", opacity:0.7, cursor:"not-allowed" } : { ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>
-                {nyxLocks.zeker ? "🔒 Duelos bloqueados" : "🤝⚔️ Duelo em Dupla (2x2)"}
-              </button>}
-              {!focusMode && <button className="btn-ghost" onClick={()=>setShowRace(true)} title="Digite um trecho de código contra o relógio — pontos 1x por dia e pódio da turma"
-                style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>🏁 Corrida de digitação{typingBest ? ` · ${(typingBest.ms/1000).toFixed(1)}s` : ""}</button>}
+              {/* Duelo, Duelo em Dupla e Corrida de digitação saíram daqui — agora ficam juntos no
+                  botão "🎮 Games" da navegação lateral/barra rápida, pra não duplicar. */}
               {!focusMode && <button className="btn-ghost" onClick={()=>setShowKnowledgeTest(true)} title="Teste seu conhecimento da matéria, sem dicas — pode fazer quando quiser, sem precisar finalizar a aula"
                 style={{ ...styles.btnGhost, fontSize:12, padding:"7px 0" }}>🧠 Testar Conhecimento</button>}
               {!focusMode && <button className="btn-ghost" onClick={()=>setShowFreeBuild(true)} title="Proponha algo que você quer construir e o Nyx te ajuda a planejar como chegar lá"
