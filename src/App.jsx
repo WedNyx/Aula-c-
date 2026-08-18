@@ -42,26 +42,18 @@ import { QuickStatusModal, TelaoModal, JustifyModal, HallOfFameModal, TripOvervi
 import { BossStudyModal, LearningTrailModal, NextStepsModal, NotebookModal, CheckinModal, PerformanceModal, CHECKIN_MOODS } from "./components/LearningModals.jsx";
 import { TypingRaceModal, FreeBuildModal, DuelModal, TeamDuelModal, KnowledgeTestModal } from "./components/GameModals.jsx";
 import { MobileMonitorView } from "./components/MobileMonitor.jsx";
+import { CollapsibleCard } from "./components/CollapsibleCard.jsx";
+import { Calendar } from "./components/Calendar.jsx";
+import { CodeLab } from "./components/CodeLab.jsx";
+import { GIFT_TIERS, rollGift } from "./lib/gifts.js";
+import { QUIZ_COLORS, QUIZ_QUESTION_SECONDS, QUIZ_TIMER_OPTIONS, quizSecsOf, quizPoints, makeQuizCode, quizLeaderboard, QUIZ_SEED_THEMES } from "./lib/quiz.js";
+import { LESSON_LIBRARY } from "./lib/lessonLibrary.js";
 
 // desliga o "aquecimento" (revisão automática que chamava o Nyx sozinha, sem clique nenhum) —
 // ver o useEffect que usa essa flag, dentro de StudentView
 const WARMUP_ENABLED = false;
 
 // caderno: lista os resumos por data e mostra o escolhido
-
-// ── 🎁 presente misterioso do dia (aparece ao concluir a atividade, 1x por dia) ──
-const GIFT_TIERS = [
-  { chance: 0.55, pts: 3,  label: "Presente comum",  emoji: "💝", color: "#34d399" },
-  { chance: 0.30, pts: 6,  label: "Presente RARO",   emoji: "💎", color: "#22d3ee" },
-  { chance: 0.15, pts: 12, label: "Presente ÉPICO",  emoji: "👑", color: "#fbbf24" },
-];
-function rollGift() {
-  const r = Math.random();
-  if (r < GIFT_TIERS[0].chance) return GIFT_TIERS[0];
-  if (r < GIFT_TIERS[0].chance + GIFT_TIERS[1].chance) return GIFT_TIERS[1];
-  return GIFT_TIERS[2];
-}
-
 
 // ⌨️ Tutorial de teclado (ABNT2, réplica do notebook Lenovo) — movido pra src/KeyboardTutorial.jsx
 // e carregado sob demanda (React.lazy) só quando o aluno abre o tutorial, pra não pesar o pacote inicial.
@@ -71,84 +63,6 @@ const KeyboardTutorialModal = lazy(() => import("./KeyboardTutorial.jsx"));
 function checkinMoodInfo(id) {
   return CHECKIN_MOODS.find(m => m.id === id) || null;
 }
-
-
-// ════════════════════════════════════════════════════════════════════════════
-//  🎉 QUIZ ESTILO KAHOOT  (professor cria sala com código; alunos entram e respondem valendo pontos por velocidade)
-// ════════════════════════════════════════════════════════════════════════════
-// cores e formas das alternativas, na ordem clássica do Kahoot
-const QUIZ_COLORS = [
-  { bg: "#e21b3c", shape: "▲" },
-  { bg: "#1368ce", shape: "◆" },
-  { bg: "#d89e00", shape: "●" },
-  { bg: "#26890c", shape: "■" },
-];
-const QUIZ_QUESTION_SECONDS = 20; // padrão — o professor escolhe outro tempo ao criar a sala
-const QUIZ_TIMER_OPTIONS = [10, 15, 20, 30, 45, 60];
-const quizSecsOf = (room) => (room && room.secs) || QUIZ_QUESTION_SECONDS;
-// pontuação estilo Kahoot: acertou vale 500 + até 500 de bônus por velocidade; pergunta difícil vale em dobro
-function quizPoints(isCorrect, elapsedMs, durationMs, hard) {
-  if (!isCorrect) return 0;
-  const speed = Math.max(0, Math.min(1, 1 - elapsedMs / durationMs));
-  const base = 500 + Math.round(500 * speed);
-  return hard ? base * 2 : base;
-}
-const makeQuizCode = () => String(Math.floor(100000 + Math.random() * 900000));
-// apura o placar da sala: soma os pontos de cada jogador a partir das respostas gravadas no perfil
-// de cada um (quizAnswers, com horário) contra o horário de início de cada pergunta (room.startedAts)
-function quizLeaderboard(room, students) {
-  const players = (students || []).filter(s => s.quizJoin && s.quizJoin.code === room.code);
-  const durationMs = quizSecsOf(room) * 1000;
-  return players.map(s => {
-    let total = 0;
-    (room.questions || []).forEach((q, i) => {
-      const ans = (s.quizAnswers || {})[i];
-      const startedAt = (room.startedAts || {})[i];
-      if (!ans || startedAt == null) return;
-      const elapsed = ans.at - startedAt;
-      if (elapsed < 0 || elapsed > durationMs) return; // respondeu fora do tempo, não vale
-      total += quizPoints(ans.opt === q.correct, elapsed, durationMs, q.hard);
-    });
-    return { name: s.name, avatar: s.avatar, total };
-  }).sort((a, b) => b.total - a.total);
-}
-// tema pronto de fábrica: "O Jogo da Imitação" (25 perguntas fornecidas pelo professor em PDF) —
-// perguntas [Difícil] valem pontos em dobro, e as de Verdadeiro/Falso têm só 2 alternativas
-const QUIZ_SEED_THEMES = [
-  {
-    id: "seed-imitacao",
-    title: "🎬 O Jogo da Imitação",
-    builtin: true,
-    questions: [
-      { q: "Quem é o protagonista do filme?", opts: ["Alan Turing", "Winston Churchill", "Hugh Alexander", "John Cairncross"], correct: 0 },
-      { q: "Qual era a profissão de Alan Turing?", opts: ["Médico", "Matemático", "Advogado", "Piloto"], correct: 1 },
-      { q: "Qual o nome da máquina alemã cujos códigos precisavam ser quebrados?", opts: ["Colossus", "Enigma", "Cipher", "Atlas"], correct: 1, hard: true },
-      { q: "Alan Turing trabalhava sozinho durante toda a missão.", opts: ["Verdadeiro", "Falso"], correct: 1 },
-      { q: "Em que guerra o filme se passa?", opts: ["Primeira Guerra", "Guerra Fria", "Segunda Guerra Mundial", "Guerra do Vietnã"], correct: 2 },
-      { q: "Onde a equipe trabalhava?", opts: ["Oxford", "Bletchley Park", "Cambridge", "Londres Tower"], correct: 1 },
-      { q: "Como Alan chamou sua máquina?", opts: ["Joan", "Christopher", "Victory", "Turing"], correct: 1, hard: true },
-      { q: "O nome da máquina foi uma homenagem a um amigo de infância.", opts: ["Verdadeiro", "Falso"], correct: 0 },
-      { q: "Quem convence Alan a dar uma chance aos colegas?", opts: ["Joan Clarke", "Churchill", "Hugh", "Peter"], correct: 0 },
-      { q: "Quem é a única mulher da equipe principal?", opts: ["Margaret", "Joan Clarke", "Helen", "Mary"], correct: 1 },
-      { q: "Joan resolve palavras cruzadas para entrar na equipe.", opts: ["Verdadeiro", "Falso"], correct: 0 },
-      { q: "O que permitiu reduzir drasticamente as possibilidades da Enigma?", opts: ["Um erro de cálculo", "A palavra repetida nas mensagens", "Um ataque aéreo", "Um mapa"], correct: 1, hard: true },
-      { q: "O principal objetivo da equipe era:", opts: ["Construir aviões", "Decifrar mensagens alemãs", "Invadir bases", "Criar rádios"], correct: 1 },
-      { q: "A equipe podia agir sobre todas as mensagens decifradas.", opts: ["Verdadeiro", "Falso"], correct: 1 },
-      { q: "Por que nem todos os ataques podiam ser impedidos?", opts: ["Faltavam soldados", "Para não revelar que o código havia sido quebrado", "Não havia combustível", "Churchill proibiu"], correct: 1, hard: true },
-      { q: "Quem interpretou Alan Turing?", opts: ["Tom Hanks", "Benedict Cumberbatch", "Matt Damon", "Cillian Murphy"], correct: 1 },
-      { q: "Quem interpretou Joan Clarke?", opts: ["Keira Knightley", "Emma Watson", "Emily Blunt", "Natalie Portman"], correct: 0 },
-      { q: "Alan e Joan chegam a ficar noivos no filme.", opts: ["Verdadeiro", "Falso"], correct: 0 },
-      { q: "Alan escondia qual aspecto de sua vida?", opts: ["Era casado", "Sua orientação sexual", "Era espião", "Era militar"], correct: 1 },
-      { q: "O que acontece com Alan após a guerra?", opts: ["Vira ministro", "É perseguido judicialmente por ser homossexual", "Vai para outro país", "Entra no exército"], correct: 1, hard: true },
-      { q: "O filme mostra que Alan recebeu reconhecimento em vida por seu trabalho.", opts: ["Verdadeiro", "Falso"], correct: 1 },
-      { q: "Qual área moderna foi profundamente influenciada por Turing?", opts: ["Medicina", "Computação", "Arquitetura", "Astronomia"], correct: 1 },
-      { q: "O teste criado por Turing ficou conhecido como:", opts: ["Teste Alpha", "Teste de Turing", "Teste Enigma", "Teste Binary"], correct: 1, hard: true },
-      { q: "O filme é baseado em fatos reais.", opts: ["Verdadeiro", "Falso"], correct: 0 },
-      { q: "Aproximadamente quanto tempo a guerra pode ter sido encurtada graças ao trabalho de Bletchley Park, segundo o filme?", opts: ["6 meses", "1 ano", "2 anos", "5 anos"], correct: 2, hard: true },
-    ],
-  },
-];
-
 
 // ════════════════════════════════════════════════════════════════════════════
 //  ALUNO
@@ -4145,211 +4059,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  CODE LAB  (editor + terminal + robô, reutilizável — usado pelo professor)
-// ════════════════════════════════════════════════════════════════════════════
-function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }], onChange = ()=>{}, terminalMaxHeight, gear = DEFAULT_NYX_GEAR, onEquip = ()=>{} }) {
-  const setFiles = (updater) => onChange(typeof updater === "function" ? updater(files) : updater);
-  const [active, setActive] = useState(0);
-  const [renaming, setRenaming] = useState(null);
-  const [renameValue, setRenameValue] = useState("");
-  const [robotState, setRobotState] = useState("idle");
-  const [robotMsg, setRobotMsg] = useState("");
-  const [keysToShow, setKeysToShow] = useState([]);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [showShop, setShowShop] = useState(false);
-  const activeCode = files[active]?.code || "";
-
-  const updateActiveCode = (newCode) => setFiles(fs => fs.map((f,i)=> i===active ? { ...f, code:newCode } : f));
-  const uniqueName = (base, ignoreIdx=-1) => { let name=base, n=2; while (files.some((f,i)=> i!==ignoreIdx && f.name.toLowerCase()===name.toLowerCase())) { name = base.replace(/\.cs$/i,"")+n+".cs"; n++; } return name; };
-  const addFile = () => { const name=uniqueName(`Arquivo${files.length+1}.cs`); const idx=files.length; setFiles(fs=>[...fs,{name,code:""}]); setActive(idx); setRenaming(idx); setRenameValue(name.replace(/\.cs$/i,"")); };
-  const deleteFile = (idx) => { if (files.length<=1) return; setFiles(fs=>fs.filter((_,i)=>i!==idx)); setActive(a=>(idx<=a?Math.max(0,a-1):a)); };
-  const openRename = (idx) => { setRenaming(idx); setRenameValue((files[idx]?.name||"").replace(/\.cs$/i,"")); };
-  const confirmRename = () => { if(renaming==null) return; let base=String(renameValue).trim().replace(/["'\/\\]/g,""); if(!base) base=`Arquivo${renaming+1}`; let name=/\.cs$/i.test(base)?base:base+".cs"; name=uniqueName(name,renaming); const idx=renaming; setFiles(fs=>fs.map((f,i)=>i===idx?{...f,name}:f)); setRenaming(null); setRenameValue(""); };
-  const cancelRename = () => { setRenaming(null); setRenameValue(""); };
-
-  // robô: só analisa quando clicar no botão
-  useEffect(() => {
-    const trimmed = activeCode.trim();
-    if (trimmed.length < 12) { setRobotState("idle"); setRobotMsg(""); setKeysToShow([]); }
-  }, [activeCode]);
-
-  const analyzeCode = async () => {
-    const trimmed = activeCode.trim();
-    if (trimmed.length < 12 || analyzing) return;
-    setRobotState("thinking"); setAnalyzing(true);
-    const quick = quickCheck(activeCode);
-    if (quick) { setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setAnalyzing(false); return; }
-    try {
-      const parsed = await askClaudeJson(
-        `Revise este código C# como um compilador faria, linha por linha. Top-level statements e ausência de using System são válidos. Confira pares de chaves/parênteses/aspas no arquivo inteiro antes de acusar falta, e todas as linhas anteriores antes de acusar variável não declarada. Não invente erro em código correto.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nResponda APENAS JSON puro com os campos NESTA ordem: {"analise":"verificação curta linha a linha (interno)","ok":true/false,"message":"elogio curto se ok; se houver erro, onde está e como corrigir em 1-3 frases","missingChars":["símbolos que faltam"]}`,
-        CS_SYSTEM + "\nResponda APENAS JSON puro, sem markdown.",
-        { temperature: 0 }
-      );
-      setRobotState(parsed.ok?"ok":"error"); setRobotMsg(parsed.message); setKeysToShow(parsed.missingChars||[]);
-    } catch(e) {
-      if (e.message === 'ROBOTKEY_MISSING') { setRobotState("error"); setRobotMsg(e.userMsg || "🔑 Nyx está offline: configure a chave da IA no Vercel."); }
-      else { setRobotState("error"); setRobotMsg("😵 Nyx não conseguiu analisar agora (falha ao falar com a IA). Tente de novo em alguns instantes."); }
-    }
-    setAnalyzing(false);
-  };
-
-  // robô: analisa sozinho 5s depois que o professor para de escrever (reagenda a cada tecla)
-  useEffect(() => {
-    if (activeCode.trim().length < 12 || analyzing) return;
-    const t = setTimeout(() => { analyzeCode(); }, 5000);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCode]);
-
-  const card = { background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #3a2a55", boxShadow:"0 8px 24px rgba(3,5,16,.35)" };
-
-  return (
-    <div style={{ display:"flex", gap:14, flexWrap:"wrap" }}>
-      {renaming != null && (
-        <div style={{ position:"fixed", inset:0, background:"#000000aa", display:"flex", alignItems:"center", justifyContent:"center", zIndex:999, padding:16 }}>
-          <div style={{ background:"#1e1430", border:`2px solid ${accent}`, borderRadius:16, padding:24, maxWidth:380, width:"100%" }}>
-            <h3 style={{ color:accent, margin:"0 0 4px" }}>✎ Renomear arquivo</h3>
-            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 12px" }}>Escolha um nome (o ".cs" é colocado sozinho).</p>
-            <div style={{ display:"flex", alignItems:"center", background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"0 12px" }}>
-              <input autoFocus value={renameValue} onChange={e=>setRenameValue(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") confirmRename(); if(e.key==="Escape") cancelRename(); }} placeholder="ex: MeuPrograma" style={{ flex:1, background:"transparent", border:"none", outline:"none", color:"#f0e9fb", fontSize:15, padding:"11px 0" }} />
-              <span style={{ color:"#776798", fontSize:14 }}>.cs</span>
-            </div>
-            <div style={{ display:"flex", gap:10, marginTop:18 }}>
-              <button onClick={cancelRename} style={{ background:"#3b2a58", color:"#fff", border:"none", borderRadius:8, padding:"10px 0", cursor:"pointer", fontWeight:700, flex:1 }}>Cancelar</button>
-              <button onClick={confirmRename} style={{ background:accent, color:"#fff", border:"none", borderRadius:8, padding:"10px 0", cursor:"pointer", fontWeight:700, flex:1 }}>Salvar nome</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ flex:"1 1 560px", minWidth:320 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8, flexWrap:"wrap" }}>
-          {files.map((f,i)=>(
-            <div key={i} onClick={()=>setActive(i)} style={{ display:"flex", alignItems:"center", gap:6, background:i===active?"#1e1e1e":"#101425", border:`1px solid ${i===active?accent:"#3b2a58"}`, color:i===active?"#fff":"#a99ac9", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>
-              <span>📄 {f.name}</span>
-              <span onClick={(e)=>{e.stopPropagation();openRename(i);}} title="Renomear" style={{ color:accent, fontWeight:700 }}>✎</span>
-              {files.length>1 && <span onClick={(e)=>{e.stopPropagation();deleteFile(i);}} title="Apagar" style={{ color:"#f87171", fontWeight:700 }}>✕</span>}
-            </div>
-          ))}
-          <button onClick={addFile} style={{ background:"#171026", border:`1px dashed ${accent}`, color:accent, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>＋ Novo arquivo</button>
-        </div>
-
-        <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} />
-
-        <div style={{ display:"flex", justifyContent:"flex-start", alignItems:"center", marginTop:8 }}>
-          <span style={{ color:"#776798", fontSize:12 }}>{analyzing?"🔍 Verificando...":"✨ Nyx confere seu código 5s depois que você para de escrever"}</span>
-        </div>
-
-        <Terminal files={files} maxHeight={terminalMaxHeight} />
-      </div>
-
-      <div className="side-col" style={{ width:250, flex:"0 0 250px" }}>
-        <div style={card}>
-          <NyxRobot state={robotState} size={88} context="teacher" gear={gear} />
-          <button style={{ background:"transparent", border:"1px solid #c084fc", color:"#c084fc", borderRadius:8, width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5, cursor:"pointer", fontWeight:700 }} onClick={()=>setShowShop(true)}>🎁 Personalizar o Nyx</button>
-          {robotMsg && (<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>{robotMsg}</div>)}
-          {keysToShow.length>0 && (<div style={{ marginTop:10 }}><p style={{ color:accent, fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
-        </div>
-        {showShop && (
-          <NyxShop wallet={9999} owned={NYX_ITEMS.map(i=>i.id)} gear={gear} onEquip={onEquip} onBuy={()=>{}} isTestShift={true} onClose={()=>setShowShop(false)} />
-        )}
-        <div style={{ ...card, fontSize:12, color:"#776798", lineHeight:1.8 }}>
-          <p style={{ color:accent, fontWeight:600, marginBottom:6 }}>👩‍🏫 O exemplo da aula</p>
-          <p style={{ color:"#a99ac9" }}>Programe aqui o exemplo de hoje e teste com o ▶ dotnet run. Este código <b>fica salvo</b> e é usado para gerar o nome do conteúdo do dia. Os alunos não veem esta área.</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-//  CALENDÁRIO (professor)
-// ════════════════════════════════════════════════════════════════════════════
-function Calendar({ classDays, contentNames = {}, onToggle }) {
-  const [view, setView] = useState(() => { const d=new Date(); return { y:d.getFullYear(), m:d.getMonth() }; });
-  const first = new Date(view.y, view.m, 1);
-  const startDow = first.getDay();
-  const daysInMonth = new Date(view.y, view.m+1, 0).getDate();
-  const monthName = first.toLocaleDateString("pt-BR",{ month:"long", year:"numeric" });
-  const tk = todayKey();
-  const keyFor = d => `${view.y}-${String(view.m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-  const cells = [];
-  for (let i=0;i<startDow;i++) cells.push(null);
-  for (let d=1;d<=daysInMonth;d++) cells.push(d);
-  const prev = () => setView(v => v.m===0 ? {y:v.y-1,m:11} : {y:v.y,m:v.m-1});
-  const next = () => setView(v => v.m===11 ? {y:v.y+1,m:0} : {y:v.y,m:v.m+1});
-  const wd = ["D","S","T","Q","Q","S","S"];
-  return (
-    <div>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-        <button onClick={prev} style={{ background:"#171026", border:"1px solid #3b2a58", color:"#f0e9fb", borderRadius:8, padding:"4px 10px", cursor:"pointer" }}>‹</button>
-        <span style={{ color:"#f0e9fb", fontWeight:700, textTransform:"capitalize" }}>{monthName}</span>
-        <button onClick={next} style={{ background:"#171026", border:"1px solid #3b2a58", color:"#f0e9fb", borderRadius:8, padding:"4px 10px", cursor:"pointer" }}>›</button>
-      </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4 }}>
-        {wd.map((d,i)=><div key={"h"+i} style={{ textAlign:"center", color:"#776798", fontSize:12, fontWeight:700 }}>{d}</div>)}
-        {cells.map((d,i)=>{
-          if (d===null) return <div key={"e"+i}/>;
-          const k = keyFor(d);
-          const isClass = classDays.includes(k);
-          const isToday = k===tk;
-          const cname = contentNames[k];
-          const title = cname ? `${cname}${isClass?" · dia de aula":""}` : (isClass?"Dia de aula (clique para remover)":"Marcar como dia de aula");
-          return (
-            <button key={k} onClick={()=>onToggle(k)} title={title}
-              style={{ position:"relative", aspectRatio:"1", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:isToday?700:400,
-                background:isClass?"#34d399":"#171026", color:isClass?"#062":"#a99ac9",
-                border:isToday?"2px solid #c084fc":"1px solid #3b2a58" }}>
-              {d}
-              {cname && <span style={{ position:"absolute", bottom:3, left:0, right:0, fontSize:9, lineHeight:1 }}>📖</span>}
-            </button>
-          );
-        })}
-      </div>
-      <p style={{ color:"#776798", fontSize:12, marginTop:10 }}><span style={{ display:"inline-block", width:12, height:12, background:"#34d399", borderRadius:3, verticalAlign:"middle", marginRight:6 }}/>dias de aula &nbsp;·&nbsp; <span style={{ display:"inline-block", width:12, height:12, border:"2px solid #c084fc", borderRadius:3, verticalAlign:"middle", marginRight:6 }}/>hoje &nbsp;·&nbsp; 📖 tem conteúdo</p>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════════
 //  PROFESSOR
 // ════════════════════════════════════════════════════════════════════════════
-// ── biblioteca de aulas prontas: exemplos completos que o professor carrega com 1 clique ──
-const LESSON_LIBRARY = [
-  { title:"Aula 1 · Olá, mundo!", desc:"O primeiro programa: mostrar texto na tela.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // Console.WriteLine mostra um texto na tela\n        Console.WriteLine("Olá, mundo!");\n        Console.WriteLine("Bem-vindos à aula de C#!");\n    }\n}' }] },
-  { title:"Aula 2 · Variáveis e tipos", desc:"Guardar textos e números: string, int e double.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // variáveis guardam valores pra usar depois\n        string nome = "Nyx";      // texto\n        int idade = 14;            // número inteiro\n        double altura = 1.62;      // número com vírgula\n\n        Console.WriteLine("Nome: " + nome);\n        Console.WriteLine("Idade: " + idade);\n        Console.WriteLine("Altura: " + altura);\n    }\n}' }] },
-  { title:"Aula 3 · Conversando com o programa", desc:"Ler o que a pessoa digita com Console.ReadLine.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine("Qual é o seu nome?");\n        string nome = Console.ReadLine(); // espera a pessoa digitar\n\n        Console.WriteLine("Quantos anos você tem?");\n        int idade = int.Parse(Console.ReadLine()); // converte o texto pra número\n\n        // o $ deixa colocar variáveis dentro do texto com { }\n        Console.WriteLine($"Olá, {nome}! Você tem {idade} anos.");\n    }\n}' }] },
-  { title:"Aula 4 · Decisões com if/else", desc:"O programa escolhe um caminho conforme a condição.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine("Digite a sua nota (0 a 100):");\n        int nota = int.Parse(Console.ReadLine());\n\n        // o if testa uma condição; o else é o "senão"\n        if (nota >= 60)\n        {\n            Console.WriteLine("Parabéns, você passou!");\n        }\n        else\n        {\n            Console.WriteLine("Quase! Vamos estudar mais um pouco.");\n        }\n    }\n}' }] },
-  { title:"Aula 5 · Repetição com for", desc:"Repetir um bloco várias vezes sem copiar código.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // o for repete: começa no 1, vai até 10, somando 1 por vez\n        for (int i = 1; i <= 10; i++)\n        {\n            Console.WriteLine($"Contando: {i}");\n        }\n\n        Console.WriteLine("Fim da contagem!");\n    }\n}' }] },
-  { title:"Aula 6 · Enquanto... (while)", desc:"Repetir enquanto uma condição for verdadeira.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        int vidas = 3;\n\n        // o while repete ENQUANTO a condição for verdadeira\n        while (vidas > 0)\n        {\n            Console.WriteLine($"Você tem {vidas} vida(s). Cuidado!");\n            vidas = vidas - 1; // perde uma vida\n        }\n\n        Console.WriteLine("Game over! 😅");\n    }\n}' }] },
-  { title:"Aula 7 · Métodos", desc:"Organizar o código em pedaços com nome.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // métodos são "mini-programas" com nome — é só chamar\n        DarOi("Ana");\n        DarOi("Bruno");\n\n        int soma = Somar(7, 5);\n        Console.WriteLine($"7 + 5 = {soma}");\n    }\n\n    static void DarOi(string nome)\n    {\n        Console.WriteLine($"Oi, {nome}! Tudo bem?");\n    }\n\n    static int Somar(int a, int b)\n    {\n        return a + b; // devolve o resultado pra quem chamou\n    }\n}' }] },
-  { title:"Aula 8 · Listas", desc:"Guardar vários valores juntos com List.", files:[{ name:"Program.cs", code:'using System;\nusing System.Collections.Generic;\n\nclass Program\n{\n    static void Main()\n    {\n        // uma lista guarda vários valores do mesmo tipo\n        List<string> turma = new List<string>();\n        turma.Add("Ana");\n        turma.Add("Bruno");\n        turma.Add("Carla");\n\n        Console.WriteLine($"A turma tem {turma.Count} alunos:");\n        foreach (string aluno in turma)\n        {\n            Console.WriteLine("- " + aluno);\n        }\n    }\n}' }] },
-  { title:"Aula 9 · Mini projeto: jogo de adivinhação", desc:"Junta tudo: variáveis, while, if e Random.", files:[{ name:"Program.cs", code:'using System;\n\nclass Program\n{\n    static void Main()\n    {\n        // Random sorteia um número secreto de 1 a 20\n        Random sorteio = new Random();\n        int secreto = sorteio.Next(1, 21);\n        int tentativas = 0;\n        int chute = 0;\n\n        Console.WriteLine("Adivinhe o número secreto (1 a 20)!");\n\n        while (chute != secreto)\n        {\n            Console.WriteLine("Seu chute:");\n            chute = int.Parse(Console.ReadLine());\n            tentativas++;\n\n            if (chute < secreto)\n            {\n                Console.WriteLine("É MAIOR! Tente de novo.");\n            }\n            else if (chute > secreto)\n            {\n                Console.WriteLine("É menor! Tente de novo.");\n            }\n        }\n\n        Console.WriteLine($"🎉 Acertou em {tentativas} tentativa(s)!");\n    }\n}' }] },
-];
-
-// card que começa fechado (só o título) e abre com um clique — usado pra esconder as ferramentas menos
-// usadas do painel do professor (diagnóstico, boletim, retrospectiva...) sem tirar nada do ar, só do
-// primeiro olhar. O conteúdo (children) só é montado quando aberto, então nada roda escondido à toa.
-function CollapsibleCard({ title, color = "#fbbf24", defaultOpen = false, alertOpen = false, dataTourProf, headerRight, children }) {
-  const [open, setOpen] = useState(defaultOpen);
-  // se alertOpen virar true (ex: banco ou IA com problema de verdade), abre sozinho — decluttered
-  // quando tá tudo bem, mas não esconde um alerta real atrás de um card fechado
-  useEffect(() => { if (alertOpen) setOpen(true); }, [alertOpen]);
-  const cardStyle = { background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:16, margin:"10px 0", border:"1px solid #3a2a55", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both", fontSize:12, padding: open ? 16 : "10px 16px" };
-  return (
-    <div data-tour-prof={dataTourProf} className="cardfx" style={cardStyle}>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, flexWrap:"wrap", margin: open ? "0 0 6px" : 0 }}>
-        <button onClick={()=>setOpen(o=>!o)} style={{ display:"flex", alignItems:"center", gap:6, background:"transparent", border:"none", cursor:"pointer", padding:0 }}>
-          <h4 style={{ color, fontSize:13, margin:0 }}>{title}</h4>
-          <span style={{ color:"#776798", fontSize:12, transform: open ? "rotate(180deg)" : "none", transition:"transform .15s ease" }}>▼</span>
-        </button>
-        {headerRight && <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>{headerRight}</div>}
-      </div>
-      {open && children}
-    </div>
-  );
-}
-
 function TeacherView({ onLogout, teacherAuth }) {
   // 📱 modo simples no celular: o painel completo foi feito pra tela grande (várias abas, tabelas
   // largas) — numa tela estreita entra sozinho uma lista direta de "como cada aluno está agora"
