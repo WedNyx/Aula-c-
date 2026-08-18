@@ -358,6 +358,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [detailFailMsg, setDetailFailMsg] = useState("");
   const [showNotebook, setShowNotebook] = useState(false);
   const [showTrail, setShowTrail] = useState(false);
+  const [showGamesMenu, setShowGamesMenu] = useState(false);
   const [showNextSteps, setShowNextSteps] = useState(false);
   // seletor de voz da leitura em voz alta (🗣️ no cabeçalho)
   const [showVoicePicker, setShowVoicePicker] = useState(false);
@@ -3057,8 +3058,23 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
   // ── CODING ──
   return (
-    <div className={supportClass} style={{ ...styles.container, position:"relative" }}>
+    <div className={supportClass} style={{ ...styles.container, position:"relative", paddingLeft: (!focusMode && vw > 700) ? 190 : 0 }}>
       <Sparkles id="nyx-student-sparkles" position="absolute" count={26} />
+      {/* navegação lateral — mesma gamificação da barra rápida de baixo, só que fixa à esquerda
+          em telas largas; em celular (vw<=700) some daqui e a barra horizontal assume sozinha. */}
+      {!focusMode && vw > 700 && (
+        <div style={{ position:"fixed", left:0, top:0, bottom:0, width:190, background:"#160e24ee", backdropFilter:"blur(8px)", borderRight:"1px solid #3b2a58", zIndex:41, display:"flex", flexDirection:"column", gap:4, padding:"18px 10px", overflowY:"auto" }}>
+          <div style={{ padding:"0 6px 14px", fontWeight:900, fontSize:13, letterSpacing:1, color:"#fbbf24" }}>🎮 JOGOS</div>
+          <button onClick={()=>{ setShowTrail(true); }} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🗺️ Jornada</button>
+          <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🎖️ Conquistas · {achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/{visibleAchievements(isLangRoom).length}</button>
+          <button onClick={()=>setShowNyxShop(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🎁 Loja do Nyx</button>
+          <button onClick={()=>setShowRanking(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>📊 Ranking da turma</button>
+          <button onClick={()=>setShowGamesMenu(true)} style={{ ...styles.btn("#c084fc"), textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🎮 Games</button>
+          <button onClick={()=>setShowKnowledgeTest(true)} title="Teste seu conhecimento da matéria, sem dicas" style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🧠 Testar Conhecimento</button>
+          <button onClick={()=>setShowFreeBuild(true)} title="Proponha algo que você quer construir e o Nyx te ajuda a planejar como chegar lá" style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🏗️ Desafio Livre{weeklyChallenge && weeklyChallenge.weekKey===weekKey() && weeklyChallenge.status==="done" ? " ✅" : ""}</button>
+          <button onClick={()=>{ setShowHallOfFame(true); getHallOfFame(shift).then(setHallEntries); }} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>👑 Hall da Fama</button>
+        </div>
+      )}
       {routineBar}
       {renderHiddenEggs()}
       {/* pergunta de preferência de interação do Nyx — perfil novo, antes até da apresentação e do tour */}
@@ -3203,19 +3219,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         </div>
       </div>
 
-      {/* navegação rápida — deixa toda a parte de gamificação (Jornada, Conquistas, Loja, Ranking,
-          os 3 formatos de Duelo, Corrida de digitação, Testar Conhecimento, Desafio Livre, Hall da
-          Fama) visível e ao alcance logo no topo, em vez de só lá embaixo no card lateral;
-          continuam existindo nos dois lugares, não tira nada de onde já estava. Some no modo foco. */}
-      {!focusMode && (
+      {/* navegação rápida — versão horizontal só pra celular (vw<=700); em telas largas a mesma
+          gamificação (Jornada, Conquistas, Loja, Ranking, os jogos agrupados em "🎮 Games",
+          Testar Conhecimento, Desafio Livre, Hall da Fama) já está na sidebar fixa acima.
+          Continuam existindo nos dois lugares dependendo do tamanho de tela, não tira nada de
+          onde já estava. Some no modo foco. */}
+      {!focusMode && vw <= 700 && (
         <div style={{ maxWidth:1180, margin:"12px auto 0", padding:"0 14px", display:"flex", gap:8, flexWrap:"wrap" }}>
           <button onClick={()=>{ setShowTrail(true); }} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🗺️ Jornada</button>
           <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🎖️ Conquistas · {achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/{visibleAchievements(isLangRoom).length}</button>
           <button onClick={()=>setShowNyxShop(true)} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🎁 Loja do Nyx</button>
           <button onClick={()=>setShowRanking(true)} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>📊 Ranking da turma</button>
-          {!nyxLocks.zeker && <button onClick={()=>setShowDuel(true)} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>⚔️ Duelo</button>}
-          {!nyxLocks.zeker && <button onClick={()=>setShowTeamDuel(true)} title="Chame 1 parceiro pra jogar em dupla contra outros 2 colegas" style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🤝⚔️ Duelo em Dupla</button>}
-          <button onClick={()=>setShowRace(true)} title="Digite um trecho de código contra o relógio — pontos 1x por dia e pódio da turma" style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🏁 Corrida de digitação{typingBest ? ` · ${(typingBest.ms/1000).toFixed(1)}s` : ""}</button>
+          <button onClick={()=>setShowGamesMenu(true)} style={{ ...styles.btn("#c084fc"), display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🎮 Games</button>
           <button onClick={()=>setShowKnowledgeTest(true)} title="Teste seu conhecimento da matéria, sem dicas" style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🧠 Testar Conhecimento</button>
           <button onClick={()=>setShowFreeBuild(true)} title="Proponha algo que você quer construir e o Nyx te ajuda a planejar como chegar lá" style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>🏗️ Desafio Livre{weeklyChallenge && weeklyChallenge.weekKey===weekKey() && weeklyChallenge.status==="done" ? " ✅" : ""}</button>
           <button onClick={()=>{ setShowHallOfFame(true); getHallOfFame(shift).then(setHallEntries); }} style={{ ...styles.btnGhost, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", fontSize:12.5 }}>👑 Hall da Fama</button>
@@ -3999,6 +4014,23 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       )}
       {showNotebook && <NotebookModal history={summaryHistory} detailedHistory={detailedSummaryHistory} onClose={()=>setShowNotebook(false)} />}
       {showTrail && <LearningTrailModal history={summaryHistory} onClose={()=>setShowTrail(false)} />}
+      {/* menu "🎮 Games" — junta num só lugar tudo que é jogo de verdade (contra o relógio ou
+          contra colegas): Duelo, Duelo em Dupla, Corrida de digitação. */}
+      {showGamesMenu && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1001, padding:16 }} onClick={()=>setShowGamesMenu(false)}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 20px", maxWidth:380, width:"100%", boxShadow:"0 24px 70px rgba(0,0,0,.55), 0 0 44px #c084fc22" }} onClick={e=>e.stopPropagation()}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+              <h3 style={{ color:"#f0e9fb", margin:0, fontSize:19 }}>🎮 Games</h3>
+              <button onClick={()=>setShowGamesMenu(false)} style={{ ...styles.btnGhost, padding:"4px 10px" }}>✕</button>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {!nyxLocks.zeker && <button onClick={()=>{ setShowGamesMenu(false); setShowDuel(true); }} style={{ ...styles.btnGhost, textAlign:"left", display:"flex", alignItems:"center", gap:8, padding:"12px 14px", fontSize:14 }}>⚔️ Duelo</button>}
+              {!nyxLocks.zeker && <button onClick={()=>{ setShowGamesMenu(false); setShowTeamDuel(true); }} title="Chame 1 parceiro pra jogar em dupla contra outros 2 colegas" style={{ ...styles.btnGhost, textAlign:"left", display:"flex", alignItems:"center", gap:8, padding:"12px 14px", fontSize:14 }}>🤝⚔️ Duelo em Dupla</button>}
+              <button onClick={()=>{ setShowGamesMenu(false); setShowRace(true); }} title="Digite um trecho de código contra o relógio — pontos 1x por dia e pódio da turma" style={{ ...styles.btnGhost, textAlign:"left", display:"flex", alignItems:"center", gap:8, padding:"12px 14px", fontSize:14 }}>🏁 Corrida de digitação{typingBest ? ` · ${(typingBest.ms/1000).toFixed(1)}s` : ""}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showNextSteps && <NextStepsModal onClose={()=>setShowNextSteps(false)} />}
       {showVoicePicker && <VoicePickerModal onClose={()=>setShowVoicePicker(false)} />}
       {showColorPicker && <ColorPickerModal current={theme} onChoose={(t)=>{ handleNyxTheme(t); setShowColorPicker(false); }} onClose={()=>setShowColorPicker(false)} />}
