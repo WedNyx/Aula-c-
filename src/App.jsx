@@ -6150,7 +6150,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     });
 
   const styles = {
-    container:{ minHeight:"100vh", background:PAGE_BG, color:"#f0e9fb", fontFamily:FONT },
+    container:{ minHeight:"100vh", background:PAGE_BG, color:"#f0e9fb", fontFamily:FONT, paddingLeft: isMobileScreen ? 0 : 190 },
     header:{ background:"rgba(17,21,42,.85)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", padding:"10px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #3b2a58", boxShadow:"0 1px 0 #fbbf2433, 0 8px 24px rgba(3,5,16,.35)", position:"sticky", top:0, zIndex:40, flexWrap:"wrap", gap:8 },
     card:{ background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #3a2a55", boxShadow:"0 8px 24px rgba(3,5,16,.35)", animation:"rise .35s ease both" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:10, padding:"8px 16px", cursor:"pointer", fontWeight:800, boxShadow:`0 4px 14px ${c}44` }),
@@ -6178,6 +6178,21 @@ function TeacherView({ onLogout, teacherAuth }) {
   return (
     <div style={{ ...styles.container, position:"relative" }}>
       <Sparkles id="nyx-teacher-sparkles" position="absolute" count={28} />
+      {/* navegação lateral — as mesmas 6 abas que já existiam na barra horizontal, só que fixas
+          numa coluna à esquerda (mesmo data-tour-prof, mesmo onClick — o Tour guiado continua
+          funcionando igual). As ações (Situação/Telão/Resetar/Tour/Sair) continuam na barra de
+          cima, não é navegação entre telas. Some no celular (o modo simples já cobre isso). */}
+      {!isMobileScreen && (
+        <div style={{ position:"fixed", left:0, top:0, bottom:0, width:190, background:"#160e24ee", backdropFilter:"blur(8px)", borderRight:"1px solid #3b2a58", zIndex:41, display:"flex", flexDirection:"column", gap:4, padding:"18px 10px", overflowY:"auto" }}>
+          <div style={{ padding:"0 6px 14px", fontWeight:900, fontSize:13, letterSpacing:1, color:"#fbbf24" }}>👨‍🏫 PAINEL</div>
+          <button data-tour-prof="monitor" style={{ ...styles.tab(tab==="monitor"), textAlign:"left", width:"100%" }} onClick={()=>setTab("monitor")}>👥 Monitoramento</button>
+          <button data-tour-prof="code" style={{ ...styles.tab(tab==="code"), textAlign:"left", width:"100%" }} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
+          <button data-tour-prof="calendar" style={{ ...styles.tab(tab==="calendar"), textAlign:"left", width:"100%" }} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
+          <button data-tour-prof="feedback" style={{ ...styles.tab(tab==="feedback"), textAlign:"left", width:"100%" }} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
+          <button data-tour-prof="exam" style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle' && tab!=="exam" ? {borderColor:"#fbbf24",color:"#fbbf24"} : {}), textAlign:"left", width:"100%" }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
+          <button data-tour-prof="quiz" style={{ ...styles.tab(tab==="quiz"), ...(quizRoom && tab!=="quiz" ? {borderColor:"#c084fc",color:"#c084fc"} : {}), textAlign:"left", width:"100%" }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?' ●':''}</button>
+        </div>
+      )}
       <Toaster theme="dark" position="top-right" richColors closeButton />
       {struggleNotice && (
         <div style={{ position:"fixed", top:12, right:12, zIndex:1300, background:"linear-gradient(135deg,#f87171,#dc2626)", color:"#fff", borderRadius:14, padding:"12px 16px", boxShadow:"0 14px 40px rgba(0,0,0,.45)", display:"flex", alignItems:"center", gap:10, maxWidth:320 }}>
@@ -6249,12 +6264,6 @@ function TeacherView({ onLogout, teacherAuth }) {
           )}
         </div>
         <div style={{ display:"flex", gap: tab==="code" ? 5 : 8, flexWrap:"wrap" }}>
-          <button data-tour-prof="monitor" style={{ ...styles.tab(tab==="monitor"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("monitor")}>👥 Monitoramento</button>
-          <button data-tour-prof="code" style={{ ...styles.tab(tab==="code"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
-          <button data-tour-prof="calendar" style={{ ...styles.tab(tab==="calendar"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
-          <button data-tour-prof="feedback" style={{ ...styles.tab(tab==="feedback"), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
-          <button data-tour-prof="exam" style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle' && tab!=="exam" ? {borderColor:"#fbbf24",color:"#fbbf24"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
-          <button data-tour-prof="quiz" style={{ ...styles.tab(tab==="quiz"), ...(quizRoom && tab!=="quiz" ? {borderColor:"#c084fc",color:"#c084fc"} : {}), ...(tab==="code"?{padding:"4px 9px",fontSize:12}:{}) }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?' ●':''}</button>
           <button data-tour-prof="situacao" style={{ ...styles.btn(needHelp.length>0 ? "#f87171" : "#34d399"), ...(tab==="code"?{padding:"4px 10px",fontSize:12}:{}) }} onClick={()=>setShowQuickStatus(true)} title="Veja rapidinho quem está com dificuldade, sem sair desta tela">👀 Situação{needHelp.length>0 ? ` (${needHelp.length})` : ""}</button>
           {tab!=="code" && <button className="btn-ghost" data-tour-prof="telao" style={styles.btnGhost} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
           {isMobileScreen && <button style={styles.btn("#c084fc")} onClick={()=>setForceFullMode(false)} title="Volta pra lista simples de acompanhamento, melhor pro celular">📱 Modo simples</button>}
