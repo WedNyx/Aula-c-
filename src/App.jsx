@@ -5003,8 +5003,12 @@ function TeacherView({ onLogout, teacherAuth }) {
 
     // dias de aula (marcados no Calendário DE CADA TURMA) — junta os dias de todas as turmas do
     // export numa coluna só; um dia que não era aula NA TURMA daquele aluno específico vira "–"
-    // (mesmo tratamento de "fora do período dele"), não conta como falta por engano
-    const classDays = [...new Set(turmas.flatMap(t => turmaCalendar(meta, t.id).classDays))].sort();
+    // (mesmo tratamento de "fora do período dele"), não conta como falta por engano.
+    // Só o MÊS ATUAL entra na planilha (mês anterior fica de fora, pra não crescer sem fim).
+    const currentMonthKey = todayKey().slice(0, 7); // "YYYY-MM"
+    const classDays = [...new Set(turmas.flatMap(t => turmaCalendar(meta, t.id).classDays))]
+      .filter(d => d.slice(0, 7) === currentMonthKey)
+      .sort();
     const dayCell = (s, d) => {
       const enrollFrom = s.createdAt ? dateKeyOf(s.createdAt) : (Object.keys(s.attendance||{}).sort()[0] || null);
       const lastDay = s.lastSeen ? dateKeyOf(s.lastSeen) : null;
@@ -5046,7 +5050,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       })) });
 
       g.list.forEach((s, i) => {
-        const att = Object.values(s.attendance||{}).filter(v=>v==="present").length;
+        const att = classDays.filter(d => (s.attendance||{})[d] === "present").length; // só conta os dias do mês atual, mesmo escopo das colunas
         const maiorNota = maiorNotaOf(s);
         const isDestaque = maiorNota != null && maiorNota === melhorNotaGeral;
         const fill = isDestaque ? "FFF6D6" : (i % 2 ? "F5F6FB" : undefined);
