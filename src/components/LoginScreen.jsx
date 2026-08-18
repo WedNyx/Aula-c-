@@ -4,7 +4,7 @@ import { shade } from "../lib/colors.ts";
 import { FONT, PAGE_BG } from "../lib/theme.ts";
 import { useViewportWidth } from "../lib/utils.js";
 import { goFullscreen } from "../lib/schedule.ts";
-import { SHIFTS, TEST_SHIFT, TEST_SHIFT_PASSWORD, LANG_SHIFT, LANG_SHIFT_PASSWORD, shiftMeta, DEFAULT_TURMAS } from "../lib/shifts.ts";
+import { SHIFTS, TEST_SHIFT, LANG_SHIFT, shiftMeta, DEFAULT_TURMAS } from "../lib/shifts.ts";
 import { DEFAULT_AVATAR, Avatar, AvatarPreview, AvatarControls } from "./Avatar.jsx";
 import { NyxRobot } from "./NyxRobot.jsx";
 
@@ -80,21 +80,39 @@ export function Login({ onJoin, turmas }) {
   const [testUnlocking, setTestUnlocking] = useState(false);
   const [testPass, setTestPass] = useState("");
   const [testError, setTestError] = useState("");
+  const [testChecking, setTestChecking] = useState(false);
   const [teacherChecking, setTeacherChecking] = useState(false);
   // sala de linguagens pra amigos (protegida por senha, mesmo modelo da turma de teste)
   const [langUnlocking, setLangUnlocking] = useState(false);
   const [langPass, setLangPass] = useState("");
   const [langError, setLangError] = useState("");
+  const [langChecking, setLangChecking] = useState(false);
 
+  // a senha é verificada no SERVIDOR (api/shift-auth.js) — nunca fica no código que chega ao navegador
+  const checkShiftPassword = async (shiftId, pass) => {
+    try {
+      const r = await fetch("/api/shift-auth", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ shiftId, password: pass }) });
+      const d = await r.json();
+      return d.ok === true;
+    } catch { return false; }
+  };
   const openTestShift = () => { setTestUnlocking(true); setLangUnlocking(false); setTestPass(""); setTestError(""); };
-  const confirmTestShift = () => {
-    if (testPass === TEST_SHIFT_PASSWORD) { setShift(TEST_SHIFT.id); setTestUnlocking(false); setTestError(""); }
+  const confirmTestShift = async () => {
+    if (testChecking) return;
+    setTestChecking(true);
+    const ok = await checkShiftPassword(TEST_SHIFT.id, testPass);
+    if (ok) { setShift(TEST_SHIFT.id); setTestUnlocking(false); setTestError(""); }
     else setTestError("Senha incorreta!");
+    setTestChecking(false);
   };
   const openLangShift = () => { setLangUnlocking(true); setTestUnlocking(false); setLangPass(""); setLangError(""); };
-  const confirmLangShift = () => {
-    if (langPass === LANG_SHIFT_PASSWORD) { setShift(LANG_SHIFT.id); setLangUnlocking(false); setLangError(""); }
+  const confirmLangShift = async () => {
+    if (langChecking) return;
+    setLangChecking(true);
+    const ok = await checkShiftPassword(LANG_SHIFT.id, langPass);
+    if (ok) { setShift(LANG_SHIFT.id); setLangUnlocking(false); setLangError(""); }
     else setLangError("Senha incorreta!");
+    setLangChecking(false);
   };
 
   const loadProfiles = useCallback(async () => {
@@ -187,7 +205,7 @@ export function Login({ onJoin, turmas }) {
                   <input type="password" autoFocus value={testPass} onChange={e=>setTestPass(e.target.value)}
                     onKeyDown={e=>e.key==="Enter"&&confirmTestShift()} placeholder="Senha"
                     style={{ ...styles.input, padding:"8px 12px", fontSize:14 }} />
-                  <button onClick={confirmTestShift} style={{ ...styles.btn("#c084fc"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
+                  <button onClick={confirmTestShift} disabled={testChecking} style={{ ...styles.btn("#c084fc"), width:"auto", padding:"0 16px", flexShrink:0, opacity:testChecking?0.6:1 }}>{testChecking ? "..." : "Entrar"}</button>
                 </div>
                 {testError && <p style={{ color:"#f87171", fontSize:12, marginTop:6 }}>{testError}</p>}
               </div>
@@ -203,7 +221,7 @@ export function Login({ onJoin, turmas }) {
                   <input type="password" autoFocus value={langPass} onChange={e=>setLangPass(e.target.value)}
                     onKeyDown={e=>e.key==="Enter"&&confirmLangShift()} placeholder="Senha"
                     style={{ ...styles.input, padding:"8px 12px", fontSize:14 }} />
-                  <button onClick={confirmLangShift} style={{ ...styles.btn("#22d3ee"), width:"auto", padding:"0 16px", flexShrink:0 }}>Entrar</button>
+                  <button onClick={confirmLangShift} disabled={langChecking} style={{ ...styles.btn("#22d3ee"), width:"auto", padding:"0 16px", flexShrink:0, opacity:langChecking?0.6:1 }}>{langChecking ? "..." : "Entrar"}</button>
                 </div>
                 {langError && <p style={{ color:"#f87171", fontSize:12, marginTop:6 }}>{langError}</p>}
               </div>

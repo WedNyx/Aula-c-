@@ -218,6 +218,11 @@ async function mockRoutes(page, kvStore) {
     const b = JSON.parse(route.request().postData() || '{}');
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: b.password === TEACHER_PASSWORD }) });
   });
+  await page.route('**/api/shift-auth', async (route) => {
+    const b = JSON.parse(route.request().postData() || '{}');
+    const expected = { teste: 'T3steSystem', linguagens: 'MultiLang2026' }[b.shiftId];
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: !!expected && b.password === expected }) });
+  });
   await page.route('**/api/claude', async (route) => {
     if (route.request().method() === 'GET') { await route.fulfill({ status: 200, contentType: 'application/json', body: '{"configured":true}' }); return; }
     const body = JSON.parse(route.request().postData() || '{}');

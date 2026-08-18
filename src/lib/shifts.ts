@@ -9,13 +9,13 @@ export const SHIFTS: ShiftMeta[] = [
   { id: "matutino", label: "Matutino", emoji: "☀️" },
   { id: "vespertino", label: "Vespertino", emoji: "🌙" },
 ];
-// turma de teste — só entra quem sabe a senha; fica fora do SHIFTS para não aparecer nos filtros normais
+// turma de teste — só entra quem sabe a senha; fica fora do SHIFTS para não aparecer nos filtros normais.
+// A senha em si NÃO fica aqui (isso é código que vai pro navegador do aluno) — é verificada no
+// servidor por api/shift-auth.js, ver api/_shiftAuth.js.
 export const TEST_SHIFT: ShiftMeta = { id: "teste", label: "Teste", emoji: "🧪" };
-export const TEST_SHIFT_PASSWORD = "T3steSystem";
 // sala extra pra amigos estudarem outras linguagens (HTML/CSS/PHP/JS) por conta própria — mesmo
 // modelo de acesso da turma de teste (senha própria, fora do fluxo normal da turma de C#)
 export const LANG_SHIFT: ShiftMeta = { id: "linguagens", label: "Linguagens", emoji: "🌐" };
-export const LANG_SHIFT_PASSWORD = "MultiLang2026";
 
 // ── turmas: um professor pode ter mais de uma turma no MESMO turno (ex: duas turmas de tarde) —
 // cada turma é o próprio id de partição usado em todo o storage (aluno, prova, código etc já
