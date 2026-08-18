@@ -42,6 +42,7 @@ import { QuickStatusModal, TelaoModal, JustifyModal, HallOfFameModal, TripOvervi
 import { BossStudyModal, LearningTrailModal, NextStepsModal, NotebookModal, CheckinModal, PerformanceModal, CHECKIN_MOODS } from "./components/LearningModals.jsx";
 import { TypingRaceModal, FreeBuildModal, DuelModal, TeamDuelModal, KnowledgeTestModal } from "./components/GameModals.jsx";
 import { MobileMonitorView } from "./components/MobileMonitor.jsx";
+import { Sparkles } from "./components/Sparkles.jsx";
 import { CollapsibleCard } from "./components/CollapsibleCard.jsx";
 import { Calendar } from "./components/Calendar.jsx";
 import { CodeLab } from "./components/CodeLab.jsx";
@@ -6155,7 +6156,8 @@ function TeacherView({ onLogout, teacherAuth }) {
   }
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, position:"relative" }}>
+      <Sparkles id="nyx-teacher-sparkles" position="absolute" count={28} />
       <Toaster theme="dark" position="top-right" richColors closeButton />
       {struggleNotice && (
         <div style={{ position:"fixed", top:12, right:12, zIndex:1300, background:"linear-gradient(135deg,#f87171,#dc2626)", color:"#fff", borderRadius:14, padding:"12px 16px", boxShadow:"0 14px 40px rgba(0,0,0,.45)", display:"flex", alignItems:"center", gap:10, maxWidth:320 }}>

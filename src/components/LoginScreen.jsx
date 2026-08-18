@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { listStudents } from "../storage.js";
 import { shade } from "../lib/colors.ts";
 import { FONT, PAGE_BG } from "../lib/theme.ts";
@@ -7,44 +7,7 @@ import { goFullscreen } from "../lib/schedule.ts";
 import { SHIFTS, TEST_SHIFT, LANG_SHIFT, shiftMeta, DEFAULT_TURMAS } from "../lib/shifts.ts";
 import { DEFAULT_AVATAR, Avatar, AvatarPreview, AvatarControls } from "./Avatar.jsx";
 import { NyxRobot } from "./NyxRobot.jsx";
-
-// fundo animado de partículas — só decorativo, atrás do card de login
-function AmbientParticles() {
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    mountedRef.current = true;
-    let container = null;
-    (async () => {
-      const [{ tsParticles }, { loadSlim }] = await Promise.all([
-        import("@tsparticles/engine"),
-        import("@tsparticles/slim"),
-      ]);
-      if (!mountedRef.current) return;
-      await loadSlim(tsParticles);
-      if (!mountedRef.current) return;
-      container = await tsParticles.load({
-        id: "nyx-ambient-particles",
-        options: {
-          fullScreen: { enable: false },
-          background: { color: "transparent" },
-          fpsLimit: 60,
-          particles: {
-            number: { value: 36, density: { enable: true, area: 900 } },
-            color: { value: ["#c084fc", "#22d3ee", "#fefce8"] },
-            opacity: { value: { min: 0.12, max: 0.55 }, animation: { enable: true, speed: 0.35, sync: false } },
-            size: { value: { min: 1, max: 2.2 } },
-            move: { enable: true, speed: 0.25, direction: "top", random: true, straight: false, outModes: { default: "out" } },
-            links: { enable: false },
-          },
-          detectRetina: true,
-        },
-      }).catch(() => null);
-    })();
-    return () => { mountedRef.current = false; if (container) container.destroy(); };
-  }, []);
-  return <div id="nyx-ambient-particles" style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none" }} />;
-}
+import { Sparkles } from "./Sparkles.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  LOGIN
@@ -155,7 +118,7 @@ export function Login({ onJoin, turmas }) {
 
   return (
     <div style={styles.container}>
-      <AmbientParticles />
+      <Sparkles />
       <div className="pop" style={styles.card}>
         <div style={{ textAlign:"center", marginBottom:20 }}>
           <NyxRobot state="idle" size={86} showName={false} />
