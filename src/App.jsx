@@ -6287,6 +6287,27 @@ function TeacherView({ onLogout, teacherAuth }) {
         </div>
       )}
 
+      {/* urgências primeiro — pedidos de ajuda e alunos parados resumidos logo no topo do
+          Monitoramento, antes de qualquer gráfico ou card secundário. Não substitui o resto do
+          painel (Situação, cards por aluno etc. continuam do mesmo jeito), só antecipa o que
+          precisa de atenção agora. */}
+      {tab==="monitor" && (needHelp.length > 0 || idleList.length > 0) && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px", display:"flex", gap:8, flexWrap:"wrap" }}>
+          {needHelp.length > 0 && (
+            <div style={{ flex:"1 1 260px", background:"#f8717118", border:"1px solid #f87171", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontSize:18 }}>🙋</span>
+              <span style={{ fontSize:13, color:"#fca5a5" }}><b style={{ color:"#f87171" }}>{needHelp.length} pedido{needHelp.length!==1?"s":""} de ajuda:</b> {needHelp.slice(0,3).map(s=>String(s.name).split(" ")[0]).join(", ")}{needHelp.length>3?` e mais ${needHelp.length-3}`:""}</span>
+            </div>
+          )}
+          {idleList.length > 0 && (
+            <div style={{ flex:"1 1 260px", background:"#fbbf2418", border:"1px solid #fbbf24", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontSize:18 }}>💤</span>
+              <span style={{ fontSize:13, color:"#fcd9a0" }}><b style={{ color:"#fbbf24" }}>{idleList.length} parado{idleList.length!==1?"s":""}:</b> {idleList.slice(0,3).map(s=>String(s.name).split(" ")[0]).join(", ")}{idleList.length>3?` e mais ${idleList.length-3}`:""}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* aviso de resultado do reset */}
       {resetMsg && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
