@@ -36,10 +36,22 @@ export function ErrorHighlightRing({ active }) {
   );
 }
 
+// ajuda em níveis: a Nyx aponta a região do erro de cara, mas só entrega a explicação depois que o
+// aluno pede uma dica, e só mostra a linha já corrigida se ele pedir de novo — assim ele tenta
+// resolver sozinho antes de receber a resposta pronta (nível 0 = só a região; 1 = dica/explicação;
+// 2 = correção pronta)
+export function helpLevelLabel(level) {
+  if (level <= 0) return "💡 Quero uma dica";
+  if (level === 1) return "🤔 Ainda não entendi, mostra a correção";
+  return null;
+}
+
 // card com a explicação do erro — sempre renderizado na coluna lateral (ao lado do editor), nunca por cima do código
-export function ErrorWalkthroughCard({ errors, step, onNext, onPrev, onVerify, onClose, verifying }) {
+export function ErrorWalkthroughCard({ errors, step, helpLevel = 0, onRequestHelp, onNext, onPrev, onVerify, onClose, verifying }) {
   const e = errors[step];
   if (!e) return null;
+  const maxLevel = e.exemplo ? 2 : 1;
+  const nextLabel = helpLevel < maxLevel ? helpLevelLabel(helpLevel) : null;
   return (
     <div className="pop" key={step} style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #f8717166", borderRadius:16, padding:"14px 16px", boxShadow:"0 10px 28px rgba(0,0,0,.4)", marginBottom:14 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -47,8 +59,15 @@ export function ErrorWalkthroughCard({ errors, step, onNext, onPrev, onVerify, o
         <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:18, cursor:"pointer", lineHeight:1 }}>✕</button>
       </div>
       <div style={{ background:"#171026", border:"1px solid #3e2d5e", borderRadius:8, padding:"6px 10px", fontFamily:"'Courier New',monospace", fontSize:12.5, color:"#f87171", overflowX:"auto", whiteSpace:"pre", marginBottom:8 }}>{e.trecho}</div>
-      <p style={{ color:"#d6c9ec", fontSize:13, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
-      {e.exemplo && <div style={{ marginTop:8 }}><CodeBlock code={e.exemplo} /></div>}
+      {helpLevel < 1 ? (
+        <p style={{ color:"#a99ac9", fontSize:12.5, lineHeight:1.6, margin:0, fontStyle:"italic" }}>Repare bem nessa linha — dá pra achar o problema sozinho? Se travar, peça uma dica.</p>
+      ) : (
+        <p style={{ color:"#d6c9ec", fontSize:13, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
+      )}
+      {helpLevel >= 2 && e.exemplo && <div style={{ marginTop:8 }}><CodeBlock code={e.exemplo} /></div>}
+      {nextLabel && (
+        <button onClick={onRequestHelp} style={{ marginTop:10, width:"100%", background:"#3b2a5866", border:"1px dashed #7565de", borderRadius:10, color:"#c7b9f5", fontWeight:700, padding:"8px 0", cursor:"pointer", fontSize:12.5 }}>{nextLabel}</button>
+      )}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:12, gap:8, flexWrap:"wrap" }}>
         <div style={{ display:"flex", gap:6 }}>
           {step > 0 && <button onClick={onPrev} style={{ background:"#3b2a58", border:"none", borderRadius:10, color:"#f0e9fb", fontWeight:700, padding:"7px 12px", cursor:"pointer", fontSize:12.5 }}>← Anterior</button>}
@@ -65,7 +84,7 @@ export function ErrorWalkthroughCard({ errors, step, onNext, onPrev, onVerify, o
 // balão flutuante com a explicação do erro, ancorado na ALTURA da linha sublinhada no editor (à
 // direita dele) — em vez de um card fixo na barra lateral, o balão "segue" a linha certa conforme
 // o aluno navega entre os erros ou rola o editor. Nunca fica em cima do código (fica ao lado).
-export function FloatingErrorBubble({ errors, step, activeCode, onNext, onPrev, onVerify, onClose, verifying }) {
+export function FloatingErrorBubble({ errors, step, activeCode, helpLevel = 0, onRequestHelp, onNext, onPrev, onVerify, onClose, verifying }) {
   const e = errors[step];
   const [pos, setPos] = useState(null);
   useEffect(() => {
@@ -104,8 +123,17 @@ export function FloatingErrorBubble({ errors, step, activeCode, onNext, onPrev, 
         <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:17, cursor:"pointer", lineHeight:1 }}>✕</button>
       </div>
       <div style={{ background:"#171026", border:"1px solid #3e2d5e", borderRadius:8, padding:"5px 9px", fontFamily:"'Courier New',monospace", fontSize:12, color:"#f87171", overflowX:"auto", whiteSpace:"pre", marginBottom:8 }}>{e.trecho}</div>
-      <p style={{ color:"#d6c9ec", fontSize:12.5, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
-      {e.exemplo && <div style={{ marginTop:8 }}><CodeBlock code={e.exemplo} /></div>}
+      {helpLevel < 1 ? (
+        <p style={{ color:"#a99ac9", fontSize:12, lineHeight:1.6, margin:0, fontStyle:"italic" }}>Repare bem nessa linha — dá pra achar sozinho? Se travar, peça uma dica.</p>
+      ) : (
+        <p style={{ color:"#d6c9ec", fontSize:12.5, lineHeight:1.6, margin:0 }}>{e.explicacao}</p>
+      )}
+      {helpLevel >= 2 && e.exemplo && <div style={{ marginTop:8 }}><CodeBlock code={e.exemplo} /></div>}
+      {(() => { const maxLevel = e.exemplo ? 2 : 1; const label = helpLevel < maxLevel ? helpLevelLabel(helpLevel) : null;
+        return label && (
+          <button onClick={onRequestHelp} style={{ marginTop:8, width:"100%", background:"#3b2a5866", border:"1px dashed #7565de", borderRadius:9, color:"#c7b9f5", fontWeight:700, padding:"7px 0", cursor:"pointer", fontSize:11.5 }}>{label}</button>
+        );
+      })()}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:10, gap:6, flexWrap:"wrap" }}>
         <div style={{ display:"flex", gap:5 }}>
           {step > 0 && <button onClick={onPrev} style={{ background:"#3b2a58", border:"none", borderRadius:9, color:"#f0e9fb", fontWeight:700, padding:"6px 10px", cursor:"pointer", fontSize:11.5 }}>← Ant.</button>}

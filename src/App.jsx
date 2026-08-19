@@ -118,6 +118,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [codeErrors, setCodeErrors] = useState([]);
   const [showErrorWalkthrough, setShowErrorWalkthrough] = useState(false);
   const [errorWalkStep, setErrorWalkStep] = useState(0);
+  // 🧗 ajuda em níveis: a Nyx não entrega a correção pronta de cara — aponta a região do erro,
+  // e só sobe de nível (dica/explicação → correção pronta) se o aluno pedir. Reinicia a cada
+  // análise nova (erros diferentes = ajuda começa do zero de novo)
+  const [errorHelpLevel, setErrorHelpLevel] = useState({});
   const [dynamicSummary, setDynamicSummary] = useState("");
   const [dynamicActivity, setDynamicActivity] = useState(null);
   const [generatingMsg, setGeneratingMsg] = useState("");
@@ -1737,7 +1741,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     if (quick) {
       const fb = { ok:false, message:quick.message, missingChars:quick.missing||[] };
       setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setFeedback(fb);
-      setCodeErrors([]); setShowErrorWalkthrough(false);
+      setCodeErrors([]); setShowErrorWalkthrough(false); setErrorHelpLevel({});
       await persist({ feedback:fb, hasError:true, errorHistory: bumpErrorHistory() });
       setAnalyzing(false);
       return;
@@ -1772,10 +1776,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         await persist(parsed.ok ? { feedback:parsed, hasError:false } : { feedback:parsed, hasError:true, errorHistory: bumpErrorHistory() });
         if (parsed.ok) {
           unlockAchievement("codigo-limpo");
-          setCodeErrors([]); setShowErrorWalkthrough(false);
+          setCodeErrors([]); setShowErrorWalkthrough(false); setErrorHelpLevel({});
         } else {
           const errs = (Array.isArray(parsed.errors) ? parsed.errors : []).filter(e => e && e.trecho && findLineIndex(activeCode, e.trecho) >= 0);
           setCodeErrors(errs);
+          setErrorHelpLevel({});
           if (errs.length > 0) { setErrorWalkStep(0); setShowErrorWalkthrough(true); }
         }
         lastErr = null;
@@ -3607,6 +3612,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 step={Math.min(errorWalkStep, codeErrors.length-1)}
                 activeCode={activeCode}
                 verifying={analyzing}
+                helpLevel={errorHelpLevel[Math.min(errorWalkStep, codeErrors.length-1)] || 0}
+                onRequestHelp={()=>{ const st = Math.min(errorWalkStep, codeErrors.length-1); setErrorHelpLevel(h=>({ ...h, [st]: (h[st]||0)+1 })); }}
                 onPrev={()=>setErrorWalkStep(s=>Math.max(0,s-1))}
                 onNext={()=>setErrorWalkStep(s=>Math.min(codeErrors.length-1,s+1))}
                 onVerify={analyzeCode}
@@ -3617,6 +3624,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 errors={codeErrors}
                 step={Math.min(errorWalkStep, codeErrors.length-1)}
                 verifying={analyzing}
+                helpLevel={errorHelpLevel[Math.min(errorWalkStep, codeErrors.length-1)] || 0}
+                onRequestHelp={()=>{ const st = Math.min(errorWalkStep, codeErrors.length-1); setErrorHelpLevel(h=>({ ...h, [st]: (h[st]||0)+1 })); }}
                 onPrev={()=>setErrorWalkStep(s=>Math.max(0,s-1))}
                 onNext={()=>setErrorWalkStep(s=>Math.min(codeErrors.length-1,s+1))}
                 onVerify={analyzeCode}
