@@ -6269,12 +6269,10 @@ function TeacherView({ onLogout, teacherAuth }) {
       <div style={{ ...styles.header, ...(tab==="code" ? { padding:"6px 14px" } : {}) }}>
         <div>
           <span className="shine" style={{ fontWeight:900, fontSize: tab==="code" ? 14 : 18, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
-          {tab!=="code" && (
-            <span style={{ color:"#a99ac9", marginLeft:12, fontSize:12 }}>
-              ● ao vivo · {lastUpdate}{turmaCalendar(meta, codeShift).city?` · 📍 ${turmaCalendar(meta, codeShift).city}`:""}
-              {todayContentByTurma.length ? ` · 📖 ${todayContentByTurma.map(x=>`${x.turma.emoji} ${x.content}`).join(" · ")}` : ""}
-            </span>
-          )}
+          <span style={{ color:"#a99ac9", marginLeft:12, fontSize:12 }}>
+            ● ao vivo · {lastUpdate}{turmaCalendar(meta, codeShift).city?` · 📍 ${turmaCalendar(meta, codeShift).city}`:""}
+            {todayContentByTurma.length ? ` · 📖 ${todayContentByTurma.map(x=>`${x.turma.emoji} ${x.content}`).join(" · ")}` : ""}
+          </span>
           {tab!=="code" && (
             <span data-tour="saude-ia" style={{ marginLeft:12, display:"inline-flex", alignItems:"center", gap:10, fontSize:11.5, verticalAlign:"middle" }}>
               {[["nvidia","✨ Nemotron"],["laguna","🌊 Laguna"]].map(([key,label]) => {
