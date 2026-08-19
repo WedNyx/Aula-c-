@@ -57,7 +57,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   check('SEM erro de JS (professor)', jsErrorsT.length === 0, jsErrorsT.slice(0, 3).join(' | '));
 
   // ── professor libera o resumo pra turma hoje ──
-  await pageT.click('[data-tour-prof="resumo-ritmo"] button:has-text("Liberar resumo pra turma hoje")');
+  await pageT.click('[data-tour-prof="resumo-ritmo"] button:has-text("Gerar e liberar resumo pra turma")');
   await pageT.waitForTimeout(600);
 
   // ── aluno: finaliza a aula sozinho e recebe o resumo/atividade PRONTOS, sem chamar o Nyx ──

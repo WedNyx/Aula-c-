@@ -152,16 +152,26 @@ export async function setKeyboardLock(turmaId, value, auth) {
 // já tem código escrito e ainda está na fase "coding" tem a aula finalizada sozinho (mesma coisa
 // que "Salvar e Finalizar Aula", só que sem precisar clicar) — a chave guarda a DATA liberada
 // (não um booleano), então continua valendo o dia inteiro pra quem entra depois do clique também ──
+// desde que o professor passou a gerar o resumo no próprio painel (a partir do código QUE ELE
+// escreveu, já que os alunos só copiam), a chave guarda um objeto { date, resumo } em vez de só a
+// data crua — "resumo" é o mesmo pra turma inteira, enviado pronto em vez de cada aluno pedir o
+// dele pro Nyx. getResumoTrigger ainda entende o formato antigo (string crua, sem resumo) por
+// compatibilidade com qualquer gatilho que já estivesse salvo antes dessa mudança.
 const resumoTriggerKeyFor = (turmaId) => `resumotrigger:${turmaId || 'sem-turno'}`
 export async function getResumoTrigger(turmaId) {
   try {
     const r = await kvCall({ action: 'get', key: resumoTriggerKeyFor(turmaId) })
-    return r.value || null
+    if (!r.value) return null
+    try {
+      const parsed = JSON.parse(r.value)
+      if (parsed && typeof parsed === 'object' && parsed.date) return parsed
+    } catch {}
+    return { date: r.value, resumo: null }
   } catch { return null }
 }
-export async function setResumoTrigger(turmaId, dateKey, auth) {
+export async function setResumoTrigger(turmaId, dateKey, auth, resumo) {
   try {
-    const r = await kvCall({ action: 'set', key: resumoTriggerKeyFor(turmaId), value: dateKey || '', auth })
+    const r = await kvCall({ action: 'set', key: resumoTriggerKeyFor(turmaId), value: JSON.stringify({ date: dateKey || '', resumo: resumo || null }), auth })
     return r.ok === true
   } catch { return false }
 }

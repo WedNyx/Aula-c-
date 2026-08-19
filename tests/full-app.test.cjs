@@ -60,7 +60,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, lo
   const turmaLabel = studentShift === 'vespertino' ? '🌙 Vespertino' : '☀️ Matutino';
   const turmaBtn = p.locator(`button:has-text("${turmaLabel}")`).first();
   if (await turmaBtn.count()) { await turmaBtn.click(); await p.waitForTimeout(300); }
-  await p.locator('[data-tour-prof="resumo-ritmo"]').locator('button:has-text("Liberar resumo pra turma hoje")').click();
+  await p.locator('[data-tour-prof="resumo-ritmo"]').locator('button:has-text("Gerar e liberar resumo pra turma")').click();
   await p.waitForTimeout(600);
   check('Professor liberou o resumo sem erro de JS', errP.length === 0, errP.slice(0, 3).join(' | '));
 

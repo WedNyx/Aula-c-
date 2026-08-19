@@ -2221,27 +2221,44 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       }
       const hasReadyContent = matchedLesson?.resumo && Array.isArray(matchedLesson?.atividade) && matchedLesson.atividade.length > 0;
 
+      // 📢 resumo que o professor já gerou UMA VEZ e liberou pra turma inteira (a partir do código
+      // DELE — os alunos só copiam, então é o mesmo resumo pra quem está em dia). Só entra em jogo
+      // fora de continuação/ponte: quem faltou aula continua com o resumo próprio, cobrindo
+      // especificamente o que ficou pendente, que não dá pra compartilhar com o resto da turma.
+      let broadcastResumo = null;
+      if (!hasReadyContent && !isContinuation) {
+        try {
+          const trig = await getResumoTrigger(shift);
+          if (trig && trig.date === todayKey() && trig.resumo) broadcastResumo = trig.resumo;
+        } catch { broadcastResumo = null; }
+      }
+
       let summaryData, questions;
       if (hasReadyContent) {
         summaryData = matchedLesson.resumo;
         questions = shuffleQuestions(matchedLesson.atividade);
       } else {
-        // resumo e atividade são pedidos ao Nyx AO MESMO TEMPO (não um depois do outro) para não somar o tempo de espera dos dois
+        // resumo e atividade são pedidos ao Nyx AO MESMO TEMPO (não um depois do outro) para não somar o tempo de espera dos dois —
+        // exceto o resumo quando já veio pronto do professor (broadcastResumo), aí só a atividade precisa da IA
         const [summaryResult, activityResult] = await Promise.all([
-          askClaude(simpleReq.prompt, simpleReq.system),
+          broadcastResumo ? Promise.resolve(null) : askClaude(simpleReq.prompt, simpleReq.system),
           askClaude(
             `Um aluno de ${studyLang ? studyLang.label : "C#"} escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`${studyLang ? studyLang.codeLang : "csharp"}\n${fullCode}\n\`\`\`\n\nCrie ${ownPace ? "4" : "8"} questões de múltipla escolha${ownPace ? " BEM diretas e fáceis (uma ideia por questão, frases curtas)" : ""} focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.${difficultyHint || ""}${adaptiveExtra}\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0,"dica":"(opcional, só se pedido acima) dica que não entrega a resposta","bonus":false}]}`,
             `Crie questões sobre conceitos de código ${studyLang ? studyLang.label : "C#"}, não matemática. APENAS JSON puro.`
           ),
         ]);
-        try { summaryData = extractJson(summaryResult); }
-        catch {
-          // primeira resposta veio malformada — insiste uma vez em JSON puro em vez de cair pro texto
-          // cru da IA (era isso que aparecia como "escrita confusa" pro aluno)
-          try {
-            const retryResult = await askClaude(simpleReq.prompt + "\n\nATENÇÃO: responda SOMENTE o objeto JSON válido, sem nenhum texto antes ou depois.", simpleReq.system);
-            summaryData = extractJson(retryResult);
-          } catch { summaryData = null; }
+        if (broadcastResumo) {
+          summaryData = broadcastResumo;
+        } else {
+          try { summaryData = extractJson(summaryResult); }
+          catch {
+            // primeira resposta veio malformada — insiste uma vez em JSON puro em vez de cair pro texto
+            // cru da IA (era isso que aparecia como "escrita confusa" pro aluno)
+            try {
+              const retryResult = await askClaude(simpleReq.prompt + "\n\nATENÇÃO: responda SOMENTE o objeto JSON válido, sem nenhum texto antes ou depois.", simpleReq.system);
+              summaryData = extractJson(retryResult);
+            } catch { summaryData = null; }
+          }
         }
         const parsed = extractJson(activityResult);
         const rawQuestions = Array.isArray(parsed.questions) ? parsed.questions : [];
@@ -2305,7 +2322,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const fullCode = (stateRef.current.files || []).filter(f => (f.code||"").trim()).map(f => f.code || "").join("\n");
       if (fullCode.trim().length < 10) return;
       const triggered = await getResumoTrigger(shift);
-      if (!active || triggered !== todayKey() || stateRef.current.phase !== "coding") return;
+      if (!active || triggered?.date !== todayKey() || stateRef.current.phase !== "coding") return;
       resumoAutoSaveRef.current = true;
       try { await handleSaveRef.current(); } finally { resumoAutoSaveRef.current = false; }
     }, 5000);
@@ -5040,23 +5057,41 @@ function TeacherView({ onLogout, teacherAuth }) {
   // o status certo (evita o professor achar que precisa clicar de novo)
   useEffect(() => {
     let active = true;
-    getResumoTrigger(codeShift).then(v => { if (active) setResumoTriggeredToday(t => ({ ...t, [codeShift]: v === todayKey() })); });
+    getResumoTrigger(codeShift).then(v => { if (active) setResumoTriggeredToday(t => ({ ...t, [codeShift]: v?.date === todayKey() })); });
     return () => { active = false; };
   }, [codeShift]);
-  // 📚 libera o resumo da turma HOJE: qualquer aluno conectado que já tem código escrito e ainda
-  // está na fase "coding" finaliza a aula sozinho (mesmo fluxo de "Salvar e Finalizar Aula") assim
-  // que o próprio navegador dele perceber o aviso — sem precisar clicar em nada. Continua valendo
-  // o dia inteiro, então também pega quem entra DEPOIS deste clique (não só quem já está online).
+  // 📚 libera o resumo da turma HOJE: gera o resumo UMA VEZ a partir do código que O PROFESSOR
+  // passou pra essa turma (os alunos só copiam esse mesmo código, não faz sentido pedir pro Nyx
+  // resumir de novo pra cada um) e manda pronto pra turma inteira. Quem está em dia recebe
+  // exatamente esse texto; quem faltou aula continua gerando um resumo próprio (handleSave cuida
+  // disso), cobrindo só o que ficou pendente — isso não dá pra compartilhar. Qualquer aluno
+  // conectado que já tem código escrito e ainda está na fase "coding" finaliza a aula sozinho
+  // (mesmo fluxo de "Salvar e Finalizar Aula") assim que o navegador dele perceber o aviso — sem
+  // precisar clicar em nada. Continua valendo o dia inteiro, então também pega quem entra DEPOIS
+  // deste clique (não só quem já está online).
   const liberarResumoHoje = async (turmaId) => {
-    setResumoTriggerBusy(true); setResumoTriggerMsg("");
-    const ok = await setResumoTrigger(turmaId, todayKey(), teacherAuth);
-    setResumoTriggerBusy(false);
-    if (ok) {
-      setResumoTriggeredToday(t => ({ ...t, [turmaId]: true }));
-      setResumoTriggerMsg(`✅ Resumo liberado pra turma ${shiftMeta(turmaId, turmas).label}! Quem estiver com código escrito vai pro resumo sozinho, na hora ou assim que entrar hoje.`);
-    } else {
-      setResumoTriggerMsg("❌ Não consegui liberar o resumo agora. Tente de novo em instantes.");
+    setResumoTriggerBusy(true); setResumoTriggerMsg("📚 Gerando o resumo da aula...");
+    try {
+      const teacherCode = await getTeacherCode(turmaId);
+      const code = (teacherCode?.files || []).filter(f => (f.code||"").trim()).map(f => f.code || "").join("\n");
+      let resumo = null;
+      if (code.trim().length >= 10) {
+        const { prompt, system } = buildSummaryRequest("simples", false, code, code, null, null);
+        try { resumo = await askClaudeJson(prompt, system); } catch { resumo = null; }
+      }
+      const ok = await setResumoTrigger(turmaId, todayKey(), teacherAuth, resumo);
+      if (ok) {
+        setResumoTriggeredToday(t => ({ ...t, [turmaId]: true }));
+        setResumoTriggerMsg(resumo
+          ? `✅ Resumo gerado e liberado pra turma ${shiftMeta(turmaId, turmas).label}! Quem está em dia recebe esse MESMO resumo — só quem faltou aula continua com um resumo próprio, cobrindo o que perdeu.`
+          : `✅ Resumo liberado pra turma ${shiftMeta(turmaId, turmas).label}! Não achei código seu salvo pra essa turma pra gerar um resumo pronto, então cada aluno vai gerar o próprio, como antes.`);
+      } else {
+        setResumoTriggerMsg("❌ Não consegui liberar o resumo agora. Tente de novo em instantes.");
+      }
+    } catch {
+      setResumoTriggerMsg("❌ Não consegui gerar o resumo agora. Tente de novo em instantes.");
     }
+    setResumoTriggerBusy(false);
     setTimeout(() => setResumoTriggerMsg(""), 8000);
   };
 
@@ -7378,7 +7413,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <span style={styles.badge("#34d399")}>✅ Resumo já liberado hoje</span>
                     ) : (
                       <button onClick={()=>liberarResumoHoje(codeShift)} disabled={resumoTriggerBusy} style={{ ...styles.btn("#c084fc"), padding:"7px 14px", fontSize:12.5, opacity:resumoTriggerBusy?0.6:1 }}>
-                        {resumoTriggerBusy ? "Liberando..." : "📚 Liberar resumo pra turma hoje"}
+                        {resumoTriggerBusy ? "Gerando..." : "📚 Gerar e liberar resumo pra turma"}
                       </button>
                     )}
                   </div>

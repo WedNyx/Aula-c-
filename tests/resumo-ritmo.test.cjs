@@ -39,11 +39,13 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const metaAfterCadence = JSON.parse(kvStore.get('teachermeta:main'));
   check('Ritmo (2) foi salvo na turma matutino', metaAfterCadence?.byTurma?.matutino?.resumoCadence === 2, JSON.stringify(metaAfterCadence?.byTurma?.matutino));
 
-  await ritmoCard.locator('button:has-text("Liberar resumo pra turma hoje")').click();
+  await ritmoCard.locator('button:has-text("Gerar e liberar resumo pra turma")').click();
   await pageT.waitForTimeout(600);
   check('Mensagem de sucesso aparece ao liberar o resumo', (await ritmoCard.locator('text=/Resumo liberado/').count()) > 0);
   check('Badge muda pra "Resumo já liberado hoje"', (await ritmoCard.locator('text=Resumo já liberado hoje').count()) > 0);
-  check('Chave resumotrigger:matutino foi gravada com a data de hoje', kvStore.get('resumotrigger:matutino') === tk, kvStore.get('resumotrigger:matutino'));
+  const trigSaved = JSON.parse(kvStore.get('resumotrigger:matutino') || 'null');
+  check('Chave resumotrigger:matutino foi gravada com a data de hoje', trigSaved?.date === tk, JSON.stringify(trigSaved));
+  check('Sem código do professor salvo pra essa turma, resumo pronto fica nulo (cada aluno gera o próprio, como antes)', trigSaved?.resumo === null, JSON.stringify(trigSaved));
 
   check('Botão antigo "Gerar resumo (hoje)" NÃO existe mais', (await pageT.locator('button:has-text("Gerar resumo (hoje)")').count()) === 0);
   check('Botão antigo "Gerar resumo (ontem)" NÃO existe mais', (await pageT.locator('button:has-text("Gerar resumo (ontem)")').count()) === 0);

@@ -26,7 +26,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await loginTeacher(pageT);
   await pageT.click('text=👨‍💻 Meu código');
   await pageT.waitForTimeout(500);
-  await pageT.locator('[data-tour-prof="resumo-ritmo"]').locator('button:has-text("Liberar resumo pra turma hoje")').click();
+  await pageT.locator('[data-tour-prof="resumo-ritmo"]').locator('button:has-text("Gerar e liberar resumo pra turma")').click();
   await pageT.waitForTimeout(600);
   check('SEM erro de JS (professor)', jsErrorsT.length === 0, jsErrorsT.slice(0, 3).join(' | '));
 
