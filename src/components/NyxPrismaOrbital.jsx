@@ -418,16 +418,18 @@ function NpoEscudo({ uid }) {
 }
 function NpoEspada({ uid }) {
   return (
-    <g transform="translate(322,300) rotate(10)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <defs>
-        <linearGradient id={uid + "lamina"} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#f8fafc" /><stop offset=".5" stopColor="#e2e8f0" /><stop offset="1" stopColor="#94a3b8" /></linearGradient>
-        <linearGradient id={uid + "cabo"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a06617" /><stop offset="1" stopColor="#5c3a0d" /></linearGradient>
-      </defs>
-      <path d="M-6 -70 L6 -70 L6 10 L0 20 L-6 10 Z" fill={`url(#${uid}lamina)`} stroke="#7c8a9c" strokeWidth="2" />
-      <line x1="0" y1="-64" x2="0" y2="6" stroke="#fff" strokeWidth="1.4" opacity=".6" />
-      <path d="M-24 10 Q0 3 24 10 L24 18 Q0 11 -24 18 Z" fill="#eab308" stroke="#8a5f08" strokeWidth="2" />
-      <rect x="-6" y="18" width="12" height="26" rx="4" fill={`url(#${uid}cabo)`} />
-      <circle cx="0" cy="49" r="8" fill="#eab308" stroke="#8a5f08" strokeWidth="2" />
+    <g transform="translate(322,300) rotate(10)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <defs>
+          <linearGradient id={uid + "lamina"} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#f8fafc" /><stop offset=".5" stopColor="#e2e8f0" /><stop offset="1" stopColor="#94a3b8" /></linearGradient>
+          <linearGradient id={uid + "cabo"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a06617" /><stop offset="1" stopColor="#5c3a0d" /></linearGradient>
+        </defs>
+        <path d="M-6 -70 L6 -70 L6 10 L0 20 L-6 10 Z" fill={`url(#${uid}lamina)`} stroke="#7c8a9c" strokeWidth="2" />
+        <line x1="0" y1="-64" x2="0" y2="6" stroke="#fff" strokeWidth="1.4" opacity=".6" />
+        <path d="M-24 10 Q0 3 24 10 L24 18 Q0 11 -24 18 Z" fill="#eab308" stroke="#8a5f08" strokeWidth="2" />
+        <rect x="-6" y="18" width="12" height="26" rx="4" fill={`url(#${uid}cabo)`} />
+        <circle cx="0" cy="49" r="8" fill="#eab308" stroke="#8a5f08" strokeWidth="2" />
+      </g>
     </g>
   );
 }
@@ -453,12 +455,14 @@ function NpoEspadaEscudoEspartano({ uid }) {
         <path d="M0 0 Q0 -14 40 -22 Q80 -14 80 0 L80 40 Q80 74 40 94 Q0 74 0 40 Z" fill={`url(#${uid}escudoE)`} stroke="#3f1010" strokeWidth="4" />
         <path d="M40 -2 L52 20 L40 52 L28 20 Z" fill="#fde68a" stroke="#7a1010" strokeWidth="2.5" />
       </g></g>
-      <g transform="translate(330,290) rotate(10)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <defs><linearGradient id={uid + "laminaE"} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#f8fafc" /><stop offset=".5" stopColor="#e2e8f0" /><stop offset="1" stopColor="#94a3b8" /></linearGradient></defs>
-        <path d="M-6 -70 L6 -70 L6 10 L0 20 L-6 10 Z" fill={`url(#${uid}laminaE)`} stroke="#7c8a9c" strokeWidth="2" />
-        <path d="M-24 10 Q0 3 24 10 L24 18 Q0 11 -24 18 Z" fill="#eab308" stroke="#8a5f08" strokeWidth="2" />
-        <rect x="-6" y="18" width="12" height="26" rx="4" fill="#a06617" />
-        <circle cx="0" cy="49" r="8" fill="#eab308" stroke="#8a5f08" strokeWidth="2" />
+      <g transform="translate(330,290) rotate(10)">
+        <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+          <defs><linearGradient id={uid + "laminaE"} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#f8fafc" /><stop offset=".5" stopColor="#e2e8f0" /><stop offset="1" stopColor="#94a3b8" /></linearGradient></defs>
+          <path d="M-6 -70 L6 -70 L6 10 L0 20 L-6 10 Z" fill={`url(#${uid}laminaE)`} stroke="#7c8a9c" strokeWidth="2" />
+          <path d="M-24 10 Q0 3 24 10 L24 18 Q0 11 -24 18 Z" fill="#eab308" stroke="#8a5f08" strokeWidth="2" />
+          <rect x="-6" y="18" width="12" height="26" rx="4" fill="#a06617" />
+          <circle cx="0" cy="49" r="8" fill="#eab308" stroke="#8a5f08" strokeWidth="2" />
+        </g>
       </g>
     </g>
   );
@@ -691,41 +695,49 @@ function NpoLivroGrosso() {
 // no mesmo espírito de "flutuar do lado" já validado com a espada ──
 function NpoArco({ uid }) {
   return (
-    <g transform="translate(320,280) rotate(6)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <defs><linearGradient id={uid + "arco"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a1783f" /><stop offset="1" stopColor="#6b4d24" /></linearGradient></defs>
-      <path d="M0 -58 Q26 0 0 58" fill="none" stroke={`url(#${uid}arco)`} strokeWidth="7" strokeLinecap="round" />
-      <line x1="0" y1="-58" x2="0" y2="58" stroke="#e5e7eb" strokeWidth="1.6" />
-      <path d="M-2 0 L-34 0" stroke="#94a3b8" strokeWidth="3" strokeLinecap="round" />
-      <path d="M-34 0 L-20 -5 L-20 5 Z" fill="#94a3b8" />
+    <g transform="translate(320,280) rotate(6)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <defs><linearGradient id={uid + "arco"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a1783f" /><stop offset="1" stopColor="#6b4d24" /></linearGradient></defs>
+        <path d="M0 -58 Q26 0 0 58" fill="none" stroke={`url(#${uid}arco)`} strokeWidth="7" strokeLinecap="round" />
+        <line x1="0" y1="-58" x2="0" y2="58" stroke="#e5e7eb" strokeWidth="1.6" />
+        <path d="M-2 0 L-34 0" stroke="#94a3b8" strokeWidth="3" strokeLinecap="round" />
+        <path d="M-34 0 L-20 -5 L-20 5 Z" fill="#94a3b8" />
+      </g>
     </g>
   );
 }
 function NpoSorvete() {
   return (
-    <g transform="translate(320,290)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <path d="M-16 0 L16 0 L0 42 Z" fill="#d6a06b" />
-      <path d="M-16 0 L16 0 L12 -6 L-12 -6 Z" fill="#b8875a" />
-      <circle cx="0" cy="-16" r="20" fill="#fda4af" />
-      <circle cx="-10" cy="-30" r="15" fill="#fef08a" />
-      <circle cx="10" cy="-30" r="15" fill="#a7f3d0" />
+    <g transform="translate(320,290)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <path d="M-16 0 L16 0 L0 42 Z" fill="#d6a06b" />
+        <path d="M-16 0 L16 0 L12 -6 L-12 -6 Z" fill="#b8875a" />
+        <circle cx="0" cy="-16" r="20" fill="#fda4af" />
+        <circle cx="-10" cy="-30" r="15" fill="#fef08a" />
+        <circle cx="10" cy="-30" r="15" fill="#a7f3d0" />
+      </g>
     </g>
   );
 }
 function NpoGuardaChuva({ uid }) {
   return (
-    <g transform="translate(320,280)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <defs><linearGradient id={uid + "guarda"} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#f87171" /><stop offset="1" stopColor="#b91c1c" /></linearGradient></defs>
-      <path d="M-38 -6 Q-38 -46 0 -46 Q38 -46 38 -6 Q28 -16 18 -6 Q8 -16 0 -6 Q-8 -16 -18 -6 Q-28 -16 -38 -6 Z" fill={`url(#${uid}guarda)`} stroke="#7a1010" strokeWidth="2.5" />
-      <line x1="0" y1="-46" x2="0" y2="48" stroke="#5c3a0d" strokeWidth="3.5" />
-      <path d="M0 48 Q-10 52 -8 40" fill="none" stroke="#5c3a0d" strokeWidth="3.5" strokeLinecap="round" />
+    <g transform="translate(320,280)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <defs><linearGradient id={uid + "guarda"} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#f87171" /><stop offset="1" stopColor="#b91c1c" /></linearGradient></defs>
+        <path d="M-38 -6 Q-38 -46 0 -46 Q38 -46 38 -6 Q28 -16 18 -6 Q8 -16 0 -6 Q-8 -16 -18 -6 Q-28 -16 -38 -6 Z" fill={`url(#${uid}guarda)`} stroke="#7a1010" strokeWidth="2.5" />
+        <line x1="0" y1="-46" x2="0" y2="48" stroke="#5c3a0d" strokeWidth="3.5" />
+        <path d="M0 48 Q-10 52 -8 40" fill="none" stroke="#5c3a0d" strokeWidth="3.5" strokeLinecap="round" />
+      </g>
     </g>
   );
 }
 function NpoChaveInglesa() {
   return (
-    <g transform="translate(322,290) rotate(-30)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <rect x="-8" y="-50" width="16" height="70" rx="6" fill="#94a3b8" stroke="#475569" strokeWidth="2.5" />
-      <path d="M-16 -50 Q-16 -68 0 -68 Q16 -68 16 -50 Q16 -40 4 -40 L4 -34 L-4 -34 L-4 -40 Q-16 -40 -16 -50 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="2.5" />
+    <g transform="translate(322,290) rotate(-30)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <rect x="-8" y="-50" width="16" height="70" rx="6" fill="#94a3b8" stroke="#475569" strokeWidth="2.5" />
+        <path d="M-16 -50 Q-16 -68 0 -68 Q16 -68 16 -50 Q16 -40 4 -40 L4 -34 L-4 -34 L-4 -40 Q-16 -40 -16 -50 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="2.5" />
+      </g>
     </g>
   );
 }
@@ -734,48 +746,58 @@ function NpoBandeiraCorrida() {
   const squares = [];
   for (let r = 0; r < 5; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2 === 0) squares.push(<rect key={`${r}-${c}`} x={c * cell} y={r * cell} width={cell} height={cell} fill="#0b0e1d" />);
   return (
-    <g transform="translate(316,260) rotate(8)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <line x1="0" y1="-10" x2="0" y2="70" stroke="#5c3a0d" strokeWidth="4" strokeLinecap="round" />
-      <rect x="0" y="-10" width="28" height="35" fill="#fff" />
-      <g>{squares}</g>
+    <g transform="translate(316,260) rotate(8)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <line x1="0" y1="-10" x2="0" y2="70" stroke="#5c3a0d" strokeWidth="4" strokeLinecap="round" />
+        <rect x="0" y="-10" width="28" height="35" fill="#fff" />
+        <g>{squares}</g>
+      </g>
     </g>
   );
 }
 function NpoMicrofone({ uid }) {
   return (
-    <g transform="translate(320,280)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <defs><linearGradient id={uid + "mic"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#e5e7eb" /><stop offset="1" stopColor="#6b7280" /></linearGradient></defs>
-      <rect x="-13" y="-44" width="26" height="46" rx="13" fill={`url(#${uid}mic)`} stroke="#374151" strokeWidth="2.5" />
-      <path d="M-22 -14 Q-22 8 0 8 Q22 8 22 -14" fill="none" stroke="#374151" strokeWidth="3" />
-      <line x1="0" y1="8" x2="0" y2="30" stroke="#374151" strokeWidth="3.5" />
+    <g transform="translate(320,280)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <defs><linearGradient id={uid + "mic"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#e5e7eb" /><stop offset="1" stopColor="#6b7280" /></linearGradient></defs>
+        <rect x="-13" y="-44" width="26" height="46" rx="13" fill={`url(#${uid}mic)`} stroke="#374151" strokeWidth="2.5" />
+        <path d="M-22 -14 Q-22 8 0 8 Q22 8 22 -14" fill="none" stroke="#374151" strokeWidth="3" />
+        <line x1="0" y1="8" x2="0" y2="30" stroke="#374151" strokeWidth="3.5" />
+      </g>
     </g>
   );
 }
 function NpoMartelo({ uid }) {
   return (
-    <g transform="translate(320,280) rotate(-16)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <defs><linearGradient id={uid + "mart"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a06617" /><stop offset="1" stopColor="#5c3a0d" /></linearGradient></defs>
-      <rect x="-5" y="-16" width="10" height="60" rx="4" fill={`url(#${uid}mart)`} />
-      <rect x="-26" y="-42" width="52" height="30" rx="7" fill="#7565de" stroke="#35296e" strokeWidth="3" />
+    <g transform="translate(320,280) rotate(-16)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <defs><linearGradient id={uid + "mart"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a06617" /><stop offset="1" stopColor="#5c3a0d" /></linearGradient></defs>
+        <rect x="-5" y="-16" width="10" height="60" rx="4" fill={`url(#${uid}mart)`} />
+        <rect x="-26" y="-42" width="52" height="30" rx="7" fill="#7565de" stroke="#35296e" strokeWidth="3" />
+      </g>
     </g>
   );
 }
 function NpoGrimorio({ uid }) {
   return (
-    <g transform="translate(320,290)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <defs><linearGradient id={uid + "grim"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#8f73f3" /><stop offset="1" stopColor="#39d9f1" /></linearGradient></defs>
-      <path d="M-30 -34 Q0 -44 30 -34 L30 34 Q0 24 -30 34 Z" fill={`url(#${uid}grim)`} stroke="#3f1f7a" strokeWidth="3" />
-      <path d="M0 -40 L0 30" stroke="#3f1f7a" strokeWidth="2.5" />
-      <circle cx="0" cy="-4" r="7" fill="#fde68a" style={{ animation: "npo-pulse 2s ease-in-out infinite" }} />
+    <g transform="translate(320,290)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <defs><linearGradient id={uid + "grim"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#8f73f3" /><stop offset="1" stopColor="#39d9f1" /></linearGradient></defs>
+        <path d="M-30 -34 Q0 -44 30 -34 L30 34 Q0 24 -30 34 Z" fill={`url(#${uid}grim)`} stroke="#3f1f7a" strokeWidth="3" />
+        <path d="M0 -40 L0 30" stroke="#3f1f7a" strokeWidth="2.5" />
+        <circle cx="0" cy="-4" r="7" fill="#fde68a" style={{ animation: "npo-pulse 2s ease-in-out infinite" }} />
+      </g>
     </g>
   );
 }
 function NpoVarinha({ uid }) {
   return (
-    <g transform="translate(322,300) rotate(20)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <defs><linearGradient id={uid + "var"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a06617" /><stop offset="1" stopColor="#5c3a0d" /></linearGradient></defs>
-      <line x1="0" y1="-60" x2="0" y2="30" stroke={`url(#${uid}var)`} strokeWidth="7" strokeLinecap="round" />
-      <path d="M0 -60 l5 -9 l5 9 l9 5 l-9 5 l-5 9 l-5 -9 l-9 -5 Z" fill="#fde047" style={{ animation: "npo-pulse 2s ease-in-out infinite" }} />
+    <g transform="translate(322,300) rotate(20)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <defs><linearGradient id={uid + "var"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a06617" /><stop offset="1" stopColor="#5c3a0d" /></linearGradient></defs>
+        <line x1="0" y1="-60" x2="0" y2="30" stroke={`url(#${uid}var)`} strokeWidth="7" strokeLinecap="round" />
+        <path d="M0 -60 l5 -9 l5 9 l9 5 l-9 5 l-5 9 l-5 -9 l-9 -5 Z" fill="#fde047" style={{ animation: "npo-pulse 2s ease-in-out infinite" }} />
+      </g>
     </g>
   );
 }
@@ -783,30 +805,36 @@ function NpoTecladoMini() {
   const keys = [];
   for (let r = 0; r < 2; r++) for (let c = 0; c < 5; c++) keys.push(<rect key={`${r}-${c}`} x={c * 10} y={r * 10} width={8} height={8} rx="2" fill="#3a4152" />);
   return (
-    <g transform="translate(305,280) rotate(-8)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <rect x="-6" y="-6" width="60" height="30" rx="5" fill="#171026" stroke="#3b2a58" strokeWidth="3" />
-      <g transform="translate(0,2)">{keys}</g>
+    <g transform="translate(305,280) rotate(-8)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <rect x="-6" y="-6" width="60" height="30" rx="5" fill="#171026" stroke="#3b2a58" strokeWidth="3" />
+        <g transform="translate(0,2)">{keys}</g>
+      </g>
     </g>
   );
 }
 function NpoControle() {
   return (
-    <g transform="translate(310,285)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <path d="M-32 -8 Q-32 -22 -16 -22 L16 -22 Q32 -22 32 -8 Q32 12 20 12 Q12 12 8 2 L-8 2 Q-12 12 -20 12 Q-32 12 -32 -8 Z" fill="#3a4152" stroke="#171026" strokeWidth="3" />
-      <circle cx="-18" cy="-8" r="4" fill="#c084fc" /><circle cx="18" cy="-8" r="4" fill="#22d3ee" />
-      <rect x="-24" y="-14" width="3" height="10" fill="#94a3b8" /><rect x="-28" y="-10" width="10" height="3" fill="#94a3b8" />
+    <g transform="translate(310,285)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <path d="M-32 -8 Q-32 -22 -16 -22 L16 -22 Q32 -22 32 -8 Q32 12 20 12 Q12 12 8 2 L-8 2 Q-12 12 -20 12 Q-32 12 -32 -8 Z" fill="#3a4152" stroke="#171026" strokeWidth="3" />
+        <circle cx="-18" cy="-8" r="4" fill="#c084fc" /><circle cx="18" cy="-8" r="4" fill="#22d3ee" />
+        <rect x="-24" y="-14" width="3" height="10" fill="#94a3b8" /><rect x="-28" y="-10" width="10" height="3" fill="#94a3b8" />
+      </g>
     </g>
   );
 }
 function NpoTrofeu({ uid }) {
   return (
-    <g transform="translate(315,290)" style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-      <defs><linearGradient id={uid + "trof"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fde68a" /><stop offset="1" stopColor="#d99b0d" /></linearGradient></defs>
-      <path d="M-16 -40 L16 -40 L14 -12 Q14 4 0 4 Q-14 4 -14 -12 Z" fill={`url(#${uid}trof)`} stroke="#a9720a" strokeWidth="2.5" />
-      <path d="M-16 -36 Q-30 -36 -30 -22 Q-30 -10 -14 -10" fill="none" stroke="#a9720a" strokeWidth="3" />
-      <path d="M16 -36 Q30 -36 30 -22 Q30 -10 14 -10" fill="none" stroke="#a9720a" strokeWidth="3" />
-      <rect x="-4" y="4" width="8" height="10" fill="#a9720a" />
-      <rect x="-14" y="14" width="28" height="7" rx="2" fill="#a9720a" />
+    <g transform="translate(315,290)">
+      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
+        <defs><linearGradient id={uid + "trof"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fde68a" /><stop offset="1" stopColor="#d99b0d" /></linearGradient></defs>
+        <path d="M-16 -40 L16 -40 L14 -12 Q14 4 0 4 Q-14 4 -14 -12 Z" fill={`url(#${uid}trof)`} stroke="#a9720a" strokeWidth="2.5" />
+        <path d="M-16 -36 Q-30 -36 -30 -22 Q-30 -10 -14 -10" fill="none" stroke="#a9720a" strokeWidth="3" />
+        <path d="M16 -36 Q30 -36 30 -22 Q30 -10 14 -10" fill="none" stroke="#a9720a" strokeWidth="3" />
+        <rect x="-4" y="4" width="8" height="10" fill="#a9720a" />
+        <rect x="-14" y="14" width="28" height="7" rx="2" fill="#a9720a" />
+      </g>
     </g>
   );
 }
