@@ -12,6 +12,7 @@ export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onCl
   // 🥚 o Nyx da loja também entra no personagem: na hora que o chapéu pirata é vestido ou o combo
   // espartano (espada+escudo) se forma, ele fala a frase do Easter Egg com uma animação própria
   const [eggTalk, setEggTalk] = useState(null); // { kind:"pirata"|"espartano", msg, color }
+  const [preview, setPreview] = useState(null); // item sendo pré-visualizado no Nyx (antes de comprar)
   const prevGearRef = useRef(gear);
   useEffect(() => {
     const prev = prevGearRef.current || {};
@@ -79,13 +80,17 @@ export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onCl
                 const clickable = has || canBuy;
                 const equipped = gear[item.slot] === item.id;
                 return (
-                  <button key={item.id} data-item={item.id} onClick={()=>click(item)} disabled={!clickable}
+                  <div key={item.id} data-item={item.id} role="button" tabIndex={clickable?0:-1} onClick={()=>clickable && click(item)}
                     style={{
                       background: equipped ? "#c084fc26" : "#171026",
                       border: `2px solid ${equipped ? "#c084fc" : has ? "#34d39966" : canBuy ? "#fbbf2466" : "#241f38"}`,
                       borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: clickable?"pointer":"default",
                       opacity: clickable ? 1 : 0.55, position:"relative",
                     }}>
+                    <span onClick={(e)=>{ e.stopPropagation(); setPreview(item); }} title="Ver prévia no Nyx antes de comprar"
+                      style={{ position:"absolute", top:6, right:6, zIndex:2, width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center", borderRadius:"50%", background:"#0000004d", fontSize:12, cursor:"pointer", opacity:1 }}>
+                      👁️
+                    </span>
                     <div style={{ fontSize:30, filter: clickable?"none":"grayscale(1)" }}>{item.emoji}</div>
                     <div style={{ color:"#f0e9fb", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
                     {has ? (
@@ -97,13 +102,40 @@ export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onCl
                     ) : (
                       <div style={{ color:"#776798", fontSize:11, marginTop:4 }}>🔒 {wallet}/{item.cost} pts</div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
           </div>
         </div>
       </div>
+
+      {preview && (() => {
+        const has = isTestShift || owned.includes(preview.id);
+        const equipped = gear[preview.slot] === preview.id;
+        const canBuy = !has && wallet >= preview.cost;
+        const clickable = has || canBuy;
+        return (
+          <div onClick={()=>setPreview(null)} style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.88)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1050, padding:16 }}>
+            <div className="pop" onClick={(e)=>e.stopPropagation()} style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:20, padding:"20px 22px", maxWidth:300, width:"100%", textAlign:"center", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                <h3 style={{ margin:0, fontSize:14, fontWeight:900, color:"#c084fc" }}>👁️ Prévia · como fica no Nyx</h3>
+                <button onClick={()=>setPreview(null)} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:20, cursor:"pointer", lineHeight:1 }}>✕</button>
+              </div>
+              <NyxRobot state="ok" size={110} showName={false} gear={{ ...gear, [preview.slot]: preview.id }} />
+              <div style={{ color:"#f0e9fb", fontWeight:800, fontSize:14.5, marginTop:8 }}>{preview.emoji} {preview.label}</div>
+              <button onClick={()=>click(preview)} disabled={!clickable}
+                style={{
+                  marginTop:14, width:"100%", padding:"10px 0", borderRadius:10, border:"none", fontWeight:800, fontSize:13, cursor: clickable?"pointer":"default", opacity: clickable?1:0.6,
+                  background: has ? (equipped ? "#3b2a58" : "linear-gradient(135deg,#c084fc,#9333ea)") : canBuy ? "linear-gradient(135deg,#fbbf24,#d97706)" : "#241f38",
+                  color: has ? "#fff" : canBuy ? "#1a1029" : "#776798",
+                }}>
+                {has ? (equipped ? "Tirar" : "✓ Vestir") : canBuy ? `🛒 Comprar · ${preview.cost} pts` : `🔒 Faltam ${preview.cost - wallet} pts`}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
