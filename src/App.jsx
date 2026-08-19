@@ -1507,6 +1507,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           attendanceRef.current = cur;
           await clearScoreFix(shift, studentName);
           await persist({});
+        } else if (fix && fix.kind === "resumo-broadcast" && fix.dateKey && fix.resumo) {
+          // professor gerou o resumo da aula no próprio painel e mandou pronto — entra direto no
+          // Caderno de resumos, não importa em que fase o aluno está agora (aplica no estado local
+          // antes que o autosave periódico regrave o registro sem esse resumo)
+          const cur = stateRef.current.summaryHistory || {};
+          const nextHistory = { ...cur, [fix.dateKey]: fix.resumo };
+          setSummaryHistory(nextHistory);
+          await clearScoreFix(shift, studentName);
+          await persist({ summaryHistory: nextHistory });
         } else if (fix && fix.kind === "boss-bonus" && typeof fix.amount === "number") {
           // 👾 bônus de pontos por ter causado dano no chefão quando ele foi derrotado
           const np = (stateRef.current.nyxPoints || 0) + fix.amount;
@@ -2173,16 +2182,25 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       setGeneratingMsg("📚 Criando o resumo e a atividade da sua aula...");
       const todayCode = codeWrittenToday();
       const hasTodayDiff = todayCode.trim().length >= 10 && todayCode.trim() !== fullCode.trim();
+      // 📢 resumo que o professor já gerou UMA VEZ e mandou pronto pra turma (a partir do código
+      // DELE — os alunos só copiam, então é o mesmo resumo pra quem está em dia). Busca isso ANTES
+      // de decidir se hoje é "continuação", porque o push direto (via scoreFix) pode já ter
+      // colocado esse resumo no caderno do aluno sem ele ter feito nada — isso não pode contar
+      // como uma sessão anterior de verdade que precisa de continuação.
+      let broadcastTrigger = null;
+      try { broadcastTrigger = await getResumoTrigger(shift); } catch { broadcastTrigger = null; }
+      const broadcastResumo = (broadcastTrigger?.date === todayKey() && broadcastTrigger?.resumo && Array.isArray(broadcastTrigger.resumo.secoes)) ? broadcastTrigger.resumo : null;
       // se já existe um resumo de hoje (o aluno salvou antes e o professor passou mais código
       // depois), o próximo resumo é uma CONTINUAÇÃO — só as seções novas, sem repetir o que já tinha
       const todaySummary = summaryHistory[todayKey()];
-      const hasTodaySummary = todaySummary && typeof todaySummary === "object" && Array.isArray(todaySummary.secoes) && todaySummary.secoes.length > 0;
+      const todayIsJustBroadcast = broadcastResumo && todaySummary && JSON.stringify(todaySummary) === JSON.stringify(broadcastResumo);
+      const hasTodaySummary = !todayIsJustBroadcast && todaySummary && typeof todaySummary === "object" && Array.isArray(todaySummary.secoes) && todaySummary.secoes.length > 0;
       // sem resumo de hoje ainda? procura o ÚLTIMO resumo de um dia ANTERIOR (o aluno faltou, ou o
       // ritmo da turma pulou um dia dele) — o resumo de hoje vira uma PONTE: cobre tudo que ficou
       // pendente desde o último resumo dele, sem repetir os conceitos já explicados, em vez de só
       // resumir o código de hoje e deixar o que ele perdeu pra trás
       let lastPastSummary = null;
-      if (!hasTodaySummary) {
+      if (!hasTodaySummary && !todayIsJustBroadcast) {
         const pastDates = Object.keys(summaryHistory || {}).filter(d => d !== todayKey()).sort().reverse();
         for (const d of pastDates) {
           const s = summaryHistory[d];
@@ -2220,18 +2238,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         } catch { matchedLesson = null; }
       }
       const hasReadyContent = matchedLesson?.resumo && Array.isArray(matchedLesson?.atividade) && matchedLesson.atividade.length > 0;
-
-      // 📢 resumo que o professor já gerou UMA VEZ e liberou pra turma inteira (a partir do código
-      // DELE — os alunos só copiam, então é o mesmo resumo pra quem está em dia). Só entra em jogo
-      // fora de continuação/ponte: quem faltou aula continua com o resumo próprio, cobrindo
-      // especificamente o que ficou pendente, que não dá pra compartilhar com o resto da turma.
-      let broadcastResumo = null;
-      if (!hasReadyContent && !isContinuation) {
-        try {
-          const trig = await getResumoTrigger(shift);
-          if (trig && trig.date === todayKey() && trig.resumo) broadcastResumo = trig.resumo;
-        } catch { broadcastResumo = null; }
-      }
+      // o broadcastResumo (buscado lá em cima) só entra em jogo fora de continuação/ponte: quem
+      // faltou aula continua com o resumo próprio, cobrindo especificamente o que ficou pendente,
+      // que não dá pra compartilhar com o resto da turma
+      const useBroadcastResumo = !hasReadyContent && !isContinuation && !!broadcastResumo;
 
       let summaryData, questions;
       if (hasReadyContent) {
@@ -2241,13 +2251,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         // resumo e atividade são pedidos ao Nyx AO MESMO TEMPO (não um depois do outro) para não somar o tempo de espera dos dois —
         // exceto o resumo quando já veio pronto do professor (broadcastResumo), aí só a atividade precisa da IA
         const [summaryResult, activityResult] = await Promise.all([
-          broadcastResumo ? Promise.resolve(null) : askClaude(simpleReq.prompt, simpleReq.system),
+          useBroadcastResumo ? Promise.resolve(null) : askClaude(simpleReq.prompt, simpleReq.system),
           askClaude(
             `Um aluno de ${studyLang ? studyLang.label : "C#"} escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`${studyLang ? studyLang.codeLang : "csharp"}\n${fullCode}\n\`\`\`\n\nCrie ${ownPace ? "4" : "8"} questões de múltipla escolha${ownPace ? " BEM diretas e fáceis (uma ideia por questão, frases curtas)" : ""} focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.${difficultyHint || ""}${adaptiveExtra}\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0,"dica":"(opcional, só se pedido acima) dica que não entrega a resposta","bonus":false}]}`,
             `Crie questões sobre conceitos de código ${studyLang ? studyLang.label : "C#"}, não matemática. APENAS JSON puro.`
           ),
         ]);
-        if (broadcastResumo) {
+        if (useBroadcastResumo) {
           summaryData = broadcastResumo;
         } else {
           try { summaryData = extractJson(summaryResult); }
@@ -5062,13 +5072,14 @@ function TeacherView({ onLogout, teacherAuth }) {
   }, [codeShift]);
   // 📚 libera o resumo da turma HOJE: gera o resumo UMA VEZ a partir do código que O PROFESSOR
   // passou pra essa turma (os alunos só copiam esse mesmo código, não faz sentido pedir pro Nyx
-  // resumir de novo pra cada um) e manda pronto pra turma inteira. Quem está em dia recebe
-  // exatamente esse texto; quem faltou aula continua gerando um resumo próprio (handleSave cuida
-  // disso), cobrindo só o que ficou pendente — isso não dá pra compartilhar. Qualquer aluno
-  // conectado que já tem código escrito e ainda está na fase "coding" finaliza a aula sozinho
-  // (mesmo fluxo de "Salvar e Finalizar Aula") assim que o navegador dele perceber o aviso — sem
-  // precisar clicar em nada. Continua valendo o dia inteiro, então também pega quem entra DEPOIS
-  // deste clique (não só quem já está online).
+  // resumir de novo pra cada um) e, assim que fica pronto, manda DIRETO pro Caderno de resumos de
+  // TODO aluno da turma — não importa a fase dele agora nem se está online: quem estiver conectado
+  // aplica na hora (via scoreFix, mesmo mecanismo já usado pra nota corrigida/presença corrigida
+  // etc. — evita que o autosave periódico do aluno sobrescreva por cima); quem estiver offline
+  // recebe assim que abrir o app de novo, com a data certa (o gatilho carrega o dateKey de hoje).
+  // Quem faltou aula continua ADICIONALMENTE gerando um resumo próprio quando finaliza a aula
+  // (handleSave cuida disso), cobrindo só o que ficou pendente — isso não dá pra compartilhar, e
+  // não conflita: o resumo de hoje já foi entregue, a ponte é sobre os dias anteriores perdidos.
   const liberarResumoHoje = async (turmaId) => {
     setResumoTriggerBusy(true); setResumoTriggerMsg("📚 Gerando o resumo da aula...");
     try {
@@ -5080,10 +5091,16 @@ function TeacherView({ onLogout, teacherAuth }) {
         try { resumo = await askClaudeJson(prompt, system); } catch { resumo = null; }
       }
       const ok = await setResumoTrigger(turmaId, todayKey(), teacherAuth, resumo);
+      let turmaCount = 0;
+      if (ok && resumo && Array.isArray(resumo.secoes)) {
+        const turmaStudents = students.filter(s => (s.shift || "sem-turno") === turmaId);
+        turmaCount = turmaStudents.length;
+        await Promise.all(turmaStudents.map(s => setScoreFix(s.shift, s.name, { kind: "resumo-broadcast", dateKey: todayKey(), resumo }, teacherAuth)));
+      }
       if (ok) {
         setResumoTriggeredToday(t => ({ ...t, [turmaId]: true }));
         setResumoTriggerMsg(resumo
-          ? `✅ Resumo gerado e liberado pra turma ${shiftMeta(turmaId, turmas).label}! Quem está em dia recebe esse MESMO resumo — só quem faltou aula continua com um resumo próprio, cobrindo o que perdeu.`
+          ? `✅ Resumo gerado e enviado direto pro Caderno de resumos de ${turmaCount} aluno${turmaCount===1?"":"s"} da turma ${shiftMeta(turmaId, turmas).label}!`
           : `✅ Resumo liberado pra turma ${shiftMeta(turmaId, turmas).label}! Não achei código seu salvo pra essa turma pra gerar um resumo pronto, então cada aluno vai gerar o próprio, como antes.`);
       } else {
         setResumoTriggerMsg("❌ Não consegui liberar o resumo agora. Tente de novo em instantes.");
