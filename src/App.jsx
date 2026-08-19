@@ -283,6 +283,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // 🌟 portfólio público: opt-in do próprio aluno — gera um link (sem dados sensíveis) pra
   // compartilhar avatar/conquistas/progresso com a família; o professor pode desativar se precisar
   const [portfolioPublic, setPortfolioPublic] = useState(false);
+  // quando o opt-in foi ligado — o link expira sozinho 60 dias depois, pra não ficar aberto pra
+  // sempre sem ninguém lembrar (ver PORTFOLIO_EXPIRY_MS em PublicPages.jsx)
+  const [portfolioActivatedAt, setPortfolioActivatedAt] = useState(null);
   const [portfolioCopyMsg, setPortfolioCopyMsg] = useState("");
   const [showSelfSupport, setShowSelfSupport] = useState(false);
   // 🏆 hall da fama: placas de cidades anteriores
@@ -441,7 +444,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -575,6 +578,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       justifications: s.justifications || {},
       keyboardDone: s.keyboardDone || false,
       portfolioPublic: s.portfolioPublic || false,
+      portfolioActivatedAt: s.portfolioActivatedAt || null,
       files: s.files || [{name:"Program.cs",code:""}],
       code: s.code || "",
       phase: s.phase,
@@ -1226,6 +1230,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.justifications) setJustifications(prev.justifications);
           if (prev.keyboardDone) setKeyboardDone(true);
           if (prev.portfolioPublic) setPortfolioPublic(true);
+          if (prev.portfolioActivatedAt) setPortfolioActivatedAt(prev.portfolioActivatedAt);
           lastSyncedRef.current = {
             nyxPoints: prev.nyxPoints || 0,
             achievements: JSON.stringify(prev.achievements || []),
@@ -1895,7 +1900,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const handleNyxTheme = (t) => { setThemeAndSave(t); if (String(t).startsWith("#")) unlockAchievement("artista"); };
 
   // 🌟 portfólio público: só o próprio aluno liga (opt-in) — o professor pode desligar se precisar
-  const togglePortfolioPublic = () => { const next = !portfolioPublic; setPortfolioPublic(next); persist({ portfolioPublic: next }); };
+  const togglePortfolioPublic = () => {
+    const next = !portfolioPublic;
+    setPortfolioPublic(next);
+    // liga de novo (ou pela primeira vez) sempre reinicia os 60 dias de validade — como se fosse
+    // um novo consentimento; desligar não mexe na data (não importa mais enquanto está desligado)
+    const at = next ? Date.now() : portfolioActivatedAt;
+    if (next) setPortfolioActivatedAt(at);
+    persist({ portfolioPublic: next, portfolioActivatedAt: at });
+  };
   const portfolioLink = `${typeof window !== "undefined" ? window.location.origin : ""}/portfolio/${encodeURIComponent(shift || "matutino")}/${encodeURIComponent(studentName)}`;
   const copyPortfolioLink = async () => {
     try { await navigator.clipboard.writeText(portfolioLink); setPortfolioCopyMsg("🔗 Link copiado!"); }
@@ -3698,9 +3711,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 <span style={{ color:"#a99ac9", fontSize:12 }}>🌟 Criar link público do meu progresso (pra mandar pra família)</span>
               </label>
               {portfolioPublic && (
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8, flexWrap:"wrap" }}>
-                  <button onClick={copyPortfolioLink} style={{ ...styles.btn("#c084fc"), fontSize:11.5, padding:"6px 12px", width:"auto" }}>📋 Copiar link</button>
-                  {portfolioCopyMsg && <span style={{ color:"#34d399", fontSize:11.5 }}>{portfolioCopyMsg}</span>}
+                <div style={{ marginTop:8 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                    <button onClick={copyPortfolioLink} style={{ ...styles.btn("#c084fc"), fontSize:11.5, padding:"6px 12px", width:"auto" }}>📋 Copiar link</button>
+                    {portfolioCopyMsg && <span style={{ color:"#34d399", fontSize:11.5 }}>{portfolioCopyMsg}</span>}
+                  </div>
+                  <p style={{ color:"#776798", fontSize:10.5, margin:"6px 0 0", lineHeight:1.5 }}>Só mostra seu primeiro nome, apelido, conquistas e progresso — nada de sobrenome, turma ou nota comparada. Expira sozinho em 60 dias{portfolioActivatedAt ? ` (${new Date(portfolioActivatedAt + 60*24*3600*1000).toLocaleDateString("pt-BR")})` : ""} — é só ligar de novo se quiser renovar.</p>
                 </div>
               )}
             </div>
@@ -7232,9 +7248,9 @@ function TeacherView({ onLogout, teacherAuth }) {
                     {sel.portfolioPublic && (
                       <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
                         <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>🌟 Portfólio:</span>
-                        <span style={{ ...styles.badge("#c084fc"), fontSize:12.5 }}>✅ Link público ativo (ligado pelo aluno)</span>
+                        <span style={{ ...styles.badge("#c084fc"), fontSize:12.5 }}>✅ Link público ativo (ligado pelo aluno){sel.portfolioViews ? ` · ${sel.portfolioViews} visualização${sel.portfolioViews===1?"":"ões"}` : ""}</span>
                         <button onClick={()=>doDisablePortfolio(sel)} style={{ ...styles.btn("#f87171"), padding:"6px 14px", fontSize:12.5 }}>Desativar</button>
-                        <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>Qualquer um com o link vê avatar, conquistas e progresso — sem nota comparada, sem dados sensíveis.</span>
+                        <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>Só primeiro nome, avatar, conquistas e progresso — sem sobrenome, turma, nota comparada ou dado sensível. Expira sozinho em 60 dias.</span>
                       </div>
                     )}
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>

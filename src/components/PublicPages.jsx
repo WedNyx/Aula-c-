@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { getStudent, getTeacherMeta, getOwnHallOfFame, getLegacyHallOfFame, listStudents, getTurmas } from "../storage.js";
+import { getStudent, getTeacherMeta, getOwnHallOfFame, getLegacyHallOfFame, listStudents, getTurmas, patchStudent } from "../storage.js";
 import { FONT, PAGE_BG } from "../lib/theme.ts";
-import { LANG_SHIFT, shiftMeta, turmaCalendar } from "../lib/shifts.ts";
+import { LANG_SHIFT, turmaCalendar } from "../lib/shifts.ts";
 import { computeStreak } from "../lib/utils.js";
 import { achievementInfo, visibleAchievements } from "../lib/achievements.ts";
 import { Avatar } from "./Avatar.jsx";
@@ -173,17 +173,30 @@ function usePortfolioData(shift, name) {
   }, [shift, name]);
   return state;
 }
+// validade do link público: 60 dias depois que o aluno ligou o opt-in — registros antigos sem
+// portfolioActivatedAt (de antes dessa validade existir) ficam sem prazo, pra não sumir sozinhos
+const PORTFOLIO_EXPIRY_MS = 60 * 24 * 60 * 60 * 1000;
+
 export function PortfolioPage({ shift, name }) {
   const { loading, student, classDays } = usePortfolioData(shift, name);
+  const expired = !!(student && student.portfolioActivatedAt && (Date.now() - student.portfolioActivatedAt > PORTFOLIO_EXPIRY_MS));
+  const available = !!(student && student.portfolioPublic && !expired);
+  // conta visualizações pro professor acompanhar — só quando a página realmente mostrar algo
+  // (não conta tentativa em link desativado/expirado), e só uma vez por carregamento
+  useEffect(() => {
+    if (!available) return;
+    patchStudent(shift, name, { portfolioViews: (student.portfolioViews || 0) + 1, portfolioLastViewedAt: Date.now() }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [available]);
   if (loading) {
     return <div style={{ minHeight:"100vh", background:PAGE_BG, color:"#776798", fontFamily:FONT, display:"flex", alignItems:"center", justifyContent:"center" }}>Carregando...</div>;
   }
-  if (!student || !student.portfolioPublic) {
+  if (!available) {
     return (
       <div style={{ minHeight:"100vh", background:PAGE_BG, color:"#f0e9fb", fontFamily:FONT, display:"flex", alignItems:"center", justifyContent:"center", padding:24, textAlign:"center" }}>
         <div>
           <NyxRobot state="idle" size={64} showName={false} />
-          <p style={{ color:"#a99ac9", marginTop:16, maxWidth:360, lineHeight:1.6 }}>Esse link não está disponível — o aluno pode não ter ativado o portfólio público ainda.</p>
+          <p style={{ color:"#a99ac9", marginTop:16, maxWidth:360, lineHeight:1.6 }}>{expired ? "Esse link expirou — peça pro aluno reativar o portfólio público pra gerar um novo." : "Esse link não está disponível — o aluno pode não ter ativado o portfólio público ainda."}</p>
         </div>
       </div>
     );
@@ -196,13 +209,16 @@ export function PortfolioPage({ shift, name }) {
   const notas = [...Object.values(student.scoreHistory || {}), student.score, student.examScore].filter(n => typeof n === "number");
   const bestScore = notas.length ? Math.max(...notas) : null;
   const conceitos = Object.values(student.summaryHistory || {}).reduce((n, d) => n + ((d?.secoes || []).length), 0);
+  // só o primeiro nome/apelido em público — nunca o sobrenome, e sem mencionar a turma (só o
+  // horário) nem a cidade, pra reduzir o quanto dá pra identificar a criança por esse link
+  const firstName = String(student.name || "").trim().split(/\s+/)[0] || student.name;
   return (
     <div style={{ minHeight:"100vh", background:PAGE_BG, color:"#f0e9fb", fontFamily:FONT, padding:"48px 20px 60px" }}>
       <div style={{ maxWidth:720, margin:"0 auto" }}>
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <Avatar cfg={student.avatar} size={104} />
-          <h1 className="shine" style={{ fontSize:"clamp(24px,5vw,32px)", fontWeight:900, margin:"14px 0 4px", background:"linear-gradient(120deg,#c084fc,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>{student.name}</h1>
-          <p style={{ color:"#776798", fontSize:13.5 }}>Turma {shiftMeta(shift).label} · Aula de C# na estrada</p>
+          <h1 className="shine" style={{ fontSize:"clamp(24px,5vw,32px)", fontWeight:900, margin:"14px 0 4px", background:"linear-gradient(120deg,#c084fc,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>{firstName}</h1>
+          <p style={{ color:"#776798", fontSize:13.5 }}>Aula de C# na estrada</p>
         </div>
 
         <div style={{ display:"flex", gap:14, flexWrap:"wrap", marginBottom:28, justifyContent:"center" }}>
