@@ -20,8 +20,11 @@ export function useViewportWidth() {
 
 // ── sequência de dias (streak) a partir do mapa de presença, contando só os DIAS DE AULA de
 // verdade (classDays) — não dias de calendário corridos, senão a sequência quebra sozinha em
-// qualquer dia sem aula (fim de semana, feriado) e nunca bate os patamares de conquista ──
-export function computeStreak(attendance, classDays) {
+// qualquer dia sem aula (fim de semana, feriado) e nunca bate os patamares de conquista.
+// justifications (opcional) deixa a sequência "congelada" numa falta JUSTIFICADA (não conta como
+// presença, mas também não quebra a sequência) — só uma falta comum, sem justificativa aprovada,
+// zera de verdade. Aula cancelada nem entra aqui: um dia removido de classDays já não é olhado.
+export function computeStreak(attendance, classDays, justifications) {
   if (!attendance || !Array.isArray(classDays) || !classDays.length) return 0;
   const days = [...new Set(classDays)].sort();
   const todayStr = todayKey();
@@ -30,10 +33,22 @@ export function computeStreak(attendance, classDays) {
   if (days[idx] === todayStr && attendance[todayStr] !== "present") idx--;
   let streak = 0;
   for (; idx >= 0; idx--) {
-    if (attendance[days[idx]] === "present") streak++;
-    else break;
+    const day = days[idx];
+    if (attendance[day] === "present") { streak++; continue; }
+    if (justifications && justifications[day] && justifications[day].status === "approved") continue; // congela, não quebra
+    break;
   }
   return streak;
+}
+
+// ── pontos de recompensa pela sequência de presença: cresce nos primeiros dias e depois se
+// estabiliza num teto — não é uma escada infinita, só reconhece que manter o ritmo é difícil no
+// começo. streakLen já inclui o dia de hoje (1 = primeiro dia, 2 = segundo dia seguido...) ──
+export function streakPointsFor(streakLen) {
+  if (streakLen <= 1) return 1;
+  if (streakLen === 2) return 3;
+  if (streakLen === 3) return 5;
+  return 7;
 }
 
 // ── descarta questões que a IA gerou sem gabarito válido (correct fora do range de opts, ou

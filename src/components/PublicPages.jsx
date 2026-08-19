@@ -192,7 +192,7 @@ export function PortfolioPage({ shift, name }) {
   const unlocked = (student.achievements || []).map(achievementInfo).filter(Boolean).filter(a => visibleAchievements(isLangRoom).some(v => v.id === a.id));
   const totalPossible = visibleAchievements(isLangRoom).length;
   const presencas = Object.values(student.attendance || {}).filter(v => v === "present").length;
-  const streak = computeStreak(student.attendance, classDays);
+  const streak = computeStreak(student.attendance, classDays, student.justifications);
   const notas = [...Object.values(student.scoreHistory || {}), student.score, student.examScore].filter(n => typeof n === "number");
   const bestScore = notas.length ? Math.max(...notas) : null;
   const conceitos = Object.values(student.summaryHistory || {}).reduce((n, d) => n + ((d?.secoes || []).length), 0);

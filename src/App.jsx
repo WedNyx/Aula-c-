@@ -19,7 +19,7 @@ import { VSEditor, CodeBlock, GUIDED_BLOCKS, GUIDED_PARTICIPATION_QUIZ } from ".
 import { Terminal } from "./components/Terminal.jsx";
 import { NyxChat } from "./components/NyxChat.jsx";
 import { TOUR_STEPS, TEACHER_TOUR_STEPS, TourOverlay } from "./components/TourOverlay.jsx";
-import { codeForSpeech, useViewportWidth, computeStreak, shuffleQuestions, filterValidQuestions, isDoneActive, gradeInfo, quickCheck, findMatchingLesson } from "./lib/utils.js";
+import { codeForSpeech, useViewportWidth, computeStreak, streakPointsFor, shuffleQuestions, filterValidQuestions, isDoneActive, gradeInfo, quickCheck, findMatchingLesson } from "./lib/utils.js";
 import { ACHIEVEMENTS, ALL_EGG_ACHIEVEMENT_IDS, achievementInfo, visibleAchievements, CLASS_GOALS, classGoalProgress } from "./lib/achievements.ts";
 import { generateRelatorioDocx, downloadRelatorioDocx } from "./lib/reportDocx.js";
 import { CS_SYSTEM, RUN_SYSTEM, nyxPrefsInstruction, NYX_GUIDED_SYSTEM } from "./lib/ai-prompts.ts";
@@ -297,6 +297,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // 🧠 teste de conhecimento por conta própria — disponível a qualquer momento, sem finalizar a aula
   const [showKnowledgeTest, setShowKnowledgeTest] = useState(false);
   const [knowledgeTestRewardDay, setKnowledgeTestRewardDay] = useState(null);
+  // 🔥 sequência de presença: último dia em que a recompensa da sequência já foi dada (evita
+  // pagar de novo a cada autosave do mesmo dia) + aviso pra mostrar o dia/pontos ganhos — sempre
+  // olhando pra frente ("dia N da sequência"), nunca destacando quando uma sequência quebrou
+  const [streakRewardDay, setStreakRewardDay] = useState(null);
+  const [streakToast, setStreakToast] = useState("");
   // 🩺 saúde do Nyx pro aluno também ver — mesmo aviso "Reconectando" e os pontinhos por
   // modelo (Nemotron/Laguna) que já existiam só no painel do professor
   const [aiDown, setAiDown] = useState(false);
@@ -432,7 +437,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -482,13 +487,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     // não ter carregado — se confiasse, essa primeira chamada marcaria presença antes mesmo de saber
     // que era vistoria, e a presença já marcada nunca mais seria desfeita).
     let vistoriaOnly = false;
+    let meta = null; // meta do professor (turma/calendário) — usado mais abaixo pra premiar a sequência de presença
     try {
-      const [latestRes, meta, insp] = await Promise.all([
+      const [latestRes, metaRes, insp] = await Promise.all([
         getStudent(shift, studentName),
         getTeacherMeta(),
         getInspection(shift, studentName),
       ]);
       latest = latestRes;
+      meta = metaRes;
       const csNow = classStatus((meta.schedule || {})[shift] || {}, !!meta.allowWeekend);
       vistoriaOnly = csNow.configured && !csNow.open && insp;
       if (latest) {
@@ -535,6 +542,23 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     attendanceRef.current = { ...attendanceRef.current, [tk]: (didWork || isEnrollmentDay || attendanceRef.current[tk] === "present") ? "present" : "idle" };
     // guarda o horário do PRIMEIRO acesso de hoje (uma vez só) — usado pra marcar "atrasado" na chamada
     if (!attendanceFirstRef.current[tk]) attendanceFirstRef.current = { ...attendanceFirstRef.current, [tk]: Date.now() };
+    // 🔥 sequência de presença: paga só quando a presença de HOJE vira "present" pela primeira vez
+    // (não a cada autosave do mesmo dia) — falta justificada congela a sequência em vez de quebrar
+    // (computeStreak cuida disso), e a mensagem é sempre "dia N da sequência", nunca "você perdeu" —
+    // nunca soma nada durante vistoria fora do horário
+    // só existe "dia N da sequência" se hoje estiver mesmo marcado como dia de aula no calendário
+    // da turma — sem isso computeStreak devolve 0 e não tem ponto fantasma
+    const streakLen = (!vistoriaOnly && attendanceRef.current[tk] === "present" && s.streakRewardDay !== tk)
+      ? computeStreak(attendanceRef.current, turmaCalendar(meta, shift).classDays, s.justifications) : 0;
+    if (streakLen > 0) {
+      const gained = streakPointsFor(streakLen);
+      s.nyxPoints = (s.nyxPoints || 0) + gained;
+      s.streakRewardDay = tk;
+      setNyxPoints(s.nyxPoints);
+      setStreakRewardDay(tk);
+      setStreakToast(`🔥 Sequência: dia ${streakLen} · +${gained} ponto${gained===1?"":"s"} do Nyx!`);
+      setTimeout(() => setStreakToast(""), 8000);
+    }
     const ok = await saveStudent(shift, studentName, {
       name: studentName,
       shift: shift || "sem-turno",
@@ -579,6 +603,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       typingBest: s.typingBest || null,
       typingRewardDay: s.typingRewardDay || null,
       knowledgeTestRewardDay: s.knowledgeTestRewardDay || null,
+      streakRewardDay: s.streakRewardDay || null,
       giftLastClaim: s.giftLastClaim || null,
       theme: s.theme || "dark",
       themeBeforeSpartan: s.themeBeforeSpartan || null,
@@ -1152,6 +1177,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.typingBest) setTypingBest(prev.typingBest);
           if (prev.typingRewardDay) setTypingRewardDay(prev.typingRewardDay);
           if (prev.knowledgeTestRewardDay) setKnowledgeTestRewardDay(prev.knowledgeTestRewardDay);
+          if (prev.streakRewardDay) setStreakRewardDay(prev.streakRewardDay);
           if (prev.giftLastClaim) setGiftLastClaim(prev.giftLastClaim);
           if (prev.theme) setTheme(prev.theme);
           if (prev.themeBeforeSpartan) setThemeBeforeSpartan(prev.themeBeforeSpartan);
@@ -1541,7 +1567,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         })();
       }
       await persist();
-      const streak = computeStreak(attendanceRef.current, currentClassDays);
+      const streak = computeStreak(attendanceRef.current, currentClassDays, stateRef.current.justifications);
       setStreakCount(streak);
       if (streak >= 3) unlockAchievement("sequencia-3");
       if (streak >= 7) unlockAchievement("sequencia-7");
@@ -3349,6 +3375,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {partnerToast && (
         <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
           <div className="pop" style={{ background:"#34d39918", border:"1px solid #34d399", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#c7f5df", fontWeight:700 }}>{partnerToast}</div>
+        </div>
+      )}
+      {streakToast && (
+        <div style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px" }}>
+          <div className="pop" style={{ background:"#fbbf2418", border:"1px solid #fbbf24", borderRadius:12, padding:"10px 14px", fontSize:13, color:"#fde9b8", fontWeight:700 }}>{streakToast}</div>
         </div>
       )}
 
