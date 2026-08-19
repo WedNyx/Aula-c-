@@ -6,7 +6,7 @@ import { useViewportWidth } from "../lib/utils.js";
 import { goFullscreen } from "../lib/schedule.ts";
 import { SHIFTS, TEST_SHIFT, LANG_SHIFT, shiftMeta, DEFAULT_TURMAS } from "../lib/shifts.ts";
 import { DEFAULT_AVATAR, Avatar, AvatarPreview, AvatarControls } from "./Avatar.jsx";
-import { NyxRobot } from "./NyxRobot.jsx";
+import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
 import { Sparkles } from "./Sparkles.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════

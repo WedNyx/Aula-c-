@@ -6,7 +6,8 @@ import { CS_SYSTEM } from "../lib/ai-prompts.ts";
 import { VSEditor } from "./CodeEditor.jsx";
 import { Terminal } from "./Terminal.jsx";
 import { KeyVisual } from "./KeyVisual.jsx";
-import { NYX_ITEMS, DEFAULT_NYX_GEAR, NyxRobot } from "./NyxRobot.jsx";
+import { NYX_ITEMS, DEFAULT_NYX_GEAR } from "./NyxRobot.jsx";
+import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
 import { NyxShop } from "./NyxShop.jsx";
 
 export function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }], onChange = ()=>{}, terminalMaxHeight, gear = DEFAULT_NYX_GEAR, onEquip = ()=>{} }) {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { NYX_ITEMS, NyxRobot } from "./NyxRobot.jsx";
+import { NYX_ITEMS } from "./NyxRobot.jsx";
+import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
 import { useViewportWidth } from "../lib/utils.js";
 
 // ════════════════════════════════════════════════════════════════════════════

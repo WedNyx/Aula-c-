@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { NyxRobot } from "./NyxRobot.jsx";
+import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  TOUR GUIADO DO NYX  (destaca cada área da tela do aluno)

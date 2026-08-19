@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { shade } from "../lib/colors.ts";
 import { CS_SYSTEM } from "../lib/ai-prompts.ts";
 import { askClaude } from "../lib/ai.js";
-import { NyxRobot } from "./NyxRobot.jsx";
+import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  CHAT COM O NYX  (botão flutuante — só o professor tem chat; o aluno teve o dele removido e

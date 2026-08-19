@@ -43,26 +43,26 @@ const csharpCode = 'using System;\nclass Program { static void Main() { Console.
     else break;
   }
 
-  // "pescoço" do robô — elemento único no SVG (rect 14x8 em x=53,y=62), controlado pelo GSAP e
-  // pintado com P.dark (idle="#4338ca", thinking="#d99b0d")
-  const neck = page.locator('svg rect[x="53"][y="62"]').first();
+  // "pernas" do Nyx (Prisma Orbital) — elemento único no SVG (strokeWidth 28), controlado pelo
+  // GSAP e pintado com P.dark (idle="#35296e", thinking="#403078")
+  const legs = page.locator('svg path[stroke-width="28"]').first();
   await page.waitForSelector('button:has-text("✨ Analisar código")', { timeout: 10000 });
   await page.waitForTimeout(200); // deixa o firstPaint (gsap.set) assentar
 
-  const before = (await neck.getAttribute('fill') || '').toLowerCase();
-  check('Cor do pescoço começa no tom "idle" (#4338ca)', before === '#4338ca', before);
+  const before = (await legs.getAttribute('stroke') || '').toLowerCase();
+  check('Cor das pernas começa no tom "idle" (#35296e)', before === '#35296e', before);
 
   await page.click('button:has-text("✨ Analisar código")');
   // logo em seguida (bem antes da transição de 0.65s terminar): a cor NÃO pode já estar no valor
   // final "thinking" — se estiver, é sinal de que trocou seca (o bug voltou)
   await page.waitForTimeout(80);
-  const duringTransition = (await neck.getAttribute('fill') || '').toLowerCase();
-  check('Cor do pescoço AINDA NÃO chegou no valor final logo após a mudança (existe transição de verdade)', duringTransition !== '#d99b0d', duringTransition);
+  const duringTransition = (await legs.getAttribute('stroke') || '').toLowerCase();
+  check('Cor das pernas AINDA NÃO chegou no valor final logo após a mudança (existe transição de verdade)', duringTransition !== '#403078', duringTransition);
 
   // depois da duração da transição (0.65s) + folga: agora sim deve estar no valor final certo
   await page.waitForTimeout(900);
-  const after = (await neck.getAttribute('fill') || '').toLowerCase();
-  check('Depois da transição, a cor chega certinho no tom "thinking" (#d99b0d)', after === '#d99b0d', after);
+  const after = (await legs.getAttribute('stroke') || '').toLowerCase();
+  check('Depois da transição, a cor chega certinho no tom "thinking" (#403078)', after === '#403078', after);
 
   check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 5).join(' | '));
 
