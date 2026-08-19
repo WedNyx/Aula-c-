@@ -58,6 +58,20 @@ export function AchievementsModal({ unlocked, onClose, isLangRoom }) {
   );
 }
 
+// 🎯 desempenho, não pontos do Nyx: mesma fórmula de mérito já usada no Hall da Fama (Fase 2) —
+// constância nas atividades (média do histórico, não o pico isolado) + nota da prova + poucos
+// erros de código registrados. Pontos do Nyx não entram — quem estuda mais mas erra pouco/vai bem
+// nas atividades sobe no ranking, não quem só acumulou pontos de jogos/extras.
+function meritOf(s) {
+  const notas = [...Object.values(s.scoreHistory||{}), s.score].filter(n => typeof n === "number");
+  const avgScore = notas.length ? notas.reduce((a,b)=>a+b,0) / notas.length : 0;
+  const examScore = typeof s.examScore === "number" ? s.examScore : 0;
+  const totalErrors = Object.values(s.errorHistory||{}).reduce((a,b)=>a+(typeof b==="number"?b:0), 0);
+  const errorScore = Math.max(0, 100 - totalErrors * 10);
+  const merit = avgScore * 0.5 + examScore * 0.3 + errorScore * 0.2;
+  return { merit, hasActivity: notas.length > 0 || examScore > 0 };
+}
+
 export function RankingModal({ shift, myName, onClose }) {
   const [loading, setLoading] = useState(true);
   const [top, setTop] = useState([]);
@@ -66,7 +80,11 @@ export function RankingModal({ shift, myName, onClose }) {
     (async () => {
       const all = await listStudents();
       const mine = all.filter(s => (s.shift || "sem-turno") === (shift || "sem-turno"));
-      const sorted = mine.sort((a,b)=>(b.nyxPoints||0)-(a.nyxPoints||0)).slice(0, 5);
+      const sorted = mine
+        .map(s => ({ ...s, ...meritOf(s) }))
+        .filter(s => s.hasActivity)
+        .sort((a,b)=>b.merit-a.merit)
+        .slice(0, 5);
       if (alive) { setTop(sorted); setLoading(false); }
     })();
     return () => { alive = false; };
@@ -79,9 +97,9 @@ export function RankingModal({ shift, myName, onClose }) {
           <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📊 Ranking da Turma</h2>
           <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Os 5 com mais pontos do Nyx na sua turma</p>
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Os 5 com melhor desempenho: notas das atividades, prova e poucos erros de código — não é sobre pontos do Nyx</p>
         {loading ? <p style={{ color:"#776798", fontSize:13 }}>Carregando...</p> : top.length === 0 ? (
-          <p style={{ color:"#776798", fontSize:13 }}>Ninguém tem pontos ainda — seja o primeiro!</p>
+          <p style={{ color:"#776798", fontSize:13 }}>Ninguém fez atividade ainda — seja o primeiro!</p>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
             {top.map((s, i) => (
@@ -89,7 +107,7 @@ export function RankingModal({ shift, myName, onClose }) {
                 <span style={{ fontSize:20, width:28, textAlign:"center" }}>{medals[i]}</span>
                 <Avatar cfg={s.avatar} size={32} />
                 <span style={{ flex:1, fontWeight:700, fontSize:13.5, color: s.name===myName ? "#c7d2fe" : "#f0e9fb" }}>{s.name}{s.name===myName?" (você)":""}</span>
-                <span style={{ color:"#fbbf24", fontWeight:900, fontSize:14 }}>{s.nyxPoints||0} pts</span>
+                <span style={{ color:"#22d3ee", fontWeight:900, fontSize:14 }} title="Desempenho: notas + prova + poucos erros">🎯 {Math.round(s.merit)}</span>
               </div>
             ))}
           </div>

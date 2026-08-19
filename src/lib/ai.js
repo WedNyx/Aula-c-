@@ -7,8 +7,12 @@ import { nyxPrefsInstruction } from "./ai-prompts.ts";
 // modelos que o botão de análise tenta, nesta ordem de preferência — se o primeiro falhar
 // (chave não configurada, instabilidade etc.), o segundo é tentado sozinho, sem avisar o aluno
 export const ANALYZE_PROVIDERS = ["nvidia", "laguna"];
-// pontos que ajudante E ajudado ganham quando uma parceria de código é resolvida
-export const PARTNER_REWARD = 15;
+// pontos quando uma parceria de código é resolvida — quem ajuda ganha mais que quem foi ajudado
+// (o esforço de ensinar vale mais que o de receber ajuda), e cada papel tem um teto por semana pra
+// não virar um jeito de farmar pontos combinando pareamentos repetidos com o mesmo colega
+export const PARTNER_REWARD_HELPER = 8;
+export const PARTNER_REWARD_HELPED = 3;
+export const PARTNER_WEEKLY_CAP = 2;
 
 // ── modo offline total: a carreta às vezes fica sem NENHUMA internet por um período inteiro de
 // aula (não só uma queda rápida) — em vez de deixar o Nyx tentar e mostrar um erro técnico

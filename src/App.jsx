@@ -25,7 +25,7 @@ import { generateRelatorioDocx, downloadRelatorioDocx } from "./lib/reportDocx.j
 import { CS_SYSTEM, RUN_SYSTEM, nyxPrefsInstruction, NYX_GUIDED_SYSTEM } from "./lib/ai-prompts.ts";
 import { STUDY_LANGUAGES, langById, reviewChecklistFor, buildPreviewDoc, otherFilesCtx, findLineIndex } from "./lib/languages.ts";
 import { BRACKET_COLORS, highlight, highlightCSharp, highlightJS, highlightPHP, highlightCSS, highlightHTML } from "./lib/highlight.jsx";
-import { ANALYZE_PROVIDERS, PARTNER_REWARD, isOffline, isNetworkError, askClaude, extractJson, askClaudeJson, buildSummaryRequest, buildContinuationSummaryRequest, mergeSummaryContinuation, recentDifficultyHint, adaptiveDifficultyTier } from "./lib/ai.js";
+import { ANALYZE_PROVIDERS, PARTNER_REWARD_HELPER, PARTNER_REWARD_HELPED, PARTNER_WEEKLY_CAP, isOffline, isNetworkError, askClaude, extractJson, askClaudeJson, buildSummaryRequest, buildContinuationSummaryRequest, mergeSummaryContinuation, recentDifficultyHint, adaptiveDifficultyTier } from "./lib/ai.js";
 import { requestFS, goFullscreen, todayKey, weekKey, dateKeyOf, hmToMin, nowMin, classStatus } from "./lib/schedule.ts";
 import { SHIFTS, TEST_SHIFT, LANG_SHIFT, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName, DEFAULT_TURMAS, TURMA_COLORS, turmaCalendar, withTurmaCalendar, isResumoDay } from "./lib/shifts.ts";
 import { Login } from "./components/LoginScreen.jsx";
@@ -230,6 +230,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [showPartnerHelp, setShowPartnerHelp] = useState(false);
   const [partnerPeerCode, setPartnerPeerCode] = useState(null);
   const [partnerViewActive, setPartnerViewActive] = useState(0);
+  const [partnerNote, setPartnerNote] = useState(""); // descrição curta do que foi ajudado, opcional
   const partnerResolvedSeenRef = useRef(false);
   // 👾 chefão da turma ativo (evento do telão) — aqui só aparece o aviso motivador
   const [bossInfo, setBossInfo] = useState(null);
@@ -759,6 +760,21 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     await persist({ quizJoin: null, quizAnswers: {} });
   };
 
+  // 🤝 parceiro de código: cada papel (ajudante/ajudado) tem um teto de recompensas por semana, pra
+  // não virar um jeito de farmar pontos combinando pareamentos repetidos com o mesmo colega — lê
+  // e grava direto no servidor (não confia em estado local) pra valer entre abas/dispositivos
+  const awardPartnerPoints = async (role) => {
+    const reward = role === "helper" ? PARTNER_REWARD_HELPER : PARTNER_REWARD_HELPED;
+    const fresh = await getStudent(shift, studentName);
+    const wk = weekKey();
+    const rewardsAll = (fresh && fresh.partnerRewards) || {};
+    const rewardsWeek = rewardsAll[wk] || {};
+    const used = rewardsWeek[role] || 0;
+    if (used >= PARTNER_WEEKLY_CAP) return 0;
+    await patchStudent(shift, studentName, { partnerRewards: { ...rewardsAll, [wk]: { ...rewardsWeek, [role]: used + 1 } } });
+    return reward;
+  };
+
   // 🤝 parceiro de código: fica de olho se o professor me pareou com alguém (como ajudado OU como
   // ajudante). Quando o ajudante marca como resolvido, o AJUDADO detecta na próxima verificação,
   // ganha os pontos e limpa o registro (o ajudante já ganhou os dele na hora de marcar) — mesmo
@@ -774,10 +790,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       if (mineHelped && mineHelped.status === "resolved") {
         if (!partnerResolvedSeenRef.current) {
           partnerResolvedSeenRef.current = true;
-          const np = (stateRef.current.nyxPoints || 0) + PARTNER_REWARD;
-          setNyxPoints(np);
-          await persist({ nyxPoints: np });
-          setPartnerToast(`🎉 ${mineHelped.helper} te ajudou! +${PARTNER_REWARD} pontos.`);
+          const reward = await awardPartnerPoints("helped");
+          if (reward > 0) {
+            const np = (stateRef.current.nyxPoints || 0) + reward;
+            setNyxPoints(np);
+            await persist({ nyxPoints: np });
+            setPartnerToast(`🎉 ${mineHelped.helper} te ajudou! +${reward} pontos.${mineHelped.note ? `\n"${mineHelped.note}"` : ""}`);
+          } else {
+            setPartnerToast(`🎉 ${mineHelped.helper} te ajudou! (Você já chegou no teto de pontos dessa categoria essa semana, mas valeu a ajuda!)`);
+          }
           setTimeout(() => setPartnerToast(""), 8000);
           await clearPartner(shift, studentName);
         }
@@ -810,15 +831,22 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
   const resolvePartner = async () => {
     if (!partnerHelping) return;
-    await setPartner(shift, partnerHelping.helped, { ...partnerHelping, status: "resolved", resolvedAt: Date.now() });
-    const np = (stateRef.current.nyxPoints || 0) + PARTNER_REWARD;
-    setNyxPoints(np);
-    await persist({ nyxPoints: np });
+    const note = partnerNote.trim().slice(0, 140);
+    await setPartner(shift, partnerHelping.helped, { ...partnerHelping, status: "resolved", resolvedAt: Date.now(), note });
+    const reward = await awardPartnerPoints("helper");
+    if (reward > 0) {
+      const np = (stateRef.current.nyxPoints || 0) + reward;
+      setNyxPoints(np);
+      await persist({ nyxPoints: np });
+      setPartnerToast(`🎉 Você ajudou ${partnerHelping.helped}! +${reward} pontos.`);
+    } else {
+      setPartnerToast(`🎉 Você ajudou ${partnerHelping.helped}! (Você já chegou no teto de pontos dessa categoria essa semana, mas seu colega agradece!)`);
+    }
+    setTimeout(() => setPartnerToast(""), 8000);
     setShowPartnerHelp(false);
     setPartnerPeerCode(null);
-    setPartnerToast(`🎉 Você ajudou ${partnerHelping.helped}! +${PARTNER_REWARD} pontos.`);
-    setTimeout(() => setPartnerToast(""), 8000);
     setPartnerHelping(null);
+    setPartnerNote("");
   };
 
   // 🔥 aquecimento do dia (revisão espaçada): assim que o aluno entra — depois do onboarding e do
@@ -3980,7 +4008,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               <h3 style={{ color:"#22d3ee", margin:0 }}>🤝 Ajudando {partnerHelping.helped}</h3>
               <button onClick={()=>setShowPartnerHelp(false)} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:20, cursor:"pointer" }}>✕</button>
             </div>
-            <p style={{ color:"#776798", fontSize:12.5, marginBottom:10 }}>Só leitura — você não pode editar o código dele(a), só ver e ajudar por perto. Quando o problema estiver resolvido, marque abaixo e os dois ganham +{PARTNER_REWARD} pontos.</p>
+            <p style={{ color:"#776798", fontSize:12.5, marginBottom:10 }}>Só leitura — você não pode editar o código dele(a), só ver e ajudar por perto. Quando o problema estiver resolvido, marque abaixo: você ganha +{PARTNER_REWARD_HELPER} pontos e {partnerHelping.helped} ganha +{PARTNER_REWARD_HELPED}.</p>
             {!partnerPeerCode ? (
               <p style={{ color:"#776798", fontSize:13 }}>Carregando código...</p>
             ) : (
@@ -4001,7 +4029,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 />
               </>
             )}
-            <button onClick={resolvePartner} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:14, padding:"9px 0", fontSize:13.5, fontWeight:800 }}>✅ Marcar como resolvido (+{PARTNER_REWARD} pts pros dois)</button>
+            <input value={partnerNote} onChange={e=>setPartnerNote(e.target.value)} maxLength={140} placeholder="O que você ajudou? (opcional, ex: 'faltava um ; na linha 5')"
+              style={{ width:"100%", marginTop:12, background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"9px 12px", color:"#f0e9fb", fontSize:12.5, outline:"none" }} />
+            <button onClick={resolvePartner} style={{ ...styles.btn("#34d399"), width:"100%", marginTop:10, padding:"9px 0", fontSize:13.5, fontWeight:800 }}>✅ Marcar como resolvido (+{PARTNER_REWARD_HELPER} pra você, +{PARTNER_REWARD_HELPED} pra ele(a))</button>
           </div>
         </div>
       )}
