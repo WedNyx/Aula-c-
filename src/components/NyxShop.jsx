@@ -3,6 +3,17 @@ import { NYX_ITEMS } from "./NyxRobot.jsx";
 import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
 import { useViewportWidth } from "../lib/utils.js";
 
+// nomes de exibição dos encaixes na loja — só rótulo visual, o campo "slot" de cada item e o
+// objeto de gear guardado por aluno continuam com as mesmas chaves de sempre (head/face/neck/
+// hand/shield), então trocar esses nomes não quebra nenhum acessório já comprado por ninguém
+const SLOT_SECTIONS = [
+  { slot: "head",   label: "🎩 Cabeça" },
+  { slot: "face",   label: "🕶️ Rosto" },
+  { slot: "neck",   label: "🧣 Pescoço" },
+  { slot: "hand",   label: "🌌 Órbita" },
+  { slot: "shield", label: "🛡️ Escudo Orbital" },
+];
+
 // ════════════════════════════════════════════════════════════════════════════
 //  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
 // ════════════════════════════════════════════════════════════════════════════
@@ -73,39 +84,48 @@ export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onCl
           </div>
 
           <div style={{ flex:"1 1 380px", minWidth: isNarrow ? "100%" : 300 }}>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:10 }}>
-              {NYX_ITEMS.filter(item => !item.secret || isTestShift || owned.includes(item.id)).map(item => {
-                const has = isTestShift || owned.includes(item.id);
-                const canBuy = !has && wallet >= item.cost;
-                const clickable = has || canBuy;
-                const equipped = gear[item.slot] === item.id;
-                return (
-                  <div key={item.id} data-item={item.id} role="button" tabIndex={clickable?0:-1} onClick={()=>clickable && click(item)}
-                    style={{
-                      background: equipped ? "#c084fc26" : "#171026",
-                      border: `2px solid ${equipped ? "#c084fc" : has ? "#34d39966" : canBuy ? "#fbbf2466" : "#241f38"}`,
-                      borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: clickable?"pointer":"default",
-                      opacity: clickable ? 1 : 0.55, position:"relative",
-                    }}>
-                    <span onClick={(e)=>{ e.stopPropagation(); setPreview(item); }} title="Ver prévia no Nyx antes de comprar"
-                      style={{ position:"absolute", top:6, right:6, zIndex:2, width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center", borderRadius:"50%", background:"#0000004d", fontSize:12, cursor:"pointer", opacity:1 }}>
-                      👁️
-                    </span>
-                    <div style={{ fontSize:30, filter: clickable?"none":"grayscale(1)" }}>{item.emoji}</div>
-                    <div style={{ color:"#f0e9fb", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
-                    {has ? (
-                      equipped
-                        ? <div style={{ color:"#c084fc", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
-                        : <div style={{ color:"#34d399", fontSize:11, fontWeight:700, marginTop:4 }}>✓ Seu · toque para vestir</div>
-                    ) : canBuy ? (
-                      <div style={{ color:"#fbbf24", fontSize:11, fontWeight:800, marginTop:4 }}>🛒 Comprar · {item.cost} pts</div>
-                    ) : (
-                      <div style={{ color:"#776798", fontSize:11, marginTop:4 }}>🔒 {wallet}/{item.cost} pts</div>
-                    )}
+            {SLOT_SECTIONS.map(({ slot, label }) => {
+              const items = NYX_ITEMS.filter(item => item.slot === slot && (!item.secret || isTestShift || owned.includes(item.id)));
+              if (!items.length) return null;
+              return (
+                <div key={slot} style={{ marginBottom:18 }}>
+                  <p style={{ color:"#a99ac9", fontSize:11.5, fontWeight:800, textTransform:"uppercase", letterSpacing:0.5, margin:"0 0 8px" }}>{label}</p>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:10 }}>
+                    {items.map(item => {
+                      const has = isTestShift || owned.includes(item.id);
+                      const canBuy = !has && wallet >= item.cost;
+                      const clickable = has || canBuy;
+                      const equipped = gear[item.slot] === item.id;
+                      return (
+                        <div key={item.id} data-item={item.id} role="button" tabIndex={clickable?0:-1} onClick={()=>clickable && click(item)}
+                          style={{
+                            background: equipped ? "#c084fc26" : "#171026",
+                            border: `2px solid ${equipped ? "#c084fc" : has ? "#34d39966" : canBuy ? "#fbbf2466" : "#241f38"}`,
+                            borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: clickable?"pointer":"default",
+                            opacity: clickable ? 1 : 0.55, position:"relative",
+                          }}>
+                          <span onClick={(e)=>{ e.stopPropagation(); setPreview(item); }} title="Ver prévia no Nyx antes de comprar"
+                            style={{ position:"absolute", top:6, right:6, zIndex:2, width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center", borderRadius:"50%", background:"#0000004d", fontSize:12, cursor:"pointer", opacity:1 }}>
+                            👁️
+                          </span>
+                          <div style={{ fontSize:30, filter: clickable?"none":"grayscale(1)" }}>{item.emoji}</div>
+                          <div style={{ color:"#f0e9fb", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
+                          {has ? (
+                            equipped
+                              ? <div style={{ color:"#c084fc", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
+                              : <div style={{ color:"#34d399", fontSize:11, fontWeight:700, marginTop:4 }}>✓ Seu · toque para vestir</div>
+                          ) : canBuy ? (
+                            <div style={{ color:"#fbbf24", fontSize:11, fontWeight:800, marginTop:4 }}>🛒 Comprar · {item.cost} pts</div>
+                          ) : (
+                            <div style={{ color:"#776798", fontSize:11, marginTop:4 }}>🔒 {wallet}/{item.cost} pts</div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
