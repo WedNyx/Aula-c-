@@ -131,6 +131,25 @@ export function findMatchingLesson(lessons, files) {
   return (Array.isArray(lessons) ? lessons : []).find(l => lessonFilesKey(l.files) === key) || null;
 }
 
+// compara um conjunto de arquivos ATUAL com uma "foto" anterior (mesmo formato {name,code}) e
+// devolve só as linhas que ainda não estavam lá, uma seção por arquivo com cabeçalho — usado pra
+// saber o que é código NOVO desde a última vez que algo foi gerado a partir dele (ex: resumo do
+// professor continuando de onde parou, em vez de resumir tudo de novo do zero a cada geração)
+export function codeDiffByFile(currentFiles, snapshotFiles) {
+  const oldByName = Object.fromEntries((snapshotFiles || []).map(f => [f.name, f.code || ""]));
+  return (currentFiles || [])
+    .map(f => {
+      const oldCode = oldByName[f.name];
+      if (oldCode == null || !oldCode.trim()) return { name: f.name, code: f.code || "" }; // arquivo novo (ou vazio antes): tudo é novo
+      const oldLines = new Set(oldCode.split("\n").map(l => l.trim()).filter(Boolean));
+      const newLines = (f.code || "").split("\n").filter(l => l.trim() && !oldLines.has(l.trim()));
+      return { name: f.name, code: newLines.join("\n") };
+    })
+    .filter(f => (f.code || "").trim())
+    .map(f => `// ===== ${f.name} =====\n${f.code}`)
+    .join("\n\n");
+}
+
 // verificação local instantânea (sem IA)
 export function quickCheck(code){
   const c = code

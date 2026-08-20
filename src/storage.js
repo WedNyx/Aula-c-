@@ -194,6 +194,25 @@ export async function saveTeacherResumoHistory(turmaId, history, auth) {
   } catch { return false }
 }
 
+// ── "foto" do código do professor no momento do ÚLTIMO resumo gerado (por turma): guarda os
+// arquivos de então + em qual dia isso foi, pra da próxima vez saber exatamente o que é código
+// NOVO (codeDiffByFile) e o Nyx continuar o resumo a partir de onde parou, em vez de resumir tudo
+// de novo do zero a cada clique em "Gerar resumo" — o que também evita respostas gigantes/cortadas
+// quando o professor já tem vários arquivos .cs acumulados ──
+const teacherResumoSnapshotKeyFor = (turmaId) => `teacherresumosnapshot:${turmaId || 'sem-turno'}`
+export async function getTeacherResumoSnapshot(turmaId) {
+  try {
+    const r = await kvCall({ action: 'get', key: teacherResumoSnapshotKeyFor(turmaId) })
+    return r.value ? JSON.parse(r.value) : null
+  } catch { return null }
+}
+export async function saveTeacherResumoSnapshot(turmaId, snapshot, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: teacherResumoSnapshotKeyFor(turmaId), value: JSON.stringify(snapshot || null), auth })
+    return r.ok === true
+  } catch { return false }
+}
+
 // 🏟️ torneio da turma (chaveamento no telão): só o professor escreve; os alunos leem no tick
 // e respondem gravando a pontuação no PRÓPRIO perfil (tourneyAnswer), que o telão apura. Cada
 // turma tem o seu próprio torneio, independente das outras

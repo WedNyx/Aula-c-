@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTeacherResumoSnapshot, saveTeacherResumoSnapshot, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -19,7 +19,7 @@ import { VSEditor, CodeBlock, GUIDED_BLOCKS, GUIDED_PARTICIPATION_QUIZ } from ".
 import { Terminal } from "./components/Terminal.jsx";
 import { NyxChat } from "./components/NyxChat.jsx";
 import { TOUR_STEPS, TEACHER_TOUR_STEPS, TourOverlay } from "./components/TourOverlay.jsx";
-import { codeForSpeech, useViewportWidth, computeStreak, streakPointsFor, shuffleQuestions, filterValidQuestions, isDoneActive, gradeInfo, quickCheck, findMatchingLesson } from "./lib/utils.js";
+import { codeForSpeech, useViewportWidth, computeStreak, streakPointsFor, shuffleQuestions, filterValidQuestions, isDoneActive, gradeInfo, quickCheck, findMatchingLesson, codeDiffByFile } from "./lib/utils.js";
 import { ACHIEVEMENTS, ALL_EGG_ACHIEVEMENT_IDS, achievementInfo, visibleAchievements, CLASS_GOALS, classGoalProgress } from "./lib/achievements.ts";
 import { generateRelatorioDocx, downloadRelatorioDocx } from "./lib/reportDocx.js";
 import { CS_SYSTEM, RUN_SYSTEM, nyxPrefsInstruction, NYX_GUIDED_SYSTEM } from "./lib/ai-prompts.ts";
@@ -2261,7 +2261,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         // resumo e atividade são pedidos ao Nyx AO MESMO TEMPO (não um depois do outro) para não somar o tempo de espera dos dois —
         // exceto o resumo quando já veio pronto do professor (broadcastResumo), aí só a atividade precisa da IA
         const [summaryResult, activityResult] = await Promise.all([
-          useBroadcastResumo ? Promise.resolve(null) : askClaude(simpleReq.prompt, simpleReq.system),
+          // max_tokens maior: com projetos de vários arquivos .cs, o resumo tem mais conceitos pra
+          // cobrir e o JSON de resposta cortado no meio (limite padrão de 2000) saía como resumo
+          // vazio/incompleto pro aluno, sem erro nenhum aparecer — só silenciosamente faltava conteúdo
+          useBroadcastResumo ? Promise.resolve(null) : askClaude(simpleReq.prompt, simpleReq.system, { max_tokens: 4000 }),
           askClaude(
             `Um aluno de ${studyLang ? studyLang.label : "C#"} escreveu este código na aula de hoje (pode ter mais de um arquivo, todos do mesmo projeto):\n\`\`\`${studyLang ? studyLang.codeLang : "csharp"}\n${fullCode}\n\`\`\`\n\nCrie ${ownPace ? "4" : "8"} questões de múltipla escolha${ownPace ? " BEM diretas e fáceis (uma ideia por questão, frases curtas)" : ""} focadas em CONCEITOS DE CÓDIGO que aparecem no que ele escreveu, olhando TODOS os arquivos: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado, e o que acontece ao executar cada parte. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.${difficultyHint || ""}${adaptiveExtra}\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0,"dica":"(opcional, só se pedido acima) dica que não entrega a resposta","bonus":false}]}`,
             `Crie questões sobre conceitos de código ${studyLang ? studyLang.label : "C#"}, não matemática. APENAS JSON puro.`
@@ -2275,7 +2278,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             // primeira resposta veio malformada — insiste uma vez em JSON puro em vez de cair pro texto
             // cru da IA (era isso que aparecia como "escrita confusa" pro aluno)
             try {
-              const retryResult = await askClaude(simpleReq.prompt + "\n\nATENÇÃO: responda SOMENTE o objeto JSON válido, sem nenhum texto antes ou depois.", simpleReq.system);
+              const retryResult = await askClaude(simpleReq.prompt + "\n\nATENÇÃO: responda SOMENTE o objeto JSON válido, sem nenhum texto antes ou depois.", simpleReq.system, { max_tokens: 4000 });
               summaryData = extractJson(retryResult);
             } catch { summaryData = null; }
           }
@@ -2358,7 +2361,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       const todayCode = codeWrittenToday();
       const hasTodayDiff = todayCode.trim().length >= 10 && todayCode.trim() !== fullCode.trim();
       const { prompt, system } = buildSummaryRequest("detalhado", hasTodayDiff, todayCode, fullCode, studyLang, nyxPrefs);
-      const data = await askClaudeJson(prompt, system);
+      // max_tokens maior: a versão detalhada já é mais longa por natureza, e com vários arquivos
+      // .cs tem ainda mais conceitos pra cobrir — sem isso o JSON cortava no meio e vinha incompleto
+      const data = await askClaudeJson(prompt, system, { max_tokens: 6000 });
       setDetailedSummary(data);
       const newDetailedHistory = { ...detailedSummaryHistory, [todayKey()]: data };
       setDetailedSummaryHistory(newDetailedHistory);
@@ -5087,24 +5092,48 @@ function TeacherView({ onLogout, teacherAuth }) {
     setResumoTriggerBusy(true); setResumoTriggerMsg("📚 Gerando o resumo da aula...");
     try {
       const teacherCode = await getTeacherCode(turmaId);
-      const code = (teacherCode?.files || []).filter(f => (f.code||"").trim()).map(f => f.code || "").join("\n");
-      if (code.trim().length < 10) {
+      const currentFiles = (teacherCode?.files || []).filter(f => (f.code||"").trim());
+      const fullCode = currentFiles.map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n");
+      if (fullCode.trim().length < 10) {
         setResumoTriggerMsg("❌ Não achei código seu salvo pra essa turma. Passe o código na aba \"Meu código\" antes de gerar o resumo.");
       } else {
-        const { prompt, system } = buildSummaryRequest("simples", false, code, code, null, null);
-        let resumo = null;
-        try { resumo = await askClaudeJson(prompt, system); } catch { resumo = null; }
-        if (resumo && Array.isArray(resumo.secoes)) {
-          const nextHistory = { ...teacherResumoHistory, [todayKey()]: resumo };
-          const ok = await saveTeacherResumoHistory(turmaId, nextHistory, teacherAuth);
-          if (ok) {
-            setTeacherResumoHistory(nextHistory);
-            setResumoTriggerMsg("✅ Resumo gerado e guardado no seu Caderno! Quando quiser, mande pra turma.");
-          } else {
-            setResumoTriggerMsg("❌ Gerei o resumo mas não consegui guardar no seu Caderno agora. Tente de novo.");
-          }
+        // continuação: só existe um resumo "anterior" pra continuar se já tiver uma foto salva do
+        // código na hora da última geração — o Nyx então resume só o que é NOVO desde então (por
+        // TODOS os arquivos .cs, não só um), em vez de resumir tudo de novo do zero a cada clique.
+        // Isso também evita o JSON de resposta ficar gigante/cortado quando o professor já acumulou
+        // vários arquivos: cada geração processa só o trecho novo, nunca o total inteiro de novo.
+        const snapshot = await getTeacherResumoSnapshot(turmaId);
+        const lastResumo = snapshot?.lastResumoDate ? teacherResumoHistory[snapshot.lastResumoDate] : null;
+        const hasLastResumo = !!(lastResumo && Array.isArray(lastResumo.secoes) && lastResumo.secoes.length > 0);
+        const novoCode = hasLastResumo ? codeDiffByFile(currentFiles, snapshot.files) : "";
+        if (hasLastResumo && !novoCode.trim()) {
+          setResumoTriggerMsg("ℹ️ Nenhum código novo desde o último resumo — nada pra acrescentar ainda.");
         } else {
-          setResumoTriggerMsg("❌ Não consegui gerar o resumo agora. Tente de novo em instantes.");
+          const { prompt, system } = hasLastResumo
+            ? buildContinuationSummaryRequest(lastResumo, novoCode, fullCode, null, null)
+            : buildSummaryRequest("simples", false, fullCode, fullCode, null, null);
+          // max_tokens maior: mesmo só cobrindo o trecho novo, com vários arquivos .cs de uma vez o
+          // JSON de resposta podia cortar no meio (limite padrão de 2000) e o resumo salvo ficava
+          // incompleto, sem erro nenhum aparecer
+          let novoTrecho = null;
+          try { novoTrecho = await askClaudeJson(prompt, system, { max_tokens: 4000 }); } catch { novoTrecho = null; }
+          if (novoTrecho && Array.isArray(novoTrecho.secoes)) {
+            // mesmo dia: soma no resumo de hoje que já existia. Dia diferente: o resumo antigo fica
+            // intacto no próprio dia dele — hoje ganha uma entrada NOVA, só com o que é novo mesmo
+            const isSameDayContinuation = hasLastResumo && snapshot.lastResumoDate === todayKey();
+            const resumo = isSameDayContinuation ? mergeSummaryContinuation(lastResumo, novoTrecho) : novoTrecho;
+            const nextHistory = { ...teacherResumoHistory, [todayKey()]: resumo };
+            const ok = await saveTeacherResumoHistory(turmaId, nextHistory, teacherAuth);
+            if (ok) {
+              await saveTeacherResumoSnapshot(turmaId, { files: currentFiles.map(f => ({ name:f.name, code:f.code||"" })), lastResumoDate: todayKey() }, teacherAuth);
+              setTeacherResumoHistory(nextHistory);
+              setResumoTriggerMsg("✅ Resumo gerado e guardado no seu Caderno! Quando quiser, mande pra turma.");
+            } else {
+              setResumoTriggerMsg("❌ Gerei o resumo mas não consegui guardar no seu Caderno agora. Tente de novo.");
+            }
+          } else {
+            setResumoTriggerMsg("❌ Não consegui gerar o resumo agora. Tente de novo em instantes.");
+          }
         }
       }
     } catch {
@@ -6194,7 +6223,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           "Você é um professor de C# paciente escrevendo um material de estudo completo por escrito para iniciantes — cobre tudo que foi visto, sem cortar conteúdo pra deixar o material curto. Português correto e simples. Responda APENAS JSON puro válido.",
           { max_tokens: 6000 }
         ) : Promise.resolve(lesson.explain),
-        need.resumo ? askClaudeJson(summaryReq.prompt, summaryReq.system) : Promise.resolve(lesson.resumo),
+        need.resumo ? askClaudeJson(summaryReq.prompt, summaryReq.system, { max_tokens: 4000 }) : Promise.resolve(lesson.resumo),
         need.atividade ? askClaudeJson(
           `Este código C# é o material de uma aula pra alunos iniciantes:\n\`\`\`csharp\n${code}\n\`\`\`\n\nCrie 8 questões de múltipla escolha focadas em CONCEITOS DE CÓDIGO que aparecem nesse material: o que faz cada palavra-chave/instrução, para que serve cada estrutura, o papel de cada símbolo, a função de cada tipo de dado. Varie a dificuldade (algumas fáceis, algumas médias). NÃO faça perguntas de matemática.\n\nResponda APENAS JSON puro sem markdown:\n{"questions":[{"q":"pergunta","opts":["A","B","C","D"],"correct":0}]}`,
           "Crie questões sobre conceitos de código C#, não matemática. APENAS JSON puro."
@@ -7482,7 +7511,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                       📄 Resumo de hoje: {resumoHoje.secoes?.length || 0} conceito{resumoHoje.secoes?.length===1?"":"s"} — {(resumoHoje.secoes||[]).map(s=>s.titulo).filter(Boolean).join(", ") || "—"}
                     </p>
                   )}
-                  {resumoTriggerMsg && <p style={{ color:resumoTriggerMsg.startsWith("✅")?"#34d399":"#f87171", fontSize:12.5, margin:"8px 0 0", lineHeight:1.5 }}>{resumoTriggerMsg}</p>}
+                  {resumoTriggerMsg && <p style={{ color:resumoTriggerMsg.startsWith("✅")?"#34d399":resumoTriggerMsg.startsWith("ℹ️")?"#a99ac9":"#f87171", fontSize:12.5, margin:"8px 0 0", lineHeight:1.5 }}>{resumoTriggerMsg}</p>}
                 </div>
               );
             })()}
