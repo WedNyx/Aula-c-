@@ -1739,7 +1739,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       await persist({ guidedLessons: updated });
       const speech = [lesson.titulo, lesson.codigo ? `O código é: ${codeForSpeech(lesson.codigo)}` : null, lesson.oQueFaz, lesson.exemploJogo].filter(Boolean).join(". ");
       speak(speech);
-    } catch {}
+    } catch {
+      toast.error("Não consegui criar uma lição nova agora. Tente de novo em instantes.");
+    }
     setGuidedLessonLoading(false);
   };
 

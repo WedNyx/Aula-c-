@@ -11,3 +11,11 @@ export function expectedTeacherPassword() {
 export function isValidTeacherPassword(password) {
   return typeof password === 'string' && password === expectedTeacherPassword()
 }
+
+// chave ÚNICA do contador de tentativas erradas da senha do professor, compartilhada por TODOS os
+// endpoints que checam essa mesma senha (auth.js, kv.js, backup.js, setup-db.js). Cada um tinha seu
+// próprio contador isolado antes — um atacante testando a senha em paralelo contra os 4 diluía o
+// atraso crescente em ~4x, já que cada endpoint só via 1/4 das tentativas de verdade.
+export function teacherLoginFailBucket(ip) {
+  return `loginfail:teacher:${ip}`
+}

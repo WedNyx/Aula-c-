@@ -3,7 +3,7 @@
 // Se não conseguir, retorna o SQL para o usuário rodar no Supabase.
 
 import { loginFailCount, recordLoginFailure, clearLoginFailures } from './kv.js'
-import { isValidTeacherPassword } from './_teacherAuth.js'
+import { isValidTeacherPassword, teacherLoginFailBucket } from './_teacherAuth.js'
 import { clientIp } from './_ip.js'
 
 const CREATE_SQL = `CREATE TABLE IF NOT EXISTS kv_store (
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   // Mesmo atraso crescente por tentativa errada usado no resto do painel do professor.
   const { auth } = req.body || {}
   const ip = clientIp(req)
-  const bucketKey = `loginfail:setupdb:${ip}`
+  const bucketKey = teacherLoginFailBucket(ip)
   const fails = await loginFailCount(bucketKey)
   if (fails > 0) await new Promise(r => setTimeout(r, Math.min(400 + fails * 500, 6000)))
   if (!isValidTeacherPassword(auth)) {

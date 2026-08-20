@@ -2,8 +2,8 @@
 // professor também pode disparar na mão pelo painel. Grava uma cópia de tudo dentro do MESMO
 // banco (não é backup fora do banco — se o banco inteiro sumir, some junto), mas já protege
 // contra bug/ação errada apagando ou corrompendo alguma chave específica.
-import { createBackupSnapshot, listBackups, loginFailCount, recordLoginFailure, clearLoginFailures } from './kv.js'
-import { isValidTeacherPassword } from './_teacherAuth.js'
+import { createBackupSnapshot, listBackups, loginFailCount, recordLoginFailure, clearLoginFailures, rateLimitCheck } from './kv.js'
+import { isValidTeacherPassword, teacherLoginFailBucket } from './_teacherAuth.js'
 import { clientIp } from './_ip.js'
 
 // aceita DUAS formas de autorização: o Cron da própria Vercel (cabeçalho Authorization com o
@@ -12,7 +12,7 @@ async function isAuthorized(req) {
   const cronSecret = process.env.CRON_SECRET
   if (cronSecret) {
     const header = req.headers['authorization'] || ''
-    if (header === `Bearer ${cronSecret}`) return true
+    if (header === `Bearer ${cronSecret}`) return { ok: true, trusted: true }
   }
   const bodyAuth = (req.body && req.body.auth) || req.query?.auth
   if (bodyAuth) {
@@ -20,21 +20,30 @@ async function isAuthorized(req) {
     // esse endpoint verificava a senha sem NENHUM atraso ou bloqueio por tentativa errada, diferente
     // de todo outro lugar que checa essa mesma senha. Mesmo atraso crescente por IP dos outros.
     const ip = clientIp(req)
-    const bucketKey = `loginfail:backup:${ip}`
+    const bucketKey = teacherLoginFailBucket(ip)
     const fails = await loginFailCount(bucketKey)
     if (fails > 0) await new Promise(r => setTimeout(r, Math.min(400 + fails * 500, 6000)))
     const ok = isValidTeacherPassword(bodyAuth)
-    if (ok) { await clearLoginFailures(bucketKey); return true }
+    if (ok) { await clearLoginFailures(bucketKey); return { ok: true, trusted: true } }
     await recordLoginFailure(bucketKey, 600)
-    return false
+    return { ok: false, trusted: false }
   }
   // sem CRON_SECRET configurado, aceita qualquer chamada do próprio Cron (GET sem senha) —
   // menos seguro, mas não trava o backup agendado só porque a variável não foi configurada ainda
-  return !cronSecret && req.method === 'GET'
+  return { ok: !cronSecret && req.method === 'GET', trusted: false }
 }
 
 export default async function handler(req, res) {
-  const authorized = await isAuthorized(req)
+  const { ok: authorized, trusted } = await isAuthorized(req)
+  // esse endpoint faz um scan completo do banco a cada chamada (createBackupSnapshot/listBackups) —
+  // o mais caro de toda a API — mas nunca teve limite de uso. Não limita quem provou identidade de
+  // verdade (Cron com CRON_SECRET, ou professor com a senha certa); limita só o caminho SEM
+  // credencial confirmada — senha errada/ausente, ou o fallback sem CRON_SECRET configurado (que
+  // hoje libera GET sem senha nenhuma) — que é onde um script sem credencial nenhuma podia bater.
+  if (!trusted) {
+    const withinLimit = await rateLimitCheck(`ratelimit:backup:${clientIp(req)}`, 5, 600)
+    if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas chamadas de backup seguidas. Aguarde um pouco e tente de novo.' })
+  }
   if (req.method === 'GET' && req.query?.list === '1') {
     // listar os backups existentes (nome/tamanho) também precisa da mesma autorização — antes
     // disso qualquer um sem senha via quando e com que frequência o backup roda

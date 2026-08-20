@@ -141,6 +141,29 @@ await seed('loginfail:teacher:1.2.3.4', JSON.stringify({ count: 2 }));
   check('Rotação mantém no máximo 14 backups guardados', res._body.backups.length <= 14, `total=${res._body.backups.length}`);
 }
 
+// 7) esse endpoint faz um scan completo do banco a cada chamada (o mais caro de toda a API) e não
+// tinha NENHUM limite de uso — só a credencial certa (Cron ou senha) escapa do limite; tentativas
+// sem credencial válida (senha errada aqui) são cortadas depois de algumas seguidas do mesmo IP
+{
+  const ip = '5.5.5.5';
+  let lastStatus = 200;
+  for (let i = 0; i < 6; i++) {
+    const req = mockReq({ headers: { 'x-forwarded-for': ip }, body: { auth: 'senha-errada-de-novo' } });
+    const res = mockRes();
+    await backupHandler(req, res);
+    lastStatus = res._status;
+  }
+  check('Depois de várias tentativas sem credencial válida do mesmo IP, é rate-limitado (429)', lastStatus === 429, `status=${lastStatus}`);
+}
+// e a senha CERTA continua funcionando sem limite nenhum (não é o professor de verdade quem paga
+// o preço de um script tentando adivinhar a senha)
+{
+  const req = mockReq({ body: { auth: 'senha-de-teste-123' } });
+  const res = mockRes();
+  await backupHandler(req, res);
+  check('Senha certa nunca é rate-limitada, mesmo depois de muitas chamadas', res._body?.ok === true, JSON.stringify(res._body));
+}
+
 console.log(`\n=== BACKUP AUTOMÁTICO TEST: ${pass}/${pass + fail} passed ===`);
 server.kill();
 process.exit(fail > 0 ? 1 : 0);

@@ -298,7 +298,7 @@ export function TelaoModal({ students, shift, turmas, onClose, teacherAuth }) {
         </div>
       ) : boss ? (
         <div className="telao-card" style={{ position:"relative", background: bossDefeated ? "linear-gradient(135deg,#14532d,#166534)" : "linear-gradient(135deg,#3b0764,#1e1b4b)", border:`2px solid ${bossDefeated ? "#34d399" : "#a855f7"}`, borderRadius:24, padding:"22px 28px", marginBottom:24 }}>
-          {bossDefeated && <ConfettiParty level={1} />}
+          {bossDefeated && <ConfettiParty banner={false} />}
           <div style={{ display:"flex", alignItems:"center", gap:18, flexWrap:"wrap" }}>
             <span style={{ fontSize:"clamp(40px, 8vw, 64px)", animation: bossDefeated ? "none" : "nyx-shake 2.2s ease-in-out infinite" }}>{bossDefeated ? "💀" : boss.emoji}</span>
             <div style={{ flex:"1 1 240px", minWidth:0 }}>
@@ -342,7 +342,7 @@ export function TelaoModal({ students, shift, turmas, onClose, teacherAuth }) {
       {/* 🏟️ torneio da turma: chaveamento eliminatório de mini-quizzes */}
       {tourney && tourney.status === "done" ? (
         <div className="telao-card" style={{ position:"relative", background:"linear-gradient(135deg,#713f12,#b45309)", border:"2px solid #fbbf24", borderRadius:24, padding:"24px 28px", marginBottom:24, textAlign:"center" }}>
-          <ConfettiParty level={1} />
+          <ConfettiParty banner={false} />
           <div style={{ fontSize:"clamp(44px, 9vw, 72px)" }}>🏆</div>
           <h2 style={{ margin:"4px 0", fontSize:"clamp(22px, 5vw, 34px)", color:"#fff" }}>{tourney.champion} é o CAMPEÃO do torneio!</h2>
           <p style={{ color:"#fde68a", fontSize:"clamp(13px, 3vw, 16px)", margin:"0 0 14px" }}>Palmas pra ele — e pra todo mundo que batalhou! 👏</p>
@@ -500,7 +500,7 @@ export function RankingRevealModal({ turmaLabel, entries, onClose }) {
   const allRevealed = revealedCount >= total;
   return (
     <div data-testid="ranking-reveal-modal" style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.9)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1300, padding:16 }}>
-      {allRevealed && <ConfettiParty level={1} />}
+      {allRevealed && <ConfettiParty banner={false} />}
       <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:480, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <h2 style={{ margin:0, fontSize:19, fontWeight:900, background:"linear-gradient(135deg,#fbbf24,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🏆 Turma {turmaLabel} terminou!</h2>

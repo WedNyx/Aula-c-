@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 
-// chuva de confete + banner quando a turma sobe de nível na meta coletiva
-export function ConfettiParty({ level }) {
+// chuva de confete, com o banner de "meta coletiva" opcional (banner=false pra quando quem chamou
+// já mostra o próprio texto de comemoração no card — chefão derrotado, campeão do torneio, ranking
+// revelado — e não faz sentido nenhum sobrepor "a turma subiu de nível" por cima)
+export function ConfettiParty({ level, banner = true }) {
   const pieces = useMemo(() => Array.from({ length: 70 }, (_, i) => ({
     left: Math.random() * 100,
     delay: Math.random() * 1.6,
@@ -16,10 +18,12 @@ export function ConfettiParty({ level }) {
       {pieces.map((p, i) => (
         <div key={i} style={{ position:"absolute", top:0, left:`${p.left}%`, width:p.size, height:p.size*0.6, background:p.color, borderRadius:2, transform:`rotate(${p.rot}deg)`, animation:`confete-cai ${p.dur}s linear ${p.delay}s both` }} />
       ))}
-      <div style={{ position:"absolute", top:"18%", left:"50%", transform:"translateX(-50%)", background:"linear-gradient(135deg,#c084fc,#22d3ee)", color:"#fff", fontWeight:900, padding:"14px 28px", borderRadius:20, boxShadow:"0 14px 44px rgba(0,0,0,.5)", fontSize:17, textAlign:"center", animation:"rise .4s ease both" }}>
-        🎉 A TURMA SUBIU DE NÍVEL! 🎉<br/>
-        <span style={{ fontSize:13.5, fontWeight:700, opacity:0.95 }}>Meta coletiva: nível {level} alcançado — parabéns a todos!</span>
-      </div>
+      {banner && (
+        <div style={{ position:"absolute", top:"18%", left:"50%", transform:"translateX(-50%)", background:"linear-gradient(135deg,#c084fc,#22d3ee)", color:"#fff", fontWeight:900, padding:"14px 28px", borderRadius:20, boxShadow:"0 14px 44px rgba(0,0,0,.5)", fontSize:17, textAlign:"center", animation:"rise .4s ease both" }}>
+          🎉 A TURMA SUBIU DE NÍVEL! 🎉<br/>
+          <span style={{ fontSize:13.5, fontWeight:700, opacity:0.95 }}>Meta coletiva: nível {level} alcançado — parabéns a todos!</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -51,9 +51,16 @@ export function normalizeCityName(s: string | null | undefined): string {
 export function matchDfRegion(cityName: string | null | undefined): string | null {
   const norm = normalizeCityName(cityName);
   if (!norm) return null;
+  // 1ª passada: só correspondência EXATA — sem isso, digitar "Sobradinho II" batia por substring
+  // com "Sobradinho" (que aparece antes na lista), já que "sobradinho ii".includes("sobradinho")
+  // também é verdadeiro; mesmo problema com "Riacho Fundo"/"Riacho Fundo II"
+  for (const region of DF_CITIES) {
+    if (normalizeCityName(region) === norm) return region;
+  }
+  // 2ª passada: substring, só como fallback pra texto livre (ex: "Brasília" → "Plano Piloto (Brasília)")
   for (const region of DF_CITIES) {
     const rn = normalizeCityName(region);
-    if (rn === norm || rn.includes(norm) || norm.includes(rn)) return region;
+    if (rn.includes(norm) || norm.includes(rn)) return region;
   }
   return null;
 }

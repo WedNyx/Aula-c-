@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { isValidTeacherPassword } from './_teacherAuth.js'
+import { isValidTeacherPassword, teacherLoginFailBucket } from './_teacherAuth.js'
 import { clientIp } from './_ip.js'
 
 const TABLE = 'kv_store'
@@ -210,7 +210,7 @@ async function writeMergedWithRetry(key, buildMerge, verifyMerge, maxAttempts = 
     const freshRaw = await store.get(key)
     let fresh
     try { fresh = JSON.parse(freshRaw) } catch { fresh = null }
-    if (fresh && verifyMerge(fresh)) return { merged: fresh, ok: true }
+    if (fresh && verifyMerge(fresh, merged)) return { merged: fresh, ok: true }
     // outra escrita se intrometeu entre o nosso "get" e a releitura — tenta de novo do zero,
     // relendo na hora (não reaproveita nada da tentativa anterior)
   }
@@ -465,7 +465,7 @@ export async function clearLoginFailures(bucketKey) {
 // mais antigos além do limite. Não é backup "fora do banco" (se o banco inteiro sumir, o backup
 // some junto), mas já protege contra bug/ação errada apagando ou corrompendo chaves específicas ──
 const BACKUP_PREFIX = 'backup:'
-const BACKUP_EXCLUDE = /^(ratelimit:|aihealth|loginfail:|backup:|errorlog:|adminlog:)/
+const BACKUP_EXCLUDE = /^(ratelimit:|ai:health|loginfail:|backup:|errorlog:|adminlog:)/
 
 // ─── log de erros de JS não tratados, mandado sozinho por qualquer sessão (aluno ou professor) —
 // ver reportClientError em storage.js / o listener global em App.jsx. Uma lista só, capada nas
@@ -521,7 +521,7 @@ export async function listBackups() {
 // normais), devolve false na hora sem gastar nenhuma chamada a mais no banco.
 async function checkTeacherAuth(ip, auth) {
   if (!auth) return false
-  const bucketKey = `loginfail:kvaction:${ip}`
+  const bucketKey = teacherLoginFailBucket(ip)
   const fails = await loginFailCount(bucketKey)
   if (fails > 0) await new Promise(r => setTimeout(r, Math.min(400 + fails * 500, 6000)))
   const ok = isValidTeacherPassword(auth)
@@ -680,17 +680,31 @@ export default async function handler(req, res) {
         if (config[scoreField] != null) return res.json({ score: config[scoreField], total: questions.length, already: true })
         let score = 0
         questions.forEach((q, i) => { if (answers && answers[i] === q.correct) score++ })
-        const { ok } = await writeMergedWithRetry(
+        // essa checagem lá em cima não fecha a janela entre VÁRIAS requisições concorrentes do MESMO
+        // aluno com respostas DIFERENTES (fácil de automatizar): todas passam no "já respondeu" antes
+        // de qualquer uma escrever, cada uma calcularia e devolveria a nota da SUA combinação de
+        // respostas, dando pra comparar notas de tentativas paralelas e ir deduzindo o gabarito. Por
+        // isso o merge relê o documento a cada tentativa e só grava se AINDA não tiver sido gravado
+        // por essa altura — se outra requisição concorrente já gravou primeiro, mantém o valor dela.
+        const { ok, merged } = await writeMergedWithRetry(
           dKey,
           (c) => {
+            if (c[scoreField] != null) return c
             const m = { ...c, [answersField]: answers || {}, [scoreField]: score }
             if (m.scoreFrom != null && m.scoreTo != null) m.status = 'done'
             return m
           },
-          (fresh) => fresh[scoreField] === score
+          // não basta conferir "ficou gravado algo" — se outra requisição concorrente também achou
+          // scoreField vazio (leu ANTES desta escrever) e escreveu por cima logo depois desta, o
+          // valor final pode não ser o que ESTA tentativa acabou de gravar. Comparando contra o que
+          // ESTA tentativa pretendia (merged), uma sobrescrita alheia é detectada e força um retry —
+          // que na próxima volta relê o valor já gravado por quem venceu e para de tentar escrever
+          (fresh, merged) => fresh[scoreField] === merged[scoreField]
         )
         if (!ok) return res.status(409).json({ error: 'duel_grade_conflict', message: 'Muita gente respondendo ao mesmo tempo — tente enviar de novo.' })
-        return res.json({ score, total: questions.length })
+        // devolve a nota que REALMENTE ficou gravada (pode ser a de outra requisição concorrente do
+        // mesmo aluno que chegou primeiro, não necessariamente a desta chamada)
+        return res.json({ score: merged[scoreField], total: questions.length })
       }
       case 'grade_team_duel': {
         const withinLimit = await rateLimitCheck(`ratelimit:gradeteamduel:${ip}`, 15, 600)
@@ -710,18 +724,25 @@ export default async function handler(req, res) {
         }
         let score = 0
         questions.forEach((q, i) => { if (answers && answers[i] === q.correct) score++ })
-        const { ok } = await writeMergedWithRetry(
+        // mesmo cuidado do grade_duel: só grava se ESTE aluno ainda não tiver nota registrada NA
+        // RELEITURA de cada tentativa (não só na checagem lá em cima) — fecha a janela de várias
+        // requisições concorrentes do mesmo aluno com respostas diferentes tentando comparar notas
+        const { ok, merged } = await writeMergedWithRetry(
           tKey,
           (c) => {
+            if (c.scores && c.scores[myName] != null) return c
             const scores = { ...(c.scores || {}), [myName]: score }
             const answersMap = { ...(c.answers || {}), [myName]: answers || {} }
             const allDone = (c.players || []).every(p => scores[p.name] != null)
             return { ...c, scores, answers: answersMap, status: allDone ? 'done' : c.status }
           },
-          (fresh) => fresh.scores && fresh.scores[myName] === score
+          // mesmo raciocínio do grade_duel: compara contra o que ESTA tentativa pretendia gravar
+          // (merged), não só "existe alguma nota" — detecta quando outra requisição concorrente do
+          // mesmo aluno sobrescreveu por cima entre o nosso "set" e a releitura, e força um retry
+          (fresh, merged) => fresh.scores?.[myName] === merged.scores?.[myName]
         )
         if (!ok) return res.status(409).json({ error: 'duel_grade_conflict', message: 'Muita gente respondendo ao mesmo tempo — tente enviar de novo.' })
-        return res.json({ score, total: questions.length })
+        return res.json({ score: merged.scores[myName], total: questions.length })
       }
       case 'log_error': {
         // qualquer sessão (aluno ou professor) pode registrar um erro — sem senha, porque o

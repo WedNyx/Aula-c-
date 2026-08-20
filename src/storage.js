@@ -297,7 +297,7 @@ export async function exportAllData(auth) {
   const r = await kvCall({ action: 'list_with_values', prefix: '', auth })
   const data = {}
   for (const item of r.items || []) {
-    if (/^(ratelimit:|aihealth)/.test(item.key)) continue // contadores técnicos não interessam
+    if (/^(ratelimit:|ai:health)/.test(item.key)) continue // contadores técnicos não interessam
     data[item.key] = item.value
   }
   return data

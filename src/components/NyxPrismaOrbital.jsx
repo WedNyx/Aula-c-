@@ -147,7 +147,7 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
             {G.head === "touca" && <NpoTouca uid={uid} />}
             {G.head === "bone" && <NpoBone uid={uid} />}
             {G.head === "chapeuFesta" && <NpoChapeuFesta uid={uid} />}
-            {G.head === "bandana" && <NpoBandana />}
+            {G.head === "bandana" && <NpoBandana uid={uid} />}
             {G.head === "gorroNatal" && <NpoGorroNatal uid={uid} />}
             {G.head === "orelhinhas" && <NpoOrelhinhas uid={uid} P={P} />}
             {G.head === "tiara" && <NpoTiara uid={uid} />}
@@ -175,7 +175,7 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
         {G.neck === "cachecol" && <NpoCachecol uid={uid} />}
         {G.neck === "colarDev" && <NpoColarDev uid={uid} />}
         {G.neck === "medalha" && <NpoMedalha uid={uid} />}
-        {G.neck === "golaSocial" && <NpoGolaSocial />}
+        {G.neck === "golaSocial" && <NpoGolaSocial uid={uid} />}
         {G.neck === "colarHavaiano" && <NpoColarHavaiano />}
         {G.neck === "golaNucleo" && <NpoGolaNucleo uid={uid} />}
 
@@ -262,16 +262,16 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
             {G.shield === "livroGrosso" && <NpoLivroGrosso />}
             {G.hand === "espada" && <NpoEspada uid={uid} />}
             {G.hand === "arco" && <NpoArco uid={uid} />}
-            {G.hand === "sorvete" && <NpoSorvete />}
+            {G.hand === "sorvete" && <NpoSorvete uid={uid} />}
             {G.hand === "guardaChuva" && <NpoGuardaChuva uid={uid} />}
-            {G.hand === "chaveInglesa" && <NpoChaveInglesa />}
-            {G.hand === "bandeiraCorrida" && <NpoBandeiraCorrida />}
+            {G.hand === "chaveInglesa" && <NpoChaveInglesa uid={uid} />}
+            {G.hand === "bandeiraCorrida" && <NpoBandeiraCorrida uid={uid} />}
             {G.hand === "microfone" && <NpoMicrofone uid={uid} />}
             {G.hand === "martelo" && <NpoMartelo uid={uid} />}
             {G.hand === "grimorio" && <NpoGrimorio uid={uid} />}
             {G.hand === "varinha" && <NpoVarinha uid={uid} />}
-            {G.hand === "tecladoMini" && <NpoTecladoMini />}
-            {G.hand === "controle" && <NpoControle />}
+            {G.hand === "tecladoMini" && <NpoTecladoMini uid={uid} />}
+            {G.hand === "controle" && <NpoControle uid={uid} />}
             {G.hand === "trofeu" && <NpoTrofeu uid={uid} />}
           </>
         )}
@@ -354,9 +354,9 @@ function NpoColarDev() {
     <g><path d="M138 217q42 25 84 0" fill="none" stroke="#cdbfff" strokeWidth="5"/><rect x="151" y="231" width="58" height="37" rx="8" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><text x="180" y="255" fill="#68e8ff" textAnchor="middle" fontSize="18" fontFamily="monospace" fontWeight="700">&lt;/&gt;</text></g>
   );
 }
-function NpoMedalha() {
+function NpoMedalha({ uid }) {
   return (
-    <g><path d="M146 219 180 257 214 219" fill="none" stroke="url(#prism)" strokeWidth="10"/><circle cx="180" cy="270" r="24" fill="#ffd86a" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="m180 255 5 10 11 2-8 8 2 11-10-5-10 5 2-11-8-8 11-2z" fill="#faf7ff"/></g>
+    <g><path d="M146 219 180 257 214 219" fill="none" stroke={`url(#${uid}prism)`} strokeWidth="10"/><circle cx="180" cy="270" r="24" fill="#ffd86a" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="m180 255 5 10 11 2-8 8 2 11-10-5-10 5 2-11-8-8 11-2z" fill="#faf7ff"/></g>
   );
 }
 
@@ -422,7 +422,7 @@ function NpoChapeuFesta({ uid }) {
     <g><path d="M132 77 181 3l48 74z" fill={`url(#${uid}prism)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="181" cy="4" r="10" fill="#ffd86a" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="160" cy="47" r="5" fill="#68e8ff"/><circle cx="195" cy="30" r="5" fill="#efa5ff"/><path d="M142 64 213 37" stroke="#fff" strokeWidth="5" opacity=".45"/></g>
   );
 }
-function NpoBandana() {
+function NpoBandana({ uid }) {
   return (
     <g><path d="M87 82q93-23 186 0l-6 24q-87-21-174 0z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M145 78h70v27h-70z" fill="#cfd7ea" stroke="#2a2246" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/><path d="M168 84q12-11 24 0-6 12-12 15-6-3-12-15z" fill={`url(#${uid}prism)`} stroke="#2a2246" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/><path d="m269 87 47-27-17 42 35 8-61 14z" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
@@ -449,7 +449,7 @@ function NpoCapaceteObra({ uid }) {
 }
 function NpoFoneDJ({ uid }) {
   return (
-    <g><path d="M95 111Q100 47 145 40M265 111Q260 47 215 40" fill="none" stroke="url(#prism)" strokeWidth="12"/><rect x="70" y="104" width="34" height="64" rx="14" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><rect x="256" y="104" width="34" height="64" rx="14" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="87" cy="137" r="11" fill="none" stroke="var(--cyan)" strokeWidth="4"/><circle cx="273" cy="137" r="11" fill="none" stroke="var(--pink)" strokeWidth="4"/></g>
+    <g><path d="M95 111Q100 47 145 40M265 111Q260 47 215 40" fill="none" stroke={`url(#${uid}prism)`} strokeWidth="12"/><rect x="70" y="104" width="34" height="64" rx="14" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><rect x="256" y="104" width="34" height="64" rx="14" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="87" cy="137" r="11" fill="none" stroke="#68e8ff" strokeWidth="4"/><circle cx="273" cy="137" r="11" fill="none" stroke="#efa5ff" strokeWidth="4"/></g>
   );
 }
 function NpoChapeuMago({ uid }) {
@@ -486,12 +486,12 @@ function NpoMonoculo() {
 }
 function NpoMascaraHeroi({ uid }) {
   return (
-    <g><path d="M103 116q77-28 154 0l-8 49q-32 19-68-7-36 26-70 7z" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" opacity=".95"/><path d="M119 132q24-17 49 0-5 27-25 27-19 0-24-27zM192 132q25-17 49 0-5 27-24 27-20 0-25-27z" fill="#13101f"/><path d="M172 122l8-14 8 14" fill="none" stroke="var(--cyan)" strokeWidth="4"/></g>
+    <g><path d="M103 116q77-28 154 0l-8 49q-32 19-68-7-36 26-70 7z" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" opacity=".95"/><path d="M119 132q24-17 49 0-5 27-25 27-19 0-24-27zM192 132q25-17 49 0-5 27-24 27-20 0-25-27z" fill="#13101f"/><path d="M172 122l8-14 8 14" fill="none" stroke="#68e8ff" strokeWidth="4"/></g>
   );
 }
 
 // ── acessórios: pescoço (lote 2) ──
-function NpoGolaSocial() {
+function NpoGolaSocial({ uid }) {
   return (
     <g><path d="m129 220 36 8 15 29-38-17zM231 220l-36 8-15 29 38-17z" fill="#faf7ff" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="m180 232 11 19-11 22-11-22z" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
@@ -526,7 +526,7 @@ function NpoArco({ uid }) {
     <g><path d="M278 235q68 55 0 116" fill="none" stroke="#9f6e49" strokeWidth="8"/><path d="M278 235v116" stroke="#f3edff" strokeWidth="2"/><path d="M246 291h91" stroke="#dffaff" strokeWidth="4"/><path d="m337 291-14-8v16z" fill="#68e8ff"/><circle cx="246" cy="291" r="7" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
-function NpoSorvete() {
+function NpoSorvete({ uid }) {
   return (
     <g><path d="m272 307 18 49 19-49z" fill="#c9905e" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="290" cy="297" r="20" fill="#efa5ff" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="302" cy="286" r="16" fill="#68e8ff" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="244" cy="320" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
@@ -536,12 +536,12 @@ function NpoGuardaChuva({ uid }) {
     <g><path d="M265 262q43-50 86 0z" fill={`url(#${uid}prism)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M308 261v78q0 20-17 13" fill="none" stroke="#e7dcff" strokeWidth="5"/><path d="M265 262q11-23 22 0 11-24 22 0 11-24 21 0 10-23 21 0" fill="none" stroke="#fff" strokeWidth="2" opacity=".45"/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
-function NpoChaveInglesa() {
+function NpoChaveInglesa({ uid }) {
   return (
     <g><path d="M254 339 310 270q-10-19 5-33 3 14 17 16 13 1 20-12 6 21-13 31-9 5-18 1l-55 76z" fill="#cfd7ea" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
-function NpoBandeiraCorrida() {
+function NpoBandeiraCorrida({ uid }) {
   return (
     <g><path d="M274 231v127" stroke="#e4def3" strokeWidth="6"/><path d="M279 235h66v45h-66z" fill="#faf7ff" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M279 235h16v15h-16M311 235h16v15h-16M295 250h16v15h-16M327 250h18v15h-18M279 265h16v15h-16M311 265h16v15h-16" fill="#13101f"/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
@@ -566,12 +566,12 @@ function NpoVarinha({ uid }) {
     <g><path d="M256 341 314 274" stroke="#d8c8ff" strokeWidth="8"/><path d="m322 258 7 12 14 2-10 10 2 14-13-7-12 7 2-14-10-10 14-2z" fill="#ffd86a" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{animation:"npo-pulse 2s ease-in-out infinite"}}/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
-function NpoTecladoMini() {
+function NpoTecladoMini({ uid }) {
   return (
     <g><path d="m246 301 101-12 11 44-104 14z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><g fill="#68e8ff"><circle cx="267" cy="313" r="3"/><circle cx="280" cy="311" r="3"/><circle cx="293" cy="309" r="3"/><circle cx="306" cy="308" r="3"/><circle cx="319" cy="306" r="3"/><circle cx="332" cy="304" r="3"/><rect x="269" y="325" width="55" height="5" rx="2"/></g><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
-function NpoControle() {
+function NpoControle({ uid }) {
   return (
     <g><path d="M251 304q7-29 32-25h33q25-4 32 25l7 33q4 18-12 21-11 2-25-22h-38q-14 24-25 22-16-3-12-21z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M269 306h25M281 294v25" stroke="#d8c8ff" strokeWidth="6"/><circle cx="326" cy="299" r="5" fill="#efa5ff"/><circle cx="338" cy="312" r="5" fill="#68e8ff"/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
