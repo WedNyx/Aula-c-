@@ -6,15 +6,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // depois retry sem "temperature") quando o provedor rejeita esses parâmetros — antes desta correção,
 // CADA retentativa abria um AbortSignal.timeout(timeoutMs) do ZERO, com o mesmo orçamento cheio da
 // tentativa original. Se o provedor demorasse (não travasse, só fosse LENTO) pra rejeitar cada
-// parâmetro, "N tentativas × orçamento cheio" podia estourar o maxDuration da função, sobretudo
-// quando ainda existe uma 2ª perna (Anthropic de reserva) na MESMA chamada. Agora as retentativas
-// dividem um prazo-limite ÚNICO (deadlineAt) — o tempo total de todas juntas fica sempre dentro do
-// orçamento original, com um piso mínimo pra retentativa não nascer fadada a estourar na hora.
+// parâmetro, "N tentativas × orçamento cheio" podia estourar o maxDuration da função. Agora as
+// retentativas dividem um prazo-limite ÚNICO (deadlineAt) — o tempo total de todas juntas fica
+// sempre dentro do orçamento original, com um piso mínimo pra retentativa não nascer fadada a
+// estourar na hora. Este teste exercita a NVIDIA como reserva (a Anthropic é a IA principal e
+// falha de propósito aqui pra cair pro orçamento de 14s da reserva).
 process.env.KV_REST_API_URL = '';
 process.env.KV_REST_API_TOKEN = '';
 process.env.NVIDIA_API_KEY = 'fake-nvidia-key';
 process.env.NVIDIA_MODEL = 'nemotron-3-reasoning-8b'; // bate no regex NVIDIA_REASONING
-process.env.ANTHROPIC_API_KEY = 'fake-anthropic-key'; // hasBackupLeg=true → perna principal = 14s
+process.env.ANTHROPIC_API_KEY = 'fake-anthropic-key'; // IA principal; falha aqui pra acionar a reserva (NVIDIA) com 14s de orçamento
 process.env.OPENROUTER_API_KEY = '';
 
 let pass = 0, fail = 0;
@@ -48,15 +49,20 @@ function slowRejectingFetch(delayMs, errorBody) {
 const originalFetch = global.fetch;
 const { default: claudeHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/claude.js')).href);
 
-// 1ª tentativa (com reasoning) rejeitada em ~4s (erro de reasoning) → retry sem reasoning, ainda
-// COM temperature, rejeitado em ~4s (erro de temperature) → retry final sem nenhum dos dois, que
-// finalmente teria tempo de sobra pra responder — mas o orçamento da perna principal (14s) já foi
-// quase todo gasto pelas duas rejeições de 4s cada (~8s), então o que sobra pro Anthropic de reserva
-// ainda precisa ser suficiente, e o tempo TOTAL não pode nem chegar perto do dobro/triplo de 14s
+// Anthropic (principal) falha rápido, caindo pra reserva (NVIDIA) com orçamento fixo de 14s.
+// 1ª tentativa da NVIDIA (com reasoning) rejeitada em ~4s (erro de reasoning) → retry sem
+// reasoning, ainda COM temperature, rejeitado em ~4s (erro de temperature) → retry final sem
+// nenhum dos dois, que finalmente teria tempo de sobra pra responder — mas o orçamento da reserva
+// (14s) já foi quase todo gasto pelas duas rejeições de 4s cada (~8s), então o que sobra pro
+// retry final ainda precisa ser suficiente, e o tempo TOTAL não pode nem chegar perto do dobro/
+// triplo de 14s
 {
   let nvidiaCalls = 0;
   global.fetch = async (url, opts = {}) => {
     const u = String(url);
+    if (u.includes('api.anthropic.com')) {
+      return { ok: false, status: 500, json: async () => ({ error: { message: 'Anthropic instável no teste' } }) };
+    }
     if (u.includes('integrate.api.nvidia.com')) {
       nvidiaCalls++;
       const body = JSON.parse(opts.body);
@@ -69,9 +75,6 @@ const { default: claudeHandler } = await import(pathToFileURL(path.join(__dirnam
       // 3ª tentativa (sem reasoning, sem temperature): só chega aqui se ainda sobrou orçamento
       return { ok: true, json: async () => ({ choices: [{ message: { content: 'Resposta da NVIDIA na 3ª tentativa' } }] }) };
     }
-    if (u.includes('api.anthropic.com')) {
-      return { ok: true, json: async () => ({ content: [{ type: 'text', text: 'Resposta da Anthropic (reserva)' }] }) };
-    }
     throw new Error('fetch inesperado no teste: ' + u);
   };
 
@@ -82,9 +85,9 @@ const { default: claudeHandler } = await import(pathToFileURL(path.join(__dirnam
   const elapsed = Date.now() - t0;
 
   check('Chegou a resposta final (não travou nem devolveu erro cru)', res._status !== 500 && Array.isArray(res._body?.content), JSON.stringify(res._body));
-  // com o orçamento COMPARTILHADO entre as retentativas, o tempo total fica bem abaixo do que seria
-  // "3 tentativas × 14s (perna principal) + 14s (reserva)" (~56s) — o piso mínimo garante que ainda
-  // dá pra tentar, mas sem deixar o total se aproximar do maxDuration de 30s da função
+  // com o orçamento COMPARTILHADO entre as retentativas da reserva, o tempo total fica bem abaixo
+  // do que seria "3 tentativas × 14s (reserva)" (~42s) — o piso mínimo garante que ainda dá pra
+  // tentar, mas sem deixar o total se aproximar do maxDuration de 30s da função
   check('Tempo total fica bem dentro do orçamento (não soma um timeout cheio por tentativa)', elapsed < 20000, `${elapsed}ms`);
   check('Fez pelo menos 2 tentativas na NVIDIA (reasoning rejeitado, depois temperature rejeitado)', nvidiaCalls >= 2, String(nvidiaCalls));
 }

@@ -1,6 +1,7 @@
-// Cérebro do Nyx: dois modelos que o aluno/professor escolhe na hora (botões no app),
-// mais Anthropic Claude como reserva silenciosa para as outras features do sistema
-// (chat, terminal, provas, resumos) que não pedem um modelo específico.
+// Cérebro do Nyx: dois modelos que o aluno/professor escolhe na hora (botões no app —
+// Nemotron/Laguna), mais a Anthropic Claude como IA PRINCIPAL para as outras features do
+// sistema (chat, terminal, provas, resumos) que não pedem um modelo específico — a NVIDIA
+// (Nemotron) entra como reserva automática só se a chamada à Anthropic falhar de verdade.
 // A resposta é sempre normalizada para o formato { content: [{ text: "..." }] },
 // para que o restante do app (App.jsx) não precise saber qual provedor respondeu.
 
@@ -18,7 +19,9 @@ const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'poolside/laguna-xs-2.1
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || ''
 
 // provedor usado quando ninguém pede um modelo específico (chat do Nyx, terminal, provas, resumos...)
-const PROVIDER = NVIDIA_KEY && NVIDIA_MODEL ? 'nvidia' : ANTHROPIC_KEY ? 'anthropic' : null
+// — Anthropic primeiro (IA principal, mais estável); NVIDIA só entra se a Anthropic não estiver
+// configurada, e como reserva automática se a chamada principal falhar (ver handler abaixo)
+const PROVIDER = ANTHROPIC_KEY ? 'anthropic' : (NVIDIA_KEY && NVIDIA_MODEL ? 'nvidia' : null)
 
 const DEFAULT_SYSTEM =
   'Você é um robô assistente de programação para alunos iniciantes de C#. Responda sempre em português brasileiro simples e encorajador.'
@@ -253,29 +256,29 @@ export default async function handler(req, res) {
     const hint = NVIDIA_KEY && !NVIDIA_MODEL
       ? 'NVIDIA_API_KEY está configurada, mas falta NVIDIA_MODEL (copie o nome exato do modelo em build.nvidia.com).'
       : 'Nenhuma IA configurada. Adicione no Vercel (Settings → Environment Variables):\n' +
-        '• NVIDIA_API_KEY + NVIDIA_MODEL (build.nvidia.com), ou\n' +
-        '• ANTHROPIC_API_KEY (console.anthropic.com)'
+        '• ANTHROPIC_API_KEY (console.anthropic.com), ou\n' +
+        '• NVIDIA_API_KEY + NVIDIA_MODEL (build.nvidia.com)'
     return res.status(503).json({ error: 'missing_api_key', message: hint })
   }
 
   try {
-    // quando existe uma 2ª perna possível (Anthropic de reserva) dentro desta MESMA chamada de
-    // função, reserva metade do maxDuration pra cada uma — senão a 1ª tentativa hipoteticamente
+    // quando existe uma 2ª perna possível (NVIDIA/Nemotron de reserva) dentro desta MESMA chamada
+    // de função, reserva metade do maxDuration pra cada uma — senão a 1ª tentativa hipoteticamente
     // travada consome o orçamento inteiro (vercel.json) e a reserva nunca chega a rodar
-    const hasBackupLeg = PROVIDER === 'nvidia' && !!ANTHROPIC_KEY
+    const hasBackupLeg = PROVIDER === 'anthropic' && !!(NVIDIA_KEY && NVIDIA_MODEL)
     const primaryTimeout = hasBackupLeg ? 14000 : DEFAULT_TIMEOUT_MS
     const primaryDeadline = Date.now() + primaryTimeout
-    const data = PROVIDER === 'nvidia'
-      ? await callNvidia({ prompt, system, temperature, max_tokens, deadlineAt: primaryDeadline })
-      : await callAnthropic({ prompt, system, temperature, max_tokens, timeoutMs: primaryTimeout })
+    const data = PROVIDER === 'anthropic'
+      ? await callAnthropic({ prompt, system, temperature, max_tokens, timeoutMs: primaryTimeout })
+      : await callNvidia({ prompt, system, temperature, max_tokens, deadlineAt: primaryDeadline })
     return res.json(data)
   } catch (e) {
-    // se a NVIDIA falhar (chave/modelo com problema, fora do ar, etc.) mas a
-    // Anthropic também estiver configurada, usa ela como reserva na hora em
-    // vez de deixar o Nyx inteiro fora do ar por causa de um único provedor.
-    if (PROVIDER === 'nvidia' && ANTHROPIC_KEY) {
+    // se a Anthropic falhar (chave/instabilidade/fora do ar, etc.) mas a NVIDIA também estiver
+    // configurada, usa ela como reserva na hora em vez de deixar o Nyx inteiro fora do ar por
+    // causa de um único provedor.
+    if (PROVIDER === 'anthropic' && NVIDIA_KEY && NVIDIA_MODEL) {
       try {
-        const data = await callAnthropic({ prompt, system, temperature, max_tokens, timeoutMs: 14000 })
+        const data = await callNvidia({ prompt, system, temperature, max_tokens, deadlineAt: Date.now() + 14000 })
         return res.json(data)
       } catch (e2) {
         return res.status(e2.status || 500).json({ error: String(e2.message || e2) })
