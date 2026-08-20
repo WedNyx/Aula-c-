@@ -9,7 +9,7 @@ const TABLE = 'kv_store'
 // si aceitava qualquer pedido. Agora, as ações que só o professor deveria poder fazer
 // (apagar tudo, mexer nas configurações da turma) exigem a senha de verdade aqui no
 // servidor, verificada no campo "auth" do pedido.
-const SET_PROTECTED_PREFIXES = ['teachercode:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'resumotrigger:', 'quiz:', 'backup:', 'turmas:', 'errorlog:', 'adminlog:']
+const SET_PROTECTED_PREFIXES = ['teachercode:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'resumotrigger:', 'teacherresumo:', 'quiz:', 'backup:', 'turmas:', 'errorlog:', 'adminlog:']
 // "errorlog:" e "kbdlock:" faltavam aqui: a leitura já exigia senha (GET_PROTECTED_PREFIXES /
 // SET_PROTECTED_PREFIXES respectivamente), mas sem entrar também em DELETE_PROTECTED_PREFIXES
 // qualquer sessão anônima podia apagar o log de erros inteiro ou destravar o teclado da turma

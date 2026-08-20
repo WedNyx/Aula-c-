@@ -29,10 +29,14 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await loginTeacher(pageT);
   await pageT.click('text=👨‍💻 Meu código');
   await pageT.waitForTimeout(500);
-  await pageT.locator('[data-tour-prof="resumo-ritmo"]').locator('button:has-text("Gerar e liberar resumo pra turma")').click();
+  const ritmoCardT = pageT.locator('[data-tour-prof="resumo-ritmo"]');
+  await ritmoCardT.locator('button:has-text("Gerar resumo")').click();
   await pageT.waitForTimeout(1200);
   check('Professor: exatamente 1 chamada ao Nyx pra gerar o resumo (uma vez só, não por aluno)', teacherClaudeCalls === 1, `calls=${teacherClaudeCalls}`);
-  check('Mensagem confirma que o resumo foi GERADO e enviado direto pro Caderno', (await pageT.locator('text=/Resumo gerado e enviado direto pro Caderno de resumos/').count()) > 0);
+  check('Mensagem confirma que o resumo foi guardado no Caderno do professor', (await ritmoCardT.locator('text=/guardado no seu Caderno/').count()) > 0);
+  await ritmoCardT.locator('button:has-text("Enviar pra turma toda")').click();
+  await pageT.waitForTimeout(800);
+  check('Mensagem confirma envio pro Caderno dos alunos', (await ritmoCardT.locator('text=/Resumo enviado pro Caderno/').count()) > 0);
   check('SEM erro de JS (professor)', jsErrorsT.length === 0, jsErrorsT.slice(0, 3).join(' | '));
 
   const trig = JSON.parse(kvStore.get('resumotrigger:matutino'));

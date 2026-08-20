@@ -35,7 +35,14 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
       if (route.request().method() === 'GET') { await route.fulfill({ status: 200, contentType: 'application/json', body: '{"configured":true}' }); return; }
       const body = JSON.parse(route.request().postData() || '{}');
       allPrompts.push(body.prompt || '');
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ content: [{ text: JSON.stringify({ ok: true, frases: ['isso não devia ter sido chamado'] }) }] }) });
+      // o professor gera o resumo no PRÓPRIO painel antes de enviar pra turma (fluxo em 2 passos) —
+      // isso precisa de uma resposta com "secoes" de verdade pra chegar a existir; o resto do teste
+      // continua conferindo que NENHUMA chamada extra acontece do lado do aluno (reaproveitamento)
+      const isResumoReq = (body.prompt || '').includes('"secoes"');
+      const text = isResumoReq
+        ? JSON.stringify({ intro: 'Resumo gerado pelo professor no painel.', secoes: [{ emoji: '📝', titulo: 'Conceito do professor', explicacao: 'x', exemplo: 'y' }], dica: 'd' })
+        : JSON.stringify({ ok: true, frases: ['isso não devia ter sido chamado'] });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ content: [{ text }] }) });
     });
   };
 
@@ -57,7 +64,9 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   check('SEM erro de JS (professor)', jsErrorsT.length === 0, jsErrorsT.slice(0, 3).join(' | '));
 
   // ── professor libera o resumo pra turma hoje ──
-  await pageT.click('[data-tour-prof="resumo-ritmo"] button:has-text("Gerar e liberar resumo pra turma")');
+  await pageT.click('[data-tour-prof="resumo-ritmo"] button:has-text("Gerar resumo")');
+  await pageT.waitForTimeout(1200);
+  await pageT.click('[data-tour-prof="resumo-ritmo"] button:has-text("Enviar pra turma toda")');
   await pageT.waitForTimeout(600);
 
   // ── aluno: finaliza a aula sozinho e recebe o resumo/atividade PRONTOS, sem chamar o Nyx ──

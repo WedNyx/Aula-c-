@@ -176,6 +176,24 @@ export async function setResumoTrigger(turmaId, dateKey, auth, resumo) {
   } catch { return false }
 }
 
+// ── 📒 caderno de resumos DO PROFESSOR: quando ele clica em "Gerar resumo", o resumo fica guardado
+// aqui (por turma, por dia) ANTES de ir pra qualquer aluno — dá pra revisar antes de enviar. Só
+// depois, numa ação separada (enviar pra turma toda ou pra um aluno específico), esse mesmo resumo
+// vira o gatilho (setResumoTrigger) e/ou o scoreFix que entrega no Caderno de cada aluno ──
+const teacherResumoKeyFor = (turmaId) => `teacherresumo:${turmaId || 'sem-turno'}`
+export async function getTeacherResumoHistory(turmaId) {
+  try {
+    const r = await kvCall({ action: 'get', key: teacherResumoKeyFor(turmaId) })
+    return r.value ? JSON.parse(r.value) : {}
+  } catch { return {} }
+}
+export async function saveTeacherResumoHistory(turmaId, history, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: teacherResumoKeyFor(turmaId), value: JSON.stringify(history || {}), auth })
+    return r.ok === true
+  } catch { return false }
+}
+
 // 🏟️ torneio da turma (chaveamento no telão): só o professor escreve; os alunos leem no tick
 // e respondem gravando a pontuação no PRÓPRIO perfil (tourneyAnswer), que o telão apura. Cada
 // turma tem o seu próprio torneio, independente das outras

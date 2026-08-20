@@ -11,6 +11,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const csharpCode = 'using System;\nclass Program { static void Main() { Console.WriteLine("oi"); int y = 2; } }';
 
   const kvStore = baseKvStore({ city: 'Sobradinho', classDays: ['2026-07-20'] });
+  kvStore.set('teachercode:matutino', JSON.stringify({ files: [{ name: 'Program.cs', code: csharpCode }], at: Date.now() }));
   kvStore.set('student:matutino:AlunoFaltou', JSON.stringify({
     name: 'AlunoFaltou', shift: 'matutino', avatar: {}, files: [{ name: 'Program.cs', code: csharpCode }],
     phase: 'coding', lastSeen: Date.now(), nyxPoints: 0,
@@ -26,7 +27,10 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await loginTeacher(pageT);
   await pageT.click('text=👨‍💻 Meu código');
   await pageT.waitForTimeout(500);
-  await pageT.locator('[data-tour-prof="resumo-ritmo"]').locator('button:has-text("Gerar e liberar resumo pra turma")').click();
+  const ritmoCardT = pageT.locator('[data-tour-prof="resumo-ritmo"]');
+  await ritmoCardT.locator('button:has-text("Gerar resumo")').click();
+  await pageT.waitForTimeout(1200);
+  await ritmoCardT.locator('button:has-text("Enviar pra turma toda")').click();
   await pageT.waitForTimeout(600);
   check('SEM erro de JS (professor)', jsErrorsT.length === 0, jsErrorsT.slice(0, 3).join(' | '));
 

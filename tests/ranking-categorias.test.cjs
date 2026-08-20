@@ -1,4 +1,4 @@
-const { launchBrowser, mockRoutes, baseKvStore, loginNewStudent, check, summary } = require("/home/user/Aula-c-/tests/helpers.cjs");
+const { launchBrowser, mockRoutes, baseKvStore, check, summary } = require("/home/user/Aula-c-/tests/helpers.cjs");
 
 function dstr(d) { return d.toISOString().slice(0, 10); }
 // pega uma quarta-feira desta semana e uma da semana passada, pra cair certinho nos buckets do weekKey()
@@ -11,42 +11,40 @@ function thisWeekDay() {
 }
 const nowWed = thisWeekDay();
 const lastWed = new Date(nowWed); lastWed.setDate(lastWed.getDate() - 7);
+// turno FIXO (não depende do horário real em que o teste roda — login de aluno já existente,
+// selecionando o turno explicitamente pelo botão, em vez de deixar o app escolher pelo relógio)
+const SHIFT = 'matutino';
 
 (async () => {
   const kvStore = baseKvStore({ city: 'Sobradinho', classDays: [dstr(nowWed), dstr(lastWed)], allowWeekend: true });
 
   // Evoluiu: semana passada 40, essa semana 90 (delta +50)
-  kvStore.set('student:vespertino:Evoluiu_Silva', JSON.stringify({
-    name: 'Evoluiu Silva', shift: 'vespertino', avatar: {}, files: [{ name: 'Program.cs', code: '' }],
+  kvStore.set(`student:${SHIFT}:Evoluiu_Silva`, JSON.stringify({
+    name: 'Evoluiu Silva', shift: SHIFT, avatar: {}, files: [{ name: 'Program.cs', code: '' }],
     phase: 'coding', lastSeen: Date.now(), achievements: [], nyxPoints: 10,
     scoreHistory: { [dstr(lastWed)]: 40, [dstr(nowWed)]: 90 },
   }));
 
   // Sequência: presente hoje E na quarta passada (2 dias seguidos de aula no calendário -> streak>=2)
-  kvStore.set('student:vespertino:Sequencia_Costa', JSON.stringify({
-    name: 'Sequencia Costa', shift: 'vespertino', avatar: {}, files: [{ name: 'Program.cs', code: '' }],
+  kvStore.set(`student:${SHIFT}:Sequencia_Costa`, JSON.stringify({
+    name: 'Sequencia Costa', shift: SHIFT, avatar: {}, files: [{ name: 'Program.cs', code: '' }],
     phase: 'coding', lastSeen: Date.now(), achievements: [], nyxPoints: 10,
     attendance: { [dstr(nowWed)]: 'present', [dstr(lastWed)]: 'present' },
     errorHistory: { [dstr(nowWed)]: 5 },
   }));
 
   // Ajudante: 3 ajudas essa semana
-  kvStore.set('student:vespertino:Ajudante_Souza', JSON.stringify({
-    name: 'Ajudante Souza', shift: 'vespertino', avatar: {}, files: [{ name: 'Program.cs', code: '' }],
+  kvStore.set(`student:${SHIFT}:Ajudante_Souza`, JSON.stringify({
+    name: 'Ajudante Souza', shift: SHIFT, avatar: {}, files: [{ name: 'Program.cs', code: '' }],
     phase: 'coding', lastSeen: Date.now(), achievements: [], nyxPoints: 10,
   }));
 
   // Organizado: presente essa semana, zero erros
-  kvStore.set('student:vespertino:Organizado_Lima', JSON.stringify({
-    name: 'Organizado Lima', shift: 'vespertino', avatar: {}, files: [{ name: 'Program.cs', code: '' }],
+  kvStore.set(`student:${SHIFT}:Organizado_Lima`, JSON.stringify({
+    name: 'Organizado Lima', shift: SHIFT, avatar: {}, files: [{ name: 'Program.cs', code: '' }],
     phase: 'coding', lastSeen: Date.now(), achievements: [], nyxPoints: 10,
     attendance: { [dstr(nowWed)]: 'present' }, errorHistory: {},
   }));
-
-  const browser = await launchBrowser();
-  const ctx = await browser.newContext({ viewport: { width: 900, height: 900 } });
-  const page = await ctx.newPage();
-  await mockRoutes(page, kvStore);
 
   // computa a weekKey certa via o próprio app (evita duplicar a lógica) — mas como isso é CJS e
   // schedule.ts é ESM/TS, calculamos a chave ISO-semana manualmente aqui, igual ao weekKey() real
@@ -59,19 +57,41 @@ const lastWed = new Date(nowWed); lastWed.setDate(lastWed.getDate() - 7);
     return `${dt.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
   }
   const nowKey = isoWeekKey(nowWed);
-  const ajudanteRaw = JSON.parse(kvStore.get('student:vespertino:Ajudante_Souza'));
+  const ajudanteRaw = JSON.parse(kvStore.get(`student:${SHIFT}:Ajudante_Souza`));
   ajudanteRaw.partnerRewards = { [nowKey]: { helper: 3, helped: 0 } };
-  kvStore.set('student:vespertino:Ajudante_Souza', JSON.stringify(ajudanteRaw));
+  kvStore.set(`student:${SHIFT}:Ajudante_Souza`, JSON.stringify(ajudanteRaw));
 
-  const criativoRaw = { name: 'Criativo Alves', shift: 'vespertino', avatar: {}, files: [{ name: 'Program.cs', code: '' }], phase: 'coding', lastSeen: Date.now(), achievements: [], nyxPoints: 10, weeklyChallenge: { weekKey: nowKey, status: 'done' } };
-  kvStore.set('student:vespertino:Criativo_Alves', JSON.stringify(criativoRaw));
+  const criativoRaw = { name: 'Criativo Alves', shift: SHIFT, avatar: {}, files: [{ name: 'Program.cs', code: '' }], phase: 'coding', lastSeen: Date.now(), achievements: [], nyxPoints: 10, weeklyChallenge: { weekKey: nowKey, status: 'done' } };
+  kvStore.set(`student:${SHIFT}:Criativo_Alves`, JSON.stringify(criativoRaw));
 
-  await loginNewStudent(page, 'Espectador Teste');
-  // dá 1 erro pro próprio observador hoje, pra não empatar com "Organizado Lima" (0 erros) e deixar
-  // o teste de "código mais organizado" sem ambiguidade de critério de desempate
-  const obsRaw = JSON.parse(kvStore.get('student:vespertino:Espectador_Teste'));
-  obsRaw.errorHistory = { [dstr(nowWed)]: 3 };
-  kvStore.set('student:vespertino:Espectador_Teste', JSON.stringify(obsRaw));
+  // observador: já existe (não passa pelo onboarding de aluno novo) — 1 erro hoje, pra não empatar
+  // com "Organizado Lima" (0 erros) e deixar o teste de "código mais organizado" sem ambiguidade
+  kvStore.set(`student:${SHIFT}:Espectador_Teste`, JSON.stringify({
+    name: 'Espectador Teste', shift: SHIFT, avatar: {}, files: [{ name: 'Program.cs', code: '' }],
+    phase: 'coding', lastSeen: Date.now(), achievements: [], nyxPoints: 10,
+    errorHistory: { [dstr(nowWed)]: 3 },
+  }));
+
+  const browser = await launchBrowser();
+  const ctx = await browser.newContext({ viewport: { width: 900, height: 900 } });
+  const page = await ctx.newPage();
+  await mockRoutes(page, kvStore);
+
+  await page.goto('http://localhost:4173/', { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(700);
+  await page.click('text=Aluno');
+  await page.waitForTimeout(500);
+  await page.click('text=☀️ Matutino');
+  await page.waitForTimeout(500);
+  await page.waitForSelector('text=Espectador Teste', { timeout: 10000 });
+  await page.click('text=Espectador Teste');
+  await page.waitForTimeout(1200);
+  for (let i = 0; i < 5; i++) {
+    const skipCheckin = page.locator('button:has-text("Pular hoje")');
+    if (await skipCheckin.count()) { await skipCheckin.click(); await page.waitForTimeout(300); }
+    else break;
+  }
+
   await page.click('text=📊 Ranking da turma');
   await page.waitForTimeout(1500);
   const bodyText = await page.locator('body').innerText();

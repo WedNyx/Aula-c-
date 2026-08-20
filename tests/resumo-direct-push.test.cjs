@@ -47,9 +47,12 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await loginTeacher(pageT);
   await pageT.click('text=👨‍💻 Meu código');
   await pageT.waitForTimeout(800);
-  await pageT.locator('[data-tour-prof="resumo-ritmo"]').locator('button:has-text("Gerar e liberar resumo pra turma")').click();
+  const ritmoCardT = pageT.locator('[data-tour-prof="resumo-ritmo"]');
+  await ritmoCardT.locator('button:has-text("Gerar resumo")').click();
   await pageT.waitForTimeout(1200);
-  check('Mensagem confirma envio direto pro Caderno', (await pageT.locator('text=/enviado direto pro Caderno de resumos de 1 aluno/').count()) > 0);
+  await ritmoCardT.locator('button:has-text("Enviar pra turma toda")').click();
+  await pageT.waitForTimeout(1200);
+  check('Mensagem confirma envio direto pro Caderno', (await pageT.locator('text=/Resumo enviado pro Caderno de 1 aluno/').count()) > 0);
   check('SEM erro de JS (professor)', jsErrorsT.length === 0, jsErrorsT.slice(0, 3).join(' | '));
 
   const fixSaved = JSON.parse(kvStore.get('scorefix:matutino:AlunoSemCodigoAinda') || 'null');

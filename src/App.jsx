@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -27,7 +27,7 @@ import { STUDY_LANGUAGES, langById, reviewChecklistFor, buildPreviewDoc, otherFi
 import { BRACKET_COLORS, highlight, highlightCSharp, highlightJS, highlightPHP, highlightCSS, highlightHTML } from "./lib/highlight.jsx";
 import { ANALYZE_PROVIDERS, PARTNER_REWARD_HELPER, PARTNER_REWARD_HELPED, PARTNER_WEEKLY_CAP, isOffline, isNetworkError, askClaude, extractJson, askClaudeJson, buildSummaryRequest, buildContinuationSummaryRequest, mergeSummaryContinuation, recentDifficultyHint, adaptiveDifficultyTier } from "./lib/ai.js";
 import { requestFS, goFullscreen, todayKey, weekKey, dateKeyOf, hmToMin, nowMin, classStatus } from "./lib/schedule.ts";
-import { SHIFTS, TEST_SHIFT, LANG_SHIFT, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName, DEFAULT_TURMAS, TURMA_COLORS, turmaCalendar, withTurmaCalendar, isResumoDay } from "./lib/shifts.ts";
+import { SHIFTS, TEST_SHIFT, LANG_SHIFT, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName, DEFAULT_TURMAS, TURMA_COLORS, turmaCalendar, withTurmaCalendar } from "./lib/shifts.ts";
 import { Login } from "./components/LoginScreen.jsx";
 import { ImpactPage, PortfolioPage } from "./components/PublicPages.jsx";
 import { generateDuelQuestions, generateKnowledgeTestQuestions, generateFreeBuildPlan } from "./lib/aiChallenges.js";
@@ -1510,12 +1510,22 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         } else if (fix && fix.kind === "resumo-broadcast" && fix.dateKey && fix.resumo) {
           // professor gerou o resumo da aula no próprio painel e mandou pronto — entra direto no
           // Caderno de resumos, não importa em que fase o aluno está agora (aplica no estado local
-          // antes que o autosave periódico regrave o registro sem esse resumo)
+          // antes que o autosave periódico regrave o registro sem esse resumo). SÓ escreve se: (1)
+          // ainda não existir nada pra esse dia (não sobrescreve trabalho já feito, ex: uma ponte
+          // que o handleSave já montou), e (2) o aluno não tiver uma PONTE pendente (resumo de um
+          // dia anterior ainda sem o de hoje) — quem faltou aula precisa do catch-up personalizado
+          // que só o handleSave sabe montar; nesse caso só limpa a flag e deixa o fluxo normal
+          // (resumoAutoSave, que já está de olho no mesmo gatilho) cuidar disso corretamente.
           const cur = stateRef.current.summaryHistory || {};
-          const nextHistory = { ...cur, [fix.dateKey]: fix.resumo };
-          setSummaryHistory(nextHistory);
+          const already = cur[fix.dateKey];
+          const jaTemConteudo = already && typeof already === "object" && Array.isArray(already.secoes) && already.secoes.length > 0;
+          const temPonteAntiga = !jaTemConteudo && Object.keys(cur).some(d => d !== fix.dateKey && cur[d] && typeof cur[d] === "object" && Array.isArray(cur[d].secoes) && cur[d].secoes.length > 0);
+          if (!jaTemConteudo && !temPonteAntiga) {
+            const nextHistory = { ...cur, [fix.dateKey]: fix.resumo };
+            setSummaryHistory(nextHistory);
+            await persist({ summaryHistory: nextHistory });
+          }
           await clearScoreFix(shift, studentName);
-          await persist({ summaryHistory: nextHistory });
         } else if (fix && fix.kind === "boss-bonus" && typeof fix.amount === "number") {
           // 👾 bônus de pontos por ter causado dano no chefão quando ele foi derrotado
           const np = (stateRef.current.nyxPoints || 0) + fix.amount;
@@ -4324,6 +4334,11 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [resumoTriggerBusy, setResumoTriggerBusy] = useState(false);
   const [resumoTriggerMsg, setResumoTriggerMsg] = useState("");
   const [resumoTriggeredToday, setResumoTriggeredToday] = useState({});
+  // 📒 caderno de resumos DO PROFESSOR (por turma selecionada em "Meu código"): guarda os resumos
+  // já gerados antes de decidir mandar pra turma — dá pra revisar antes de enviar
+  const [teacherResumoHistory, setTeacherResumoHistory] = useState({});
+  const [showTeacherNotebook, setShowTeacherNotebook] = useState(false);
+  const [resumoSendBusy, setResumoSendBusy] = useState(false);
   const [autoNameMsg, setAutoNameMsg] = useState("");
   const autoNameTriedRef = useRef({});
   // 🏆 fila de revelações de ranking pendentes (uma por turma que terminou a atividade hoje) —
@@ -5055,61 +5070,90 @@ function TeacherView({ onLogout, teacherAuth }) {
     setTimeout(()=>setNameMsg(""), 7000);
   };
 
-  // 📚 ritmo do resumo (aba "Meu código"): salva a cada quantos dias de código a turma tem 1 dia
-  // de resumo (0 = sem ritmo, código e resumo podem acontecer no mesmo dia quando o professor quiser)
-  const saveResumoCadence = async (turmaId, value) => {
-    const n = Math.max(0, parseInt(value, 10) || 0);
-    const nm = withTurmaCalendar(metaRef.current, turmaId, { resumoCadence: n });
-    metaRef.current = nm; setMeta(nm);
-    await saveTeacherMeta(nm, teacherAuth);
-  };
-  // busca se a turma selecionada em "Meu código" já teve o resumo de hoje liberado — só pra mostrar
-  // o status certo (evita o professor achar que precisa clicar de novo)
+  // busca se a turma selecionada em "Meu código" já teve o resumo de hoje enviado pra turma — só
+  // pra mostrar o status certo (evita o professor achar que precisa clicar de novo) — e carrega o
+  // caderno de resumos DELE (histórico de resumos já gerados nessa turma, por dia)
   useEffect(() => {
     let active = true;
     getResumoTrigger(codeShift).then(v => { if (active) setResumoTriggeredToday(t => ({ ...t, [codeShift]: v?.date === todayKey() })); });
+    getTeacherResumoHistory(codeShift).then(h => { if (active) setTeacherResumoHistory(h || {}); });
     return () => { active = false; };
   }, [codeShift]);
-  // 📚 libera o resumo da turma HOJE: gera o resumo UMA VEZ a partir do código que O PROFESSOR
-  // passou pra essa turma (os alunos só copiam esse mesmo código, não faz sentido pedir pro Nyx
-  // resumir de novo pra cada um) e, assim que fica pronto, manda DIRETO pro Caderno de resumos de
-  // TODO aluno da turma — não importa a fase dele agora nem se está online: quem estiver conectado
-  // aplica na hora (via scoreFix, mesmo mecanismo já usado pra nota corrigida/presença corrigida
-  // etc. — evita que o autosave periódico do aluno sobrescreva por cima); quem estiver offline
-  // recebe assim que abrir o app de novo, com a data certa (o gatilho carrega o dateKey de hoje).
-  // Quem faltou aula continua ADICIONALMENTE gerando um resumo próprio quando finaliza a aula
-  // (handleSave cuida disso), cobrindo só o que ficou pendente — isso não dá pra compartilhar, e
-  // não conflita: o resumo de hoje já foi entregue, a ponte é sobre os dias anteriores perdidos.
-  const liberarResumoHoje = async (turmaId) => {
+  // 📚 gera o resumo de hoje a partir do código que O PROFESSOR passou pra essa turma (os alunos só
+  // copiam esse mesmo código, não faz sentido pedir pro Nyx resumir de novo pra cada um) e guarda
+  // no CADERNO DO PROFESSOR — não vai pra nenhum aluno ainda. Dá pra revisar antes de enviar (ver
+  // enviarResumoParaTurma/enviarResumoParaAluno).
+  const gerarResumoHoje = async (turmaId) => {
     setResumoTriggerBusy(true); setResumoTriggerMsg("📚 Gerando o resumo da aula...");
     try {
       const teacherCode = await getTeacherCode(turmaId);
       const code = (teacherCode?.files || []).filter(f => (f.code||"").trim()).map(f => f.code || "").join("\n");
-      let resumo = null;
-      if (code.trim().length >= 10) {
-        const { prompt, system } = buildSummaryRequest("simples", false, code, code, null, null);
-        try { resumo = await askClaudeJson(prompt, system); } catch { resumo = null; }
-      }
-      const ok = await setResumoTrigger(turmaId, todayKey(), teacherAuth, resumo);
-      let turmaCount = 0;
-      if (ok && resumo && Array.isArray(resumo.secoes)) {
-        const turmaStudents = students.filter(s => (s.shift || "sem-turno") === turmaId);
-        turmaCount = turmaStudents.length;
-        await Promise.all(turmaStudents.map(s => setScoreFix(s.shift, s.name, { kind: "resumo-broadcast", dateKey: todayKey(), resumo }, teacherAuth)));
-      }
-      if (ok) {
-        setResumoTriggeredToday(t => ({ ...t, [turmaId]: true }));
-        setResumoTriggerMsg(resumo
-          ? `✅ Resumo gerado e enviado direto pro Caderno de resumos de ${turmaCount} aluno${turmaCount===1?"":"s"} da turma ${shiftMeta(turmaId, turmas).label}!`
-          : `✅ Resumo liberado pra turma ${shiftMeta(turmaId, turmas).label}! Não achei código seu salvo pra essa turma pra gerar um resumo pronto, então cada aluno vai gerar o próprio, como antes.`);
+      if (code.trim().length < 10) {
+        setResumoTriggerMsg("❌ Não achei código seu salvo pra essa turma. Passe o código na aba \"Meu código\" antes de gerar o resumo.");
       } else {
-        setResumoTriggerMsg("❌ Não consegui liberar o resumo agora. Tente de novo em instantes.");
+        const { prompt, system } = buildSummaryRequest("simples", false, code, code, null, null);
+        let resumo = null;
+        try { resumo = await askClaudeJson(prompt, system); } catch { resumo = null; }
+        if (resumo && Array.isArray(resumo.secoes)) {
+          const nextHistory = { ...teacherResumoHistory, [todayKey()]: resumo };
+          const ok = await saveTeacherResumoHistory(turmaId, nextHistory, teacherAuth);
+          if (ok) {
+            setTeacherResumoHistory(nextHistory);
+            setResumoTriggerMsg("✅ Resumo gerado e guardado no seu Caderno! Quando quiser, mande pra turma.");
+          } else {
+            setResumoTriggerMsg("❌ Gerei o resumo mas não consegui guardar no seu Caderno agora. Tente de novo.");
+          }
+        } else {
+          setResumoTriggerMsg("❌ Não consegui gerar o resumo agora. Tente de novo em instantes.");
+        }
       }
     } catch {
       setResumoTriggerMsg("❌ Não consegui gerar o resumo agora. Tente de novo em instantes.");
     }
     setResumoTriggerBusy(false);
     setTimeout(() => setResumoTriggerMsg(""), 8000);
+  };
+  // 📤 manda o resumo de HOJE (já pronto no Caderno do professor) direto pro Caderno de resumos de
+  // TODO aluno da turma — não importa a fase dele agora nem se está online: quem estiver conectado
+  // aplica na hora (via scoreFix, mesmo mecanismo já usado pra nota corrigida/presença corrigida
+  // etc. — evita que o autosave periódico do aluno sobrescreva por cima); quem estiver offline
+  // recebe assim que abrir o app de novo. Também liga o gatilho de "resumo liberado": quem estiver
+  // no meio do código ainda finaliza a aula sozinho e ganha a atividade, reaproveitando esse mesmo
+  // resumo (sem pedir de novo pro Nyx). Quem faltou aula continua ADICIONALMENTE gerando um resumo
+  // próprio quando finaliza (handleSave cuida disso), cobrindo só o que ficou pendente — isso não
+  // dá pra compartilhar, e não conflita: o resumo de hoje já foi entregue.
+  const enviarResumoParaTurma = async (turmaId) => {
+    const resumo = teacherResumoHistory[todayKey()];
+    if (!resumo) return;
+    setResumoSendBusy(true); setResumoTriggerMsg("");
+    try {
+      const ok = await setResumoTrigger(turmaId, todayKey(), teacherAuth, resumo);
+      const turmaStudents = students.filter(s => (s.shift || "sem-turno") === turmaId);
+      await Promise.all(turmaStudents.map(s => setScoreFix(s.shift, s.name, { kind: "resumo-broadcast", dateKey: todayKey(), resumo }, teacherAuth)));
+      if (ok) {
+        setResumoTriggeredToday(t => ({ ...t, [turmaId]: true }));
+        setResumoTriggerMsg(`✅ Resumo enviado pro Caderno de ${turmaStudents.length} aluno${turmaStudents.length===1?"":"s"} da turma ${shiftMeta(turmaId, turmas).label}!`);
+      } else {
+        setResumoTriggerMsg("❌ Não consegui enviar agora. Tente de novo em instantes.");
+      }
+    } catch {
+      setResumoTriggerMsg("❌ Não consegui enviar agora. Tente de novo em instantes.");
+    }
+    setResumoSendBusy(false);
+    setTimeout(() => setResumoTriggerMsg(""), 8000);
+  };
+  // 📤 manda o resumo de HOJE pro Caderno de UM aluno só, escolhido pelo professor (painel "⚙️
+  // Gerenciar aluno") — igual "Enviar código da turma", mas pro resumo. Não liga o gatilho de
+  // "resumo liberado" da turma toda (isso ficaria estranho: mandar pra 1 aluno não deveria puxar
+  // TODOS os outros que estão codando agora pra atividade) — só entrega no Caderno desse aluno.
+  const enviarResumoParaAluno = async (s) => {
+    if (!s) return;
+    const turmaId = s.shift || "sem-turno";
+    const history = turmaId === codeShift ? teacherResumoHistory : await getTeacherResumoHistory(turmaId);
+    const resumo = history[todayKey()];
+    if (!resumo) { flashMgmt("❌ Ainda não tem resumo gerado hoje pra essa turma."); return; }
+    await setScoreFix(s.shift, s.name, { kind: "resumo-broadcast", dateKey: todayKey(), resumo }, teacherAuth);
+    flashMgmt(`✅ Resumo enviado pro Caderno de ${s.name}!`);
   };
 
   // envia um aviso para um aluno específico aparecer na tela dele
@@ -7311,6 +7355,11 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>Manda todos os arquivos da aba "Meu código" (turno {shiftLabel(sel.shift, turmas)}) direto pro editor deste aluno.</span>
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>📚 Resumo:</span>
+                      <button onClick={()=>enviarResumoParaAluno(sel)} style={{ ...styles.btn("#fbbf24"), padding:"6px 14px", fontSize:12.5 }}>Enviar resumo de hoje</button>
+                      <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 200px" }}>Manda o resumo já gerado hoje (turno {shiftLabel(sel.shift, turmas)}) direto pro Caderno de resumos deste aluno.</span>
+                    </div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
                       <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>📄 PDF do dia:</span>
                       <button onClick={()=>{
                         const dayFiles = (proFilesByShift[sel.shift] || []).filter(f => (f.code||"").trim());
@@ -7407,37 +7456,37 @@ function TeacherView({ onLogout, teacherAuth }) {
             </div>
 
             {(() => {
-              const cal = turmaCalendar(meta, codeShift);
-              const hoje = todayKey();
-              const isResumo = isResumoDay(cal.classDays, cal.resumoCadence, hoje);
-              const jaLiberado = !!resumoTriggeredToday[codeShift];
+              const jaEnviado = !!resumoTriggeredToday[codeShift];
+              const resumoHoje = teacherResumoHistory[todayKey()];
               return (
                 <div data-tour-prof="resumo-ritmo" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
                   <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>📚 Resumo da aula — {shiftMeta(codeShift, turmas).label}</h3>
-                  <p style={{ color:"#a99ac9", fontSize:12.5, margin:"4px 0 10px", lineHeight:1.5 }}>Defina o ritmo da turma e, quando for dia de resumo, clique em liberar — todo aluno conectado com código escrito finaliza a aula sozinho (nada de clicar em "Salvar e Finalizar Aula"), na hora ou assim que entrar ainda hoje.</p>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:10 }}>
-                    <span style={{ color:"#a99ac9", fontSize:13 }}>A cada</span>
-                    <input type="number" min={0} value={cal.resumoCadence} onChange={e=>saveResumoCadence(codeShift, e.target.value)}
-                      style={{ width:52, background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"5px 8px", color:"#f0e9fb", fontSize:13, textAlign:"center" }} />
-                    <span style={{ color:"#a99ac9", fontSize:13 }}>{cal.resumoCadence===1 ? "aula de código, 1 de resumo" : "aulas de código, 1 de resumo"}</span>
-                    <span style={{ color:"#776798", fontSize:12 }} title='0 = sem ritmo fixo — código e resumo podem acontecer no mesmo dia, quando você quiser'>{cal.resumoCadence===0 ? "(0 = sem ritmo fixo, decide dia a dia)" : ""}</span>
-                  </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
-                    <span style={styles.badge(cal.resumoCadence===0 ? "#a99ac9" : isResumo ? "#c084fc" : "#22d3ee")}>
-                      {cal.resumoCadence===0 ? "🔀 Sem ritmo fixo hoje" : isResumo ? "📚 Hoje é dia de RESUMO" : "💻 Hoje é dia de código"}
-                    </span>
-                    {jaLiberado ? (
-                      <span style={styles.badge("#34d399")}>✅ Resumo já liberado hoje</span>
-                    ) : (
-                      <button onClick={()=>liberarResumoHoje(codeShift)} disabled={resumoTriggerBusy} style={{ ...styles.btn("#c084fc"), padding:"7px 14px", fontSize:12.5, opacity:resumoTriggerBusy?0.6:1 }}>
-                        {resumoTriggerBusy ? "Gerando..." : "📚 Gerar e liberar resumo pra turma"}
-                      </button>
+                  <p style={{ color:"#a99ac9", fontSize:12.5, margin:"4px 0 10px", lineHeight:1.5 }}>Gere o resumo a partir do seu código — ele fica guardado no seu Caderno pra você revisar antes de enviar pra turma.</p>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                    <button onClick={()=>gerarResumoHoje(codeShift)} disabled={resumoTriggerBusy} style={{ ...styles.btn("#c084fc"), padding:"7px 14px", fontSize:12.5, opacity:resumoTriggerBusy?0.6:1 }}>
+                      {resumoTriggerBusy ? "Gerando..." : resumoHoje ? "🔄 Gerar de novo" : "📚 Gerar resumo"}
+                    </button>
+                    <button onClick={()=>setShowTeacherNotebook(true)} style={{ ...styles.btnGhost, padding:"7px 14px", fontSize:12.5 }}>📖 Meu Caderno de resumos</button>
+                    {resumoHoje && (
+                      jaEnviado ? (
+                        <span style={styles.badge("#34d399")}>✅ Já enviado pra turma hoje</span>
+                      ) : (
+                        <button onClick={()=>enviarResumoParaTurma(codeShift)} disabled={resumoSendBusy} style={{ ...styles.btn("#22d3ee"), padding:"7px 14px", fontSize:12.5, opacity:resumoSendBusy?0.6:1 }}>
+                          {resumoSendBusy ? "Enviando..." : "📤 Enviar pra turma toda"}
+                        </button>
+                      )
                     )}
                   </div>
+                  {resumoHoje && (
+                    <p style={{ color:"#a99ac9", fontSize:12, margin:"8px 0 0", lineHeight:1.5 }}>
+                      📄 Resumo de hoje: {resumoHoje.secoes?.length || 0} conceito{resumoHoje.secoes?.length===1?"":"s"} — {(resumoHoje.secoes||[]).map(s=>s.titulo).filter(Boolean).join(", ") || "—"}
+                    </p>
+                  )}
                   {resumoTriggerMsg && <p style={{ color:resumoTriggerMsg.startsWith("✅")?"#34d399":"#f87171", fontSize:12.5, margin:"8px 0 0", lineHeight:1.5 }}>{resumoTriggerMsg}</p>}
                 </div>
               );
             })()}
+            {showTeacherNotebook && <NotebookModal history={teacherResumoHistory} detailedHistory={null} onClose={()=>setShowTeacherNotebook(false)} />}
 
             <div data-tour-prof="analise-nyx" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
               <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>✨ Análise de código do Nyx</h3>

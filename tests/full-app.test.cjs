@@ -50,6 +50,9 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, lo
     try { const obj = JSON.parse(v); if (obj.name === 'Fulano Teste') { studentShift = obj.shift; break; } } catch {}
   }
   check('Achou a turma do aluno no banco', !!studentShift, studentShift);
+  // o resumo agora é gerado a partir do código QUE O PROFESSOR passou pra turma, não do aluno —
+  // sem isso, "Gerar resumo" não teria o que resumir
+  kvStore.set(`teachercode:${studentShift}`, JSON.stringify({ files: [{ name: 'Program.cs', code: 'Console.WriteLine("Ola mundo");' }], at: Date.now() }));
 
   const ctxP = await browser.newContext({ viewport: { width: 1400, height: 950 } });
   const p = await ctxP.newPage();
@@ -60,7 +63,10 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, lo
   const turmaLabel = studentShift === 'vespertino' ? '🌙 Vespertino' : '☀️ Matutino';
   const turmaBtn = p.locator(`button:has-text("${turmaLabel}")`).first();
   if (await turmaBtn.count()) { await turmaBtn.click(); await p.waitForTimeout(300); }
-  await p.locator('[data-tour-prof="resumo-ritmo"]').locator('button:has-text("Gerar e liberar resumo pra turma")').click();
+  const ritmoCardP = p.locator('[data-tour-prof="resumo-ritmo"]');
+  await ritmoCardP.locator('button:has-text("Gerar resumo")').click();
+  await p.waitForTimeout(1200);
+  await ritmoCardP.locator('button:has-text("Enviar pra turma toda")').click();
   await p.waitForTimeout(600);
   check('Professor liberou o resumo sem erro de JS', errP.length === 0, errP.slice(0, 3).join(' | '));
 
