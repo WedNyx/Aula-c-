@@ -26,7 +26,7 @@ const { launchBrowser, mockRoutes, baseKvStore, loginNewStudent, check, summary 
     const items = Array.from(document.querySelectorAll('[data-item]'));
     return items.map(el => el.getAttribute('data-item'));
   });
-  check('Loja lista os 45 itens não-secretos (mesmo total de sempre, nada sumiu na reorganização)', grouping.length === 45, `total=${grouping.length}`);
+  check('Loja lista os 51 itens não-secretos (mesmo total de sempre, nada sumiu na reorganização)', grouping.length === 51, `total=${grouping.length}`);
   check('Item "arco" (era slot hand) está listado', grouping.includes('arco'));
   check('Item "escudo" (era slot shield) está listado', grouping.includes('escudo'));
   check('Item "fone" (slot head) está listado', grouping.includes('fone'));

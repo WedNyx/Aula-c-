@@ -12,6 +12,7 @@ const SLOT_SECTIONS = [
   { slot: "neck",   label: "🧣 Pescoço" },
   { slot: "hand",   label: "🌌 Órbita" },
   { slot: "shield", label: "🛡️ Escudo Orbital" },
+  { slot: "costas", label: "🦸 Costas" },
 ];
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -13,7 +13,7 @@ import gsap from "gsap";
 // ao redor de si, não que segura com as mãos).
 let __npoSeq = 0;
 export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, gear }) {
-  const G = { head: null, face: null, neck: null, hand: null, shield: null, ...(gear || {}) };
+  const G = { head: null, face: null, neck: null, hand: null, shield: null, costas: null, ...(gear || {}) };
   const idRef = useRef(null);
   if (idRef.current === null) idRef.current = ++__npoSeq;
   const uid = "npo" + idRef.current;
@@ -88,6 +88,14 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
           </radialGradient>
           <filter id={uid + "glow"} x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
           <filter id={uid + "soft"} x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" /></filter>
+          <linearGradient id={uid + "matGold"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#fff6d0"/><stop offset=".4" stopColor="#ffd873"/><stop offset=".75" stopColor="#c8960a"/><stop offset="1" stopColor="#7a5a06"/></linearGradient>
+          <linearGradient id={uid + "matBronze"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#ffd9a8"/><stop offset=".5" stopColor="#cd7f32"/><stop offset="1" stopColor="#7a4a1a"/></linearGradient>
+          <linearGradient id={uid + "matAmber"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fff2c4"/><stop offset=".5" stopColor="#ffb020"/><stop offset="1" stopColor="#b3690a"/></linearGradient>
+          <radialGradient id={uid + "matRuby"} cx="32%" cy="26%"><stop stopColor="#ffd7e2"/><stop offset=".4" stopColor="#ff4d7e"/><stop offset="1" stopColor="#7a0a34"/></radialGradient>
+          <linearGradient id={uid + "matLeather"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#b3805c"/><stop offset=".55" stopColor="#7a4a2c"/><stop offset="1" stopColor="#432712"/></linearGradient>
+          <linearGradient id={uid + "matCapeRed"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#ff8a8a"/><stop offset=".5" stopColor="#d62828"/><stop offset="1" stopColor="#6e0f0f"/></linearGradient>
+          <linearGradient id={uid + "matSteel"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#eef2f7"/><stop offset=".5" stopColor="#9aa7b8"/><stop offset="1" stopColor="#4b5563"/></linearGradient>
+          <linearGradient id={uid + "matSteelDark"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#5b6577"/><stop offset="1" stopColor="#232833"/></linearGradient>
         </defs>
 
         <ellipse cx="180" cy="374" rx="90" ry="15" fill="#000" opacity=".55" filter={`url(#${uid}soft)`} />
@@ -111,6 +119,9 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
 
         {/* cauda de energia */}
         <path d="M132 306c-69 8-98 65-51 64 38-1 39-42 12-38 21-25 56-11 67 7" fill="none" stroke={`url(#${uid}prism)`} strokeWidth="19" strokeLinecap="round" opacity=".66" filter={`url(#${uid}glow)`} style={{ transformOrigin: "132px 306px", animation: "npo-tail-sway 4.2s ease-in-out infinite" }} />
+
+        {/* costas — renderiza atrás do corpo, como uma capa */}
+        {G.costas === "capaHeroi" && <NpoCapaHeroi uid={uid} />}
 
         {/* corpo e pernas */}
         <path ref={legsRef} d="M132 263c-42 7-49 46-29 59 13 8 26-5 34-25M228 263c42 7 49 46 29 59-13 8-26-5-34-25" fill="none" strokeWidth="28" strokeLinecap="round" />
@@ -144,6 +155,8 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
             {G.head === "foneDJ" && <NpoFoneDJ uid={uid} />}
             {G.head === "chapeuMago" && <NpoChapeuMago uid={uid} />}
             {G.head === "capelo" && <NpoCapelo uid={uid} />}
+            {G.head === "coroaPrismatica" && <NpoCoroaPrismatica uid={uid} />}
+            {G.head === "haloOrbital" && <NpoHaloOrbital uid={uid} />}
           </>
         )}
 
@@ -164,6 +177,7 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
         {G.neck === "medalha" && <NpoMedalha uid={uid} />}
         {G.neck === "golaSocial" && <NpoGolaSocial />}
         {G.neck === "colarHavaiano" && <NpoColarHavaiano />}
+        {G.neck === "golaNucleo" && <NpoGolaNucleo uid={uid} />}
 
         {/* visor + olhos por estado */}
         <rect x="92" y="93" width="176" height="101" rx="45" fill={`url(#${uid}visor)`} stroke="#19162c" strokeWidth="6" />
@@ -218,6 +232,8 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
         {G.face === "oculos3d" && <NpoOculos3d />}
         {G.face === "monoculo" && <NpoMonoculo />}
         {G.face === "mascaraHeroi" && <NpoMascaraHeroi uid={uid} />}
+        {G.face === "viseiraHolografica" && <NpoViseiraHolografica uid={uid} />}
+        {G.face === "brincosCristal" && <NpoBrincosCristal uid={uid} />}
 
         {/* capa Espartana (atrás do cristal e dos itens levitantes) */}
         {isSpartan && (
@@ -288,149 +304,71 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
 // ── acessórios: cabeça ──
 function NpoFone({ uid, P }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "fone"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#3a4152" /><stop offset="1" stopColor="#181b24" /></linearGradient></defs>
-      <path d="M70 112 Q180 12 290 112" stroke="#14161e" strokeWidth="16" fill="none" strokeLinecap="round" />
-      <path d="M70 112 Q180 12 290 112" stroke="#454e63" strokeWidth="6" fill="none" strokeLinecap="round" opacity=".7" />
-      <rect x="46" y="92" width="46" height="62" rx="20" fill={`url(#${uid}fone)`} stroke="#0e0f14" strokeWidth="2" />
-      <rect x="56" y="102" width="26" height="42" rx="13" fill={P.main} />
-      <rect x="268" y="92" width="46" height="62" rx="20" fill={`url(#${uid}fone)`} stroke="#0e0f14" strokeWidth="2" />
-      <rect x="278" y="102" width="26" height="42" rx="13" fill={P.main} />
-    </g>
+    <g><path d="M91 105Q97 52 144 43M269 105Q263 52 216 43" fill="none" stroke="#2b2544" strokeWidth="10"/><rect x="72" y="104" width="28" height="58" rx="12" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><rect x="260" y="104" width="28" height="58" rx="12" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M79 116h14M267 116h14" stroke="#68e8ff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="86" cy="144" r="6" fill={`url(#${uid}crystal)`}/><circle cx="274" cy="144" r="6" fill={`url(#${uid}crystal)`}/></g>
   );
 }
 function NpoChapeu({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "chapeu"} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#241c3c" /><stop offset=".5" stopColor="#372b5c" /><stop offset="1" stopColor="#241c3c" /></linearGradient></defs>
-      <ellipse cx="180" cy="60" rx="70" ry="13" fill="#12102080" />
-      <ellipse cx="180" cy="58" rx="70" ry="13" fill={`url(#${uid}chapeu)`} stroke="#8b83b0" strokeWidth="2.5" />
-      <path d="M140 58 L144 6 Q180 -6 216 6 L220 58 Z" fill={`url(#${uid}chapeu)`} stroke="#8b83b0" strokeWidth="2.5" />
-      <ellipse cx="180" cy="8" rx="38" ry="8" fill="#4a3d78" />
-      <rect x="142" y="35" width="76" height="15" fill="#7565de" />
-      <rect x="142" y="35" width="76" height="5" fill="#ffffff" opacity=".25" />
-    </g>
+    <g><ellipse cx="180" cy="76" rx="92" ry="17" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M124 75 133 10h94l9 65z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M130 51h100v22H130z" fill={`url(#${uid}prism)`}/><path d="M146 25q34-15 68 0" fill="none" stroke="#fff" strokeWidth="4" opacity=".1"/></g>
   );
 }
 function NpoCoroa({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "coroa"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fde68a" /><stop offset=".55" stopColor="#fbbf24" /><stop offset="1" stopColor="#d99b0d" /></linearGradient></defs>
-      <path d="M118 58 L118 20 L146 40 L180 6 L214 40 L242 20 L242 58 Z" fill={`url(#${uid}coroa)`} stroke="#a9720a" strokeWidth="3.5" />
-      <rect x="118" y="50" width="124" height="15" rx="6" fill={`url(#${uid}coroa)`} stroke="#a9720a" strokeWidth="2.5" />
-      <rect x="118" y="50" width="124" height="5" rx="2" fill="#fff7d6" opacity=".5" />
-      <circle cx="180" cy="24" r="7" fill="#ef4444" stroke="#7a1010" strokeWidth="2" />
-      <circle cx="146" cy="42" r="5" fill="#22d3ee" stroke="#0e7490" strokeWidth="1.5" />
-      <circle cx="214" cy="42" r="5" fill="#22d3ee" stroke="#0e7490" strokeWidth="1.5" />
-    </g>
+    <g><path d="M111 77 124 25l31 28 25-45 25 45 31-28 13 52z" fill="#ffd86a" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M113 73h134v18H113z" fill={`url(#${uid}prism)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="180" cy="22" r="8" fill={`url(#${uid}crystal)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="130" cy="40" r="5" fill="#68e8ff"/><circle cx="230" cy="40" r="5" fill="#efa5ff"/></g>
   );
 }
 function NpoChapeuPirata({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "pirata"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#332720" /><stop offset="1" stopColor="#161009" /></linearGradient></defs>
-      <path d="M92 62 Q180 -4 268 62 Q244 84 180 76 Q116 84 92 62 Z" fill={`url(#${uid}pirata)`} stroke="#000" strokeWidth="2.5" />
-      <circle cx="180" cy="38" r="10" fill="#f1f2f4" stroke="#111" strokeWidth="1.5" />
-      <path d="M172 36 L180 48 L188 36" stroke="#111" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-    </g>
+    <g><path d="M96 79q20-63 83-55 64-10 86 55-46-18-84-8-39-10-85 8z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M111 77q67-23 138 0" fill="none" stroke="#d6c8ff" strokeWidth="9"/><path d="M180 41l8 12 14 3-10 10 2 14-14-7-14 7 2-14-10-10 14-3z" fill="#faf7ff"/><path d="M166 48l28 28M194 48l-28 28" stroke="#13101f" strokeWidth="3"/></g>
   );
 }
 function NpoOculos() {
   return (
-    <g>
-      <path d="M95 138 L110 138 M250 138 M235 138" stroke="#1f2430" strokeWidth="6" strokeLinecap="round" />
-      <rect x="110" y="122" width="56" height="38" rx="18" fill="#0d0f18" stroke="#2a3040" strokeWidth="4" />
-      <rect x="194" y="122" width="56" height="38" rx="18" fill="#0d0f18" stroke="#2a3040" strokeWidth="4" />
-      <path d="M166 140 Q180 132 194 140" stroke="#2a3040" strokeWidth="6" fill="none" />
-      <path d="M120 133 q11 -9 24 0" stroke="#8be9fd" strokeWidth="4" opacity=".55" fill="none" strokeLinecap="round" />
-      <path d="M204 133 q11 -9 24 0" stroke="#8be9fd" strokeWidth="4" opacity=".55" fill="none" strokeLinecap="round" />
-    </g>
+    <g><path d="M105 126q34-14 67 2l-5 34q-32 25-56-4zM188 128q33-16 67-2l-6 32q-24 29-56 4z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M169 133q11-7 22 0" fill="none" stroke="#cdbfff" strokeWidth="5"/><path d="M117 132q23-10 42 0M199 132q23-10 42 0" stroke="#fff" strokeWidth="3" opacity=".16"/></g>
   );
 }
 function NpoOculosNerd() {
   return (
-    <g>
-      <circle cx="138" cy="140" r="26" fill="#0d0f18" stroke="#1f2430" strokeWidth="6" />
-      <circle cx="222" cy="140" r="26" fill="#0d0f18" stroke="#1f2430" strokeWidth="6" />
-      <path d="M164 140 L196 140" stroke="#1f2430" strokeWidth="6" />
-      <rect x="169" y="134" width="12" height="8" fill="#e5e7eb" opacity=".6" />
-    </g>
+    <g><circle cx="144" cy="145" r="37" fill="none" stroke="#211a37" strokeWidth="7"/><circle cx="216" cy="145" r="37" fill="none" stroke="#211a37" strokeWidth="7"/><path d="M181 143h-2M107 136 92 129M253 136l15-7" stroke="#211a37" strokeWidth="7" strokeLinecap="round"/></g>
   );
 }
 
 // ── acessórios: pescoço (na costura cabeça/corpo) ──
 function NpoLaco({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "laco"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#f9a8d4" /><stop offset="1" stopColor="#db2777" /></linearGradient></defs>
-      <path d="M180 214 Q160 200 150 206 Q145 212 150 220 Q160 228 180 214 Z" fill={`url(#${uid}laco)`} stroke="#a8135c" strokeWidth="2" />
-      <path d="M180 214 Q200 200 210 206 Q215 212 210 220 Q200 228 180 214 Z" fill={`url(#${uid}laco)`} stroke="#a8135c" strokeWidth="2" />
-      <circle cx="180" cy="214" r="7" fill="#db2777" stroke="#a8135c" strokeWidth="1.5" />
-    </g>
+    <g><path d="M180 222q-35-15-54 5 7 32 44 31zM180 222q35-15 54 5-7 32-44 31z" fill="#efa5ff" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="180" cy="234" r="12" fill={`url(#${uid}crystal)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="m173 245-14 33 21-11 21 11-14-33" fill="#efa5ff" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
-function NpoGravata() {
+function NpoGravata({ uid }) {
   return (
-    <g>
-      <path d="M180 214 Q164 202 156 208 Q152 214 156 220 Q164 226 180 214 Z" fill="#1f2430" stroke="#0b0e1d" strokeWidth="2" />
-      <path d="M180 214 Q196 202 204 208 Q208 214 204 220 Q196 226 180 214 Z" fill="#1f2430" stroke="#0b0e1d" strokeWidth="2" />
-      <rect x="173" y="208" width="14" height="14" rx="3" fill="#ef4444" stroke="#7f1d1d" strokeWidth="1.5" />
-    </g>
+    <g><path d="m179 239-37-17-10 33 36 14zM181 239l37-17 10 33-36 14z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="180" cy="247" r="12" fill={`url(#${uid}prism)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoCachecol({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "cach"} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#fda4af" /><stop offset="1" stopColor="#e11d48" /></linearGradient></defs>
-      <rect x="140" y="204" width="80" height="20" rx="8" fill={`url(#${uid}cach)`} stroke="#9f1239" strokeWidth="2" />
-      <rect x="158" y="220" width="16" height="34" rx="4" fill={`url(#${uid}cach)`} stroke="#9f1239" strokeWidth="2" />
-    </g>
+    <g><path d="M126 217q54 26 108 0l-1 34q-53 20-106 0z" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M215 242q24 24 18 62l-27-13 7-22-17-17z" fill={`url(#${uid}prism)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M137 228q43 13 86 0" stroke="#fff" strokeWidth="3" opacity=".22"/></g>
   );
 }
 function NpoColarDev() {
   return (
-    <g>
-      <path d="M148 212 Q180 232 212 212" fill="none" stroke="#3b2a58" strokeWidth="5" strokeLinecap="round" />
-      <rect x="164" y="222" width="32" height="16" rx="4" fill="#171026" stroke="#c084fc" strokeWidth="2" />
-      <text x="180" y="234" fontSize="11" fill="#c084fc" textAnchor="middle" fontFamily="monospace" fontWeight="700">{"</>"}</text>
-    </g>
+    <g><path d="M138 217q42 25 84 0" fill="none" stroke="#cdbfff" strokeWidth="5"/><rect x="151" y="231" width="58" height="37" rx="8" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><text x="180" y="255" fill="#68e8ff" textAnchor="middle" fontSize="18" fontFamily="monospace" fontWeight="700">&lt;/&gt;</text></g>
   );
 }
 function NpoMedalha() {
   return (
-    <g>
-      <path d="M155 210 L180 226 L205 210" fill="none" stroke="#c084fc" strokeWidth="5" strokeLinecap="round" />
-      <circle cx="180" cy="236" r="13" fill="#fbbf24" stroke="#a16207" strokeWidth="2.5" />
-      <circle cx="180" cy="236" r="7" fill="#fde68a" />
-    </g>
+    <g><path d="M146 219 180 257 214 219" fill="none" stroke="url(#prism)" strokeWidth="10"/><circle cx="180" cy="270" r="24" fill="#ffd86a" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="m180 255 5 10 11 2-8 8 2 11-10-5-10 5 2-11-8-8 11-2z" fill="#faf7ff"/></g>
   );
 }
 
 // ── itens levitantes (hand/shield) — flutuam ao lado do corpo, sem braço ──
 function NpoEscudo({ uid }) {
   return (
-    <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite .4s" }}>
-      <defs><linearGradient id={uid + "escudo"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#e2e8f0" /><stop offset=".5" stopColor="#94a3b8" /><stop offset="1" stopColor="#5c6b81" /></linearGradient></defs>
-      <path d="M50 254 Q50 240 90 232 Q130 240 130 254 L130 292 Q130 322 90 340 Q50 322 50 292 Z" fill={`url(#${uid}escudo)`} stroke="#3f4b5c" strokeWidth="4" />
-      <path d="M90 250 L102 274 L90 306 L78 274 Z" fill="#7565de" stroke="#35296e" strokeWidth="2.5" />
-    </g>
+    <g><path d="M38 259q40-21 80 0v51q-7 42-40 58-33-16-40-58z" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M78 267v83M49 292h58" stroke="#68e8ff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" opacity=".75"/><path d="m78 279 9 17 19 3-14 13 4 19-18-9-17 9 3-19-13-13 18-3z" fill="none" stroke="#fff" strokeWidth="2" opacity=".3"/></g>
   );
 }
 function NpoEspada({ uid }) {
   return (
-    <g transform="translate(322,300) rotate(10)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <defs>
-          <linearGradient id={uid + "lamina"} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#f8fafc" /><stop offset=".5" stopColor="#e2e8f0" /><stop offset="1" stopColor="#94a3b8" /></linearGradient>
-          <linearGradient id={uid + "cabo"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a06617" /><stop offset="1" stopColor="#5c3a0d" /></linearGradient>
-        </defs>
-        <path d="M-6 -70 L6 -70 L6 10 L0 20 L-6 10 Z" fill={`url(#${uid}lamina)`} stroke="#7c8a9c" strokeWidth="2" />
-        <line x1="0" y1="-64" x2="0" y2="6" stroke="#fff" strokeWidth="1.4" opacity=".6" />
-        <path d="M-24 10 Q0 3 24 10 L24 18 Q0 11 -24 18 Z" fill="#eab308" stroke="#8a5f08" strokeWidth="2" />
-        <rect x="-6" y="18" width="12" height="26" rx="4" fill={`url(#${uid}cabo)`} />
-        <circle cx="0" cy="49" r="8" fill="#eab308" stroke="#8a5f08" strokeWidth="2" />
-      </g>
-    </g>
+    <g><path d="M246 318 318 226" stroke="#eef8ff" strokeWidth="11" strokeLinecap="round"/><path d="m318 226 14-17 4 20-15 12z" fill="#68e8ff" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M239 307l27 22" stroke="#ffd86a" strokeWidth="8"/><path d="M248 320l-18 23" stroke="#4c3d78" strokeWidth="10"/><circle cx="244" cy="324" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoElmoEspartano({ uid }) {
@@ -471,223 +409,113 @@ function NpoEspadaEscudoEspartano({ uid }) {
 // ── acessórios: cabeça (lote 2) ──
 function NpoTouca({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "touca"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fda4af" /><stop offset="1" stopColor="#e11d48" /></linearGradient></defs>
-      <path d="M92 60 Q92 4 180 4 Q268 4 268 60 Z" fill={`url(#${uid}touca)`} stroke="#9f1239" strokeWidth="3" />
-      <rect x="86" y="46" width="188" height="20" rx="10" fill="#fecdd3" stroke="#9f1239" strokeWidth="3" />
-      <circle cx="180" cy="4" r="13" fill="#fecdd3" stroke="#9f1239" strokeWidth="3" />
-      <path d="M118 22 Q180 8 242 22" stroke="#fff" strokeWidth="3" opacity=".3" fill="none" />
-    </g>
+    <g><path d="M111 77q6-57 69-58 63 1 69 58z" fill={`url(#${uid}prism)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><rect x="106" y="68" width="148" height="27" rx="13" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="180" cy="16" r="13" fill={`url(#${uid}crystal)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M126 56q54-27 108 0" fill="none" stroke="#fff" strokeWidth="3" opacity=".25"/></g>
   );
 }
 function NpoBone({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "bone"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#60a5fa" /><stop offset="1" stopColor="#1d4ed8" /></linearGradient></defs>
-      <path d="M96 60 Q96 8 180 8 Q264 8 264 60 Z" fill={`url(#${uid}bone)`} stroke="#1e3a8a" strokeWidth="3" />
-      <path d="M180 8 L180 60 M136 12 Q136 38 130 60 M224 12 Q224 38 230 60" stroke="#1e3a8a" strokeWidth="2" opacity=".35" fill="none" />
-      <path d="M246 46 Q296 42 306 62 Q300 74 244 66 Z" fill="#1e40af" stroke="#152a63" strokeWidth="3" />
-      <circle cx="180" cy="10" r="5" fill="#1e3a8a" />
-      <path d="M118 22 Q180 8 242 22" stroke="#fff" strokeWidth="3.5" opacity=".3" fill="none" />
-    </g>
+    <g><path d="M109 77q11-49 71-49 51 1 65 40l-7 20H113z" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M205 72q51-11 78 12-44 18-85 3z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M152 37h56l-8 18h-40z" fill={`url(#${uid}prism)`}/></g>
   );
 }
 function NpoChapeuFesta({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "festa"} x1="0" y1="1" x2="0" y2="0"><stop stopColor="#f472b6" /><stop offset="1" stopColor="#a21caf" /></linearGradient></defs>
-      <path d="M144 60 L180 -30 L216 60 Z" fill={`url(#${uid}festa)`} stroke="#7e22ce" strokeWidth="3" />
-      <circle cx="156" cy="48" r="5" fill="#fde047" /><circle cx="192" cy="34" r="5" fill="#22d3ee" /><circle cx="171" cy="20" r="5" fill="#fde047" />
-      <circle cx="180" cy="-30" r="9" fill="#fde047" stroke="#a16207" strokeWidth="2.5" />
-    </g>
+    <g><path d="M132 77 181 3l48 74z" fill={`url(#${uid}prism)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="181" cy="4" r="10" fill="#ffd86a" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="160" cy="47" r="5" fill="#68e8ff"/><circle cx="195" cy="30" r="5" fill="#efa5ff"/><path d="M142 64 213 37" stroke="#fff" strokeWidth="5" opacity=".45"/></g>
   );
 }
 function NpoBandana() {
   return (
-    <g>
-      <rect x="72" y="48" width="216" height="24" rx="6" fill="#1f2430" stroke="#0b0e1d" strokeWidth="3" />
-      <rect x="72" y="48" width="216" height="7" rx="3" fill="#3a4152" opacity=".6" />
-      <circle cx="180" cy="60" r="7" fill="#94a3b8" stroke="#475569" strokeWidth="2" />
-      <path d="M288 54 Q320 60 310 84 Q298 66 280 66 Z" fill="#1f2430" stroke="#0b0e1d" strokeWidth="2.5" />
-      <path d="M288 63 Q312 76 296 96 Q290 76 274 76 Z" fill="#2b3242" stroke="#0b0e1d" strokeWidth="2.5" />
-    </g>
+    <g><path d="M87 82q93-23 186 0l-6 24q-87-21-174 0z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M145 78h70v27h-70z" fill="#cfd7ea" stroke="#2a2246" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/><path d="M168 84q12-11 24 0-6 12-12 15-6-3-12-15z" fill={`url(#${uid}prism)`} stroke="#2a2246" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/><path d="m269 87 47-27-17 42 35 8-61 14z" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoGorroNatal({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "natal"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#f87171" /><stop offset="1" stopColor="#b91c1c" /></linearGradient></defs>
-      <path d="M96 60 Q100 4 186 -6 Q270 10 258 54 Q180 22 96 60 Z" fill={`url(#${uid}natal)`} stroke="#7f1d1d" strokeWidth="3" />
-      <rect x="90" y="48" width="180" height="20" rx="10" fill="#fff" stroke="#e5e7eb" strokeWidth="2.5" />
-      <circle cx="264" cy="48" r="13" fill="#fff" stroke="#e5e7eb" strokeWidth="2.5" />
-    </g>
+    <g><path d="M104 78q17-53 70-54 57 2 78 44l-15 17z" fill="#d84f70" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M107 74q65-18 138 0" fill="none" stroke="#fff" strokeWidth="20" strokeLinecap="round"/><path d="M238 69q25-8 42 12" fill="none" stroke="#d84f70" strokeWidth="17"/><circle cx="280" cy="81" r="15" fill="#faf7ff" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoOrelhinhas({ uid, P }) {
   return (
-    <g>
-      <path d="M108 66 L96 12 L144 48 Z" fill={P.dark} stroke="#241a4a" strokeWidth="3" />
-      <path d="M114 54 L108 24 L132 42 Z" fill="#f9a8d4" />
-      <path d="M252 66 L264 12 L216 48 Z" fill={P.dark} stroke="#241a4a" strokeWidth="3" />
-      <path d="M246 54 L252 24 L228 42 Z" fill="#f9a8d4" />
-    </g>
+    <g><path d="M105 79 121 22l50 42M255 79 239 22l-50 42" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="m124 39 25 24-30-9zM236 39l-25 24 30-9z" fill="#efa5ff" opacity=".7"/><path d="M128 79q52-18 104 0" fill="none" stroke="#bfaeff" strokeWidth="7"/></g>
   );
 }
 function NpoTiara({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "tiara"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fef9c3" /><stop offset="1" stopColor="#eab308" /></linearGradient></defs>
-      <path d="M114 60 Q180 24 246 60" stroke={`url(#${uid}tiara)`} strokeWidth="7" fill="none" strokeLinecap="round" />
-      <path d="M156 39 L180 12 L204 39" stroke={`url(#${uid}tiara)`} strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="180" cy="18" r="8" fill="#67e8f9" stroke="#0e7490" strokeWidth="2" />
-    </g>
+    <g><path d="M114 80q66-41 132 0" fill="none" stroke="#e6dcff" strokeWidth="8"/><path d="m180 30 16 19-16 20-16-20z" fill={`url(#${uid}crystal)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="m145 48 10 12-10 12-10-12zM215 48l10 12-10 12-10-12z" fill={`url(#${uid}prism)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoCapaceteObra({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "obra"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fde047" /><stop offset="1" stopColor="#ca8a04" /></linearGradient></defs>
-      <path d="M93 58 Q93 6 180 6 Q267 6 267 58 Z" fill={`url(#${uid}obra)`} stroke="#854d0e" strokeWidth="3" />
-      <ellipse cx="180" cy="58" rx="87" ry="12" fill={`url(#${uid}obra)`} stroke="#854d0e" strokeWidth="3" />
-      <rect x="156" y="27" width="48" height="12" rx="6" fill="#fef08a" opacity=".8" />
-    </g>
+    <g><path d="M108 78q7-48 72-51 65 3 72 51z" fill="#f2bd38" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><rect x="96" y="72" width="168" height="22" rx="10" fill="#d99a24" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M180 31v42M145 37l8 36M215 37l-8 36" stroke="#fff1b2" strokeWidth="5" opacity=".65"/></g>
   );
 }
 function NpoFoneDJ({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "foneDJ"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#f0abfc" /><stop offset="1" stopColor="#a21caf" /></linearGradient></defs>
-      <path d="M60 120 Q180 6 300 120" stroke="#0b0e1d" strokeWidth="16" fill="none" strokeLinecap="round" />
-      <rect x="36" y="96" width="50" height="66" rx="22" fill={`url(#${uid}foneDJ)`} stroke="#701a75" strokeWidth="2.5" />
-      <rect x="274" y="96" width="50" height="66" rx="22" fill={`url(#${uid}foneDJ)`} stroke="#701a75" strokeWidth="2.5" />
-      <circle cx="61" cy="129" r="9" fill="#fdf4ff" opacity=".6" /><circle cx="299" cy="129" r="9" fill="#fdf4ff" opacity=".6" />
-    </g>
+    <g><path d="M95 111Q100 47 145 40M265 111Q260 47 215 40" fill="none" stroke="url(#prism)" strokeWidth="12"/><rect x="70" y="104" width="34" height="64" rx="14" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><rect x="256" y="104" width="34" height="64" rx="14" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="87" cy="137" r="11" fill="none" stroke="var(--cyan)" strokeWidth="4"/><circle cx="273" cy="137" r="11" fill="none" stroke="var(--pink)" strokeWidth="4"/></g>
   );
 }
 function NpoChapeuMago({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "mago"} x1="0" y1="1" x2="0" y2="0"><stop stopColor="#818cf8" /><stop offset="1" stopColor="#3730a3" /></linearGradient></defs>
-      <ellipse cx="180" cy="63" rx="78" ry="13" fill={`url(#${uid}mago)`} stroke="#312e81" strokeWidth="3" />
-      <path d="M150 63 Q138 -12 198 -48 Q186 12 210 63 Z" fill={`url(#${uid}mago)`} stroke="#312e81" strokeWidth="3" />
-      <circle cx="189" cy="0" r="4" fill="#fde047" /><circle cx="174" cy="30" r="3" fill="#fde047" />
-      <path d="M198 -48 l3.6 -6.6 l3.6 6.6 l6.6 3.6 l-6.6 3.6 l-3.6 6.6 l-3.6 -6.6 l-6.6 -3.6 Z" fill="#fde047" />
-    </g>
+    <g><path d="M92 83q41-23 75-14L190 0l55 68q29 2 47 15-99 23-200 0z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M168 69 190 0l33 42-30 2z" fill={`url(#${uid}shell)`}/><circle cx="191" cy="27" r="6" fill="#68e8ff" style={{animation:"npo-pulse 2s ease-in-out infinite"}}/><path d="m224 60 5 9 10 2-7 7 2 10-10-5-9 5 2-10-7-7 10-2z" fill="#ffd86a"/></g>
   );
 }
 function NpoCapelo({ uid }) {
   return (
-    <g>
-      <rect x="102" y="45" width="156" height="18" rx="4.5" fill="#1f2430" stroke="#0b0e1d" strokeWidth="3" />
-      <path d="M66 48 L180 12 L294 48 L180 78 Z" fill="#1f2430" stroke="#0b0e1d" strokeWidth="3" />
-      <circle cx="180" cy="42" r="6" fill="#fbbf24" stroke="#a16207" strokeWidth="2" />
-      <path d="M180 42 Q234 54 228 90" stroke="#fbbf24" strokeWidth="4" fill="none" strokeLinecap="round" />
-      <circle cx="228" cy="93" r="8" fill="#fbbf24" stroke="#a16207" strokeWidth="2" />
-    </g>
+    <g><path d="m90 61 90-34 90 34-90 34z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M126 77v23q54 18 108 0V77" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M268 61v49" stroke="#ffd86a" strokeWidth="4"/><circle cx="268" cy="115" r="7" fill="#ffd86a"/></g>
   );
 }
 
 // ── acessórios: rosto (lote 2) ──
 function NpoVendaPirata() {
   return (
-    <g>
-      <path d="M92 108 L268 96" stroke="#1f2430" strokeWidth="6" strokeLinecap="round" />
-      <path d="M92 132 L180 165" stroke="#1f2430" strokeWidth="6" strokeLinecap="round" />
-      <ellipse cx="145" cy="126" rx="32" ry="27" fill="#171026" stroke="#0b0e1d" strokeWidth="4" />
-      <ellipse cx="136" cy="117" rx="9" ry="6" fill="#3b2a58" opacity=".5" />
-    </g>
+    <g><path d="M97 116q84 25 164 0" fill="none" stroke="#211a37" strokeWidth="5"/><path d="M115 122q28-20 57 0v43q-29 21-57 0z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="m132 137 24 20M156 137l-24 20" stroke="#7f6fd6" strokeWidth="3"/></g>
   );
 }
 function NpoOculosAviador() {
   return (
-    <g>
-      <path d="M92 114 L110 114 M250 114 L268 114" stroke="#3a2a12" strokeWidth="7" strokeLinecap="round" />
-      <path d="M110 100 Q140 90 168 108 Q150 144 120 144 Q102 132 110 100 Z" fill="#1a1206" stroke="#7c5a1e" strokeWidth="4" />
-      <path d="M192 108 Q220 90 250 100 Q258 132 240 144 Q210 144 192 108 Z" fill="#1a1206" stroke="#7c5a1e" strokeWidth="4" />
-      <path d="M168 108 Q180 100 192 108" stroke="#7c5a1e" strokeWidth="5" fill="none" />
-      <path d="M118 108 q9 -7.5 21 0" stroke="#fde68a" strokeWidth="3.5" opacity=".5" fill="none" strokeLinecap="round" />
-    </g>
+    <g><path d="M105 127q31-12 62 1l-3 36q-24 24-49 0zM193 128q31-13 62-1l-10 37q-25 24-49 0z" fill="#241f35" fillOpacity=".93" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M166 132q14-8 28 0" fill="none" stroke="#ded4ff" strokeWidth="4"/><path d="M116 133q21-8 39-1M205 132q19-7 39 1" stroke="#68e8ff" strokeWidth="3" opacity=".45"/></g>
   );
 }
 function NpoOculos3d() {
   return (
-    <g>
-      <path d="M92 138 L108 138 M252 138 L268 138" stroke="#e5e7eb" strokeWidth="6" strokeLinecap="round" />
-      <rect x="108" y="122" width="58" height="34" rx="8" fill="#ef4444" opacity=".75" stroke="#fff" strokeWidth="4" />
-      <rect x="194" y="122" width="58" height="34" rx="8" fill="#22d3ee" opacity=".75" stroke="#fff" strokeWidth="4" />
-      <path d="M166 139 L194 139" stroke="#fff" strokeWidth="6" />
-    </g>
+    <g><rect x="105" y="119" width="65" height="51" rx="12" fill="#b64259" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><rect x="190" y="119" width="65" height="51" rx="12" fill="#327bc7" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M170 131h20" stroke="#eee" strokeWidth="6"/><path d="M115 129h45M200 129h45" stroke="#fff" strokeWidth="4" opacity=".18"/></g>
   );
 }
 function NpoMonoculo() {
   return (
-    <g>
-      <circle cx="212" cy="140" r="26" fill="none" stroke="#eab308" strokeWidth="6" />
-      <circle cx="212" cy="140" r="20" fill="#8be9fd" opacity=".15" />
-      <path d="M212 166 Q208 182 188 186" stroke="#eab308" strokeWidth="3.5" fill="none" strokeLinecap="round" />
-      <circle cx="228" cy="126" r="4" fill="#fff" opacity=".7" />
-    </g>
+    <g><circle cx="216" cy="143" r="39" fill="none" stroke="#ffd86a" strokeWidth="5"/><path d="M246 169q10 35 0 58" fill="none" stroke="#ffd86a" strokeWidth="3"/><circle cx="246" cy="228" r="4" fill="#ffd86a"/><path d="M204 126q15-7 25 0" stroke="#fff" strokeWidth="3" opacity=".28"/></g>
   );
 }
 function NpoMascaraHeroi({ uid }) {
   return (
-    <g>
-      <defs><linearGradient id={uid + "mascara"} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#60a5fa" /><stop offset="1" stopColor="#1d4ed8" /></linearGradient></defs>
-      <path d="M84 100 Q180 78 276 100 Q276 138 234 144 Q180 128 126 144 Q84 138 84 100 Z" fill={`url(#${uid}mascara)`} stroke="#1e3a8a" strokeWidth="3.5" opacity=".93" />
-      <path d="M108 104 Q180 90 252 104" stroke="#bfdbfe" strokeWidth="3" opacity=".4" fill="none" />
-      <path d="M84 100 L60 88 M276 100 L300 88" stroke="#1e3a8a" strokeWidth="4.5" strokeLinecap="round" />
-    </g>
+    <g><path d="M103 116q77-28 154 0l-8 49q-32 19-68-7-36 26-70 7z" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" opacity=".95"/><path d="M119 132q24-17 49 0-5 27-25 27-19 0-24-27zM192 132q25-17 49 0-5 27-24 27-20 0-25-27z" fill="#13101f"/><path d="M172 122l8-14 8 14" fill="none" stroke="var(--cyan)" strokeWidth="4"/></g>
   );
 }
 
 // ── acessórios: pescoço (lote 2) ──
 function NpoGolaSocial() {
   return (
-    <g>
-      <path d="M138 205 L180 232 L222 205 L222 224 L180 250 L138 224 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2.5" />
-      <path d="M180 232 L180 250" stroke="#cbd5e1" strokeWidth="2" />
-    </g>
+    <g><path d="m129 220 36 8 15 29-38-17zM231 220l-36 8-15 29 38-17z" fill="#faf7ff" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="m180 232 11 19-11 22-11-22z" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoColarHavaiano() {
-  const flores = [
-    ["#f472b6", 150, 214], ["#fde047", 165, 224], ["#4ade80", 180, 227], ["#22d3ee", 195, 224], ["#f472b6", 210, 214],
-  ];
   return (
-    <g>
-      <path d="M140 208 Q180 244 220 208" fill="none" stroke="#4ade80" strokeWidth="8" strokeLinecap="round" />
-      {flores.map(([c, x, y], i) => <circle key={i} cx={x} cy={y} r="8" fill={c} stroke="#fff" strokeWidth="1.5" />)}
-    </g>
+    <g><path d="M132 220q48 54 96 0" fill="none" stroke="#66d49b" strokeWidth="7"/><g stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="148" cy="235" r="9" fill="#ff86c6"/><circle cx="165" cy="250" r="9" fill="#ffd86a"/><circle cx="180" cy="258" r="9" fill="#68e8ff"/><circle cx="195" cy="250" r="9" fill="#ff86c6"/><circle cx="212" cy="235" r="9" fill="#ffd86a"/></g></g>
   );
 }
 
 // ── itens levitantes: escudo (lote 2) ──
 function NpoTampaPanela({ uid }) {
   return (
-    <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite .4s" }}>
-      <ellipse cx="70" cy="272" rx="32" ry="29" fill="#cbd5e1" stroke="#64748b" strokeWidth="3" />
-      <ellipse cx="70" cy="262" rx="24" ry="21" fill="#e2e8f0" opacity=".5" />
-      <rect x="58" y="234" width="24" height="15" rx="7" fill="#94a3b8" stroke="#475569" strokeWidth="2.5" />
-      <circle cx="70" cy="231" r="7" fill="#94a3b8" stroke="#475569" strokeWidth="2.5" />
-    </g>
+    <g><circle cx="75" cy="307" r="45" fill="#747c8c" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="75" cy="307" r="32" fill="#9ca5b5" stroke="#dce4f2" strokeWidth="3"/><path d="M43 338 14 366" stroke="#4c5261" strokeWidth="14" strokeLinecap="round"/><circle cx="75" cy="307" r="8" fill="#cfd7ea"/></g>
   );
 }
 function NpoPlacaStop() {
   return (
-    <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite .4s" }}>
-      <path d="M46 232 L94 232 L114 252 L114 292 L94 312 L46 312 L26 292 L26 252 Z" fill="#ef4444" stroke="#fff" strokeWidth="4.5" />
-      <text x="70" y="279" fontSize="19" fontWeight="900" fill="#fff" textAnchor="middle" dominantBaseline="central" fontFamily="Arial, sans-serif">STOP</text>
-    </g>
+    <g><path d="m76 255 33 14 14 33-14 33-33 14-33-14-14-33 14-33z" fill="#d84f5d" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><text x="76" y="311" fill="#fff" textAnchor="middle" fontSize="22" fontWeight="900">STOP</text></g>
   );
 }
 function NpoLivroGrosso() {
   return (
-    <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite .4s" }}>
-      <rect x="26" y="228" width="72" height="78" rx="5" fill="#7c2d12" stroke="#431407" strokeWidth="3" />
-      <rect x="32" y="234" width="60" height="66" fill="#fef3c7" />
-      <path d="M40 242 L84 242 M40 250 L78 250 M40 258 L84 258 M40 266 L76 266 M40 274 L84 274" stroke="#c2884a" strokeWidth="2" opacity=".5" />
-      <rect x="26" y="228" width="12" height="78" fill="#9a3412" />
-    </g>
+    <g><path d="M25 267q51-18 102 0v82q-51-17-102 0z" fill="#3c3069" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M76 266v83" stroke="#fff" opacity=".38"/><path d="M38 286h27M38 299h31M86 286h28M86 299h24" stroke="#8cecff" strokeWidth="3"/><path d="M41 319h20M91 319h20" stroke="#efa5ff" strokeWidth="3"/></g>
   );
 }
 
@@ -695,146 +523,115 @@ function NpoLivroGrosso() {
 // no mesmo espírito de "flutuar do lado" já validado com a espada ──
 function NpoArco({ uid }) {
   return (
-    <g transform="translate(320,280) rotate(6)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <defs><linearGradient id={uid + "arco"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a1783f" /><stop offset="1" stopColor="#6b4d24" /></linearGradient></defs>
-        <path d="M0 -58 Q26 0 0 58" fill="none" stroke={`url(#${uid}arco)`} strokeWidth="7" strokeLinecap="round" />
-        <line x1="0" y1="-58" x2="0" y2="58" stroke="#e5e7eb" strokeWidth="1.6" />
-        <path d="M-2 0 L-34 0" stroke="#94a3b8" strokeWidth="3" strokeLinecap="round" />
-        <path d="M-34 0 L-20 -5 L-20 5 Z" fill="#94a3b8" />
-      </g>
-    </g>
+    <g><path d="M278 235q68 55 0 116" fill="none" stroke="#9f6e49" strokeWidth="8"/><path d="M278 235v116" stroke="#f3edff" strokeWidth="2"/><path d="M246 291h91" stroke="#dffaff" strokeWidth="4"/><path d="m337 291-14-8v16z" fill="#68e8ff"/><circle cx="246" cy="291" r="7" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoSorvete() {
   return (
-    <g transform="translate(320,290)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <path d="M-16 0 L16 0 L0 42 Z" fill="#d6a06b" />
-        <path d="M-16 0 L16 0 L12 -6 L-12 -6 Z" fill="#b8875a" />
-        <circle cx="0" cy="-16" r="20" fill="#fda4af" />
-        <circle cx="-10" cy="-30" r="15" fill="#fef08a" />
-        <circle cx="10" cy="-30" r="15" fill="#a7f3d0" />
-      </g>
-    </g>
+    <g><path d="m272 307 18 49 19-49z" fill="#c9905e" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="290" cy="297" r="20" fill="#efa5ff" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="302" cy="286" r="16" fill="#68e8ff" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="244" cy="320" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoGuardaChuva({ uid }) {
   return (
-    <g transform="translate(320,280)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <defs><linearGradient id={uid + "guarda"} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#f87171" /><stop offset="1" stopColor="#b91c1c" /></linearGradient></defs>
-        <path d="M-38 -6 Q-38 -46 0 -46 Q38 -46 38 -6 Q28 -16 18 -6 Q8 -16 0 -6 Q-8 -16 -18 -6 Q-28 -16 -38 -6 Z" fill={`url(#${uid}guarda)`} stroke="#7a1010" strokeWidth="2.5" />
-        <line x1="0" y1="-46" x2="0" y2="48" stroke="#5c3a0d" strokeWidth="3.5" />
-        <path d="M0 48 Q-10 52 -8 40" fill="none" stroke="#5c3a0d" strokeWidth="3.5" strokeLinecap="round" />
-      </g>
-    </g>
+    <g><path d="M265 262q43-50 86 0z" fill={`url(#${uid}prism)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M308 261v78q0 20-17 13" fill="none" stroke="#e7dcff" strokeWidth="5"/><path d="M265 262q11-23 22 0 11-24 22 0 11-24 21 0 10-23 21 0" fill="none" stroke="#fff" strokeWidth="2" opacity=".45"/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoChaveInglesa() {
   return (
-    <g transform="translate(322,290) rotate(-30)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <rect x="-8" y="-50" width="16" height="70" rx="6" fill="#94a3b8" stroke="#475569" strokeWidth="2.5" />
-        <path d="M-16 -50 Q-16 -68 0 -68 Q16 -68 16 -50 Q16 -40 4 -40 L4 -34 L-4 -34 L-4 -40 Q-16 -40 -16 -50 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="2.5" />
-      </g>
-    </g>
+    <g><path d="M254 339 310 270q-10-19 5-33 3 14 17 16 13 1 20-12 6 21-13 31-9 5-18 1l-55 76z" fill="#cfd7ea" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoBandeiraCorrida() {
-  const cell = 7;
-  const squares = [];
-  for (let r = 0; r < 5; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2 === 0) squares.push(<rect key={`${r}-${c}`} x={c * cell} y={r * cell} width={cell} height={cell} fill="#0b0e1d" />);
   return (
-    <g transform="translate(316,260) rotate(8)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <line x1="0" y1="-10" x2="0" y2="70" stroke="#5c3a0d" strokeWidth="4" strokeLinecap="round" />
-        <rect x="0" y="-10" width="28" height="35" fill="#fff" />
-        <g>{squares}</g>
-      </g>
-    </g>
+    <g><path d="M274 231v127" stroke="#e4def3" strokeWidth="6"/><path d="M279 235h66v45h-66z" fill="#faf7ff" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M279 235h16v15h-16M311 235h16v15h-16M295 250h16v15h-16M327 250h18v15h-18M279 265h16v15h-16M311 265h16v15h-16" fill="#13101f"/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoMicrofone({ uid }) {
   return (
-    <g transform="translate(320,280)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <defs><linearGradient id={uid + "mic"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#e5e7eb" /><stop offset="1" stopColor="#6b7280" /></linearGradient></defs>
-        <rect x="-13" y="-44" width="26" height="46" rx="13" fill={`url(#${uid}mic)`} stroke="#374151" strokeWidth="2.5" />
-        <path d="M-22 -14 Q-22 8 0 8 Q22 8 22 -14" fill="none" stroke="#374151" strokeWidth="3" />
-        <line x1="0" y1="8" x2="0" y2="30" stroke="#374151" strokeWidth="3.5" />
-      </g>
-    </g>
+    <g><circle cx="305" cy="271" r="18" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M294 285 256 341" stroke="#b9a8ed" strokeWidth="9"/><path d="M293 266h25M292 273h26" stroke="#68e8ff" strokeWidth="2"/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoMartelo({ uid }) {
   return (
-    <g transform="translate(320,280) rotate(-16)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <defs><linearGradient id={uid + "mart"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a06617" /><stop offset="1" stopColor="#5c3a0d" /></linearGradient></defs>
-        <rect x="-5" y="-16" width="10" height="60" rx="4" fill={`url(#${uid}mart)`} />
-        <rect x="-26" y="-42" width="52" height="30" rx="7" fill="#7565de" stroke="#35296e" strokeWidth="3" />
-      </g>
-    </g>
+    <g><path d="M257 340 306 277" stroke="#8a5f45" strokeWidth="11"/><path d="M282 254h67v33h-67z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><text x="315" y="276" fill="#68e8ff" textAnchor="middle" fontSize="17" fontFamily="monospace" fontWeight="800">DEV</text><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoGrimorio({ uid }) {
   return (
-    <g transform="translate(320,290)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <defs><linearGradient id={uid + "grim"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#8f73f3" /><stop offset="1" stopColor="#39d9f1" /></linearGradient></defs>
-        <path d="M-30 -34 Q0 -44 30 -34 L30 34 Q0 24 -30 34 Z" fill={`url(#${uid}grim)`} stroke="#3f1f7a" strokeWidth="3" />
-        <path d="M0 -40 L0 30" stroke="#3f1f7a" strokeWidth="2.5" />
-        <circle cx="0" cy="-4" r="7" fill="#fde68a" style={{ animation: "npo-pulse 2s ease-in-out infinite" }} />
-      </g>
-    </g>
+    <g><path d="M249 282q31-16 61 0v62q-31-15-61 0z" fill="#322759" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M310 282q31-16 61 0v62q-31-15-61 0z" fill="#493978" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M310 282v62" stroke="#fff" opacity=".35"/><path d="m277 301 7 11 12 2-9 8 2 12" fill="none" stroke="#ffd86a" strokeWidth="3"/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoVarinha({ uid }) {
   return (
-    <g transform="translate(322,300) rotate(20)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <defs><linearGradient id={uid + "var"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#a06617" /><stop offset="1" stopColor="#5c3a0d" /></linearGradient></defs>
-        <line x1="0" y1="-60" x2="0" y2="30" stroke={`url(#${uid}var)`} strokeWidth="7" strokeLinecap="round" />
-        <path d="M0 -60 l5 -9 l5 9 l9 5 l-9 5 l-5 9 l-5 -9 l-9 -5 Z" fill="#fde047" style={{ animation: "npo-pulse 2s ease-in-out infinite" }} />
-      </g>
-    </g>
+    <g><path d="M256 341 314 274" stroke="#d8c8ff" strokeWidth="8"/><path d="m322 258 7 12 14 2-10 10 2 14-13-7-12 7 2-14-10-10 14-2z" fill="#ffd86a" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{animation:"npo-pulse 2s ease-in-out infinite"}}/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoTecladoMini() {
-  const keys = [];
-  for (let r = 0; r < 2; r++) for (let c = 0; c < 5; c++) keys.push(<rect key={`${r}-${c}`} x={c * 10} y={r * 10} width={8} height={8} rx="2" fill="#3a4152" />);
   return (
-    <g transform="translate(305,280) rotate(-8)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <rect x="-6" y="-6" width="60" height="30" rx="5" fill="#171026" stroke="#3b2a58" strokeWidth="3" />
-        <g transform="translate(0,2)">{keys}</g>
-      </g>
-    </g>
+    <g><path d="m246 301 101-12 11 44-104 14z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><g fill="#68e8ff"><circle cx="267" cy="313" r="3"/><circle cx="280" cy="311" r="3"/><circle cx="293" cy="309" r="3"/><circle cx="306" cy="308" r="3"/><circle cx="319" cy="306" r="3"/><circle cx="332" cy="304" r="3"/><rect x="269" y="325" width="55" height="5" rx="2"/></g><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoControle() {
   return (
-    <g transform="translate(310,285)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <path d="M-32 -8 Q-32 -22 -16 -22 L16 -22 Q32 -22 32 -8 Q32 12 20 12 Q12 12 8 2 L-8 2 Q-12 12 -20 12 Q-32 12 -32 -8 Z" fill="#3a4152" stroke="#171026" strokeWidth="3" />
-        <circle cx="-18" cy="-8" r="4" fill="#c084fc" /><circle cx="18" cy="-8" r="4" fill="#22d3ee" />
-        <rect x="-24" y="-14" width="3" height="10" fill="#94a3b8" /><rect x="-28" y="-10" width="10" height="3" fill="#94a3b8" />
-      </g>
-    </g>
+    <g><path d="M251 304q7-29 32-25h33q25-4 32 25l7 33q4 18-12 21-11 2-25-22h-38q-14 24-25 22-16-3-12-21z" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M269 306h25M281 294v25" stroke="#d8c8ff" strokeWidth="6"/><circle cx="326" cy="299" r="5" fill="#efa5ff"/><circle cx="338" cy="312" r="5" fill="#68e8ff"/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
   );
 }
 function NpoTrofeu({ uid }) {
   return (
-    <g transform="translate(315,290)">
-      <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1s" }}>
-        <defs><linearGradient id={uid + "trof"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fde68a" /><stop offset="1" stopColor="#d99b0d" /></linearGradient></defs>
-        <path d="M-16 -40 L16 -40 L14 -12 Q14 4 0 4 Q-14 4 -14 -12 Z" fill={`url(#${uid}trof)`} stroke="#a9720a" strokeWidth="2.5" />
-        <path d="M-16 -36 Q-30 -36 -30 -22 Q-30 -10 -14 -10" fill="none" stroke="#a9720a" strokeWidth="3" />
-        <path d="M16 -36 Q30 -36 30 -22 Q30 -10 14 -10" fill="none" stroke="#a9720a" strokeWidth="3" />
-        <rect x="-4" y="4" width="8" height="10" fill="#a9720a" />
-        <rect x="-14" y="14" width="28" height="7" rx="2" fill="#a9720a" />
-      </g>
-    </g>
+    <g><path d="M268 270h58v35q0 31-29 31t-29-31z" fill="#ffd86a" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M269 280q-26-5-22 16 4 19 25 17M325 280q26-5 22 16-4 19-25 17" fill="none" stroke="#ffd86a" strokeWidth="7"/><path d="M297 336v16M277 358h40" stroke="#ffd86a" strokeWidth="8"/><circle cx="244" cy="321" r="9" fill={`url(#${uid}shell)`} stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></g>
+  );
+}
+
+// ── acessórios: itens novos (materiais ricos) ──
+function NpoCapaHeroi({ uid }) {
+  return (
+    <g><path d="M112 232 Q38 296 58 372 Q100 352 120 300 L140 258 Z" fill={`url(#${uid}matCapeRed)`} opacity=".95" stroke="#4a0a0a" strokeWidth="2.4"/>
+          <path d="M248 232 Q322 296 302 372 Q260 352 240 300 L220 258 Z" fill={`url(#${uid}matCapeRed)`} opacity=".95" stroke="#4a0a0a" strokeWidth="2.4"/>
+          <path d="M120 250 Q80 300 90 350" stroke="#fff" strokeWidth="1.4" opacity=".28" fill="none"/>
+          <path d="M240 250 Q280 300 270 350" stroke="#fff" strokeWidth="1.4" opacity=".28" fill="none"/>
+          <path d="M118 236 L142 232 L134 254 L114 250 Z" fill={`url(#${uid}matGold)`} stroke="#5a3a06" strokeWidth="1.6"/>
+          <path d="M242 236 L218 232 L226 254 L246 250 Z" fill={`url(#${uid}matGold)`} stroke="#5a3a06" strokeWidth="1.6"/></g>
+  );
+}
+function NpoGolaNucleo({ uid }) {
+  return (
+    <g><path d="M136 212 Q180 238 224 212 L224 224 Q180 250 136 224 Z" fill={`url(#${uid}matLeather)`} stroke="#2c1808" strokeWidth="2"/>
+          <path d="M138 214 Q180 240 222 214" fill="none" stroke="#e0b083" strokeWidth="1.4" opacity=".4"/>
+          <rect x="171" y="223" width="18" height="14" rx="3" fill={`url(#${uid}matBronze)`} stroke="#5a3a10" strokeWidth="1.6"/>
+          <circle cx="180" cy="230" r="3" fill="#3a2410"/></g>
+  );
+}
+function NpoBrincosCristal({ uid }) {
+  return (
+    <g><path d="M69 26 l4 8 h-8 Z" fill={`url(#${uid}matGold)`} stroke="#7a5a06" strokeWidth="1"/>
+          <path d="M69 32 l9 13 -9 12 -9-12Z" fill={`url(#${uid}matRuby)`} stroke="#5c0826" strokeWidth="1.8"/>
+          <path d="M291 26 l4 8 h-8 Z" fill={`url(#${uid}matGold)`} stroke="#7a5a06" strokeWidth="1"/>
+          <path d="M291 32 l9 13 -9 12 -9-12Z" fill={`url(#${uid}matRuby)`} stroke="#5c0826" strokeWidth="1.8"/>
+          <circle cx="66" cy="40" r="1.6" fill="#fff" opacity=".8"/><circle cx="288" cy="40" r="1.6" fill="#fff" opacity=".8"/></g>
+  );
+}
+function NpoViseiraHolografica({ uid }) {
+  return (
+    <g><path d="M96 118 Q180 88 264 118" fill="none" stroke={`url(#${uid}matAmber)`} strokeWidth="7" opacity=".8" filter={`url(#${uid}glow)`}/>
+          <path d="M100 120 Q180 94 260 120" fill="none" stroke="#fff" strokeWidth="1.6" opacity=".35"/>
+          <path d="M96 170 Q180 194 264 170" fill="none" stroke="#ffb020" strokeWidth="2.2" opacity=".55"/></g>
+  );
+}
+function NpoCoroaPrismatica({ uid }) {
+  return (
+    <g><path d="M120 62 L128 18 L153 40 L180 6 L207 40 L232 18 L240 62 Z" fill={`url(#${uid}matGold)`} stroke="#5a3a06" strokeWidth="3" strokeLinejoin="round"/>
+          <path d="M124 58 L131 24" stroke="#fff7d6" strokeWidth="1.6" opacity=".5"/>
+          <rect x="120" y="58" width="120" height="9" rx="3" fill={`url(#${uid}matGold)`} stroke="#5a3a06" strokeWidth="2.4"/>
+          <circle cx="180" cy="16" r="9" fill={`url(#${uid}matRuby)`} stroke="#5c0826" strokeWidth="2.2"/>
+          <circle cx="177" cy="13" r="2.4" fill="#fff" opacity=".8"/>
+          <circle cx="153" cy="34" r="5" fill="#5eb8ff" stroke="#0e4a7a" strokeWidth="1"/>
+          <circle cx="207" cy="34" r="5" fill="#5eb8ff" stroke="#0e4a7a" strokeWidth="1"/></g>
+  );
+}
+function NpoHaloOrbital({ uid }) {
+  return (
+    <g><path d="M144 30 Q160 12 178 26 Q162 20 150 34 Q166 24 178 30" fill="none" stroke={`url(#${uid}matBronze)`} strokeWidth="4" strokeLinecap="round"/>
+          <path d="M216 30 Q200 12 182 26 Q198 20 210 34 Q194 24 182 30" fill="none" stroke={`url(#${uid}matBronze)`} strokeWidth="4" strokeLinecap="round"/>
+          <circle cx="180" cy="24" r="4" fill={`url(#${uid}matBronze)`} stroke="#5a3a1a" strokeWidth="1"/></g>
   );
 }

@@ -56,8 +56,16 @@ export const NYX_ITEMS = [
   { id:"tampaPanela", label:"Tampa de Panela", emoji:"🥘", slot:"shield", cost:12 },
   { id:"placaStop",   label:"Placa de Stop",   emoji:"🛑", slot:"shield", cost:16 },
   { id:"livroGrosso", label:"Livro Grosso",    emoji:"📚", slot:"shield", cost:20 },
+  // itens novos — materiais mais ricos (ouro, rubi, bronze, couro), incluindo o primeiro item de
+  // "costas" da loja (a capa não se encaixava em nenhum encaixe existente)
+  { id:"coroaPrismatica",     label:"Coroa Prismática",     emoji:"👑", slot:"head", cost:42 },
+  { id:"haloOrbital",         label:"Halo Orbital",         emoji:"😇", slot:"head", cost:35 },
+  { id:"viseiraHolografica",  label:"Viseira Holográfica",  emoji:"🔶", slot:"face", cost:25 },
+  { id:"brincosCristal",      label:"Brincos de Cristal",   emoji:"💎", slot:"face", cost:20 },
+  { id:"golaNucleo",          label:"Gola de Núcleo",       emoji:"🟤", slot:"neck", cost:22 },
+  { id:"capaHeroi",           label:"Capa de Herói",        emoji:"🦸", slot:"costas", cost:55 },
 ];
-export const DEFAULT_NYX_GEAR = { head:null, face:null, neck:null, hand:null, shield:null };
+export const DEFAULT_NYX_GEAR = { head:null, face:null, neck:null, hand:null, shield:null, costas:null };
 
 // ── NYX: o robô assistente da turma (SVG + GSAP) ──
 let __nyxSeq = 0;
