@@ -42,6 +42,8 @@ const backupBlob = JSON.stringify({
 })
 await kvHandler(mockReq({ action: 'set', key: 'backup:2026-07-30T03:00:00.000Z', value: backupBlob, auth: 'senha-de-teste-123' }), mockRes())
 await kvHandler(mockReq({ action: 'set', key: 'errorlog:recent', value: JSON.stringify([{ message: 'algo quebrou' }]), auth: 'senha-de-teste-123' }), mockRes())
+const teacherNotes = JSON.stringify([{ id: 'nota-1', title: 'Planejamento', body: 'Revisar arrays na próxima aula.' }])
+await kvHandler(mockReq({ action: 'set', key: 'teachernotes:main', value: teacherNotes, auth: 'senha-de-teste-123' }), mockRes())
 
 // 1) get de backup SEM senha é bloqueado
 {
@@ -87,6 +89,21 @@ await kvHandler(mockReq({ action: 'set', key: 'errorlog:recent', value: JSON.str
   check('get de outras chaves (ex: duel:) SEM senha continua liberado', res._status !== 403 && res._body.value != null, JSON.stringify(res._body))
 }
 
-console.log(`\n=== "get" PROTEGIDO PRA BACKUP/ERRORLOG: ${pass}/${pass + fail} passed ===`)
+// 7) as anotações pessoais do professor também são privadas: só a sessão autenticada lê/escreve
+{
+  const anonymousRead = mockRes()
+  await kvHandler(mockReq({ action: 'get', key: 'teachernotes:main' }), anonymousRead)
+  check('get de anotações do professor SEM senha é bloqueado (403)', anonymousRead._status === 403 && !JSON.stringify(anonymousRead._body).includes('Planejamento'))
+
+  const teacherRead = mockRes()
+  await kvHandler(mockReq({ action: 'get', key: 'teachernotes:main', auth: 'senha-de-teste-123' }), teacherRead)
+  check('get de anotações COM senha funciona normalmente', teacherRead._status !== 403 && teacherRead._body.value === teacherNotes)
+
+  const anonymousWrite = mockRes()
+  await kvHandler(mockReq({ action: 'set', key: 'teachernotes:main', value: '[]' }), anonymousWrite)
+  check('alterar anotações SEM senha é bloqueado (403)', anonymousWrite._status === 403)
+}
+
+console.log(`\n=== LEITURAS PRIVADAS (BACKUP/ERRORLOG/ANOTAÇÕES): ${pass}/${pass + fail} passed ===`)
 server.kill()
 process.exit(fail > 0 ? 1 : 0)
