@@ -19,13 +19,14 @@ const SLOT_SECTIONS = [
 // ════════════════════════════════════════════════════════════════════════════
 //  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
 // ════════════════════════════════════════════════════════════════════════════
-export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onClose }) {
+export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefund = ()=>{}, isTestShift, onClose }) {
   const vw = useViewportWidth();
   const isNarrow = vw < 640; // abaixo disso, o Nyx fica em cima e os acessórios embaixo (empilhado)
   // 🥚 o Nyx da loja também entra no personagem: na hora que o chapéu pirata é vestido ou o combo
   // espartano (espada+escudo) se forma, ele fala a frase do Easter Egg com uma animação própria
   const [eggTalk, setEggTalk] = useState(null); // { kind:"pirata"|"espartano", msg, color }
   const [preview, setPreview] = useState(null); // item sendo pré-visualizado no Nyx (antes de comprar)
+  const [refundConfirm, setRefundConfirm] = useState(false);
   const prevGearRef = useRef(gear);
   useEffect(() => {
     const prev = prevGearRef.current || {};
@@ -106,7 +107,7 @@ export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onCl
                             borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: clickable?"pointer":"default",
                             opacity: clickable ? 1 : 0.55, position:"relative",
                           }}>
-                          <span onClick={(e)=>{ e.stopPropagation(); setPreview(item); }} title="Ver prévia no Nyx antes de comprar"
+                          <span onClick={(e)=>{ e.stopPropagation(); setRefundConfirm(false); setPreview(item); }} title="Ver prévia no Nyx antes de comprar"
                             style={{ position:"absolute", top:6, right:6, zIndex:2, width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center", borderRadius:"50%", background:"#0000004d", fontSize:12, cursor:"pointer", opacity:1 }}>
                             👁️
                           </span>
@@ -139,6 +140,7 @@ export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onCl
         const equipped = gear[preview.slot] === preview.id;
         const canBuy = !has && wallet >= preview.cost;
         const clickable = has || canBuy;
+        const canRefund = !isTestShift && owned.includes(preview.id) && !preview.secret && preview.cost > 0 && spent >= preview.cost;
         return (
           <div onClick={()=>setPreview(null)} style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.88)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1050, padding:16 }}>
             <div className="pop" onClick={(e)=>e.stopPropagation()} style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:20, padding:"20px 22px", maxWidth:300, width:"100%", textAlign:"center", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
@@ -156,6 +158,18 @@ export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onCl
                 }}>
                 {has ? (equipped ? "Tirar" : "✓ Vestir") : canBuy ? `🛒 Comprar · ${preview.cost} pts` : `🔒 Faltam ${preview.cost - wallet} pts`}
               </button>
+              {canRefund && !refundConfirm && (
+                <button onClick={()=>setRefundConfirm(true)} style={{ marginTop:8, width:"100%", padding:"9px 0", borderRadius:10, border:"1px solid #fbbf2466", background:"transparent", color:"#fbbf24", fontWeight:800, fontSize:12.5, cursor:"pointer" }}>↩️ Pedir reembolso</button>
+              )}
+              {canRefund && refundConfirm && (
+                <div style={{ marginTop:9, background:"#fbbf2410", border:"1px solid #fbbf2455", borderRadius:11, padding:10 }}>
+                  <p style={{ color:"#f0e9fb", fontSize:12, lineHeight:1.45, margin:"0 0 8px" }}>Devolver <b>{preview.label}</b> e receber <b style={{color:"#fbbf24"}}>{preview.cost} pontos</b>?</p>
+                  <div style={{ display:"flex", gap:7 }}>
+                    <button onClick={()=>setRefundConfirm(false)} style={{ flex:1, border:"1px solid #3b2a58", background:"#171026", color:"#a99ac9", borderRadius:8, padding:7, cursor:"pointer", fontWeight:700 }}>Cancelar</button>
+                    <button onClick={()=>{ onRefund(preview); setRefundConfirm(false); setPreview(null); }} style={{ flex:1, border:"none", background:"linear-gradient(135deg,#fbbf24,#d97706)", color:"#1a1029", borderRadius:8, padding:7, cursor:"pointer", fontWeight:900 }}>Confirmar</button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );

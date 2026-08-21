@@ -46,20 +46,58 @@ const BASIC_CS_QUESTION_BANK = [
 
 // sorteia N questões diferentes do banco (sem repetir dentro do mesmo duelo/teste) e embaralha as
 // alternativas de cada uma — mesma função já usada nas questões geradas pela IA
-function pickFromBank(n) {
-  const shuffled = [...BASIC_CS_QUESTION_BANK].sort(() => Math.random() - 0.5);
+// Cada regra liga uma pergunta a uma evidência concreta no código/resumo do aluno. Assim assuntos
+// como List, foreach, try/catch e classes só aparecem depois de realmente terem sido usados.
+function questionWasStudied(question, context) {
+  const c = String(context || "").toLowerCase();
+  if (!c.trim()) return false;
+  const q = question.q.toLowerCase();
+  if (q.includes("console.writeline")) return c.includes("console.writeline");
+  if (q.includes("console.readline")) return c.includes("console.readline");
+  if (q.includes("números inteiros")) return /\bint\b/.test(c);
+  if (q.includes("guarda textos")) return /\bstring\b/.test(c);
+  if (q.includes("números com vírgula")) return /\b(double|float|decimal)\b/.test(c);
+  if (q.includes("verdadeiro ou falso")) return /\bbool\b/.test(c);
+  if (q.includes("termina uma instrução")) return c.includes(";");
+  if (q.includes("dois valores são iguais")) return c.includes("==");
+  if (q.includes("diferente de")) return c.includes("!=");
+  if (q.includes("o if faz")) return /\bif\s*\(/.test(c);
+  if (q.includes("o else faz")) return /\belse\b/.test(c);
+  if (q.includes("laço for")) return /\bfor\s*\(/.test(c);
+  if (q.includes("laço while")) return /\bwhile\s*\(/.test(c);
+  if (q.includes("foreach")) return /\bforeach\s*\(/.test(c);
+  if (q.includes("método em c#")) return /\b(void|public|private|static)\s+\w+\s*\(/.test(c);
+  if (q.includes("list<>")) return /\blist\s*</.test(c);
+  if (q.includes("chaves")) return c.includes("{") && c.includes("}");
+  if (q.includes("interpolação")) return c.includes('$"') || c.includes("interpolação");
+  if (q.includes("int.parse")) return c.includes("int.parse");
+  if (q.includes("x++")) return c.includes("++") || c.includes("incremento");
+  if (q.includes("x += 5")) return c.includes("+=");
+  if (q.includes("operador &&")) return c.includes("&&");
+  if (q.includes("operador ||")) return c.includes("||");
+  if (q.includes("uma classe representa")) return /\bclass\s+\w+/.test(c);
+  if (q.includes("programa começa")) return /\bmain\s*\(/.test(c);
+  if (q.includes("comentário de uma linha")) return c.includes("//") || c.includes("comentário");
+  if (q.includes("primeiro item")) return /\[[^\]]*\]|\b(array|lista|índice)\b/.test(c);
+  if (q.includes("try/catch")) return /\btry\b/.test(c) && /\bcatch\b/.test(c);
+  return false;
+}
+
+function pickFromBank(n, context) {
+  const eligible = BASIC_CS_QUESTION_BANK.filter(q => questionWasStudied(q, context));
+  const shuffled = [...eligible].sort(() => Math.random() - 0.5);
   return shuffleQuestions(shuffled.slice(0, n));
 }
 
-export async function generateDuelQuestions() {
-  return pickFromBank(5);
+export async function generateDuelQuestions(context) {
+  return pickFromBank(5, context);
 }
 
 // 🧠 teste de conhecimento por conta própria: o aluno pode se testar a qualquer momento da aula,
 // sem precisar esperar a atividade oficial (que só libera depois de finalizar a aula) — sem dicas,
 // pra valer mesmo como autoavaliação
-export async function generateKnowledgeTestQuestions() {
-  return pickFromBank(6);
+export async function generateKnowledgeTestQuestions(context) {
+  return pickFromBank(6, context);
 }
 
 // ════════════════════════════════════════════════════════════════════════════

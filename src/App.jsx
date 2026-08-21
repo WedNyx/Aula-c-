@@ -2152,6 +2152,24 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     if (newOwned.length >= 4) unlockAchievement("colecionador");
   };
 
+  // reembolso integral: devolve o custo para a carteira, remove o item e também o desequipa.
+  // Itens gratuitos/secretos e inventários sem gasto suficiente não entram neste fluxo.
+  const handleRefundItem = async (item) => {
+    const s = stateRef.current;
+    const owned = s.nyxOwned || [];
+    const spent = s.nyxSpent || 0;
+    if (!item || item.secret || item.cost <= 0 || !owned.includes(item.id) || spent < item.cost) return;
+    const newSpent = Math.max(0, spent - item.cost);
+    const newOwned = owned.filter(id => id !== item.id);
+    const currentGear = { ...(s.nyxGear || DEFAULT_NYX_GEAR) };
+    if (currentGear[item.slot] === item.id) currentGear[item.slot] = null;
+    stateRef.current = { ...s, nyxSpent:newSpent, nyxOwned:newOwned, nyxGear:currentGear };
+    setNyxSpent(newSpent);
+    setNyxOwned(newOwned);
+    setNyxGear(currentGear);
+    await persist({ nyxSpent:newSpent, nyxOwned:newOwned, nyxGear:currentGear });
+  };
+
   // Nyx explica os erros da atividade — gera tudo de uma vez (rápido) e depois revela passo a passo num modal
   const explainErrors = async () => {
     const activity = dynamicActivity || [];
@@ -3969,10 +3987,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {showNyxShop && (
         <NyxShop
           wallet={nyxPoints - nyxSpent}
+          spent={nyxSpent}
           owned={nyxOwned}
           gear={nyxGear}
           onEquip={handleEquipGear}
           onBuy={handleBuyItem}
+          onRefund={handleRefundItem}
           isTestShift={shift === TEST_SHIFT.id}
           onClose={()=>setShowNyxShop(false)}
         />
@@ -4210,6 +4230,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
       {showKnowledgeTest && (
         <KnowledgeTestModal
+          questionContext={[allCodeToday(), JSON.stringify(dynamicSummary||{}), JSON.stringify(summaryHistory||{})].join("\n")}
           onAward={async (pts) => { const s=stateRef.current; const np=(s.nyxPoints||0)+pts; stateRef.current={...s,nyxPoints:np}; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); unlockAchievement("autodidata"); }}
           onFirstToday={() => {
             const today = todayKey();
@@ -4240,6 +4261,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           shift={shift}
           myName={studentName}
           myAvatar={avatar}
+          questionContext={[allCodeToday(), JSON.stringify(dynamicSummary||{}), JSON.stringify(summaryHistory||{})].join("\n")}
           onAward={async (pts) => { const s=stateRef.current; const np=(s.nyxPoints||0)+pts; stateRef.current={...s,nyxPoints:np}; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); }}
           onWin={async () => {
             const nw = (stateRef.current.duelWins||0) + 1;
@@ -4257,6 +4279,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           shift={shift}
           myName={studentName}
           myAvatar={avatar}
+          questionContext={[allCodeToday(), JSON.stringify(dynamicSummary||{}), JSON.stringify(summaryHistory||{})].join("\n")}
           onAward={async (pts) => { const s=stateRef.current; const np=(s.nyxPoints||0)+pts; stateRef.current={...s,nyxPoints:np}; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); }}
           onWin={async () => {
             const nw = (stateRef.current.duelWins||0) + 1;

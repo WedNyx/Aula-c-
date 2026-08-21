@@ -176,7 +176,7 @@ export function FreeBuildModal({ weeklyChallenge, onSave, onToggleStep, onFinish
   );
 }
 
-export function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
+export function DuelModal({ shift, myName, myAvatar, questionContext, onAward, onWin, onClose }) {
   const [loading, setLoading] = useState(true);
   const [opponents, setOpponents] = useState([]);
   const [duel, setDuelState] = useState(null);
@@ -237,12 +237,12 @@ export function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) 
   const challenge = async (opp) => {
     setCreating(true); setErr("");
     try {
-      const qs = await generateDuelQuestions();
-      if (!qs.length) throw new Error("sem perguntas");
+      const qs = await generateDuelQuestions(questionContext);
+      if (qs.length < 2) throw new Error("conteudo_insuficiente");
       const doc = { from:myName, to:opp.name, fromAvatar:myAvatar, toAvatar:opp.avatar, questions:qs, status:"invited", answersFrom:{}, answersTo:{}, scoreFrom:null, scoreTo:null, createdAt:Date.now() };
       await setDuel(shift, myName, opp.name, doc);
       setDuelState(doc);
-    } catch { setErr("Não consegui criar o duelo agora. Tente de novo em instantes."); }
+    } catch(e) { setErr(e.message === "conteudo_insuficiente" ? "Ainda não há conteúdo estudado suficiente para criar um duelo. Continue a aula e tente novamente depois." : "Não consegui criar o duelo agora. Tente de novo em instantes."); }
     setCreating(false);
   };
 
@@ -391,7 +391,7 @@ export function DuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) 
 // agora em times de 2. O time A soma os acertos dos 2 jogadores contra o time B; quem somar mais
 // vence. Convite único pros outros 3 jogadores; cada um aceita/recusa por conta própria e o
 // confronto só começa quando todo mundo (menos quem convidou) já aceitou.
-export function TeamDuelModal({ shift, myName, myAvatar, onAward, onWin, onClose }) {
+export function TeamDuelModal({ shift, myName, myAvatar, questionContext, onAward, onWin, onClose }) {
   const [loading, setLoading] = useState(true);
   const [opponents, setOpponents] = useState([]);
   const [teamDuel, setTeamDuelState] = useState(null);
@@ -459,8 +459,8 @@ export function TeamDuelModal({ shift, myName, myAvatar, onAward, onWin, onClose
     if (!partnerObj || rivalObjs.length !== 2) return;
     setCreating(true); setErr("");
     try {
-      const qs = await generateDuelQuestions();
-      if (!qs.length) throw new Error("sem perguntas");
+      const qs = await generateDuelQuestions(questionContext);
+      if (qs.length < 2) throw new Error("conteudo_insuficiente");
       const players = [
         { name: myName, avatar: myAvatar, team: "A" },
         { name: partnerObj.name, avatar: partnerObj.avatar, team: "A" },
@@ -471,7 +471,7 @@ export function TeamDuelModal({ shift, myName, myAvatar, onAward, onWin, onClose
       await setTeamDuel(shift, players.map(p=>p.name), doc);
       setTeamDuelState(doc);
       setSelPartner(null); setSelRivals([]);
-    } catch { setErr("Não consegui criar o duelo em dupla agora. Tente de novo em instantes."); }
+    } catch(e) { setErr(e.message === "conteudo_insuficiente" ? "Ainda não há conteúdo estudado suficiente para criar um duelo. Continue a aula e tente novamente depois." : "Não consegui criar o duelo em dupla agora. Tente de novo em instantes."); }
     setCreating(false);
   };
 
@@ -660,7 +660,7 @@ export function TeamDuelModal({ shift, myName, myAvatar, onAward, onWin, onClose
 // 🧠 teste de conhecimento por conta própria — o aluno pode se autoavaliar a qualquer momento da
 // aula, sem esperar a atividade oficial (que só libera depois de finalizar) e sem nenhuma dica: só
 // gera as perguntas, ele responde, e vê o resultado na hora. Não mexe na fase da aula nem na nota oficial
-export function KnowledgeTestModal({ onAward, onFirstToday, onClose }) {
+export function KnowledgeTestModal({ questionContext, onAward, onFirstToday, onClose }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [questions, setQuestions] = useState([]);
@@ -675,13 +675,13 @@ export function KnowledgeTestModal({ onAward, onFirstToday, onClose }) {
   useEffect(() => {
     (async () => {
       try {
-        const qs = await generateKnowledgeTestQuestions();
-        if (!qs.length) throw new Error("sem perguntas");
+        const qs = await generateKnowledgeTestQuestions(questionContext);
+        if (qs.length < 2) throw new Error("conteudo_insuficiente");
         setQuestions(qs);
-      } catch { setErr("Não consegui gerar o teste agora. Tente de novo em instantes."); }
+      } catch(e) { setErr(e.message === "conteudo_insuficiente" ? "Ainda não há conteúdo estudado suficiente para montar o teste. Escreva e salve mais um pouco da aula primeiro." : "Não consegui gerar o teste agora. Tente de novo em instantes."); }
       setLoading(false);
     })();
-  }, []);
+  }, [questionContext]);
 
   const pick = (qi, oi) => { if (!done) setAnswers(a => ({ ...a, [qi]: oi })); };
   const allAnswered = questions.length > 0 && questions.every((_, i) => answers[i] != null);
