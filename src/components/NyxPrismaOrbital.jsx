@@ -13,7 +13,7 @@ import gsap from "gsap";
 // ao redor de si, não que segura com as mãos).
 let __npoSeq = 0;
 export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, gear }) {
-  const G = { head: null, face: null, neck: null, hand: null, shield: null, costas: null, ...(gear || {}) };
+  const G = { skin: null, head: null, face: null, neck: null, hand: null, shield: null, costas: null, ...(gear || {}) };
   const idRef = useRef(null);
   if (idRef.current === null) idRef.current = ++__npoSeq;
   const uid = "npo" + idRef.current;
@@ -28,7 +28,22 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
     success:  { main: "#5c75d7", dark: "#2e468d", eye: "#dffff4", cyan: "#70f2c2", pink: "#a9c6ff", speed: 7, label: "Tudo certo!" },
     error:    { main: "#a84f91", dark: "#5c2a54", eye: "#ffe3f2", cyan: "#ff93c6", pink: "#ffc1e2", speed: 7, label: "Encontrei algo!" },
   };
-  const P = MAP[st] || MAP.idle;
+  // O Prisma Orbital atual continua padrão em agosto/2026. A evolução Modernizada assume
+  // automaticamente em setembro para quem não tiver escolhido uma skin da loja.
+  const defaultSkin = Date.now() >= new Date("2026-09-01T00:00:00-03:00").getTime() ? "skinModernizado" : null;
+  const selectedSkin = G.skin || defaultSkin;
+  const SKINS = {
+    skinModernizado: { main:"#7868e5", dark:"#272144", eye:"#eef1ff", cyan:"#7ef0ff", pink:"#d8d0ff", label:"Nyx Modernizado" },
+    skinLunar: { main:"#d8dcf3", dark:"#54499f", eye:"#ffffff", cyan:"#82eeff", pink:"#ffffff", label:"Tem novidade para você!" },
+    skinEclipse: { main:"#6d4b91", dark:"#171020", eye:"#e8dcff", cyan:"#ba75ff", pink:"#ffd97c", label:"Recursos de IA em pausa" },
+    skinOrbita: { main:"#6659d4", dark:"#181535", eye:"#eef7ff", cyan:"#6eeaff", pink:"#ad92ff", label:"Nyx Órbita" },
+    skinGuardiao: { main:"#6651bd", dark:"#211a38", eye:"#fff3cc", cyan:"#d2bfff", pink:"#ffd47b", label:"Nyx Guardião" },
+    skinAurora: { main:"#779be2", dark:"#17213d", eye:"#e8fff7", cyan:"#7fffe1", pink:"#e6a2ff", label:"Nyx Aurora" },
+    skinLuaNova: { main:"#2a2e42", dark:"#080910", eye:"#eef1ff", cyan:"#dfe3ff", pink:"#8187a8", label:"Nyx Lua Nova" },
+    skinMare: { main:"#397cc5", dark:"#0b1a35", eye:"#d8fbff", cyan:"#59dfff", pink:"#2cb7dd", label:"Nyx Maré" },
+    skinConstelacao: { main:"#5048a0", dark:"#0e0d23", eye:"#fff3bd", cyan:"#8f84e7", pink:"#ffe19a", label:"Nyx Constelação" },
+  };
+  const P = { ...(MAP[st] || MAP.idle), ...(SKINS[selectedSkin] || {}) };
 
   const isSpartan = G.hand === "espada" && G.shield === "escudo";
 
@@ -106,6 +121,18 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
           <circle cx="38" cy="253" r="1.6" opacity=".7"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.8s" repeatCount="indefinite" /></circle>
           <circle cx="315" cy="276" r="2" opacity=".7"><animate attributeName="opacity" values="1;0.3;1" dur="2.7s" repeatCount="indefinite" /></circle>
         </g>
+
+        {/* detalhes de superfície das skins: ficam dentro/ao redor da mesma silhueta e nunca
+            substituem cabeça, corpo, rosto, sensores, cauda ou encaixes de acessórios */}
+        {selectedSkin === "skinLunar" && <g fill="#fff" opacity=".82"><circle cx="48" cy="104" r="3"/><circle cx="310" cy="91" r="2"/><path d="M55 258a15 15 0 1 0 14 23 12 12 0 1 1-14-23"/></g>}
+        {selectedSkin === "skinEclipse" && <g><path d="M180 62h41q67 0 67 67v20q0 67-67 67h-41z" fill="#100d18" opacity=".44"/><circle cx="180" cy="281" r="31" fill="#09070d" opacity=".62"/></g>}
+        {selectedSkin === "skinOrbita" && <g fill="#effcff"><circle cx="48" cy="245" r="8"/><circle cx="311" cy="244" r="5"/></g>}
+        {selectedSkin === "skinGuardiao" && <path d="M122 230q58-28 116 0l-8 80q-50 29-100 0z" fill="#ffd47b" opacity=".12"/>}
+        {selectedSkin === "skinAurora" && <path d="M75 114q105-73 210 0M95 88q85-47 170 0" fill="none" stroke={`url(#${uid}prism)`} strokeWidth="5" opacity=".65"/>}
+        {selectedSkin === "skinLuaNova" && <g fill="#fff" opacity=".72"><circle cx="117" cy="82" r="2"/><circle cx="244" cy="108" r="2"/><circle cx="137" cy="245" r="2"/></g>}
+        {selectedSkin === "skinMare" && <path d="M124 304q56 25 112 0" fill="none" stroke="#59dfff" strokeWidth="8" opacity=".28"/>}
+        {selectedSkin === "skinConstelacao" && <g><g fill="#fff3bd"><circle cx="119" cy="81" r="3"/><circle cx="158" cy="69" r="3"/><circle cx="242" cy="107" r="3"/><circle cx="138" cy="245" r="3"/></g><path d="m119 81 39-12 84 38M138 245l42 36" fill="none" stroke="#ffe19a" strokeWidth="2" opacity=".6"/></g>}
+        {selectedSkin === "skinModernizado" && <path d="M116 84q64-24 128 0" fill="none" stroke="#fff" strokeWidth="3" opacity=".35"/>}
 
         {/* anel orbital atrás do personagem */}
         <g transform="rotate(-9 180 244)" filter={`url(#${uid}glow)`}>
