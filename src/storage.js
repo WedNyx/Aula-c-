@@ -2,6 +2,7 @@ import { DEFAULT_TURMAS } from './lib/shifts.ts'
 
 const PREFIX = 'student:'
 const TEACHER_META_KEY = 'teachermeta:main'
+const TEACHER_NOTES_KEY = 'teachernotes:main'
 
 async function kvCall(body) {
   const resp = await fetch('/api/kv', {
@@ -653,6 +654,23 @@ export async function getTeacherMeta() {
 
 export async function saveTeacherMeta(meta, auth) {
   try { await kvCall({ action: 'set', key: TEACHER_META_KEY, value: JSON.stringify(meta), auth }) } catch {}
+}
+
+// bloco de anotações privado do professor. Tanto a leitura quanto a escrita exigem a senha
+// no servidor (api/kv.js), para que observações de aula nunca apareçam para uma sessão de aluno.
+export async function getTeacherNotes(auth) {
+  try {
+    const r = await kvCall({ action: 'get', key: TEACHER_NOTES_KEY, auth })
+    const notes = r.value ? JSON.parse(r.value) : []
+    return Array.isArray(notes) ? notes : []
+  } catch { return [] }
+}
+
+export async function saveTeacherNotes(notes, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: TEACHER_NOTES_KEY, value: JSON.stringify(notes || []), auth })
+    return r.ok === true
+  } catch { return false }
 }
 
 export async function saveTeacherCode(files, shift, auth) {
