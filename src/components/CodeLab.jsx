@@ -56,14 +56,6 @@ export function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code
     setAnalyzing(false);
   };
 
-  // robô: analisa sozinho 5s depois que o professor para de escrever (reagenda a cada tecla)
-  useEffect(() => {
-    if (activeCode.trim().length < 12 || analyzing) return;
-    const t = setTimeout(() => { analyzeCode(); }, 5000);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCode]);
-
   const card = { background:"linear-gradient(180deg,#231636,#1a1029)", borderRadius:16, padding:16, margin:"10px 0", border:"1px solid #3a2a55", boxShadow:"0 8px 24px rgba(3,5,16,.35)" };
 
   return (
@@ -99,8 +91,12 @@ export function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code
 
         <VSEditor value={activeCode} onChange={updateActiveCode} filename={files[active]?.name} />
 
-        <div style={{ display:"flex", justifyContent:"flex-start", alignItems:"center", marginTop:8 }}>
-          <span style={{ color:"#776798", fontSize:12 }}>{analyzing?"🔍 Verificando...":"✨ Nyx confere seu código 5s depois que você para de escrever"}</span>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, marginTop:8, flexWrap:"wrap" }}>
+          <span style={{ color:"#776798", fontSize:12 }}>{analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais para pedir a análise" : "✨ Peça ao Nyx quando quiser que ele confira seu código"}</span>
+          <button title={activeCode.trim().length < 12 ? "Escreva um pouco mais de código antes de pedir a análise" : ""} onClick={analyzeCode} disabled={analyzing || activeCode.trim().length < 12}
+            style={{ background:`linear-gradient(135deg,${accent},#9333ea)`, color:"#fff", border:"none", borderRadius:9, padding:"8px 14px", cursor:analyzing || activeCode.trim().length < 12 ? "default" : "pointer", opacity:analyzing || activeCode.trim().length < 12 ? .55 : 1, fontWeight:800, fontSize:12.5 }}>
+            {analyzing ? "🔍 Analisando..." : "✨ Analisar código"}
+          </button>
         </div>
 
         <Terminal files={files} maxHeight={terminalMaxHeight} />
