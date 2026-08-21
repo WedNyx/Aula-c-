@@ -131,19 +131,12 @@ const KEYBOARD_LEVELS = [
       speakText:"Digite um parêntese, aperte Backspace pra apagar os dois de uma vez, e depois digite a letra x pra terminar.",
       checkSuccess: (v, history) => v === "x" && history.includes("()") },
   ] },
-  { id:9, title:"Teste final", line: 'int x = 10;\nif (x > 5) { Console.WriteLine("Oi!"); }' },
+  { id:9, title:"Prática final", line: "Oi, Nyx! Eu gosto de C#." },
 ];
-// frases curtas de prática (banco fixo, sem chamar IA) — 5 por nível, sorteia uma a cada vez que o
-// aluno acerta uma tecla; nível 8 ("Editor de código") não passa por aqui, quem valida ele é o
-// próprio checkSuccess do editor (ver onEditorChange), e o 9 é o teste final em si
+// A escrita livre começa apenas quando o aluno chega ao Shift. Antes disso, ele só precisa achar
+// e apertar cada tecla — sem interromper cada letra com uma linha complicada de código.
 const PRACTICE_PHRASES = {
-  1: ['string nome = "Ana";', 'string cidade = "Brasília";', 'string turma = "manhã";', 'string materia = "C#";', 'string aluno = "novo";'],
-  2: ['Console.WriteLine("Oi");', 'int total = 0;', 'string cor = "azul";', 'Console.WriteLine("Bom dia!");', 'int idade = 12;'],
-  3: ['class Aluno {}', 'string Nome = "NYX";', 'Console.WriteLine("OI");', 'class Programa {}', 'int NOTA = 10;'],
-  4: ['int soma = 1 + 2;', 'string oi = "ola";', 'bool ok = true;', 'int total = 100;', 'int contador = 0;'],
-  5: ['if (x > 5) {}', 'Console.WriteLine("Oi, mundo!");', 'int[] nums = {1, 2, 3};', 'if (nota >= 60) {}', 'string s = "a,b,c";'],
-  6: ['int soma = 2 + 3;', 'int resto = 10 % 3;', 'double media = 10 / 2;', 'int dobro = 5 * 2;', 'bool ok = true && false;'],
-  7: ['string coração = "feliz";', 'string irmã = "Maria";', 'string função = "somar";', 'string maçã = "vermelha";', 'string está = "pronto";'],
+  3: ["Oi Nyx", "Bom dia", "Eu consegui", "Vamos codar", "Aula de C#"],
 };
 // revisão leve no final do treino todo (não é uma prova — não trava nem penaliza, é só reforçar o
 // que foi visto). Versão normal com 4 perguntas; versão fácil (quem tem algum apoio marcado) com só
@@ -167,7 +160,7 @@ const KEYBOARD_LEVELS_EASY = KEYBOARD_LEVELS.filter(l => l.id <= 3);
 // mesmas palavras (em vez de um "errou, tenta de novo" genérico) ajuda mais quem realmente não
 // sabia onde ficava a tecla, e não é uma frase nova pra decorar a cada erro
 function explanationFor(level, target) {
-  if (level.line) return "Última etapa! Digite essa linha de código inteira, prestando atenção em cada tecla, sem colar.";
+  if (level.line) return "Última etapa! Digite uma frase curta para revisar o que você aprendeu, sem colar.";
   if (!target) return "";
   if (target.speakText) return target.speakText;
   if (target.symbol) return `${comboLabel(target.char)}, para escrever o símbolo ${keyName(target.char)}.`;
@@ -310,12 +303,10 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
     else finishAll();
   };
 
-  // depois de acertar a tecla, pratica digitando uma frase de verdade (sorteada do banco fixo do
-  // nível) em vez de simplesmente pular pro próximo alvo. No Modo Guiado (leitura/escrita/motora
-  // difícil) essa etapa é pulada — o foco lá é só achar a tecla certa, sem carga extra de digitação
-  // livre; níveis sem frase no banco (não deveria acontecer, mas por segurança) também pulam direto
+  // Só pede uma frase ao chegar no nível do Shift. Letras, números, teclas especiais, atalhos,
+  // símbolos e acentos avançam ao acertar a tecla, sem uma frase extra a cada clique.
   const startPhrase = () => {
-    if (accessMode) { advanceTarget(); return; }
+    if (accessMode || level.id !== 3) { advanceTarget(); return; }
     const pool = PRACTICE_PHRASES[level.id];
     if (!pool || !pool.length) { advanceTarget(); return; }
     const frase = pool[Math.floor(Math.random() * pool.length)];
@@ -463,14 +454,14 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
               </div>
             ) : phraseState ? (
               <>
-                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 10px" }}>🖊️ Boa! Agora pratique digitando esta frase (não precisa quebrar linha igual, e o que tiver dentro de "" pode ser diferente):</p>
+                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 10px" }}>🖊️ Boa! Agora pratique o Shift com esta frase curta:</p>
                 <pre data-testid="kb-phrase-text" style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:10, padding:"12px 14px", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{phraseState.frase}</pre>
                 <textarea data-testid="kb-phrase-input" autoFocus value={phraseState.typed} onChange={e=>onPhraseType(e.target.value)} onPaste={e=>e.preventDefault()} spellCheck={false} autoCorrect="off" autoCapitalize="off"
                   style={{ width:"100%", minHeight:70, marginTop:8, background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"10px 12px", color:"#f0e9fb", fontFamily:"'Courier New',monospace", fontSize:14, outline:"none" }} />
               </>
             ) : level.line ? (
               <>
-                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 10px" }}>Última etapa! Digite essa linha de código inteira, prestando atenção em cada tecla — sem colar. 💪</p>
+                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 10px" }}>Última etapa! Digite esta frase curta para revisar — sem colar. 💪</p>
                 <pre style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:10, padding:"12px 14px", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{level.line}</pre>
                 <textarea autoFocus value={finalTyped} onChange={e=>onFinalType(e.target.value)} onPaste={e=>e.preventDefault()} spellCheck={false} autoCorrect="off" autoCapitalize="off"
                   style={{ width:"100%", minHeight:70, marginTop:8, background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"10px 12px", color:"#f0e9fb", fontFamily:"'Courier New',monospace", fontSize:14, outline:"none" }} />
