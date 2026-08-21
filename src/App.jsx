@@ -4230,6 +4230,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
       {showKnowledgeTest && (
         <KnowledgeTestModal
+          questionContext={[allCodeToday(), JSON.stringify(dynamicSummary||{}), JSON.stringify(summaryHistory||{})].join("\n")}
           onAward={async (pts) => { const s=stateRef.current; const np=(s.nyxPoints||0)+pts; stateRef.current={...s,nyxPoints:np}; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); unlockAchievement("autodidata"); }}
           onFirstToday={() => {
             const today = todayKey();
@@ -4260,6 +4261,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           shift={shift}
           myName={studentName}
           myAvatar={avatar}
+          questionContext={[allCodeToday(), JSON.stringify(dynamicSummary||{}), JSON.stringify(summaryHistory||{})].join("\n")}
           onAward={async (pts) => { const s=stateRef.current; const np=(s.nyxPoints||0)+pts; stateRef.current={...s,nyxPoints:np}; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); }}
           onWin={async () => {
             const nw = (stateRef.current.duelWins||0) + 1;
@@ -4277,6 +4279,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           shift={shift}
           myName={studentName}
           myAvatar={avatar}
+          questionContext={[allCodeToday(), JSON.stringify(dynamicSummary||{}), JSON.stringify(summaryHistory||{})].join("\n")}
           onAward={async (pts) => { const s=stateRef.current; const np=(s.nyxPoints||0)+pts; stateRef.current={...s,nyxPoints:np}; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); }}
           onWin={async () => {
             const nw = (stateRef.current.duelWins||0) + 1;
