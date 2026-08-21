@@ -13,6 +13,22 @@ img, svg, canvas, video { max-width: 100%; }
 pre, code { max-width: 100%; }
 
 html { background: #120b1e; }
+
+/* ══════════════════════════════════════════════════════════════════
+   TEMA GLOBAL — Aula C#
+   Animações 100% CSS (leves, sem JavaScript)
+   ══════════════════════════════════════════════════════════════════ */
+
+* { box-sizing: border-box; }
+
+html, body, #root { min-height: 100%; }
+
+/* nenhum card, editor ou texto comprido pode aumentar a largura da página inteira */
+html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+img, svg, canvas, video { max-width: 100%; }
+pre, code { max-width: 100%; }
+
+html { background: #120b1e; }
 body {
   margin: 0;
   background: transparent;
@@ -256,18 +272,3 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
 @keyframes pulse-dot { 0%,100% { transform: scale(1); opacity:.35; } 50% { transform: scale(1.35); opacity: 1; } }
 @keyframes glow-ring { 0%,100% { box-shadow: 0 0 14px rgba(124,131,255,.25); } 50% { box-shadow: 0 0 26px rgba(124,131,255,.55); } }
 @keyframes live-dot  { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
-/* Nyx: Ecos do Eclipse - protótipo jogável */
-.nyx-eclipse-shell{position:fixed;inset:0;z-index:1600;background:radial-gradient(circle at 50% 0,#21154a,#070713 65%);display:flex;flex-direction:column;color:#f5f3ff;font-family:Inter,system-ui,sans-serif;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));box-sizing:border-box}
-.nyx-eclipse-topbar{width:min(1180px,100%);margin:0 auto 9px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-.nyx-eclipse-topbar strong{display:block;font-size:clamp(13px,2vw,19px);letter-spacing:.12em;background:linear-gradient(90deg,#f5f3ff,#a78bfa,#67e8f9);-webkit-background-clip:text;background-clip:text;color:transparent}
-.nyx-eclipse-topbar span{display:block;color:#9f93bd;font-size:11px;margin-top:2px}
-.nyx-eclipse-actions{display:flex;gap:7px}.nyx-eclipse-actions button{border:1px solid #4c3d76;background:#161329;color:#ded8ef;border-radius:10px;padding:7px 10px;cursor:pointer;font-weight:700}.nyx-eclipse-actions button:hover{border-color:#a78bfa;background:#241a43}
-.nyx-eclipse-stage{position:relative;width:min(1180px,100%);aspect-ratio:16/9;margin:auto;border:1px solid #7657bb;border-radius:18px;overflow:hidden;background:#090916;box-shadow:0 25px 85px #000b,0 0 42px #7c3aed26}
-.nyx-eclipse-stage canvas{width:100%;height:100%;display:block;image-rendering:auto}
-.nyx-eclipse-hud{position:absolute;inset:16px 18px auto;display:flex;justify-content:space-between;pointer-events:none}.nyx-eclipse-hearts,.nyx-eclipse-fragments{background:#080717c9;border:1px solid #45366d;border-radius:12px;padding:8px 11px;box-shadow:0 8px 24px #0008}.nyx-eclipse-hearts{display:flex;gap:6px}.nyx-eclipse-hearts span{color:#312849;text-shadow:none}.nyx-eclipse-hearts span.on{color:#a78bfa;text-shadow:0 0 12px #8b5cf6}.nyx-eclipse-fragments{color:#fde68a;font-weight:900}
-.nyx-eclipse-bossbar{position:absolute;left:50%;bottom:55px;transform:translateX(-50%);width:min(520px,62%);text-align:center;pointer-events:none}.nyx-eclipse-bossbar span{font-size:11px;font-weight:900;letter-spacing:.18em;text-shadow:0 2px 5px #000}.nyx-eclipse-bossbar i{display:block;height:9px;margin-top:6px;padding:2px;background:#080717dc;border:1px solid #78662b;border-radius:20px}.nyx-eclipse-bossbar b{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#7c3aed,#facc15);transition:width .2s}
-.nyx-eclipse-victory{position:absolute;left:50%;top:22%;transform:translateX(-50%);width:min(520px,80%);padding:18px 24px;border:1px solid #d9b84b;border-radius:16px;text-align:center;background:#080717df;box-shadow:0 0 45px #facc1533;pointer-events:none}.nyx-eclipse-victory strong{display:block;color:#fde68a;font-size:clamp(17px,3vw,28px)}.nyx-eclipse-victory span{display:block;color:#c4b5fd;margin-top:5px;font-size:13px}
-.nyx-eclipse-help{width:min(1180px,100%);margin:8px auto 0;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}.nyx-eclipse-help span{font-size:10px;color:#a99ac9;border:1px solid #392e59;border-radius:20px;padding:4px 9px;background:#0c0a19}
-.nyx-eclipse-touch{display:none;position:absolute;inset:auto 12px 12px;justify-content:space-between;align-items:flex-end;pointer-events:none}.nyx-eclipse-touch>div{display:flex;gap:8px}.nyx-eclipse-touch button{pointer-events:auto;touch-action:none;width:52px;height:52px;border-radius:50%;border:1px solid #9b7cdd;background:#17112dcc;color:#eee8ff;font-size:20px;font-weight:900;box-shadow:0 5px 18px #0008;-webkit-tap-highlight-color:transparent}.nyx-eclipse-touch button:active{background:#6d42ca;transform:scale(.95)}.nyx-eclipse-touch button.attack{width:60px;height:60px;border-color:#e3c15c;color:#fde68a}
-@media (max-width:850px),(pointer:coarse){.nyx-eclipse-touch{display:flex}.nyx-eclipse-help{display:none}.nyx-eclipse-stage{margin:auto 0}.nyx-eclipse-topbar span{display:none}.nyx-eclipse-bossbar{bottom:76px}.nyx-eclipse-hud{inset:8px 9px auto}.nyx-eclipse-hearts,.nyx-eclipse-fragments{padding:5px 7px;font-size:11px}.nyx-eclipse-actions button{padding:6px 8px;font-size:11px}}
-@media (max-height:520px){.nyx-eclipse-shell{padding:4px}.nyx-eclipse-topbar{margin-bottom:3px}.nyx-eclipse-help{display:none}.nyx-eclipse-stage{height:calc(100vh - 46px);width:auto;max-width:100%;margin:auto;aspect-ratio:16/9}.nyx-eclipse-touch{display:flex}.nyx-eclipse-topbar strong{font-size:12px}.nyx-eclipse-actions button{padding:4px 7px}}
