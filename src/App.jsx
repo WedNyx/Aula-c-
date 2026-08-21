@@ -3244,7 +3244,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               <p style={{ color:"#f0e9fb", fontSize:16.5, fontWeight:800, margin:"10px 0 4px" }}>E aí, {String(studentName).split(" ")[0]}! 🌐</p>
               <p style={{ color:"#a99ac9", fontSize:13, margin:0, lineHeight:1.6 }}>Você está na sala de linguagens — qual você quer estudar? Eu viro especialista nela pra te ajudar.</p>
             </div>
-            <div style={{ marginTop:18, display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            <div className="mobile-grid-2" style={{ marginTop:18, display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
               {STUDY_LANGUAGES.map(l => (
                 <button key={l.id} onClick={()=>chooseLanguage(l.id)}
                   style={{ background:"#171026", border:"2px solid #3b2a58", borderRadius:14, padding:"18px 10px", cursor:"pointer", textAlign:"center", color:"#f0e9fb" }}>
@@ -3290,7 +3290,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <span style={{ color:"#fbbf24", fontSize:12.5, fontWeight:700 }}>🔄 Reconectando Nyx...</span>
         </div>
       )}
-      <div style={styles.header}>
+      <div className="mobile-app-header" style={styles.header}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={()=>setShowAvatarEdit(true)} title="Editar meu boneco"
             style={{ background:"transparent", border:"none", padding:0, cursor:"pointer", position:"relative", lineHeight:0 }}>
@@ -3505,7 +3505,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       )}
 
       <div style={{ display:"flex", gap:14, padding:14, maxWidth:1180, margin:"0 auto", flexWrap:"wrap" }}>
-        <div style={{ flex:"1 1 560px", minWidth:320 }}>
+        <div className="code-main-col" style={{ flex:"1 1 560px", minWidth:320 }}>
           {accessMode ? (
             <div className="cardfx" style={{ ...styles.card, borderColor:"#22d3ee" }}>
               <h3 style={{ color:"#22d3ee", marginBottom:4, fontSize:scaleSize(19) }}>🧩 Modo Guiado — Monte seu programa!</h3>
@@ -4025,7 +4025,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 </div>
               )}
               <h3 style={{ color:"#f0e9fb", fontSize:"clamp(16px, 4vw, 21px)", lineHeight:1.45, margin:"0 0 14px" }}>{q.q}</h3>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <div className="mobile-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                 {q.opts.map((opt,i) => {
                   const picked = myAns && myAns.opt === i;
                   const isCorrect = i === q.correct;
@@ -6481,7 +6481,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           <span style={{ color:"#fca5a5", fontSize:12.5, fontWeight:700 }}>{errorNotice}</span>
         </div>
       )}
-      <div style={{ ...styles.header, ...(tab==="code" ? { padding:"6px 14px" } : {}) }}>
+      <div className="mobile-app-header" style={{ ...styles.header, ...(tab==="code" ? { padding:"6px 14px" } : {}) }}>
         <div>
           <span className="shine" style={{ fontWeight:900, fontSize: tab==="code" ? 14 : 18, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
           <span style={{ color:"#a99ac9", marginLeft:12, fontSize:12 }}>
@@ -6515,6 +6515,19 @@ function TeacherView({ onLogout, teacherAuth }) {
           <button data-tour-prof="sair" style={{ ...styles.btnGhost, fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
         </div>
       </div>
+
+      {/* no modo completo do celular a sidebar de desktop não existe; esta faixa mantém todas as
+          áreas do painel acessíveis sem obrigar o professor a voltar ao computador */}
+      {isMobileScreen && (
+        <nav className="teacher-mobile-tabs" aria-label="Áreas do painel do professor">
+          <button style={styles.tab(tab==="monitor")} onClick={()=>setTab("monitor")}>👥 Monitoramento</button>
+          <button style={styles.tab(tab==="code")} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
+          <button style={styles.tab(tab==="calendar")} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
+          <button style={styles.tab(tab==="feedback")} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
+          <button style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=="idle"&&tab!=="exam"?{borderColor:"#fbbf24",color:"#fbbf24"}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=="idle"?" ●":""}</button>
+          <button style={{ ...styles.tab(tab==="quiz"), ...(quizRoom&&tab!=="quiz"?{borderColor:"#c084fc",color:"#c084fc"}:{}) }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?" ●":""}</button>
+        </nav>
+      )}
 
       {/* filtro de turno (vale para monitoramento, chamada, situação e feedback) */}
       {tab!=="code" && (
@@ -7020,7 +7033,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           </div>
 
           {/* direita */}
-          <div style={{ flex:"1 1 420px", minWidth:300 }}>
+          <div className="code-main-col" style={{ flex:"1 1 420px", minWidth:300 }}>
             <div data-tour-prof="monitor-grid" className="cardfx" style={styles.card} {...(isMobileScreen ? {} : { onMouseEnter:()=>setMonitorHover(true), onMouseLeave:()=>setMonitorHover(false) })}>
               <h3 style={{ color:"#fbbf24", marginBottom:12, display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                 <span>👥 Monitoramento ({shown.length})</span>
@@ -7637,7 +7650,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               const status = classStatus(sc, meta.allowWeekend);
               return (
                 <>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                  <div className="mobile-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                     <label style={{ fontSize:11.5, color:"#a99ac9" }}>Início da aula
                       <input type="time" value={sc.start||""} onChange={e=>setSc({start:e.target.value})} style={{ width:"100%", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 8px", color:"#f0e9fb", fontSize:13, marginTop:3 }} />
                     </label>
@@ -7645,7 +7658,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <input type="time" value={sc.end||""} onChange={e=>setSc({end:e.target.value})} style={{ width:"100%", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 8px", color:"#f0e9fb", fontSize:13, marginTop:3 }} />
                     </label>
                   </div>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
+                  <div className="mobile-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
                     <label style={{ fontSize:11.5, color:"#a99ac9" }}>Início do intervalo
                       <input type="time" value={sc.breakStart||""} onChange={e=>setSc({breakStart:e.target.value})} style={{ width:"100%", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 8px", color:"#f0e9fb", fontSize:13, marginTop:3 }} />
                     </label>
@@ -7763,7 +7776,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <input value={quizQDraft.q} onChange={e=>setQuizQDraft(d=>({ ...d, q:e.target.value }))} placeholder="Pergunta"
                     style={{ width:"100%", background:"#1e1430", border:"2px solid #3b2a58", borderRadius:8, padding:"9px 12px", color:"#f0e9fb", fontSize:13.5, outline:"none", boxSizing:"border-box" }} />
                   <p style={{ color:"#776798", fontSize:11.5, margin:"10px 0 6px" }}>Alternativas (deixe as duas últimas em branco pra fazer Verdadeiro/Falso) — clique na forma pra marcar a certa:</p>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                  <div className="mobile-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                     {quizQDraft.opts.map((opt,i) => (
                       <div key={i} style={{ display:"flex", alignItems:"center", gap:6 }}>
                         <button onClick={()=>setQuizQDraft(d=>({ ...d, correct:i }))} title="Marcar como correta"
@@ -7860,7 +7873,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   : <span style={{ ...styles.badge("#34d399") }}>Resposta revelada</span>}
               </div>
               <h3 style={{ color:"#f0e9fb", fontSize:"clamp(18px, 3.4vw, 26px)", lineHeight:1.4, margin:"14px 0" }}>{q.q}</h3>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <div className="mobile-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                 {q.opts.map((opt,i) => {
                   const isCorrect = i === q.correct;
                   const dim = room.status==="reveal" && !isCorrect;
