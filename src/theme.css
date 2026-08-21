@@ -13,6 +13,22 @@ img, svg, canvas, video { max-width: 100%; }
 pre, code { max-width: 100%; }
 
 html { background: #120b1e; }
+
+/* ══════════════════════════════════════════════════════════════════
+   TEMA GLOBAL — Aula C#
+   Animações 100% CSS (leves, sem JavaScript)
+   ══════════════════════════════════════════════════════════════════ */
+
+* { box-sizing: border-box; }
+
+html, body, #root { min-height: 100%; }
+
+/* nenhum card, editor ou texto comprido pode aumentar a largura da página inteira */
+html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+img, svg, canvas, video { max-width: 100%; }
+pre, code { max-width: 100%; }
+
+html { background: #120b1e; }
 body {
   margin: 0;
   background: transparent;
