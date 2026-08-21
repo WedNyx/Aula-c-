@@ -314,6 +314,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // modelo (Nemotron/Laguna) que já existiam só no painel do professor
   const [aiDown, setAiDown] = useState(false);
   const [providerHealth, setProviderHealth] = useState({ nvidia:null, laguna:null });
+  // versão das novidades apresentadas pelo Nyx Lunar. Fica salva no perfil do aluno para não
+  // repetir o tour em outro aparelho depois que ele já tiver visto.
+  const NYX_NEWS_VERSION = "2026-08-skins";
+  const [nyxNewsSeen, setNyxNewsSeen] = useState("");
+  const [showNyxNews, setShowNyxNews] = useState(false);
+  const hasNyxNews = nyxNewsSeen !== NYX_NEWS_VERSION;
   useEffect(() => {
     let active = true;
     const check = async () => {
@@ -445,7 +451,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxNewsSeen, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -626,6 +632,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       nyxSpent: s.nyxSpent || 0,
       nyxOwned: s.nyxOwned || [],
       nyxGear: s.nyxGear || DEFAULT_NYX_GEAR,
+      nyxNewsSeen: s.nyxNewsSeen || "",
       nyxPrefs: s.nyxPrefs || { tom:"divertido", estilo:"detalhada" },
       birthDate: s.birthDate || "",
       cpf: s.cpf || "",
@@ -1208,6 +1215,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             if (loadedGear.hand === "escudo") { loadedGear.hand = null; loadedGear.shield = loadedGear.shield || "escudo"; }
             setNyxGear(loadedGear);
           }
+          if (prev.nyxNewsSeen) setNyxNewsSeen(prev.nyxNewsSeen);
           if (prev.nyxPrefs) setNyxPrefs(prev.nyxPrefs);
           if (prev.birthDate) setBirthDate(prev.birthDate);
           if (prev.cpf) setCpf(prev.cpf);
@@ -2087,6 +2095,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 10000);
     }
   };
+
+  const finishNyxNews = () => {
+    setShowNyxNews(false);
+    setNyxNewsSeen(NYX_NEWS_VERSION);
+    persist({ nyxNewsSeen: NYX_NEWS_VERSION });
+  };
+
+  // Eclipse tem prioridade sobre Lunar. Assim um aviso de novidade nunca esconde que a IA está
+  // temporariamente indisponível; ao normalizar, o Nyx volta à skin comprada pelo aluno.
+  const effectiveNyxGear = { ...nyxGear, skin: aiDown ? "skinEclipse" : hasNyxNews ? "skinLunar" : nyxGear.skin };
 
   // 🥚 os segredos escondidos ficam espalhados por TODA a área do aluno (programar, resumo,
   // atividade, tela de "concluído") — não só a tela de código — sempre com position:fixed pra
@@ -3244,7 +3262,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               <p style={{ color:"#f0e9fb", fontSize:16.5, fontWeight:800, margin:"10px 0 4px" }}>E aí, {String(studentName).split(" ")[0]}! 🌐</p>
               <p style={{ color:"#a99ac9", fontSize:13, margin:0, lineHeight:1.6 }}>Você está na sala de linguagens — qual você quer estudar? Eu viro especialista nela pra te ajudar.</p>
             </div>
-            <div className="mobile-grid-2" style={{ marginTop:18, display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            <div style={{ marginTop:18, display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
               {STUDY_LANGUAGES.map(l => (
                 <button key={l.id} onClick={()=>chooseLanguage(l.id)}
                   style={{ background:"#171026", border:"2px solid #3b2a58", borderRadius:14, padding:"18px 10px", cursor:"pointer", textAlign:"center", color:"#f0e9fb" }}>
@@ -3290,7 +3308,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <span style={{ color:"#fbbf24", fontSize:12.5, fontWeight:700 }}>🔄 Reconectando Nyx...</span>
         </div>
       )}
-      <div className="mobile-app-header" style={styles.header}>
+      <div style={styles.header}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={()=>setShowAvatarEdit(true)} title="Editar meu boneco"
             style={{ background:"transparent", border:"none", padding:0, cursor:"pointer", position:"relative", lineHeight:0 }}>
@@ -3505,7 +3523,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       )}
 
       <div style={{ display:"flex", gap:14, padding:14, maxWidth:1180, margin:"0 auto", flexWrap:"wrap" }}>
-        <div className="code-main-col" style={{ flex:"1 1 560px", minWidth:320 }}>
+        <div style={{ flex:"1 1 560px", minWidth:320 }}>
           {accessMode ? (
             <div className="cardfx" style={{ ...styles.card, borderColor:"#22d3ee" }}>
               <h3 style={{ color:"#22d3ee", marginBottom:4, fontSize:scaleSize(19) }}>🧩 Modo Guiado — Monte seu programa!</h3>
@@ -3692,7 +3710,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             )
           )}
           <div data-tour="nyx" className="cardfx" style={styles.card}>
-            <NyxRobot state={robotState} size={88} gear={nyxGear} />
+            <NyxRobot state={robotState} size={88} gear={effectiveNyxGear} />
+            {hasNyxNews && !aiDown && <button onClick={()=>setShowNyxNews(true)} style={{ ...styles.btn("#82eeff"), width:"100%", marginTop:10, padding:"8px 0", fontSize:12.5 }}>🌙 Ver o que tem de novo</button>}
             {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>
               {robotMsg}
               {ttsAllowed && <div style={{ marginTop:8 }}><button onClick={()=>speak(robotMsg)} style={{ background:"transparent", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, color:robotState==="error"?"#f87171":"#34d399", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>🔊 Ouvir</button></div>}
@@ -3950,6 +3969,27 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         />
       )}
 
+      {showNyxNews && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(5,4,12,.88)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
+          <div className="pop" style={{ width:"min(520px,100%)", background:"linear-gradient(145deg,#20274a,#111329)", border:"1px solid #9ab7ff66", borderRadius:22, padding:"24px", boxShadow:"0 30px 90px #000" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", gap:14, alignItems:"flex-start" }}>
+              <div><div style={{ color:"#9ab7ff", fontSize:10, fontWeight:900, letterSpacing:1.5 }}>NOVIDADE DA PLATAFORMA</div><h2 style={{ margin:"7px 0 8px", color:"#fff" }}>🌙 Novas aparências do Nyx</h2></div>
+              <NyxRobot state="ok" size={62} showName={false} gear={{ ...nyxGear, skin:"skinLunar" }} />
+            </div>
+            <p style={{ color:"#c2bed2", lineHeight:1.65, margin:"8px 0 14px" }}>A Loja do Nyx agora possui skins completas. Elas mantêm exatamente o formato Prisma Orbital e mudam apenas cores, materiais e efeitos.</p>
+            <div style={{ display:"grid", gap:8, color:"#ded9eb", fontSize:13 }}>
+              <div style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>🛍️ Compre skins usando os pontos conquistados nas atividades.</div>
+              <div style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>🌑 O Nyx Eclipse avisa quando os recursos de IA estiverem em pausa.</div>
+              <div style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>📅 O visual Modernizado será o padrão automático a partir de setembro.</div>
+            </div>
+            <div style={{ display:"flex", gap:9, marginTop:18, flexWrap:"wrap" }}>
+              <button onClick={()=>{ finishNyxNews(); setShowNyxShop(true); }} style={{ ...styles.btn("#82eeff"), flex:"1 1 180px", padding:"10px" }}>🎁 Conhecer as skins</button>
+              <button onClick={finishNyxNews} style={{ ...styles.btnGhost, flex:"1 1 120px", padding:"10px" }}>Entendi</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAvatarEdit && (
         <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
           <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:680, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
@@ -4025,7 +4065,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 </div>
               )}
               <h3 style={{ color:"#f0e9fb", fontSize:"clamp(16px, 4vw, 21px)", lineHeight:1.45, margin:"0 0 14px" }}>{q.q}</h3>
-              <div className="mobile-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                 {q.opts.map((opt,i) => {
                   const picked = myAns && myAns.opt === i;
                   const isCorrect = i === q.correct;
@@ -6481,7 +6521,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           <span style={{ color:"#fca5a5", fontSize:12.5, fontWeight:700 }}>{errorNotice}</span>
         </div>
       )}
-      <div className="mobile-app-header" style={{ ...styles.header, ...(tab==="code" ? { padding:"6px 14px" } : {}) }}>
+      <div style={{ ...styles.header, ...(tab==="code" ? { padding:"6px 14px" } : {}) }}>
         <div>
           <span className="shine" style={{ fontWeight:900, fontSize: tab==="code" ? 14 : 18, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
           <span style={{ color:"#a99ac9", marginLeft:12, fontSize:12 }}>
@@ -6515,19 +6555,6 @@ function TeacherView({ onLogout, teacherAuth }) {
           <button data-tour-prof="sair" style={{ ...styles.btnGhost, fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
         </div>
       </div>
-
-      {/* no modo completo do celular a sidebar de desktop não existe; esta faixa mantém todas as
-          áreas do painel acessíveis sem obrigar o professor a voltar ao computador */}
-      {isMobileScreen && (
-        <nav className="teacher-mobile-tabs" aria-label="Áreas do painel do professor">
-          <button style={styles.tab(tab==="monitor")} onClick={()=>setTab("monitor")}>👥 Monitoramento</button>
-          <button style={styles.tab(tab==="code")} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
-          <button style={styles.tab(tab==="calendar")} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
-          <button style={styles.tab(tab==="feedback")} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
-          <button style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=="idle"&&tab!=="exam"?{borderColor:"#fbbf24",color:"#fbbf24"}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=="idle"?" ●":""}</button>
-          <button style={{ ...styles.tab(tab==="quiz"), ...(quizRoom&&tab!=="quiz"?{borderColor:"#c084fc",color:"#c084fc"}:{}) }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?" ●":""}</button>
-        </nav>
-      )}
 
       {/* filtro de turno (vale para monitoramento, chamada, situação e feedback) */}
       {tab!=="code" && (
@@ -7033,7 +7060,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           </div>
 
           {/* direita */}
-          <div className="code-main-col" style={{ flex:"1 1 420px", minWidth:300 }}>
+          <div style={{ flex:"1 1 420px", minWidth:300 }}>
             <div data-tour-prof="monitor-grid" className="cardfx" style={styles.card} {...(isMobileScreen ? {} : { onMouseEnter:()=>setMonitorHover(true), onMouseLeave:()=>setMonitorHover(false) })}>
               <h3 style={{ color:"#fbbf24", marginBottom:12, display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                 <span>👥 Monitoramento ({shown.length})</span>
@@ -7650,7 +7677,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               const status = classStatus(sc, meta.allowWeekend);
               return (
                 <>
-                  <div className="mobile-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                     <label style={{ fontSize:11.5, color:"#a99ac9" }}>Início da aula
                       <input type="time" value={sc.start||""} onChange={e=>setSc({start:e.target.value})} style={{ width:"100%", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 8px", color:"#f0e9fb", fontSize:13, marginTop:3 }} />
                     </label>
@@ -7658,7 +7685,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <input type="time" value={sc.end||""} onChange={e=>setSc({end:e.target.value})} style={{ width:"100%", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 8px", color:"#f0e9fb", fontSize:13, marginTop:3 }} />
                     </label>
                   </div>
-                  <div className="mobile-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
                     <label style={{ fontSize:11.5, color:"#a99ac9" }}>Início do intervalo
                       <input type="time" value={sc.breakStart||""} onChange={e=>setSc({breakStart:e.target.value})} style={{ width:"100%", background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 8px", color:"#f0e9fb", fontSize:13, marginTop:3 }} />
                     </label>
@@ -7776,7 +7803,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <input value={quizQDraft.q} onChange={e=>setQuizQDraft(d=>({ ...d, q:e.target.value }))} placeholder="Pergunta"
                     style={{ width:"100%", background:"#1e1430", border:"2px solid #3b2a58", borderRadius:8, padding:"9px 12px", color:"#f0e9fb", fontSize:13.5, outline:"none", boxSizing:"border-box" }} />
                   <p style={{ color:"#776798", fontSize:11.5, margin:"10px 0 6px" }}>Alternativas (deixe as duas últimas em branco pra fazer Verdadeiro/Falso) — clique na forma pra marcar a certa:</p>
-                  <div className="mobile-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                     {quizQDraft.opts.map((opt,i) => (
                       <div key={i} style={{ display:"flex", alignItems:"center", gap:6 }}>
                         <button onClick={()=>setQuizQDraft(d=>({ ...d, correct:i }))} title="Marcar como correta"
@@ -7873,7 +7900,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   : <span style={{ ...styles.badge("#34d399") }}>Resposta revelada</span>}
               </div>
               <h3 style={{ color:"#f0e9fb", fontSize:"clamp(18px, 3.4vw, 26px)", lineHeight:1.4, margin:"14px 0" }}>{q.q}</h3>
-              <div className="mobile-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                 {q.opts.map((opt,i) => {
                   const isCorrect = i === q.correct;
                   const dim = room.status==="reveal" && !isCorrect;
