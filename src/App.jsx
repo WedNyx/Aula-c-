@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTeacherResumoSnapshot, saveTeacherResumoSnapshot, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, getTeacherNotes, saveTeacherNotes, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTeacherResumoSnapshot, saveTeacherResumoSnapshot, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -47,6 +47,7 @@ import { Sparkles } from "./components/Sparkles.jsx";
 import { CollapsibleCard } from "./components/CollapsibleCard.jsx";
 import { Calendar } from "./components/Calendar.jsx";
 import { CodeLab } from "./components/CodeLab.jsx";
+import { TeacherNotesModal } from "./components/TeacherNotesModal.jsx";
 import { GIFT_TIERS, rollGift } from "./lib/gifts.js";
 import { QUIZ_COLORS, QUIZ_QUESTION_SECONDS, QUIZ_TIMER_OPTIONS, quizSecsOf, quizPoints, makeQuizCode, quizLeaderboard, QUIZ_SEED_THEMES } from "./lib/quiz.js";
 import { LESSON_LIBRARY } from "./lib/lessonLibrary.js";
@@ -4276,6 +4277,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [adminLogLoading, setAdminLogLoading] = useState(false);
   const loadAdminLog = async () => { setAdminLogLoading(true); setAdminLog(await getAdminLog(teacherAuth)); setAdminLogLoading(false); };
   const [tab, setTab] = useState("monitor");
+  const [showTeacherNotes, setShowTeacherNotes] = useState(false);
   // 🏫 turmas: pode ter mais de uma no mesmo turno (ex: duas de tarde) — cada turma é seu próprio
   // "turno" pra todo o resto do sistema (aluno, prova, código, monitoramento já funcionam com
   // qualquer id). Recarrega sozinho depois de criar/arquivar, pra refletir na hora sem precisar sair e voltar
@@ -6504,6 +6506,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           )}
         </div>
         <div style={{ display:"flex", gap: tab==="code" ? 5 : 8, flexWrap:"wrap" }}>
+          <button className="btn-ghost" style={styles.btnGhost} onClick={()=>setShowTeacherNotes(true)} title="Criar e consultar suas anotações privadas">📝 Anotações</button>
           <button data-tour-prof="situacao" style={{ ...styles.btn(needHelp.length>0 ? "#f87171" : "#34d399"), ...(tab==="code"?{padding:"4px 10px",fontSize:12}:{}) }} onClick={()=>setShowQuickStatus(true)} title="Veja rapidinho quem está com dificuldade, sem sair desta tela">👀 Situação{needHelp.length>0 ? ` (${needHelp.length})` : ""}</button>
           {tab!=="code" && <button className="btn-ghost" data-tour-prof="telao" style={styles.btnGhost} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
           {isMobileScreen && <button style={styles.btn("#c084fc")} onClick={()=>setForceFullMode(false)} title="Volta pra lista simples de acompanhamento, melhor pro celular">📱 Modo simples</button>}
@@ -6565,6 +6568,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {showTelao && <TelaoModal students={students} shift={shiftFilter} turmas={activeTurmas} onClose={()=>setShowTelao(false)} teacherAuth={teacherAuth} />}
+      {showTeacherNotes && <TeacherNotesModal loadNotes={()=>getTeacherNotes(teacherAuth)} saveNotes={(notes)=>saveTeacherNotes(notes, teacherAuth)} onClose={()=>setShowTeacherNotes(false)} />}
       {showQuickStatus && <QuickStatusModal students={sorted} onClose={()=>setShowQuickStatus(false)} />}
       {showTripOverview && <TripOverviewModal entries={tripHallEntries} currentCity={turmaCalendar(meta, codeShift).cityClosed ? null : turmaCalendar(meta, codeShift).city} onClose={()=>setShowTripOverview(false)} />}
       {rankingRevealQueue.length > 0 && (
