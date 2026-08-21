@@ -314,6 +314,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // modelo (Nemotron/Laguna) que já existiam só no painel do professor
   const [aiDown, setAiDown] = useState(false);
   const [providerHealth, setProviderHealth] = useState({ nvidia:null, laguna:null });
+  // versão das novidades apresentadas pelo Nyx Lunar. Fica salva no perfil do aluno para não
+  // repetir o tour em outro aparelho depois que ele já tiver visto.
+  const NYX_NEWS_VERSION = "2026-08-skins";
+  const [nyxNewsSeen, setNyxNewsSeen] = useState("");
+  const [showNyxNews, setShowNyxNews] = useState(false);
+  const hasNyxNews = nyxNewsSeen !== NYX_NEWS_VERSION;
   useEffect(() => {
     let active = true;
     const check = async () => {
@@ -445,7 +451,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxNewsSeen, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -626,6 +632,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       nyxSpent: s.nyxSpent || 0,
       nyxOwned: s.nyxOwned || [],
       nyxGear: s.nyxGear || DEFAULT_NYX_GEAR,
+      nyxNewsSeen: s.nyxNewsSeen || "",
       nyxPrefs: s.nyxPrefs || { tom:"divertido", estilo:"detalhada" },
       birthDate: s.birthDate || "",
       cpf: s.cpf || "",
@@ -1208,6 +1215,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             if (loadedGear.hand === "escudo") { loadedGear.hand = null; loadedGear.shield = loadedGear.shield || "escudo"; }
             setNyxGear(loadedGear);
           }
+          if (prev.nyxNewsSeen) setNyxNewsSeen(prev.nyxNewsSeen);
           if (prev.nyxPrefs) setNyxPrefs(prev.nyxPrefs);
           if (prev.birthDate) setBirthDate(prev.birthDate);
           if (prev.cpf) setCpf(prev.cpf);
@@ -2087,6 +2095,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 10000);
     }
   };
+
+  const finishNyxNews = () => {
+    setShowNyxNews(false);
+    setNyxNewsSeen(NYX_NEWS_VERSION);
+    persist({ nyxNewsSeen: NYX_NEWS_VERSION });
+  };
+
+  // Eclipse tem prioridade sobre Lunar. Assim um aviso de novidade nunca esconde que a IA está
+  // temporariamente indisponível; ao normalizar, o Nyx volta à skin comprada pelo aluno.
+  const effectiveNyxGear = { ...nyxGear, skin: aiDown ? "skinEclipse" : hasNyxNews ? "skinLunar" : nyxGear.skin };
 
   // 🥚 os segredos escondidos ficam espalhados por TODA a área do aluno (programar, resumo,
   // atividade, tela de "concluído") — não só a tela de código — sempre com position:fixed pra
@@ -3692,7 +3710,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             )
           )}
           <div data-tour="nyx" className="cardfx" style={styles.card}>
-            <NyxRobot state={robotState} size={88} gear={nyxGear} />
+            <NyxRobot state={robotState} size={88} gear={effectiveNyxGear} />
+            {hasNyxNews && !aiDown && <button onClick={()=>setShowNyxNews(true)} style={{ ...styles.btn("#82eeff"), width:"100%", marginTop:10, padding:"8px 0", fontSize:12.5 }}>🌙 Ver o que tem de novo</button>}
             {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>
               {robotMsg}
               {ttsAllowed && <div style={{ marginTop:8 }}><button onClick={()=>speak(robotMsg)} style={{ background:"transparent", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, color:robotState==="error"?"#f87171":"#34d399", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>🔊 Ouvir</button></div>}
@@ -3948,6 +3967,27 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           isTestShift={shift === TEST_SHIFT.id}
           onClose={()=>setShowNyxShop(false)}
         />
+      )}
+
+      {showNyxNews && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(5,4,12,.88)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
+          <div className="pop" style={{ width:"min(520px,100%)", background:"linear-gradient(145deg,#20274a,#111329)", border:"1px solid #9ab7ff66", borderRadius:22, padding:"24px", boxShadow:"0 30px 90px #000" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", gap:14, alignItems:"flex-start" }}>
+              <div><div style={{ color:"#9ab7ff", fontSize:10, fontWeight:900, letterSpacing:1.5 }}>NOVIDADE DA PLATAFORMA</div><h2 style={{ margin:"7px 0 8px", color:"#fff" }}>🌙 Novas aparências do Nyx</h2></div>
+              <NyxRobot state="ok" size={62} showName={false} gear={{ ...nyxGear, skin:"skinLunar" }} />
+            </div>
+            <p style={{ color:"#c2bed2", lineHeight:1.65, margin:"8px 0 14px" }}>A Loja do Nyx agora possui skins completas. Elas mantêm exatamente o formato Prisma Orbital e mudam apenas cores, materiais e efeitos.</p>
+            <div style={{ display:"grid", gap:8, color:"#ded9eb", fontSize:13 }}>
+              <div style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>🛍️ Compre skins usando os pontos conquistados nas atividades.</div>
+              <div style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>🌑 O Nyx Eclipse avisa quando os recursos de IA estiverem em pausa.</div>
+              <div style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>📅 O visual Modernizado será o padrão automático a partir de setembro.</div>
+            </div>
+            <div style={{ display:"flex", gap:9, marginTop:18, flexWrap:"wrap" }}>
+              <button onClick={()=>{ finishNyxNews(); setShowNyxShop(true); }} style={{ ...styles.btn("#82eeff"), flex:"1 1 180px", padding:"10px" }}>🎁 Conhecer as skins</button>
+              <button onClick={finishNyxNews} style={{ ...styles.btnGhost, flex:"1 1 120px", padding:"10px" }}>Entendi</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showAvatarEdit && (

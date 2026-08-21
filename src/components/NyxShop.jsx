@@ -7,6 +7,7 @@ import { useViewportWidth } from "../lib/utils.js";
 // objeto de gear guardado por aluno continuam com as mesmas chaves de sempre (head/face/neck/
 // hand/shield), então trocar esses nomes não quebra nenhum acessório já comprado por ninguém
 const SLOT_SECTIONS = [
+  { slot: "skin",   label: "🌙 Aparências" },
   { slot: "head",   label: "🎩 Cabeça" },
   { slot: "face",   label: "🕶️ Rosto" },
   { slot: "neck",   label: "🧣 Pescoço" },
@@ -109,7 +110,9 @@ export function NyxShop({ wallet, owned, gear, onEquip, onBuy, isTestShift, onCl
                             style={{ position:"absolute", top:6, right:6, zIndex:2, width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center", borderRadius:"50%", background:"#0000004d", fontSize:12, cursor:"pointer", opacity:1 }}>
                             👁️
                           </span>
-                          <div style={{ fontSize:30, filter: clickable?"none":"grayscale(1)" }}>{item.emoji}</div>
+                          {item.slot === "skin"
+                            ? <NyxRobot state="ok" size={54} showName={false} gear={{ ...gear, skin:item.id }} />
+                            : <div style={{ fontSize:30, filter: clickable?"none":"grayscale(1)" }}>{item.emoji}</div>}
                           <div style={{ color:"#f0e9fb", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
                           {has ? (
                             equipped

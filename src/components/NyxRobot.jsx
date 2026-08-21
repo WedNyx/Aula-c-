@@ -4,6 +4,13 @@ import { shade } from "../lib/colors.ts";
 
 // ── loja de acessórios do Nyx (desbloqueados com pontos de acerto) ──
 export const NYX_ITEMS = [
+  // skins preservam exatamente o corpo Prisma Orbital; mudam apenas cores, materiais e luzes
+  { id:"skinOrbita",       label:"Nyx Órbita",       emoji:"🪐", slot:"skin", cost:28 },
+  { id:"skinGuardiao",     label:"Nyx Guardião",     emoji:"🛡️", slot:"skin", cost:32 },
+  { id:"skinAurora",       label:"Nyx Aurora",       emoji:"🌌", slot:"skin", cost:35 },
+  { id:"skinLuaNova",      label:"Nyx Lua Nova",     emoji:"🌑", slot:"skin", cost:30 },
+  { id:"skinMare",         label:"Nyx Maré",         emoji:"🌊", slot:"skin", cost:34 },
+  { id:"skinConstelacao",  label:"Nyx Constelação",  emoji:"✨", slot:"skin", cost:45 },
   { id:"fone",   label:"Fone de ouvido", emoji:"🎧", slot:"head", cost:5 },
   { id:"laco",   label:"Laço",           emoji:"🎀", slot:"neck", cost:8 },
   { id:"oculos", label:"Óculos escuros", emoji:"🕶️", slot:"face", cost:10 },
@@ -65,7 +72,7 @@ export const NYX_ITEMS = [
   { id:"golaNucleo",          label:"Gola de Núcleo",       emoji:"🟤", slot:"neck", cost:22 },
   { id:"capaHeroi",           label:"Capa de Herói",        emoji:"🦸", slot:"costas", cost:55 },
 ];
-export const DEFAULT_NYX_GEAR = { head:null, face:null, neck:null, hand:null, shield:null, costas:null };
+export const DEFAULT_NYX_GEAR = { skin:null, head:null, face:null, neck:null, hand:null, shield:null, costas:null };
 
 // ── NYX: o robô assistente da turma (SVG + GSAP) ──
 let __nyxSeq = 0;
@@ -857,4 +864,3 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
     </div>
   );
 }
-
