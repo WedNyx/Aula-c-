@@ -1535,6 +1535,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             await persist({ summaryHistory: nextHistory });
           }
           await clearScoreFix(shift, studentName);
+        } else if (fix && fix.kind === "nyx-points-restore" && typeof fix.points === "number") {
+          // recuperação feita pelo professor: usa o total exato já salvo no servidor para não
+          // duplicar os pontos se a sessão do aluno estiver aberta durante a correção.
+          const np = Math.max(0, fix.points);
+          stateRef.current = { ...stateRef.current, nyxPoints: np };
+          setNyxPoints(np);
+          await clearScoreFix(shift, studentName);
+          await persist({ nyxPoints: np });
+          checkPointsAchievements(np);
         } else if (fix && fix.kind === "boss-bonus" && typeof fix.amount === "number") {
           // 👾 bônus de pontos por ter causado dano no chefão quando ele foi derrotado
           const np = (stateRef.current.nyxPoints || 0) + fix.amount;
@@ -4291,6 +4300,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // gestão do aluno selecionado (renomear, mover de turno, corrigir nota, excluir)
   const [renameVal, setRenameVal] = useState("");
   const [scoreVal, setScoreVal] = useState("");
+  const [nyxPointVal, setNyxPointVal] = useState("");
   const [struggleNotice, setStruggleNotice] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [selAccessMode, setSelAccessMode] = useState(false);
@@ -4298,7 +4308,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [selSupport, setSelSupport] = useState({});
   const [supportMap, setSupportMap] = useState({});
   const [checkinMap, setCheckinMap] = useState({}); // 😊 check-in emocional do dia: "turno:nome" → { mood, at }
-  useEffect(() => { setRenameVal(""); setScoreVal(""); setConfirmDelete(false); }, [selected]);
+  useEffect(() => { setRenameVal(""); setScoreVal(""); setNyxPointVal(""); setConfirmDelete(false); }, [selected]);
   const [resetting, setResetting] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetScope, setResetScope] = useState("all");
@@ -5878,6 +5888,21 @@ function TeacherView({ onLogout, teacherAuth }) {
     load();
   };
 
+  // recuperação de perfil: SOMA os pontos informados ao total já salvo. O scoreFix leva o novo
+  // total exato para uma sessão aberta, evitando somar duas vezes se o aluno estiver online.
+  const doRestoreNyxPoints = async (s) => {
+    const amount = parseInt(nyxPointVal, 10);
+    if (!s || !Number.isFinite(amount) || amount <= 0) return;
+    const safeAmount = Math.min(amount, 10000);
+    const current = Math.max(0, Number(s.nyxPoints) || 0);
+    const next = current + safeAmount;
+    const ok = await patchStudent(s.shift, s.name, { nyxPoints: next });
+    if (ok) await setScoreFix(s.shift, s.name, { kind:"nyx-points-restore", points:next, amount:safeAmount }, teacherAuth);
+    setNyxPointVal("");
+    flashMgmt(ok ? `✅ ${safeAmount} pontos do Nyx enviados para ${s.name}. Novo total: ${next}.` : "❌ Não consegui enviar os pontos agora. Tente de novo.");
+    load();
+  };
+
   const doDeleteStudent = async (s) => {
     if (!s) return;
     const deleted = await deleteStudentProfile(s.shift, s.name, teacherAuth);
@@ -7340,6 +7365,13 @@ function TeacherView({ onLogout, teacherAuth }) {
                       <input type="number" min={0} max={100} value={scoreVal} onChange={e=>setScoreVal(e.target.value)} placeholder={sel.score!=null?String(sel.score):"—"}
                         style={{ width:90, background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 10px", color:"#f0e9fb", fontSize:13, outline:"none" }} />
                       <button onClick={()=>doSetScore(sel)} disabled={scoreVal===""} style={{ ...styles.btn("#34d399"), padding:"6px 14px", fontSize:12.5, opacity:scoreVal!==""?1:0.5 }}>Alterar nota da atividade</button>
+                    </div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>🌙 Pontos Nyx:</span>
+                      <input type="number" min={1} max={10000} step={1} value={nyxPointVal} onChange={e=>setNyxPointVal(e.target.value)} placeholder="Quantidade"
+                        style={{ width:110, background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 10px", color:"#f0e9fb", fontSize:13, outline:"none" }} />
+                      <button onClick={()=>doRestoreNyxPoints(sel)} disabled={!nyxPointVal || parseInt(nyxPointVal,10)<=0} style={{ ...styles.btn("#fbbf24"), padding:"6px 14px", fontSize:12.5, opacity:nyxPointVal && parseInt(nyxPointVal,10)>0?1:0.5 }}>Enviar pontos</button>
+                      <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 180px" }}>Total atual: <b style={{ color:"#fbbf24" }}>{sel.nyxPoints||0}</b> · use para recuperar progresso perdido.</span>
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
                       <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>💌 Boletim:</span>
