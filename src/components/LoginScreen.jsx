@@ -119,7 +119,7 @@ export function Login({ onJoin, turmas }) {
   return (
     <div style={styles.container}>
       <Sparkles />
-      <div className="pop" style={styles.card}>
+      <div className="pop login-card" style={styles.card}>
         <div style={{ textAlign:"center", marginBottom:20 }}>
           <NyxRobot state="idle" size={86} showName={false} />
           <h1 className="shine" style={{ fontSize:28, margin:"6px 0 2px", fontWeight:900, background:"linear-gradient(120deg,#c084fc,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Aula de C#</h1>

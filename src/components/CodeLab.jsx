@@ -85,7 +85,7 @@ export function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code
         </div>
       )}
 
-      <div style={{ flex:"1 1 560px", minWidth:320 }}>
+      <div className="code-main-col" style={{ flex:"1 1 560px", minWidth:320 }}>
         <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8, flexWrap:"wrap" }}>
           {files.map((f,i)=>(
             <div key={i} onClick={()=>setActive(i)} style={{ display:"flex", alignItems:"center", gap:6, background:i===active?"#1e1e1e":"#101425", border:`1px solid ${i===active?accent:"#3b2a58"}`, color:i===active?"#fff":"#a99ac9", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>
