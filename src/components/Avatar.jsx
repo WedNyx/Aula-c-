@@ -172,6 +172,7 @@ export const PET_FILES = {
   "🦉":"coruja", "🐺":"lobo", "🦊":"raposa", "🐱":"gato",
   "🐶":"cachorro", "🐰":"coelho", "🦁":"leao", "🐢":"tartaruga",
 };
+const PET_MOTION_CLASS = { "🐝":"pet-bee", "🦋":"pet-butterfly", "✨":"pet-firefly", "🍄":"pet-mushroom" };
 // posição/tamanho pensados pro formato de cada bicho (sem moldura/círculo): quem tem corpo
 // inteiro em pé (trex/cachorro/coelho/tartaruga) fica "no chão" embaixo; quem é só rosto/busto
 // (unicórnio/coruja/raposa/gato/leão) fica "pousado" num canto; os maiores/mais assimétricos
@@ -251,7 +252,7 @@ export function Avatar({ cfg, size=72, animated=false }) {
       {c.pet && (PET_FILES[c.pet] ? (
         <img className={animated ? "avatar-pet" : undefined} src={`/pets/${PET_FILES[c.pet]}.${animated ? "webp" : "png"}`} alt="" draggable={false} style={petStyle(PET_FILES[c.pet], size)} />
       ) : (
-        <span className={animated ? "avatar-pet" : undefined} style={{ ...petStyle(null, size), fontSize:Math.max(9, Math.round(size*0.3)), lineHeight:1 }}>{c.pet}</span>
+        <span className={animated ? `avatar-pet ${PET_MOTION_CLASS[c.pet] || ""}`.trim() : undefined} style={{ ...petStyle(null, size), fontSize:Math.max(9, Math.round(size*0.3)), lineHeight:1 }}>{c.pet}</span>
       ))}
     </div>
   );
