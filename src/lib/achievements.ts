@@ -48,18 +48,12 @@ export const ACHIEVEMENTS: Achievement[] = [
   // extras
   { id:"artista",            emoji:"🎨", label:"Artista",        desc:"Pediu ao Nyx um fundo de cor personalizada" },
   { id:"teclado-mestre",     emoji:"🎹", label:"Mestre do Teclado", desc:"Completou o tutorial de teclado até o fim" },
-  // secreta: só se revela quando alguém descobre um comando escondido no terminal (mantida por
-  // compatibilidade com quem já tinha essa conquista — cada segredo agora também tem a sua própria)
-  { id:"segredo",            emoji:"🥚", label:"Caçador de Segredos", desc:"Descobriu um comando secreto no terminal", secret:true },
   // secretas: combo de equipamento e caça ao tesouro escondidos, sem nenhuma pista visível na loja
   { id:"espartano",          emoji:"🛡️", label:"Guerreiro Espartano", desc:"Equipou espada e escudo ao mesmo tempo e viu o Nyx virar um Espartano", secret:true },
   { id:"tesouro",            emoji:"🏴‍☠️", label:"Caçador de Tesouro", desc:"Encontrou o baú do tesouro escondido na plataforma", secret:true },
-  // secretas individuais: uma pra cada Easter Egg escondido na plataforma
-  { id:"segredo-vaca",       emoji:"🐄", label:"Vaca do .NET",     desc:"Descobriu a vaca escondida do dotnet", secret:true },
-  { id:"segredo-danca",      emoji:"💃", label:"Passo Secreto",    desc:"Fez o Nyx dançar", secret:true },
-  { id:"segredo-matrix",     emoji:"🌧️", label:"Pílula Vermelha",  desc:"Encontrou a Matrix escondida no terminal", secret:true },
-  { id:"segredo-piada",      emoji:"😂", label:"Plateia do Nyx",   desc:"Pediu uma piada ao Nyx", secret:true },
-  { id:"segredo-pirata",     emoji:"🏴‍☠️", label:"Alma Pirata",     desc:"Descobriu o comando secreto do Nyx pirata", secret:true },
+  // segredo de equipamento: os comandos divertidos do terminal continuam existindo, mas não
+  // concedem conquistas nem entram na contagem.
+  { id:"segredo-pirata",     emoji:"🏴‍☠️", label:"Alma Pirata",     desc:"Equipou chapéu pirata, tapa-olho e espada ao mesmo tempo", secret:true },
   { id:"segredo-sanduiche",  emoji:"🥪", label:"Migalha Encontrada", desc:"Achou a migalha escondida na tela", secret:true },
   { id:"segredo-cafe",       emoji:"☕", label:"Cafeína Descoberta", desc:"Achou a marca de café escondida na tela", secret:true },
   { id:"segredo-42",         emoji:"🌌", label:"Guia do Mochileiro", desc:"Achou o número 42 escondido na tela", secret:true },
@@ -70,7 +64,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id:"autodidata",         emoji:"🧠", label:"Autodidata",       desc:"Fez um teste de conhecimento por conta própria, sem esperar a atividade da aula" },
 ];
 // ids de todo Easter Egg individual que conta pra conquista "Caçador Lendário"
-export const ALL_EGG_ACHIEVEMENT_IDS: string[] = ["segredo-vaca","segredo-danca","segredo-matrix","segredo-piada","segredo-pirata","segredo-sanduiche","segredo-cafe","segredo-42","segredo-rm","tesouro","espartano"];
+export const ALL_EGG_ACHIEVEMENT_IDS: string[] = ["segredo-pirata","segredo-sanduiche","segredo-cafe","segredo-42","segredo-rm","tesouro","espartano"];
 export const achievementInfo = (id: string): Achievement | undefined => ACHIEVEMENTS.find(a => a.id === id);
 // conquistas que valem pra esse aluno — some as "langOnly" (sala de linguagens) de quem nunca
 // vai poder consegui-las, pra não aparecerem impossíveis na lista nem inflarem o "X de Y"

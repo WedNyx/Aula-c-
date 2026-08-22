@@ -172,6 +172,7 @@ export const PET_FILES = {
   "🦉":"coruja", "🐺":"lobo", "🦊":"raposa", "🐱":"gato",
   "🐶":"cachorro", "🐰":"coelho", "🦁":"leao", "🐢":"tartaruga",
 };
+const PET_MOTION_CLASS = { "🐝":"pet-bee", "🦋":"pet-butterfly", "✨":"pet-firefly", "🍄":"pet-mushroom" };
 // posição/tamanho pensados pro formato de cada bicho (sem moldura/círculo): quem tem corpo
 // inteiro em pé (trex/cachorro/coelho/tartaruga) fica "no chão" embaixo; quem é só rosto/busto
 // (unicórnio/coruja/raposa/gato/leão) fica "pousado" num canto; os maiores/mais assimétricos
@@ -251,8 +252,42 @@ export function Avatar({ cfg, size=72, animated=false }) {
       {c.pet && (PET_FILES[c.pet] ? (
         <img className={animated ? "avatar-pet" : undefined} src={`/pets/${PET_FILES[c.pet]}.${animated ? "webp" : "png"}`} alt="" draggable={false} style={petStyle(PET_FILES[c.pet], size)} />
       ) : (
-        <span className={animated ? "avatar-pet" : undefined} style={{ ...petStyle(null, size), fontSize:Math.max(9, Math.round(size*0.3)), lineHeight:1 }}>{c.pet}</span>
+        <span className={animated ? `avatar-pet ${PET_MOTION_CLASS[c.pet] || ""}`.trim() : undefined} style={{ ...petStyle(null, size), fontSize:Math.max(9, Math.round(size*0.3)), lineHeight:1 }}>{c.pet}</span>
       ))}
+    </div>
+  );
+}
+
+const PET_REACTIONS = {
+  "🐝": { cls:"bee", text:"Bzzz! Hora de explorar!" },
+  "🦋": { cls:"butterfly", text:"A borboleta dançou no ar!" },
+  "✨": { cls:"firefly", text:"O vagalume brilhou para você!" },
+  "🍄": { cls:"mushroom", text:"O cogumelo acordou!" },
+};
+
+// companheiro escolhido pelo aluno fica num canto do painel do Nyx. Clicar nele dispara uma
+// reação própria; os pets antigos também respondem com um pulinho genérico.
+export function PetCompanion({ pet }) {
+  const [reaction, setReaction] = useState(0);
+  const [message, setMessage] = useState("");
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+  if (!pet) return null;
+  const info = PET_REACTIONS[pet] || { cls:"generic", text:"Seu companheiro ficou feliz em te ver!" };
+  const react = (e) => {
+    e.stopPropagation();
+    setReaction(n => n + 1);
+    setMessage(info.text);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setMessage(""), 2200);
+  };
+  const file = PET_FILES[pet];
+  return (
+    <div className="pet-companion-corner" data-tour="pet" title="Clique no seu pet">
+      {message && <div className="pet-companion-speech">{message}</div>}
+      <button key={reaction} type="button" aria-label="Interagir com meu pet" onClick={react} className={`pet-companion-button pet-companion-${info.cls}`}>
+        {file ? <img src={`/pets/${file}.webp`} alt="" draggable={false} /> : <span>{pet}</span>}
+      </button>
     </div>
   );
 }

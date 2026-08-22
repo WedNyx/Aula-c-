@@ -19,8 +19,7 @@ export const NYX_ITEMS = [
   { id:"espada", label:"Espada",         emoji:"⚔️", slot:"hand", cost:30 },
   { id:"coroa",  label:"Coroa",          emoji:"👑", slot:"head", cost:40 },
   { id:"arco",   label:"Arco e flecha",  emoji:"🏹", slot:"hand", cost:50 },
-  // secreto: só aparece na loja depois de desbloqueado com o comando "nyx pirata" no terminal (de graça, não se compra)
-  { id:"chapeuPirata", label:"Chapéu Pirata", emoji:"🏴‍☠️", slot:"head", cost:0, secret:true },
+  { id:"chapeuPirata", label:"Chapéu Pirata", emoji:"🏴‍☠️", slot:"head", cost:22 },
   // cabeça
   { id:"touca",        label:"Touca de Lã",        emoji:"🧶", slot:"head", cost:6 },
   { id:"bone",         label:"Boné",               emoji:"🧢", slot:"head", cost:8 },

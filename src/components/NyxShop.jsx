@@ -16,6 +16,7 @@ const SLOT_SECTIONS = [
   { slot: "costas", label: "🦸 Costas" },
 ];
 const MAX_EQUIPPED_ACCESSORIES = 2;
+const isPirateSet = (gear = {}) => gear.head === "chapeuPirata" && gear.face === "vendaPirata" && gear.hand === "espada";
 const equippedAccessoryCount = (gear = {}) => SLOT_SECTIONS
   .filter(section => section.slot !== "skin")
   .reduce((total, section) => total + (gear[section.slot] ? 1 : 0), 0);
@@ -41,7 +42,7 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
     let talk = null;
     if (isSpartanNow && !wasSpartan) {
       talk = { kind:"espartano", color:"#f87171", msg:"🛡️ ISTO... É... C#!! Nenhum erro de compilação assusta um guerreiro Espartano. Vamos à batalha pelo código perfeito!" };
-    } else if (gear.head === "chapeuPirata" && prev.head !== "chapeuPirata") {
+    } else if (isPirateSet(gear) && !isPirateSet(prev)) {
       talk = { kind:"pirata", color:"#fbbf24", msg:"🏴‍☠️ Argh! Olhem só, um chapéu de pirata!\n\n\"Quer o meu tesouro? Procure-o... nele há tudo o que essa plataforma pode oferecer.\"" };
     }
     if (talk) {
@@ -55,7 +56,8 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
     if (has) {
       const isEquipped = gear[item.slot] === item.id;
       const count = equippedAccessoryCount(gear);
-      if (!isEquipped && item.slot !== "skin" && !gear[item.slot] && count >= MAX_EQUIPPED_ACCESSORIES) {
+      const nextGear = { ...gear, [item.slot]: item.id };
+      if (!isEquipped && item.slot !== "skin" && !gear[item.slot] && count >= MAX_EQUIPPED_ACCESSORIES && !isPirateSet(nextGear)) {
         setEquipNotice("Você já está usando dois acessórios. Tire um deles antes de vestir outro.");
         return;
       }
@@ -63,7 +65,8 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
       onEquip({ ...gear, [item.slot]: isEquipped ? null : item.id });
     } else if (wallet >= item.cost) {
       const count = equippedAccessoryCount(gear);
-      if (item.slot !== "skin" && !gear[item.slot] && count >= MAX_EQUIPPED_ACCESSORIES) {
+      const nextGear = { ...gear, [item.slot]: item.id };
+      if (item.slot !== "skin" && !gear[item.slot] && count >= MAX_EQUIPPED_ACCESSORIES && !isPirateSet(nextGear)) {
         setEquipNotice("Você já está usando dois acessórios. Tire um deles antes de comprar e vestir outro.");
         return;
       }
@@ -82,8 +85,8 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
           {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa vira 1 ponto. Comprar um item GASTA os pontos — mas o item é seu para sempre! (Seu lugar no ranking não muda: ele conta os pontos que você já ganhou.)"}
         </p>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, flexWrap:"wrap", margin:"-4px 0 14px", padding:"9px 11px", background:"#171026", border:"1px solid #3b2a58", borderRadius:11 }}>
-          <span style={{ color:"#d6c9ec", fontSize:12.5 }}>A aparência é livre e não ocupa espaço.</span>
-          <b style={{ color:equippedAccessoryCount(gear)>=MAX_EQUIPPED_ACCESSORIES?"#fbbf24":"#34d399", fontSize:12.5 }}>Acessórios: {equippedAccessoryCount(gear)}/{MAX_EQUIPPED_ACCESSORIES}</b>
+          <span style={{ color:"#d6c9ec", fontSize:12.5 }}>A aparência é livre. Existe uma combinação pirata secreta que pode ocupar 3 espaços.</span>
+          <b style={{ color:equippedAccessoryCount(gear)>=MAX_EQUIPPED_ACCESSORIES?"#fbbf24":"#34d399", fontSize:12.5 }}>Acessórios: {equippedAccessoryCount(gear)}/{isPirateSet(gear)?3:MAX_EQUIPPED_ACCESSORIES}</b>
         </div>
         {equipNotice && <div role="status" style={{ color:"#fbbf24", background:"#fbbf2412", border:"1px solid #fbbf2455", borderRadius:10, padding:"9px 11px", margin:"-5px 0 14px", fontSize:12.5 }}>{equipNotice}</div>}
 
