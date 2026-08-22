@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { highlight } from "../lib/highlight.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -8,6 +8,26 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
   const textareaRef = useRef(null);
   const highlightRef = useRef(null);
   const gutterRef = useRef(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!isExpanded) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setIsExpanded(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isExpanded]);
+
+  const toggleExpanded = () => {
+    setIsExpanded(current => !current);
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
 
   const syncScroll = () => {
     if (highlightRef.current && textareaRef.current) {
@@ -95,14 +115,17 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
   const shared = { fontFamily:"'Courier New','Consolas',monospace", fontSize:14, lineHeight:"1.5em", tabSize:4, whiteSpace:"pre", overflowWrap:"normal", padding:"12px 12px 12px 0", margin:0 };
 
   return (
-    <div style={{ background:"#1e1e1e", borderRadius:8, border:"1px solid #3e3e42", overflow:"hidden", display:"flex", flexDirection:"column", boxShadow:"0 12px 32px rgba(0,0,0,.45)" }}>
+    <div data-expanded={isExpanded ? "true" : "false"} style={{ background:"#1e1e1e", borderRadius:8, border:"1px solid #3e3e42", overflow:"hidden", display:"flex", flexDirection:"column", boxShadow:isExpanded?"0 0 0 100vmax rgba(5,3,12,.82),0 24px 80px rgba(0,0,0,.75)":"0 12px 32px rgba(0,0,0,.45)", ...(isExpanded ? {position:"fixed",inset:16,zIndex:4000,height:"calc(100dvh - 32px)"} : {}) }}>
       <div style={{ background:"linear-gradient(180deg,#333336,#2d2d30)", padding:"6px 14px", display:"flex", alignItems:"center", gap:8, borderBottom:"1px solid #3e3e42" }}>
         <span style={{width:11,height:11,borderRadius:"50%",background:"#ff5f56",display:"inline-block"}}/>
         <span style={{width:11,height:11,borderRadius:"50%",background:"#ffbd2e",display:"inline-block"}}/>
         <span style={{width:11,height:11,borderRadius:"50%",background:"#27c93f",display:"inline-block"}}/>
-        <span style={{color:"#cccccc", fontSize:13, marginLeft:10}}>📄 {filename || "Program.cs"}</span>
+        <span style={{color:"#cccccc", fontSize:13, marginLeft:10, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>📄 {filename || "Program.cs"}</span>
+        <button type="button" onClick={toggleExpanded} aria-label={isExpanded ? "Reduzir editor de código" : "Ampliar editor de código"} title={isExpanded ? "Reduzir editor (Esc)" : "Ampliar editor"} style={{marginLeft:"auto",border:"1px solid #666",borderRadius:5,background:"#252526",color:"#e5e5e5",width:30,height:26,display:"grid",placeItems:"center",cursor:"pointer",fontSize:16,lineHeight:1}}>
+          {isExpanded ? "↙" : "↗"}
+        </button>
       </div>
-      <div style={{ display:"flex", minHeight:300, maxHeight:420, overflow:"hidden" }}>
+      <div style={{ display:"flex", minHeight:300, maxHeight:isExpanded?"none":420, flex:isExpanded?1:undefined, overflow:"hidden" }}>
         {/* gutter acompanha o scroll do textarea: o número fica sempre ao lado da linha de código dele */}
         <div ref={gutterRef} style={{ background:"#1e1e1e", textAlign:"right", userSelect:"none", minWidth:42, color:"#858585", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:"1.5em", borderRight:"1px solid #3e3e42", flexShrink:0, overflow:"hidden" }}>
           <div style={{ padding:"12px 8px 12px 14px" }}>
@@ -183,4 +206,3 @@ export const GUIDED_PARTICIPATION_QUIZ = [
   { q: "Qual bloco faz o computador repetir a mesma mensagem várias vezes seguidas?", opts: ["Repetir uma mensagem", "Fazer uma escolha", "Guardar um número", "Mostrar uma mensagem"], correct: 0 },
   { q: "Qual bloco faz o computador escolher o que mostrar, dependendo de um número?", opts: ["Fazer uma escolha", "Somar dois números", "Dizer um Oi", "Guardar um texto"], correct: 0 },
 ];
-

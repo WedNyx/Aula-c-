@@ -42,6 +42,7 @@ import { AchievementToast, AchievementsModal, RankingModal, ClassGoalBar } from 
 import { QuickStatusModal, TelaoModal, JustifyModal, HallOfFameModal, TripOverviewModal, RankingRevealModal } from "./components/TeacherModals.jsx";
 import { BossStudyModal, LearningTrailModal, NextStepsModal, NotebookModal, CheckinModal, PerformanceModal, CHECKIN_MOODS } from "./components/LearningModals.jsx";
 import { TypingRaceModal, FreeBuildModal, DuelModal, TeamDuelModal, KnowledgeTestModal } from "./components/GameModals.jsx";
+import { LunarSanctuary } from "./components/LunarSanctuary.jsx";
 import { MobileMonitorView } from "./components/MobileMonitor.jsx";
 import { Sparkles } from "./components/Sparkles.jsx";
 import { CollapsibleCard } from "./components/CollapsibleCard.jsx";
@@ -300,6 +301,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   });
   // 🏁 corrida de digitação
   const [showRace, setShowRace] = useState(false);
+  const [showLunarSanctuary, setShowLunarSanctuary] = useState(false);
   const [typingBest, setTypingBest] = useState(null);
   const [typingRewardDay, setTypingRewardDay] = useState(null);
   // 🧠 teste de conhecimento por conta própria — disponível a qualquer momento, sem finalizar a aula
@@ -3758,6 +3760,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             {!focusMode && <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#c084fc"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
               🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
             </button>}
+            {!focusMode && <button onClick={()=>setShowLunarSanctuary(true)} style={{ ...styles.btn("#8b5cf6"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
+              🌙 Santuário Lunar
+            </button>}
             {studyLang?.preview && (
               <button className="btn-ghost" onClick={()=>setShowPreview(true)} style={{ ...styles.btnGhost, width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }} title="Veja o resultado do seu código rodando de verdade">
                 👁️ Prévia ao vivo
@@ -3997,7 +4002,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           onClose={()=>setShowNyxShop(false)}
         />
       )}
-
       {showNyxNews && (
         <div style={{ position:"fixed", inset:0, background:"rgba(5,4,12,.88)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
           <div className="pop" style={{ width:"min(520px,100%)", background:"linear-gradient(145deg,#20274a,#111329)", border:"1px solid #9ab7ff66", borderRadius:22, padding:"24px", boxShadow:"0 30px 90px #000" }}>
@@ -4228,6 +4232,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {showVoicePicker && <VoicePickerModal onClose={()=>setShowVoicePicker(false)} />}
       {showColorPicker && <ColorPickerModal current={theme} onChoose={(t)=>{ handleNyxTheme(t); setShowColorPicker(false); }} onClose={()=>setShowColorPicker(false)} />}
       {showRace && <TypingRaceModal onClose={()=>setShowRace(false)} onFinish={finishTypingRace} />}
+      {showLunarSanctuary && <LunarSanctuary studentName={studentName} shift={shift} nyxPoints={nyxPoints} nyxSpent={nyxSpent} achievements={achievements} gear={nyxGear} onClose={()=>setShowLunarSanctuary(false)} onAward={async(points)=>{ const s=stateRef.current; const np=(s.nyxPoints||0)+points; stateRef.current={...s,nyxPoints:np}; setNyxPoints(np); await persist({nyxPoints:np}); checkPointsAchievements(np); }} />}
       {showKnowledgeTest && (
         <KnowledgeTestModal
           questionContext={[allCodeToday(), JSON.stringify(dynamicSummary||{}), JSON.stringify(summaryHistory||{})].join("\n")}
@@ -8282,3 +8287,4 @@ export default function App() {
   if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} />;
   return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} />;
 }
+
