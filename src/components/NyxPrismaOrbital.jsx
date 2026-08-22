@@ -12,7 +12,7 @@ import gsap from "gsap";
 // cristal que já orbitam a criatura no design original (ela é uma criatura que levita objetos
 // ao redor de si, não que segura com as mãos).
 let __npoSeq = 0;
-export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, gear }) {
+export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, gear, onInteract }) {
   const G = { skin: null, head: null, face: null, neck: null, hand: null, shield: null, costas: null, ...(gear || {}) };
   const idRef = useRef(null);
   if (idRef.current === null) idRef.current = ++__npoSeq;
@@ -71,6 +71,7 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
   const animateInteraction = (kind) => {
     const el = interactionWrapRef.current;
     if (!el) return;
+    onInteract?.(kind);
     gsap.killTweensOf(el);
     gsap.set(el, { x:0, y:0, rotation:0, scale:1, filter:"none", transformOrigin:"50% 55%" });
     if (kind === "single") {
@@ -108,6 +109,12 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
     clickTimerRef.current = setTimeout(finishClickSequence, 280);
   };
   const cancelPointer = () => { clearTimeout(holdTimerRef.current); longPressRef.current = false; };
+  useLayoutEffect(() => () => {
+    clearTimeout(clickTimerRef.current);
+    clearTimeout(holdTimerRef.current);
+    if (interactionWrapRef.current) gsap.killTweensOf(interactionWrapRef.current);
+    if (orbitRingRef.current) gsap.killTweensOf(orbitRingRef.current);
+  }, []);
 
   useLayoutEffect(() => {
     const firstPaint = firstPaintRef.current;
