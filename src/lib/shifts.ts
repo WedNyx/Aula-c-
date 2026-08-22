@@ -17,6 +17,9 @@ export const TEST_SHIFT: ShiftMeta = { id: "teste", label: "Teste", emoji: "🧪
 // modelo de acesso da turma de teste (senha própria, fora do fluxo normal da turma de C#)
 export const LANG_SHIFT: ShiftMeta = { id: "linguagens", label: "Linguagens", emoji: "🌐" };
 
+// Ambientes livres para testes e estudos independentes: não obedecem à trava global de sábado/domingo.
+export const isSevenDayShift = (id: string) => id === TEST_SHIFT.id || id === LANG_SHIFT.id;
+
 // ── turmas: um professor pode ter mais de uma turma no MESMO turno (ex: duas turmas de tarde) —
 // cada turma é o próprio id de partição usado em todo o storage (aluno, prova, código etc já
 // funcionam com qualquer string de turno, prova disso é TEST_SHIFT/LANG_SHIFT acima). SHIFTS
