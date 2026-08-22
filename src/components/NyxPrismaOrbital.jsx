@@ -60,6 +60,54 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
   const legsRef = useRef(null);
   const feetLineRef = useRef(null);
   const firstPaintRef = useRef(true);
+  const interactionWrapRef = useRef(null);
+  const clickCountRef = useRef(0);
+  const clickTimerRef = useRef(null);
+  const holdTimerRef = useRef(null);
+  const longPressRef = useRef(false);
+
+  // quatro respostas de interação sem alterar humor, skin ou acessórios. O pequeno atraso de
+  // 280 ms deixa o Nyx distinguir clique simples, duplo e triplo antes de iniciar a animação.
+  const animateInteraction = (kind) => {
+    const el = interactionWrapRef.current;
+    if (!el) return;
+    gsap.killTweensOf(el);
+    gsap.set(el, { x:0, y:0, rotation:0, scale:1, filter:"none", transformOrigin:"50% 55%" });
+    if (kind === "single") {
+      gsap.timeline().to(el, { y:-15, scaleX:1.05, scaleY:.94, duration:.18, ease:"power2.out" }).to(el, { y:0, scaleX:1, scaleY:1, duration:.48, ease:"bounce.out" });
+    } else if (kind === "double") {
+      gsap.timeline().to(el, { rotation:360, scale:1.08, duration:.72, ease:"back.inOut(1.5)" }).to(el, { rotation:0, scale:1, duration:.18, ease:"power1.out" });
+    } else if (kind === "triple") {
+      gsap.timeline().to(el, { x:-9, rotation:-5, duration:.08 }).to(el, { x:9, rotation:5, duration:.08, repeat:3, yoyo:true }).to(el, { x:0, rotation:0, scale:1.12, duration:.14 }).to(el, { scale:1, duration:.35, ease:"elastic.out(1.2,.35)" });
+    } else if (kind === "hold") {
+      gsap.timeline().to(el, { scale:1.12, filter:"brightness(1.45) drop-shadow(0 0 12px #8eeaff)", duration:.45, ease:"power2.out" }).to(el, { scale:1, filter:"none", duration:.65, ease:"elastic.out(1,.35)" });
+      if (orbitRingRef.current) gsap.fromTo(orbitRingRef.current, { rotation:0, transformOrigin:"50% 50%" }, { rotation:720, duration:1.1, ease:"power3.out" });
+    }
+  };
+  const finishClickSequence = () => {
+    const count = clickCountRef.current;
+    clickCountRef.current = 0;
+    clickTimerRef.current = null;
+    animateInteraction(count >= 3 ? "triple" : count === 2 ? "double" : "single");
+  };
+  const handlePointerDown = () => {
+    longPressRef.current = false;
+    clearTimeout(holdTimerRef.current);
+    holdTimerRef.current = setTimeout(() => {
+      longPressRef.current = true;
+      clickCountRef.current = 0;
+      clearTimeout(clickTimerRef.current);
+      animateInteraction("hold");
+    }, 520);
+  };
+  const handlePointerUp = () => {
+    clearTimeout(holdTimerRef.current);
+    if (longPressRef.current) { longPressRef.current = false; return; }
+    clickCountRef.current += 1;
+    clearTimeout(clickTimerRef.current);
+    clickTimerRef.current = setTimeout(finishClickSequence, 280);
+  };
+  const cancelPointer = () => { clearTimeout(holdTimerRef.current); longPressRef.current = false; };
 
   useLayoutEffect(() => {
     const firstPaint = firstPaintRef.current;
@@ -83,7 +131,10 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
 
   return (
     <div style={{ textAlign: "center", display: "inline-block" }}>
-      <div style={{ width: size, height: size * (410 / 360), display: "inline-block" }}>
+      <div ref={interactionWrapRef} role="button" tabIndex={0} aria-label="Interagir com o Nyx"
+        onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onPointerCancel={cancelPointer} onPointerLeave={cancelPointer}
+        onKeyDown={e=>{ if(e.key==="Enter" || e.key===" "){ e.preventDefault(); animateInteraction("single"); } }}
+        style={{ width: size, height: size * (410 / 360), display: "inline-block", cursor:"pointer", touchAction:"manipulation", outline:"none" }}>
       <svg viewBox="0 0 360 410" width="100%" height="100%" style={{ overflow: "visible", animation: "npo-float 4s ease-in-out infinite" }}>
         <defs>
           <linearGradient id={uid + "shell"} x1="0" y1="0" x2="1" y2="1">
