@@ -258,6 +258,40 @@ export function Avatar({ cfg, size=72, animated=false }) {
   );
 }
 
+const PET_REACTIONS = {
+  "🐝": { cls:"bee", text:"Bzzz! Hora de explorar!" },
+  "🦋": { cls:"butterfly", text:"A borboleta dançou no ar!" },
+  "✨": { cls:"firefly", text:"O vagalume brilhou para você!" },
+  "🍄": { cls:"mushroom", text:"O cogumelo acordou!" },
+};
+
+// companheiro escolhido pelo aluno fica num canto do painel do Nyx. Clicar nele dispara uma
+// reação própria; os pets antigos também respondem com um pulinho genérico.
+export function PetCompanion({ pet }) {
+  const [reaction, setReaction] = useState(0);
+  const [message, setMessage] = useState("");
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+  if (!pet) return null;
+  const info = PET_REACTIONS[pet] || { cls:"generic", text:"Seu companheiro ficou feliz em te ver!" };
+  const react = (e) => {
+    e.stopPropagation();
+    setReaction(n => n + 1);
+    setMessage(info.text);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setMessage(""), 2200);
+  };
+  const file = PET_FILES[pet];
+  return (
+    <div className="pet-companion-corner" data-tour="pet" title="Clique no seu pet">
+      {message && <div className="pet-companion-speech">{message}</div>}
+      <button key={reaction} type="button" aria-label="Interagir com meu pet" onClick={react} className={`pet-companion-button pet-companion-${info.cls}`}>
+        {file ? <img src={`/pets/${file}.webp`} alt="" draggable={false} /> : <span>{pet}</span>}
+      </button>
+    </div>
+  );
+}
+
 // prévia grande do boneco + botão de sortear — fica separada dos controles pra poder ser
 // posicionada em outra coluna (ex: metade esquerda da tela na criação de perfil)
 export function AvatarPreview({ value, onChange }) {
