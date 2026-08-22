@@ -6,6 +6,10 @@ import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
 // ════════════════════════════════════════════════════════════════════════════
 export const TOUR_STEPS = [
   { sel:'[data-tour="perfil"]',   emoji:"👤", title:"Seu perfil",            text:"Aqui ficam seu boneco, seu nome, sua turma, a sequência de presenças e os controles de som, cores, acessibilidade, voz e tela cheia." },
+  { sel:'[data-tour="perfil-jornada"]', emoji:"🌌", title:"Perfil de jornada", text:"Reúne seu pet, progresso, pontos, conquistas, vitórias e melhor tempo em um único cartão." },
+  { sel:'[data-tour="novidades"]',emoji:"🔔", title:"Central de novidades",   text:"Avisos do professor, novidades da plataforma e lembretes importantes ficam organizados aqui." },
+  { sel:'[data-tour="missoes"]',  emoji:"☀️", title:"Missões de hoje",       text:"Pequenos objetivos para orientar sua exploração. Não valem nota e não existe punição por não completar." },
+  { sel:'[data-tour="repetir-tour"]',emoji:"🧭",title:"Repetir o tour",       text:"Esqueceu onde alguma coisa fica? Use este botão para rever todo o painel quando quiser." },
   { sel:'[data-tour="jornada"]',  emoji:"🗺️", title:"Sua Jornada",           text:"Veja o caminho do que você já estudou e relembre os conteúdos das aulas anteriores." },
   { sel:'[data-tour="conquistas"]',emoji:"🎖️", title:"Conquistas",           text:"Suas ações na plataforma desbloqueiam medalhas — algumas são públicas e outras ficam escondidas esperando você descobrir." },
   { sel:'[data-tour="ranking"]',  emoji:"📊", title:"Ranking da turma",      text:"Acompanhe os pontos conquistados nas atividades. Comprar itens na loja não diminui sua posição." },
@@ -16,6 +20,7 @@ export const TOUR_STEPS = [
   { sel:'[data-tour="editor"]',   emoji:"📝", title:"Seu editor de código",  text:"É aqui que você escreve seus programas em C#. Ele colore o código e fecha chaves, parênteses e aspas sozinho!" },
   { sel:'[data-tour="arquivos"]', emoji:"📄", title:"Seus arquivos",         text:"Crie quantos arquivos .cs quiser. Eles fazem parte do mesmo projeto e funcionam juntos, como no VS Code!" },
   { sel:'[data-tour="nyx"]',      emoji:"🤖", title:"Eu fico aqui!",          text:"Enquanto você escreve, eu confiro seu código. Se algo estiver errado, mostro onde está, como corrigir e até as teclas para apertar." },
+  { sel:'[data-tour="pet"]',      emoji:"🐾", title:"Seu companheiro",        text:"O pet escolhido fica neste cantinho do painel. Clique nele para descobrir uma reação diferente — cada espécie tem seu próprio jeitinho." },
   { sel:'[data-tour="loja"]',     emoji:"🎁", title:"Loja do Nyx",            text:"Cada resposta certa vira pontos! Use-os para desbloquear itens e equipar até dois acessórios ao mesmo tempo. A aparência do Nyx não entra nesse limite." },
   { sel:'[data-tour="teclado"]',  emoji:"⌨️", title:"Tutorial de teclado",   text:"Ainda não decorou onde fica cada tecla? Aqui tem um tutorial completo, no seu ritmo, sempre que quiser treinar." },
   { sel:'[data-tour="ajuda"]',    emoji:"✋", title:"Precisa de ajuda?",      text:"Travou em alguma coisa? Clique aqui: seu nome acende na tela do professor e ele vem te ajudar." },
@@ -41,6 +46,7 @@ export const TEACHER_TOUR_STEPS = [
   { tab:"monitor", sel:'[data-tour-prof="retro"]',        emoji:"🎁", title:"Retrospectiva do mês",  text:"Libere e cada aluno vê uma tela especial com os números dele (linhas de código, presenças, conquistas) — estilo Wrapped." },
   { tab:"code", sel:'[data-tour-prof="code"]',            emoji:"👨‍💻", title:"Meu código",           text:"Aqui você escreve o código de exemplo do dia — é ele que vira o \"código da turma\" que os alunos recebem, no painel de Gerenciar aluno." },
   { tab:"code", sel:'[data-tour-prof="code-info"]',       emoji:"⚙️", title:"Turno, aulas prontas e nome do conteúdo", text:"Cada turno (Manhã/Tarde) tem seu próprio exemplo. Reaproveite uma aula salva em \"Minhas aulas\", ou gere o nome do conteúdo automaticamente a partir do que você escreveu." },
+  { tab:"code", sel:'[data-tour-prof="resumo-ritmo"]',    emoji:"✍️", title:"Resumo e atividade da turma", text:"Escreva o resumo com introdução, seções, exemplos e dica final. Você também pode montar as perguntas, quatro alternativas e marcar a correta antes de enviar ao Caderno dos alunos. A geração automática continua opcional." },
   { tab:"calendar", sel:'[data-tour-prof="calendar"]',       emoji:"🗓️", title:"Calendário",           text:"Marca os dias de aula sozinho (quando há alunos online) e você também pode clicar pra marcar/desmarcar na mão." },
   { tab:"calendar", sel:'[data-tour-prof="calendar-body"]',  emoji:"📅", title:"Dias de aula",         text:"Dias em verde tiveram aula. O 📖 mostra os que já têm conteúdo gerado — passe o mouse pra ver o tema daquele dia." },
   { tab:"calendar", sel:'[data-tour-prof="cidade"]',         emoji:"📍", title:"Cidade e Hall da Fama", text:"Registre em qual cidade do DF a carreta está agora. Quando for mudar de cidade, encerre aqui: guarda uma placa de destaque + relatório de despedida em PDF, sem apagar os dados da turma (só CPF e data de nascimento somem pra sempre)." },
