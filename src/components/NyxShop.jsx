@@ -15,6 +15,10 @@ const SLOT_SECTIONS = [
   { slot: "shield", label: "🛡️ Escudo Orbital" },
   { slot: "costas", label: "🦸 Costas" },
 ];
+const MAX_EQUIPPED_ACCESSORIES = 2;
+const equippedAccessoryCount = (gear = {}) => SLOT_SECTIONS
+  .filter(section => section.slot !== "skin")
+  .reduce((total, section) => total + (gear[section.slot] ? 1 : 0), 0);
 
 // ════════════════════════════════════════════════════════════════════════════
 //  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
@@ -27,6 +31,7 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
   const [eggTalk, setEggTalk] = useState(null); // { kind:"pirata"|"espartano", msg, color }
   const [preview, setPreview] = useState(null); // item sendo pré-visualizado no Nyx (antes de comprar)
   const [refundConfirm, setRefundConfirm] = useState(false);
+  const [equipNotice, setEquipNotice] = useState("");
   const prevGearRef = useRef(gear);
   useEffect(() => {
     const prev = prevGearRef.current || {};
@@ -49,8 +54,20 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
     const has = isTestShift || owned.includes(item.id);
     if (has) {
       const isEquipped = gear[item.slot] === item.id;
+      const count = equippedAccessoryCount(gear);
+      if (!isEquipped && item.slot !== "skin" && !gear[item.slot] && count >= MAX_EQUIPPED_ACCESSORIES) {
+        setEquipNotice("Você já está usando dois acessórios. Tire um deles antes de vestir outro.");
+        return;
+      }
+      setEquipNotice("");
       onEquip({ ...gear, [item.slot]: isEquipped ? null : item.id });
     } else if (wallet >= item.cost) {
+      const count = equippedAccessoryCount(gear);
+      if (item.slot !== "skin" && !gear[item.slot] && count >= MAX_EQUIPPED_ACCESSORIES) {
+        setEquipNotice("Você já está usando dois acessórios. Tire um deles antes de comprar e vestir outro.");
+        return;
+      }
+      setEquipNotice("");
       onBuy(item); // compra: gasta os pontos, entra pro inventário e já equipa
     }
   };
@@ -64,6 +81,11 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
         <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>
           {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa vira 1 ponto. Comprar um item GASTA os pontos — mas o item é seu para sempre! (Seu lugar no ranking não muda: ele conta os pontos que você já ganhou.)"}
         </p>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, flexWrap:"wrap", margin:"-4px 0 14px", padding:"9px 11px", background:"#171026", border:"1px solid #3b2a58", borderRadius:11 }}>
+          <span style={{ color:"#d6c9ec", fontSize:12.5 }}>A aparência é livre e não ocupa espaço.</span>
+          <b style={{ color:equippedAccessoryCount(gear)>=MAX_EQUIPPED_ACCESSORIES?"#fbbf24":"#34d399", fontSize:12.5 }}>Acessórios: {equippedAccessoryCount(gear)}/{MAX_EQUIPPED_ACCESSORIES}</b>
+        </div>
+        {equipNotice && <div role="status" style={{ color:"#fbbf24", background:"#fbbf2412", border:"1px solid #fbbf2455", borderRadius:10, padding:"9px 11px", margin:"-5px 0 14px", fontSize:12.5 }}>{equipNotice}</div>}
 
         {/* Nyx de um lado (com os pontos embaixo dele), acessórios do outro — assim dá pra ver ele
             vestindo cada peça sem perder ele de vista. Fica "grudado" no topo enquanto rola a lista

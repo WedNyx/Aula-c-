@@ -3230,13 +3230,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {!focusMode && vw > 700 && (
         <div style={{ position:"fixed", left:0, top:0, bottom:0, width:190, background:"#160e24ee", backdropFilter:"blur(8px)", borderRight:"1px solid #3b2a58", zIndex:41, display:"flex", flexDirection:"column", gap:4, padding:"18px 10px", overflowY:"auto" }}>
           <div style={{ padding:"0 6px 14px", fontWeight:900, fontSize:13, letterSpacing:1, color:"#fbbf24" }}>🎮 JOGOS</div>
-          <button onClick={()=>{ setShowTrail(true); }} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🗺️ Jornada</button>
-          <button onClick={()=>setShowAchievements(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🎖️ Conquistas · {achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/{visibleAchievements(isLangRoom).length}</button>
+          <button data-tour="jornada" onClick={()=>{ setShowTrail(true); }} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🗺️ Jornada</button>
+          <button data-tour="conquistas" onClick={()=>setShowAchievements(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🎖️ Conquistas · {achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/{visibleAchievements(isLangRoom).length}</button>
           <button onClick={()=>setShowNyxShop(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🎁 Loja do Nyx</button>
-          <button onClick={()=>setShowRanking(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>📊 Ranking da turma</button>
-          <button onClick={()=>setShowGamesMenu(true)} style={{ ...styles.btn("#c084fc"), textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🎮 Games</button>
-          <button onClick={()=>setShowKnowledgeTest(true)} title="Teste seu conhecimento da matéria, sem dicas" style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🧠 Testar Conhecimento</button>
-          <button onClick={()=>setShowFreeBuild(true)} title="Proponha algo que você quer construir e o Nyx te ajuda a planejar como chegar lá" style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🏗️ Desafio Livre{weeklyChallenge && weeklyChallenge.weekKey===weekKey() && weeklyChallenge.status==="done" ? " ✅" : ""}</button>
+          <button data-tour="ranking" onClick={()=>setShowRanking(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>📊 Ranking da turma</button>
+          <button data-tour="games" onClick={()=>setShowGamesMenu(true)} style={{ ...styles.btn("#c084fc"), textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🎮 Games</button>
+          <button data-tour="conhecimento" onClick={()=>setShowKnowledgeTest(true)} title="Teste seu conhecimento da matéria, sem dicas" style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🧠 Testar Conhecimento</button>
+          <button data-tour="desafio-livre" onClick={()=>setShowFreeBuild(true)} title="Proponha algo que você quer construir e o Nyx te ajuda a planejar como chegar lá" style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🏗️ Desafio Livre{weeklyChallenge && weeklyChallenge.weekKey===weekKey() && weeklyChallenge.status==="done" ? " ✅" : ""}</button>
           <button onClick={()=>{ setShowHallOfFame(true); getHallOfFame(shift).then(setHallEntries); }} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>👑 Hall da Fama</button>
         </div>
       )}
@@ -3337,7 +3337,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <span style={{ color:"#fbbf24", fontSize:12.5, fontWeight:700 }}>🔄 Reconectando Nyx...</span>
         </div>
       )}
-      <div className="mobile-app-header" style={styles.header}>
+      <div data-tour="perfil" className="mobile-app-header" style={styles.header}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={()=>setShowAvatarEdit(true)} title="Editar meu boneco"
             style={{ background:"transparent", border:"none", padding:0, cursor:"pointer", position:"relative", lineHeight:0 }}>
@@ -3760,7 +3760,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             {!focusMode && <button data-tour="loja" onClick={()=>setShowNyxShop(true)} style={{ ...styles.btn("#c084fc"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
               🎁 Loja do Nyx · {nyxPoints - nyxSpent} pts
             </button>}
-            {!focusMode && <button onClick={()=>setShowLunarSanctuary(true)} style={{ ...styles.btn("#8b5cf6"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
+            {!focusMode && <button data-tour="santuario" onClick={()=>setShowLunarSanctuary(true)} style={{ ...styles.btn("#8b5cf6"), width:"100%", marginTop:10, padding:"7px 0", fontSize:12.5 }}>
               🌙 Santuário Lunar
             </button>}
             {studyLang?.preview && (
@@ -8287,4 +8287,3 @@ export default function App() {
   if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} />;
   return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} />;
 }
-

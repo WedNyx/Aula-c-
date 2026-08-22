@@ -5,10 +5,18 @@ import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
 //  TOUR GUIADO DO NYX  (destaca cada área da tela do aluno)
 // ════════════════════════════════════════════════════════════════════════════
 export const TOUR_STEPS = [
+  { sel:'[data-tour="perfil"]',   emoji:"👤", title:"Seu perfil",            text:"Aqui ficam seu boneco, seu nome, sua turma, a sequência de presenças e os controles de som, cores, acessibilidade, voz e tela cheia." },
+  { sel:'[data-tour="jornada"]',  emoji:"🗺️", title:"Sua Jornada",           text:"Veja o caminho do que você já estudou e relembre os conteúdos das aulas anteriores." },
+  { sel:'[data-tour="conquistas"]',emoji:"🎖️", title:"Conquistas",           text:"Suas ações na plataforma desbloqueiam medalhas — algumas são públicas e outras ficam escondidas esperando você descobrir." },
+  { sel:'[data-tour="ranking"]',  emoji:"📊", title:"Ranking da turma",      text:"Acompanhe os pontos conquistados nas atividades. Comprar itens na loja não diminui sua posição." },
+  { sel:'[data-tour="games"]',    emoji:"🎮", title:"Games",                 text:"Este menu reúne Duelo, Duelo em Dupla e Corrida de Digitação. A Sala de Desafios fica dentro do Santuário Lunar." },
+  { sel:'[data-tour="santuario"]',emoji:"🌙", title:"Santuário Lunar",       text:"Um espaço tranquilo com painel coletivo da turma, jardim de conquistas e jogos rápidos de memória e observação na Sala de Desafios." },
+  { sel:'[data-tour="conhecimento"]', emoji:"🧠", title:"Testar Conhecimento", text:"Faça uma revisão individual baseada somente no conteúdo que você já encontrou nas aulas." },
+  { sel:'[data-tour="desafio-livre"]', emoji:"🏗️", title:"Desafio Livre",    text:"Conte uma ideia que gostaria de construir e o Nyx organiza um plano simples, passo a passo, para você começar." },
   { sel:'[data-tour="editor"]',   emoji:"📝", title:"Seu editor de código",  text:"É aqui que você escreve seus programas em C#. Ele colore o código e fecha chaves, parênteses e aspas sozinho!" },
   { sel:'[data-tour="arquivos"]', emoji:"📄", title:"Seus arquivos",         text:"Crie quantos arquivos .cs quiser. Eles fazem parte do mesmo projeto e funcionam juntos, como no VS Code!" },
   { sel:'[data-tour="nyx"]',      emoji:"🤖", title:"Eu fico aqui!",          text:"Enquanto você escreve, eu confiro seu código. Se algo estiver errado, mostro onde está, como corrigir e até as teclas para apertar." },
-  { sel:'[data-tour="loja"]',     emoji:"🎁", title:"Loja do Nyx",            text:"Cada resposta certa nas atividades e provas vira pontos! Use-os aqui para desbloquear e equipar acessórios em mim: chapéu, fone, espada e muito mais." },
+  { sel:'[data-tour="loja"]',     emoji:"🎁", title:"Loja do Nyx",            text:"Cada resposta certa vira pontos! Use-os para desbloquear itens e equipar até dois acessórios ao mesmo tempo. A aparência do Nyx não entra nesse limite." },
   { sel:'[data-tour="teclado"]',  emoji:"⌨️", title:"Tutorial de teclado",   text:"Ainda não decorou onde fica cada tecla? Aqui tem um tutorial completo, no seu ritmo, sempre que quiser treinar." },
   { sel:'[data-tour="ajuda"]',    emoji:"✋", title:"Precisa de ajuda?",      text:"Travou em alguma coisa? Clique aqui: seu nome acende na tela do professor e ele vem te ajudar." },
   { sel:'[data-tour="hall"]',     emoji:"🏆", title:"Hall da Fama",          text:"Veja quem se destacou nas cidades por onde a carreta já passou antes de chegar aqui!" },
@@ -103,4 +111,3 @@ export function TourOverlay({ step, onNext, steps = TOUR_STEPS }) {
     </div>
   );
 }
-

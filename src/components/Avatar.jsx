@@ -33,6 +33,10 @@ export const AVATAR_OPTS = {
     { e:"🐰", label:"Coelho" },
     { e:"🦁", label:"Leão" },
     { e:"🐢", label:"Tartaruga" },
+    { e:"🐝", label:"Abelha" },
+    { e:"🦋", label:"Borboleta" },
+    { e:"✨", label:"Vagalume" },
+    { e:"🍄", label:"Cogumelo" },
   ],
 };
 export const DEFAULT_AVATAR = { bg:"#c084fc", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"shortHair", eyesV:"cheery", mouthV:"openedSmile", glassesV:"", pet:"", roupa:"" };
@@ -359,4 +363,3 @@ export function AvatarBuilder({ value, onChange }) {
     </div>
   );
 }
-
