@@ -110,7 +110,7 @@ export function Login({ onJoin, turmas }) {
   const styles = {
     container:{ minHeight:"100vh", background:PAGE_BG, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:FONT, padding:16 },
     // passo 2 (personalizar o boneco) fica bem mais largo: boneco de um lado, personalização do outro, lado a lado
-    card:{ position:"relative", zIndex:1, background:"linear-gradient(180deg,#231636ee,#1a1029ee)", backdropFilter:"blur(10px)", borderRadius:22, padding:32, width: role==="student" && newStudentStep===2 ? 880 : 460, maxWidth:"100%", border:"1px solid #3e2d5e", boxShadow:"0 24px 70px rgba(0,0,0,.5), 0 0 0 1px #c084fc1a" },
+    card:{ position:"relative", zIndex:1, background:"linear-gradient(145deg,#171029f5,#0e0a1cf5)", backdropFilter:"blur(12px)", borderRadius:22, padding:28, width: role==="teacher" ? 820 : 1060, maxWidth:"100%", maxHeight:"94vh", overflowY:"auto", border:"1px solid #5a427d", boxShadow:"0 28px 90px rgba(0,0,0,.62), 0 0 42px #7c3aed1f" },
     input:{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"12px 14px", color:"#f0e9fb", fontSize:15, outline:"none", boxSizing:"border-box" },
     btn:(c)=>({ background:`linear-gradient(135deg, ${c}, ${shade(c,-0.18)})`, color:"#fff", border:"none", borderRadius:12, padding:"12px 0", cursor:"pointer", fontWeight:800, fontSize:15, width:"100%", boxShadow:`0 4px 16px ${c}44` }),
     rBtn:()=>({ background:"#171026", color:"#a99ac9", border:`2px solid #3b2a58`, borderRadius:14, padding:"18px 8px", cursor:"pointer", fontWeight:800, fontSize:14, flex:1 }),
@@ -120,22 +120,33 @@ export function Login({ onJoin, turmas }) {
     <div style={styles.container}>
       <Sparkles />
       <div className="pop login-card" style={styles.card}>
-        <div style={{ textAlign:"center", marginBottom:20 }}>
-          <NyxRobot state="idle" size={86} showName={false} />
-          <h1 className="shine" style={{ fontSize:28, margin:"6px 0 2px", fontWeight:900, background:"linear-gradient(120deg,#c084fc,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>Aula de C#</h1>
-          <p style={{ color:"#776798", fontSize:13, margin:0 }}>Plataforma da turma · com o robô <b style={{ color:"#c084fc" }}>Nyx</b></p>
+        <div className="login-access-title">
+          <span />
+          <div><small>PLATAFORMA DA TURMA</small><h1>ACESSO E PERFIL</h1></div>
+          <span />
         </div>
+
+        <div className="login-access-layout">
+          <aside className="login-nyx-panel">
+            <span className="login-step-number">{!role ? "01" : role==="teacher" ? "02" : newStudentStep===1 ? "02" : "03"}</span>
+            <NyxRobot state="idle" size={132} showName={false} />
+            <strong>Nyx Prisma Orbital</strong>
+            <small>{!role ? "Escolha como deseja continuar" : role==="teacher" ? "Acesso ao painel do professor" : newStudentStep===1 ? "Escolha seu perfil ou faça seu cadastro" : "Personalize seu avatar"}</small>
+          </aside>
+
+          <section className="login-access-content">
+            {role==="student" && <div className="login-steps"><span className={newStudentStep===1?"active":"done"}>1</span><i/><b>Dados e perfil</b><span className={newStudentStep===2?"active":""}>2</span><i/><b>Personalizar avatar</b></div>}
 
         {!role&&(
           <>
             <p style={{ color:"#a99ac9", textAlign:"center", marginBottom:14 }}>Quem é você?</p>
-            <div style={{ display:"flex", gap:12 }}>
-              <button style={styles.rBtn()} onClick={()=>setRole("student")}>
+            <div className="login-role-grid">
+              <button className="login-role-card" style={styles.rBtn()} onClick={()=>setRole("student")}>
                 <span style={{ display:"block", fontSize:34, marginBottom:6 }}>🧑‍💻</span>
                 <span style={{ display:"block", color:"#f0e9fb", fontSize:15 }}>Aluno</span>
                 <span style={{ display:"block", color:"#776798", fontSize:11.5, fontWeight:600, marginTop:2 }}>programar e aprender</span>
               </button>
-              <button style={styles.rBtn()} onClick={()=>setRole("teacher")}>
+              <button className="login-role-card" style={styles.rBtn()} onClick={()=>setRole("teacher")}>
                 <span style={{ display:"block", fontSize:34, marginBottom:6 }}>👨‍🏫</span>
                 <span style={{ display:"block", color:"#f0e9fb", fontSize:15 }}>Professor</span>
                 <span style={{ display:"block", color:"#776798", fontSize:11.5, fontWeight:600, marginTop:2 }}>acompanhar a turma</span>
@@ -198,11 +209,11 @@ export function Login({ onJoin, turmas }) {
               {loadingProfiles ? <p style={{ color:"#776798", fontSize:13 }}>Procurando perfis salvos...</p>
                 : profiles.filter(p => (p.shift||activeTurmas[0]?.id||"matutino")===shift).length===0 ? <p style={{ color:"#776798", fontSize:13 }}>Nenhum perfil salvo ainda nesta turma. Crie o seu abaixo 👇</p>
                 : (
-                  <div style={{ maxHeight:170, overflowY:"auto", display:"flex", flexDirection:"column", gap:8 }}>
+                  <div className="login-profile-grid">
                     {profiles.filter(p => (p.shift||activeTurmas[0]?.id||"matutino")===shift).map(p=>(
-                      <button key={`${p.shift||"x"}:${p.name}`} onClick={()=>openProfile(p)} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"2px solid #3b2a58", borderRadius:10, padding:"8px 12px", cursor:"pointer", color:"#f0e9fb", textAlign:"left" }}>
-                        <Avatar cfg={p.avatar} size={32} />
-                        <span style={{ fontWeight:600, flex:1 }}>{p.name}</span>
+                      <button className="login-profile-card" key={`${p.shift||"x"}:${p.name}`} onClick={()=>openProfile(p)}>
+                        <Avatar cfg={p.avatar} size={58} />
+                        <span style={{ fontWeight:700, flex:1 }}>{p.name}</span>
                         <span style={{ color:"#c084fc", fontSize:13, fontWeight:700 }}>Entrar →</span>
                       </button>
                     ))}
@@ -282,6 +293,8 @@ export function Login({ onJoin, turmas }) {
             </div>
           </>
         )}
+          </section>
+        </div>
       </div>
 
     </div>
