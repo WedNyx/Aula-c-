@@ -94,6 +94,17 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
   11% { transform: translateY(-14%) rotate(7deg); }
 }
 .avatar-idle .avatar-pet { animation: pet-hop 7s ease-in-out infinite; transform-origin: 50% 100%; }
+/* os novos companheiros têm movimentos próprios, em vez do pulinho genérico dos emojis */
+@keyframes pet-bee-flight { 0%,100%{transform:translate(0,0) rotate(-5deg)} 22%{transform:translate(-18%,-24%) rotate(7deg)} 48%{transform:translate(16%,-10%) rotate(-7deg)} 72%{transform:translate(-7%,-32%) rotate(4deg)} }
+@keyframes pet-butterfly-flight { 0%,100%{transform:translateY(0) rotate(-4deg) scaleX(1)} 25%{transform:translate(-8%,-18%) rotate(5deg) scaleX(.82)} 52%{transform:translate(9%,-29%) rotate(-3deg) scaleX(1.08)} 76%{transform:translate(3%,-11%) rotate(4deg) scaleX(.86)} }
+@keyframes pet-firefly-glow { 0%,100%{transform:translate(0,0) scale(.88);filter:drop-shadow(0 0 2px #fff6a8);opacity:.72} 30%{transform:translate(-15%,-24%) scale(1.12);filter:drop-shadow(0 0 8px #fff06a);opacity:1} 62%{transform:translate(12%,-34%) scale(.96);filter:drop-shadow(0 0 4px #d9ff8a);opacity:.82} 82%{transform:translate(18%,-9%) scale(1.08);filter:drop-shadow(0 0 9px #fff06a);opacity:1} }
+@keyframes pet-mushroom-bounce { 0%,70%,100%{transform:translateY(0) rotate(0) scale(1)} 76%{transform:translateY(-18%) rotate(-6deg) scale(1.04,.94)} 82%{transform:translateY(0) rotate(5deg) scale(.96,1.05)} 88%{transform:translateY(-8%) rotate(-3deg) scale(1.02,.98)} }
+.avatar-idle .pet-bee{animation:pet-bee-flight 3.2s ease-in-out infinite}
+.avatar-idle .pet-butterfly{animation:pet-butterfly-flight 4.1s ease-in-out infinite}
+.avatar-idle .pet-firefly{animation:pet-firefly-glow 3.7s ease-in-out infinite}
+.avatar-idle .pet-mushroom{animation:pet-mushroom-bounce 5s ease-in-out infinite}
+.avatar-idle .pet-bee:hover,.avatar-idle .pet-butterfly:hover,.avatar-idle .pet-firefly:hover{animation-duration:1.5s;filter:brightness(1.18)}
+.avatar-idle .pet-mushroom:hover{animation-duration:2.2s;filter:brightness(1.12)}
 
 /* entrada suave de cards e telas */
 .rise { animation: rise .4s ease both; }
