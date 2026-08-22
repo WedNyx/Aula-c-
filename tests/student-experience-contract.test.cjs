@@ -7,6 +7,7 @@ const tour = read("src/components/TourOverlay.jsx");
 const shop = read("src/components/NyxShop.jsx");
 const app = read("src/App.jsx");
 const nyx = read("src/components/NyxPrismaOrbital.jsx");
+const theme = read("src/theme.css");
 
 const checks = [
   ["os quatro novos pets estão disponíveis", ["Abelha", "Borboleta", "Vagalume", "Cogumelo"].every(x => avatar.includes(`label:\"${x}\"`))],
@@ -17,6 +18,8 @@ const checks = [
   ["o limite também protege compras novas", shop.includes("antes de comprar e vestir outro")],
   ["o Nyx diferencia quatro tipos de interação", ["single", "double", "triple", "hold"].every(kind => nyx.includes(`kind === \"${kind}\"`))],
   ["a interação do Nyx funciona com mouse, toque e teclado", nyx.includes("onPointerDown={handlePointerDown}") && nyx.includes("onKeyDown=") && nyx.includes('role="button"')],
+  ["cada novo pet possui animação própria", ["pet-bee-flight", "pet-butterfly-flight", "pet-firefly-glow", "pet-mushroom-bounce"].every(name => theme.includes(name))],
+  ["as animações dos pets respeitam movimento reduzido", theme.includes("prefers-reduced-motion: reduce")],
 ];
 
 let failed = 0;
