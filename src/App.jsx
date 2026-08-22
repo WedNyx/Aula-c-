@@ -27,7 +27,7 @@ import { STUDY_LANGUAGES, langById, reviewChecklistFor, buildPreviewDoc, otherFi
 import { BRACKET_COLORS, highlight, highlightCSharp, highlightJS, highlightPHP, highlightCSS, highlightHTML } from "./lib/highlight.jsx";
 import { ANALYZE_PROVIDERS, PARTNER_REWARD_HELPER, PARTNER_REWARD_HELPED, PARTNER_WEEKLY_CAP, isOffline, isNetworkError, askClaude, extractJson, askClaudeJson, buildSummaryRequest, buildContinuationSummaryRequest, mergeSummaryContinuation, recentDifficultyHint, adaptiveDifficultyTier } from "./lib/ai.js";
 import { requestFS, goFullscreen, todayKey, weekKey, dateKeyOf, hmToMin, nowMin, classStatus } from "./lib/schedule.ts";
-import { SHIFTS, TEST_SHIFT, LANG_SHIFT, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName, DEFAULT_TURMAS, TURMA_COLORS, turmaCalendar, withTurmaCalendar } from "./lib/shifts.ts";
+import { SHIFTS, TEST_SHIFT, LANG_SHIFT, shiftMeta, shiftLabel, isSameDayTs, contentNameFor, withContentName, DEFAULT_TURMAS, TURMA_COLORS, turmaCalendar, withTurmaCalendar, isSevenDayShift } from "./lib/shifts.ts";
 import { Login } from "./components/LoginScreen.jsx";
 import { ImpactPage, PortfolioPage } from "./components/PublicPages.jsx";
 import { generateDuelQuestions, generateKnowledgeTestQuestions, generateFreeBuildPlan } from "./lib/aiChallenges.js";
@@ -461,7 +461,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   useEffect(() => { if (nyxLocks.zeker && showTeamDuel) setShowTeamDuel(false); }, [nyxLocks.zeker, showTeamDuel]);
 
   // ── início do intervalo: som suave uma vez só por intervalo ──
-  const classStatusNow = classStatus(mySchedule, myAllowWeekend);
+  const classStatusNow = classStatus(mySchedule, myAllowWeekend || isSevenDayShift(shift));
   useEffect(() => {
     const bStart = mySchedule?.breakStart && mySchedule?.breakMin ? `${todayKey()}-${mySchedule.breakStart}-${mySchedule.breakMin}` : null;
     if (!bStart) return;
@@ -512,7 +512,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       ]);
       latest = latestRes;
       meta = metaRes;
-      const csNow = classStatus((meta.schedule || {})[shift] || {}, !!meta.allowWeekend);
+      const csNow = classStatus((meta.schedule || {})[shift] || {}, !!meta.allowWeekend || isSevenDayShift(shift));
       vistoriaOnly = csNow.configured && !csNow.open && insp;
       if (latest) {
         const applyIfUnedited = (field, setter, compareNorm = (v) => v, materialize = compareNorm) => {
