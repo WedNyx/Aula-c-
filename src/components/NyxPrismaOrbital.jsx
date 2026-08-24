@@ -13,7 +13,7 @@ import gsap from "gsap";
 // ao redor de si, não que segura com as mãos).
 let __npoSeq = 0;
 export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, gear, onInteract }) {
-  const G = { skin: null, head: null, face: null, neck: null, hand: null, shield: null, costas: null, ...(gear || {}) };
+  const G = { skin:null, head:null, head2:null, face:null, face2:null, neck:null, neck2:null, hand:null, hand2:null, shield:null, shield2:null, costas:null, costas2:null, ...(gear || {}) };
   const idRef = useRef(null);
   if (idRef.current === null) idRef.current = ++__npoSeq;
   const uid = "npo" + idRef.current;
@@ -45,7 +45,8 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
   };
   const P = { ...(MAP[st] || MAP.idle), ...(SKINS[selectedSkin] || {}) };
 
-  const isSpartan = G.hand === "espada" && G.shield === "escudo";
+  const hasGear = (slot, item) => G[slot] === item || G[`${slot}2`] === item;
+  const isSpartan = hasGear("hand", "espada") && hasGear("shield", "escudo");
 
   // as cores de humor NÃO podem ficar presas a {P.main/P.dark/...} no JSX — só o GSAP escreve
   // nelas (via useLayoutEffect, antes do navegador pintar, pra não piscar sem cor no 1º quadro).
@@ -207,6 +208,7 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
 
         {/* costas — renderiza atrás do corpo, como uma capa */}
         {G.costas === "capaHeroi" && <NpoCapaHeroi uid={uid} />}
+        {G.costas2 === "capaHeroi" && <g transform="translate(10 -2) scale(.96)"><NpoCapaHeroi uid={uid + "b"} /></g>}
 
         {/* corpo e pernas */}
         <path ref={legsRef} d="M132 263c-42 7-49 46-29 59 13 8 26-5 34-25M228 263c42 7 49 46 29 59-13 8-26-5-34-25" fill="none" strokeWidth="28" strokeLinecap="round" />
@@ -223,27 +225,10 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
         <rect x="72" y="62" width="216" height="154" rx="67" fill={`url(#${uid}shell)`} stroke="#d9caff" strokeWidth="5" />
         <path d="M109 111q71-29 142 0" fill="none" stroke="#fff" strokeWidth="4" opacity=".08" />
 
-        {isSpartan ? <NpoElmoEspartano uid={uid} /> : (
-          <>
-            {G.head === "fone" && <NpoFone uid={uid} P={P} />}
-            {G.head === "chapeu" && <NpoChapeu uid={uid} />}
-            {G.head === "coroa" && <NpoCoroa uid={uid} />}
-            {G.head === "chapeuPirata" && <NpoChapeuPirata uid={uid} />}
-            {G.head === "touca" && <NpoTouca uid={uid} />}
-            {G.head === "bone" && <NpoBone uid={uid} />}
-            {G.head === "chapeuFesta" && <NpoChapeuFesta uid={uid} />}
-            {G.head === "bandana" && <NpoBandana uid={uid} />}
-            {G.head === "gorroNatal" && <NpoGorroNatal uid={uid} />}
-            {G.head === "orelhinhas" && <NpoOrelhinhas uid={uid} P={P} />}
-            {G.head === "tiara" && <NpoTiara uid={uid} />}
-            {G.head === "capaceteObra" && <NpoCapaceteObra uid={uid} />}
-            {G.head === "foneDJ" && <NpoFoneDJ uid={uid} />}
-            {G.head === "chapeuMago" && <NpoChapeuMago uid={uid} />}
-            {G.head === "capelo" && <NpoCapelo uid={uid} />}
-            {G.head === "coroaPrismatica" && <NpoCoroaPrismatica uid={uid} />}
-            {G.head === "haloOrbital" && <NpoHaloOrbital uid={uid} />}
-          </>
-        )}
+        {isSpartan ? <NpoElmoEspartano uid={uid} /> : <>
+          <NpoHeadItem item={G.head} uid={uid} P={P} />
+          {G.head2 && <g transform="translate(10 -5) scale(.94)"><NpoHeadItem item={G.head2} uid={uid + "h2"} P={P} /></g>}
+        </>}
 
         {/* antena lunar */}
         <g style={{ transformOrigin: "180px 64px", animation: "npo-antenna-sway 5.6s ease-in-out infinite" }}>
@@ -255,14 +240,8 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
 
         {/* colar/pescoço — acessório "neck" fica bem na costura entre cabeça e corpo; renderiza
             DEPOIS da cabeça (senão a cabeça pinta por cima e o acessório some) */}
-        {G.neck === "laco" && <NpoLaco uid={uid} />}
-        {G.neck === "gravataBorboleta" && <NpoGravata uid={uid} />}
-        {G.neck === "cachecol" && <NpoCachecol uid={uid} />}
-        {G.neck === "colarDev" && <NpoColarDev uid={uid} />}
-        {G.neck === "medalha" && <NpoMedalha uid={uid} />}
-        {G.neck === "golaSocial" && <NpoGolaSocial uid={uid} />}
-        {G.neck === "colarHavaiano" && <NpoColarHavaiano />}
-        {G.neck === "golaNucleo" && <NpoGolaNucleo uid={uid} />}
+        <NpoNeckItem item={G.neck} uid={uid} />
+        {G.neck2 && <g transform="translate(8 2) scale(.95)"><NpoNeckItem item={G.neck2} uid={uid + "n2"} /></g>}
 
         {/* visor + olhos por estado */}
         <rect x="92" y="93" width="176" height="101" rx="45" fill={`url(#${uid}visor)`} stroke="#19162c" strokeWidth="6" />
@@ -310,15 +289,8 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
         )}
 
         {/* óculos por cima dos olhos (senão a esclera grande dos olhos cobre a armação) */}
-        {G.face === "oculos" && <NpoOculos />}
-        {G.face === "oculosNerd" && <NpoOculosNerd />}
-        {G.face === "vendaPirata" && <NpoVendaPirata />}
-        {G.face === "oculosAviador" && <NpoOculosAviador />}
-        {G.face === "oculos3d" && <NpoOculos3d />}
-        {G.face === "monoculo" && <NpoMonoculo />}
-        {G.face === "mascaraHeroi" && <NpoMascaraHeroi uid={uid} />}
-        {G.face === "viseiraHolografica" && <NpoViseiraHolografica uid={uid} />}
-        {G.face === "brincosCristal" && <NpoBrincosCristal uid={uid} />}
+        <NpoFaceItem item={G.face} uid={uid} />
+        {G.face2 && <g transform="translate(7 3) scale(.96)"><NpoFaceItem item={G.face2} uid={uid + "f2"} /></g>}
 
         {/* capa Espartana (atrás do cristal e dos itens levitantes) */}
         {isSpartan && (
@@ -341,23 +313,10 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
           <NpoEspadaEscudoEspartano uid={uid} />
         ) : (
           <>
-            {G.shield === "escudo" && <NpoEscudo uid={uid} />}
-            {G.shield === "tampaPanela" && <NpoTampaPanela uid={uid} />}
-            {G.shield === "placaStop" && <NpoPlacaStop />}
-            {G.shield === "livroGrosso" && <NpoLivroGrosso />}
-            {G.hand === "espada" && <NpoEspada uid={uid} />}
-            {G.hand === "arco" && <NpoArco uid={uid} />}
-            {G.hand === "sorvete" && <NpoSorvete uid={uid} />}
-            {G.hand === "guardaChuva" && <NpoGuardaChuva uid={uid} />}
-            {G.hand === "chaveInglesa" && <NpoChaveInglesa uid={uid} />}
-            {G.hand === "bandeiraCorrida" && <NpoBandeiraCorrida uid={uid} />}
-            {G.hand === "microfone" && <NpoMicrofone uid={uid} />}
-            {G.hand === "martelo" && <NpoMartelo uid={uid} />}
-            {G.hand === "grimorio" && <NpoGrimorio uid={uid} />}
-            {G.hand === "varinha" && <NpoVarinha uid={uid} />}
-            {G.hand === "tecladoMini" && <NpoTecladoMini uid={uid} />}
-            {G.hand === "controle" && <NpoControle uid={uid} />}
-            {G.hand === "trofeu" && <NpoTrofeu uid={uid} />}
+            <NpoShieldItem item={G.shield} uid={uid} />
+            {G.shield2 && <g transform="translate(-14 -8) scale(.88)"><NpoShieldItem item={G.shield2} uid={uid + "s2"} /></g>}
+            <NpoHandItem item={G.hand} uid={uid} />
+            {G.hand2 && <g transform="translate(16 -8) scale(.88)"><NpoHandItem item={G.hand2} uid={uid + "m2"} /></g>}
           </>
         )}
       </svg>
@@ -387,6 +346,26 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
 }
 
 // ── acessórios: cabeça ──
+function NpoItem({ item, uid, P, components }) {
+  const Component = components[item];
+  return Component ? <Component uid={uid} P={P} /> : null;
+}
+function NpoHeadItem(props) {
+  return <NpoItem {...props} components={{ fone:NpoFone, chapeu:NpoChapeu, coroa:NpoCoroa, chapeuPirata:NpoChapeuPirata, touca:NpoTouca, bone:NpoBone, chapeuFesta:NpoChapeuFesta, bandana:NpoBandana, gorroNatal:NpoGorroNatal, orelhinhas:NpoOrelhinhas, tiara:NpoTiara, capaceteObra:NpoCapaceteObra, foneDJ:NpoFoneDJ, chapeuMago:NpoChapeuMago, capelo:NpoCapelo, coroaPrismatica:NpoCoroaPrismatica, haloOrbital:NpoHaloOrbital }} />;
+}
+function NpoFaceItem(props) {
+  return <NpoItem {...props} components={{ oculos:NpoOculos, oculosNerd:NpoOculosNerd, vendaPirata:NpoVendaPirata, oculosAviador:NpoOculosAviador, oculos3d:NpoOculos3d, monoculo:NpoMonoculo, mascaraHeroi:NpoMascaraHeroi, viseiraHolografica:NpoViseiraHolografica, brincosCristal:NpoBrincosCristal }} />;
+}
+function NpoNeckItem(props) {
+  return <NpoItem {...props} components={{ laco:NpoLaco, gravataBorboleta:NpoGravata, cachecol:NpoCachecol, colarDev:NpoColarDev, medalha:NpoMedalha, golaSocial:NpoGolaSocial, colarHavaiano:NpoColarHavaiano, golaNucleo:NpoGolaNucleo }} />;
+}
+function NpoShieldItem(props) {
+  return <NpoItem {...props} components={{ escudo:NpoEscudo, tampaPanela:NpoTampaPanela, placaStop:NpoPlacaStop, livroGrosso:NpoLivroGrosso }} />;
+}
+function NpoHandItem(props) {
+  return <NpoItem {...props} components={{ espada:NpoEspada, arco:NpoArco, sorvete:NpoSorvete, guardaChuva:NpoGuardaChuva, chaveInglesa:NpoChaveInglesa, bandeiraCorrida:NpoBandeiraCorrida, microfone:NpoMicrofone, martelo:NpoMartelo, grimorio:NpoGrimorio, varinha:NpoVarinha, tecladoMini:NpoTecladoMini, controle:NpoControle, trofeu:NpoTrofeu }} />;
+}
+
 function NpoFone({ uid, P }) {
   return (
     <g><path d="M91 105Q97 52 144 43M269 105Q263 52 216 43" fill="none" stroke="#2b2544" strokeWidth="10"/><rect x="72" y="104" width="28" height="58" rx="12" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><rect x="260" y="104" width="28" height="58" rx="12" fill="#13101f" stroke="#efe8ff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M79 116h14M267 116h14" stroke="#68e8ff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="86" cy="144" r="6" fill={`url(#${uid}crystal)`}/><circle cx="274" cy="144" r="6" fill={`url(#${uid}crystal)`}/></g>
