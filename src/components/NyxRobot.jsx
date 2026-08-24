@@ -71,7 +71,7 @@ export const NYX_ITEMS = [
   { id:"golaNucleo",          label:"Gola de Núcleo",       emoji:"🟤", slot:"neck", cost:22 },
   { id:"capaHeroi",           label:"Capa de Herói",        emoji:"🦸", slot:"costas", cost:55 },
 ];
-export const DEFAULT_NYX_GEAR = { skin:null, head:null, face:null, neck:null, hand:null, shield:null, costas:null };
+export const DEFAULT_NYX_GEAR = { skin:null, head:null, head2:null, face:null, face2:null, neck:null, neck2:null, hand:null, hand2:null, shield:null, shield2:null, costas:null, costas2:null };
 
 // ── NYX: o robô assistente da turma (SVG + GSAP) ──
 let __nyxSeq = 0;

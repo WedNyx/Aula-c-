@@ -73,6 +73,31 @@ function checkinMoodInfo(id) {
 // ════════════════════════════════════════════════════════════════════════════
 //  ALUNO
 // ════════════════════════════════════════════════════════════════════════════
+// Relógio baseado sempre no horário absoluto, sem somar "um segundo por tick". Assim atrasos do
+// navegador, economia de energia e abas em segundo plano não se acumulam na contagem. Ao voltar
+// para a aba, a interface sincroniza imediatamente com o horário real.
+function useAccurateNow(active = true, resolution = 200) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) { setNow(Date.now()); return undefined; }
+    let timeout;
+    const sync = () => {
+      setNow(Date.now());
+      timeout = window.setTimeout(sync, Math.max(25, resolution - (Date.now() % resolution)));
+    };
+    const syncOnReturn = () => { if (!document.hidden) setNow(Date.now()); };
+    sync();
+    window.addEventListener("focus", syncOnReturn);
+    document.addEventListener("visibilitychange", syncOnReturn);
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("focus", syncOnReturn);
+      document.removeEventListener("visibilitychange", syncOnReturn);
+    };
+  }, [active, resolution]);
+  return now;
+}
+
 function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initialBirthDate, initialCpf }) {
   const vw = useViewportWidth();
   // nome/emoji da própria turma (pode ser uma turma extra criada pelo professor, além das 2 padrão)
@@ -296,8 +321,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [showHallOfFame, setShowHallOfFame] = useState(false);
   const [hallEntries, setHallEntries] = useState([]);
   // relógio próprio (1x por segundo) só pra a contagem regressiva do intervalo/fim de aula ficar fluida
-  const [clockNow, setClockNow] = useState(() => Date.now());
-  useEffect(() => { const iv = setInterval(() => setClockNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
+  const clockNow = useAccurateNow(true, 200);
   const [kbSuggestDismissed, setKbSuggestDismissed] = useState(() => {
     try { return localStorage.getItem(`nyx_kbsuggest_${todayKey()}_${shift}_${studentName}`) === "1"; } catch { return false; }
   });
@@ -2027,7 +2051,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // forma, troca sozinho o tema de fundo pro tema Espartano (guardando o de antes) — o aluno decide
   // depois, no botão do cabeçalho, se fica com ele ou volta pro tema de sempre; nada disso mexe no
   // editor de código em si, só no fundo da página.
-  const isSpartan = nyxGear?.hand === "espada" && nyxGear?.shield === "escudo";
+  const gearHas = (gear, slot, item) => gear?.[slot] === item || gear?.[`${slot}2`] === item;
+  const pirateSet = gear => gearHas(gear, "head", "chapeuPirata") && gearHas(gear, "face", "vendaPirata") && gearHas(gear, "hand", "espada");
+  const isSpartan = gearHas(nyxGear, "hand", "espada") && gearHas(nyxGear, "shield", "escudo");
   useEffect(() => {
     if (isSpartan && theme !== "spartan") {
       const prevTheme = themeBeforeSpartan || theme;
@@ -2090,8 +2116,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
   // o Easter Egg pirata só desperta com o conjunto completo comprado e equipado.
   const handleEquipGear = (newGear) => {
-    const wasPirate = nyxGear.head === "chapeuPirata" && nyxGear.face === "vendaPirata" && nyxGear.hand === "espada";
-    const isPirate = newGear.head === "chapeuPirata" && newGear.face === "vendaPirata" && newGear.hand === "espada";
+    const wasPirate = pirateSet(nyxGear);
+    const isPirate = pirateSet(newGear);
     setNyxGear(newGear);
     persist({ nyxGear: newGear });
     if (isPirate && !wasPirate) {
@@ -2140,7 +2166,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       <span onClick={()=>triggerEgg("42")} title="" style={{ position:"fixed", bottom:8, right:8, fontSize:17, opacity:0.16, zIndex:3, cursor:"default", userSelect:"none" }}>🌌</span>
       <span onClick={()=>triggerEgg("rm")} title="" style={{ position:"fixed", left:8, top:"50%", transform:"translateY(-50%)", fontSize:17, opacity:0.15, zIndex:3, cursor:"default", userSelect:"none" }}>🗑️</span>
       {/* o baú só aparece enquanto o conjunto pirata completo está equipado. */}
-      {nyxGear.head === "chapeuPirata" && nyxGear.face === "vendaPirata" && nyxGear.hand === "espada" && (
+      {pirateSet(nyxGear) && (
         <span onClick={findTreasure} title="" style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:16, height:16, lineHeight:"16px", textAlign:"center", fontSize:12, opacity:0.07, zIndex:3, cursor:"default", userSelect:"none" }}>🏴‍☠️</span>
       )}
     </>
@@ -2150,12 +2176,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // lê/escreve via stateRef (não os closures de nyxOwned/nyxSpent/nyxGear) pra dois cliques bem
   // rápidos seguidos (comum na tela touch da carreta) não passarem os dois pela checagem com o
   // mesmo estado "antigo" e um deles sobrescrever o outro sem gastar/registrar o item direito
-  const handleBuyItem = async (item) => {
+  const handleBuyItem = async (item, targetSlot = item.slot) => {
     const s = stateRef.current;
     if ((s.nyxOwned||[]).includes(item.id) || ((s.nyxPoints||0) - (s.nyxSpent||0)) < item.cost) return;
     const newSpent = (s.nyxSpent||0) + item.cost;
     const newOwned = [...(s.nyxOwned||[]), item.id];
-    const newGear = { ...(s.nyxGear||DEFAULT_NYX_GEAR), [item.slot]: item.id };
+    const newGear = { ...(s.nyxGear||DEFAULT_NYX_GEAR), [targetSlot]: item.id };
     stateRef.current = { ...s, nyxSpent: newSpent, nyxOwned: newOwned, nyxGear: newGear };
     setNyxSpent(newSpent);
     setNyxOwned(newOwned);
@@ -2177,6 +2203,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     const newOwned = owned.filter(id => id !== item.id);
     const currentGear = { ...(s.nyxGear || DEFAULT_NYX_GEAR) };
     if (currentGear[item.slot] === item.id) currentGear[item.slot] = null;
+    if (currentGear[`${item.slot}2`] === item.id) currentGear[`${item.slot}2`] = null;
     stateRef.current = { ...s, nyxSpent:newSpent, nyxOwned:newOwned, nyxGear:currentGear };
     setNyxSpent(newSpent);
     setNyxOwned(newOwned);
@@ -4514,8 +4541,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [examGenerating, setExamGenerating] = useState(false);
   const [examMsg, setExamMsg] = useState("");
   // relógio pra contar o tempo de estudo restante na fase de revisão da prova
-  const [examNow, setExamNow] = useState(() => Date.now());
-  useEffect(() => { const iv = setInterval(() => setExamNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
+  const examNow = useAccurateNow(examConfig.status === "review", 200);
   // cada turno tem sua própria prova independente (ver storage.js) — reaproveita o mesmo filtro de
   // turma (shiftFilter) que já existe pra Monitoramento/Calendário/Feedback, em vez de criar outro
   // seletor: trocar o filtro busca na hora o estado da prova DAQUELE turno, sem esperar o próximo
@@ -4532,7 +4558,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // respondem no próprio perfil e o placar é apurado aqui a partir do polling da turma)
   const [quizThemes, setQuizThemes] = useState([]);
   const [quizRoom, setQuizRoomState] = useState(null);
-  const [quizNow, setQuizNow] = useState(() => Date.now());
+  const quizNow = useAccurateNow(quizRoom?.status === "question", 100);
   const [quizNewTitle, setQuizNewTitle] = useState("");
   const [quizSecs, setQuizSecs] = useState(QUIZ_QUESTION_SECONDS); // tempo por pergunta escolhido pra próxima sala
   const [quizEditingTheme, setQuizEditingTheme] = useState(null); // { id?, title, questions } em edição
@@ -4541,11 +4567,6 @@ function TeacherView({ onLogout, teacherAuth }) {
   // cada turma tem sua própria sala de quiz — troca de turma (codeShift) retoma a sala DAQUELA
   // turma, se tiver uma aberta, com o gabarito completo (é o professor)
   useEffect(() => { getQuizRoom(codeShift, teacherAuth).then(setQuizRoomState); }, [codeShift]);
-  useEffect(() => {
-    if (!quizRoom || quizRoom.status !== "question") return;
-    const iv = setInterval(() => setQuizNow(Date.now()), 250);
-    return () => clearInterval(iv);
-  }, [quizRoom?.status, quizRoom?.qIndex]);
   const quizWrite = async (state) => { setQuizRoomState(state); await setQuizRoom(codeShift, state, teacherAuth); };
   const startQuizRoom = async (theme) => {
     await quizWrite({ code: makeQuizCode(), themeTitle: theme.title, questions: theme.questions, secs: quizSecs, status: "lobby", qIndex: 0, startedAts: {}, createdAt: Date.now() });
