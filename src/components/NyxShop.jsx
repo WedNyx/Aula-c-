@@ -15,11 +15,10 @@ const SLOT_SECTIONS = [
   { slot: "shield", label: "🛡️ Escudo Orbital" },
   { slot: "costas", label: "🦸 Costas" },
 ];
-const MAX_EQUIPPED_ACCESSORIES = 2;
-const isPirateSet = (gear = {}) => gear.head === "chapeuPirata" && gear.face === "vendaPirata" && gear.hand === "espada";
-const equippedAccessoryCount = (gear = {}) => SLOT_SECTIONS
-  .filter(section => section.slot !== "skin")
-  .reduce((total, section) => total + (gear[section.slot] ? 1 : 0), 0);
+const secondKey = slot => `${slot}2`;
+const equippedInSlot = (gear, slot) => [gear?.[slot], gear?.[secondKey(slot)]].filter(Boolean);
+const hasItem = (gear, slot, item) => equippedInSlot(gear, slot).includes(item);
+const isPirateSet = (gear = {}) => hasItem(gear,"head","chapeuPirata") && hasItem(gear,"face","vendaPirata") && hasItem(gear,"hand","espada");
 
 // ════════════════════════════════════════════════════════════════════════════
 //  LOJA DO NYX  (troca pontos de acerto por acessórios cosméticos)
@@ -37,8 +36,8 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
   useEffect(() => {
     const prev = prevGearRef.current || {};
     prevGearRef.current = gear;
-    const wasSpartan = prev.hand === "espada" && prev.shield === "escudo";
-    const isSpartanNow = gear.hand === "espada" && gear.shield === "escudo";
+    const wasSpartan = hasItem(prev,"hand","espada") && hasItem(prev,"shield","escudo");
+    const isSpartanNow = hasItem(gear,"hand","espada") && hasItem(gear,"shield","escudo");
     let talk = null;
     if (isSpartanNow && !wasSpartan) {
       talk = { kind:"espartano", color:"#f87171", msg:"🛡️ ISTO... É... C#!! Nenhum erro de compilação assusta um guerreiro Espartano. Vamos à batalha pelo código perfeito!" };
@@ -53,25 +52,24 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
   }, [gear]);
   const click = (item) => {
     const has = isTestShift || owned.includes(item.id);
+    const second = secondKey(item.slot);
+    const equippedKey = gear[item.slot] === item.id ? item.slot : gear[second] === item.id ? second : null;
     if (has) {
-      const isEquipped = gear[item.slot] === item.id;
-      const count = equippedAccessoryCount(gear);
-      const nextGear = { ...gear, [item.slot]: item.id };
-      if (!isEquipped && item.slot !== "skin" && !gear[item.slot] && count >= MAX_EQUIPPED_ACCESSORIES && !isPirateSet(nextGear)) {
-        setEquipNotice("Você já está usando dois acessórios. Tire um deles antes de vestir outro.");
+      if (equippedKey) {
+        setEquipNotice("");
+        onEquip({ ...gear, [equippedKey]:null });
         return;
       }
+      if (item.slot === "skin") { setEquipNotice(""); onEquip({ ...gear, skin:item.id }); return; }
+      const target = !gear[item.slot] ? item.slot : !gear[second] ? second : null;
+      if (!target) { setEquipNotice(`Você já está usando dois acessórios de ${item.slot}. Tire um deles antes.`); return; }
       setEquipNotice("");
-      onEquip({ ...gear, [item.slot]: isEquipped ? null : item.id });
+      onEquip({ ...gear, [target]:item.id });
     } else if (wallet >= item.cost) {
-      const count = equippedAccessoryCount(gear);
-      const nextGear = { ...gear, [item.slot]: item.id };
-      if (item.slot !== "skin" && !gear[item.slot] && count >= MAX_EQUIPPED_ACCESSORIES && !isPirateSet(nextGear)) {
-        setEquipNotice("Você já está usando dois acessórios. Tire um deles antes de comprar e vestir outro.");
-        return;
-      }
+      const target = item.slot === "skin" ? "skin" : !gear[item.slot] ? item.slot : !gear[second] ? second : null;
+      if (!target) { setEquipNotice(`Você já está usando dois acessórios de ${item.slot}. Tire um deles antes de comprar outro.`); return; }
       setEquipNotice("");
-      onBuy(item); // compra: gasta os pontos, entra pro inventário e já equipa
+      onBuy(item, target);
     }
   };
   return (
@@ -85,8 +83,8 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
           {isTestShift ? "🧪 Turma de teste: todos os itens estão liberados para você testar!" : "Cada resposta certa vira 1 ponto. Comprar um item GASTA os pontos — mas o item é seu para sempre! (Seu lugar no ranking não muda: ele conta os pontos que você já ganhou.)"}
         </p>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, flexWrap:"wrap", margin:"-4px 0 14px", padding:"9px 11px", background:"#171026", border:"1px solid #3b2a58", borderRadius:11 }}>
-          <span style={{ color:"#d6c9ec", fontSize:12.5 }}>A aparência é livre. Existe uma combinação pirata secreta que pode ocupar 3 espaços.</span>
-          <b style={{ color:equippedAccessoryCount(gear)>=MAX_EQUIPPED_ACCESSORIES?"#fbbf24":"#34d399", fontSize:12.5 }}>Acessórios: {equippedAccessoryCount(gear)}/{isPirateSet(gear)?3:MAX_EQUIPPED_ACCESSORIES}</b>
+          <span style={{ color:"#d6c9ec", fontSize:12.5 }}>Você pode usar até dois acessórios de cada categoria. A aparência continua separada.</span>
+          <b style={{ color:"#34d399", fontSize:12.5 }}>2 espaços por categoria</b>
         </div>
         {equipNotice && <div role="status" style={{ color:"#fbbf24", background:"#fbbf2412", border:"1px solid #fbbf2455", borderRadius:10, padding:"9px 11px", margin:"-5px 0 14px", fontSize:12.5 }}>{equipNotice}</div>}
 
@@ -123,7 +121,7 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
                       const has = isTestShift || owned.includes(item.id);
                       const canBuy = !has && wallet >= item.cost;
                       const clickable = has || canBuy;
-                      const equipped = gear[item.slot] === item.id;
+                      const equipped = equippedInSlot(gear,item.slot).includes(item.id);
                       return (
                         <div key={item.id} data-item={item.id} role="button" tabIndex={clickable?0:-1} onClick={()=>clickable && click(item)}
                           style={{
@@ -162,7 +160,7 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
 
       {preview && (() => {
         const has = isTestShift || owned.includes(preview.id);
-        const equipped = gear[preview.slot] === preview.id;
+        const equipped = equippedInSlot(gear,preview.slot).includes(preview.id);
         const canBuy = !has && wallet >= preview.cost;
         const clickable = has || canBuy;
         const canRefund = !isTestShift && owned.includes(preview.id) && !preview.secret && preview.cost > 0 && spent >= preview.cost;
