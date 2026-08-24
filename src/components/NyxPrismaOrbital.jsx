@@ -200,8 +200,8 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
           <circle r="8" fill="#e8ddff" stroke={P.cyan} strokeWidth="2.5"><animateMotion dur={`${P.speed}s`} repeatCount="indefinite" path="M48 244a132 39 0 1 0 264 0a132 39 0 1 0-264 0" /></circle>
           <circle r="5.5" fill="#a887f2" stroke="#e4fbff" strokeWidth="1.7"><animateMotion dur={`${P.speed}s`} begin="-3.5s" repeatCount="indefinite" path="M48 244a132 39 0 1 0 264 0a132 39 0 1 0-264 0" /></circle>
         </g>
-        {!G.shield && <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite" }}><path d="M63 286 43 306 70 302Z" fill={`url(#${uid}crystal)`} /></g>}
-        {!G.hand && <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1.7s" }}><path d="m297 185 24-11-13 27Z" fill={`url(#${uid}crystal)`} /></g>}
+        {!G.shield && !G.shield2 && <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite" }}><path d="M63 286 43 306 70 302Z" fill={`url(#${uid}crystal)`} /></g>}
+        {!G.hand && !G.hand2 && <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1.7s" }}><path d="m297 185 24-11-13 27Z" fill={`url(#${uid}crystal)`} /></g>}
 
         {/* cauda de energia */}
         <path d="M132 306c-69 8-98 65-51 64 38-1 39-42 12-38 21-25 56-11 67 7" fill="none" stroke={`url(#${uid}prism)`} strokeWidth="19" strokeLinecap="round" opacity=".66" filter={`url(#${uid}glow)`} style={{ transformOrigin: "132px 306px", animation: "npo-tail-sway 4.2s ease-in-out infinite" }} />
