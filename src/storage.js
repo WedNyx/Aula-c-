@@ -3,6 +3,8 @@ import { DEFAULT_TURMAS } from './lib/shifts.ts'
 const PREFIX = 'student:'
 const TEACHER_META_KEY = 'teachermeta:main'
 const TEACHER_NOTES_KEY = 'teachernotes:main'
+const TEACHER_REMINDERS_KEY = 'teacherreminders:main'
+const CLASS_REMINDERS_KEY = 'classreminders:main'
 
 async function kvCall(body) {
   const resp = await fetch('/api/kv', {
@@ -669,6 +671,36 @@ export async function getTeacherNotes(auth) {
 export async function saveTeacherNotes(notes, auth) {
   try {
     const r = await kvCall({ action: 'set', key: TEACHER_NOTES_KEY, value: JSON.stringify(notes || []), auth })
+    return r.ok === true
+  } catch { return false }
+}
+
+export async function getTeacherScheduledReminders(auth) {
+  try {
+    const r = await kvCall({ action: 'get', key: TEACHER_REMINDERS_KEY, auth })
+    const reminders = r.value ? JSON.parse(r.value) : []
+    return Array.isArray(reminders) ? reminders : []
+  } catch { return [] }
+}
+
+export async function saveTeacherScheduledReminders(reminders, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: TEACHER_REMINDERS_KEY, value: JSON.stringify(reminders || []), auth })
+    return r.ok === true
+  } catch { return false }
+}
+
+export async function getClassScheduledReminders() {
+  try {
+    const r = await kvCall({ action: 'get', key: CLASS_REMINDERS_KEY })
+    const reminders = r.value ? JSON.parse(r.value) : []
+    return Array.isArray(reminders) ? reminders : []
+  } catch { return [] }
+}
+
+export async function saveClassScheduledReminders(reminders, auth) {
+  try {
+    const r = await kvCall({ action: 'set', key: CLASS_REMINDERS_KEY, value: JSON.stringify(reminders || []), auth })
     return r.ok === true
   } catch { return false }
 }
