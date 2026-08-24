@@ -9,13 +9,13 @@ const TABLE = 'kv_store'
 // si aceitava qualquer pedido. Agora, as ações que só o professor deveria poder fazer
 // (apagar tudo, mexer nas configurações da turma) exigem a senha de verdade aqui no
 // servidor, verificada no campo "auth" do pedido.
-const SET_PROTECTED_PREFIXES = ['teachercode:', 'teachernotes:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'resumotrigger:', 'teacherresumo:', 'quiz:', 'backup:', 'turmas:', 'errorlog:', 'adminlog:']
+const SET_PROTECTED_PREFIXES = ['teachercode:', 'teachernotes:', 'teacherreminders:', 'classreminders:', 'nyxlocks:', 'exam:config', 'codesend:', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'scorefix:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'resumotrigger:', 'teacherresumo:', 'quiz:', 'backup:', 'turmas:', 'errorlog:', 'adminlog:']
 // "errorlog:" e "kbdlock:" faltavam aqui: a leitura já exigia senha (GET_PROTECTED_PREFIXES /
 // SET_PROTECTED_PREFIXES respectivamente), mas sem entrar também em DELETE_PROTECTED_PREFIXES
 // qualquer sessão anônima podia apagar o log de erros inteiro ou destravar o teclado da turma
 // (kbdlock) sem senha nenhuma, chamando "delete" direto — mesmo com o "log_error"/"set" continuando
 // devidamente livres pra quem só está registrando um erro de verdade ou o professor travando
-const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'teachernotes:', 'nyxlocks:', 'exam:config', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'quiz:', 'backup:', 'turmas:', 'errorlog:', 'adminlog:']
+const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'teachernotes:', 'teacherreminders:', 'classreminders:', 'nyxlocks:', 'exam:config', 'accessmode:', 'support:', 'boss:', 'tourney:', 'inspection:', 'kick:', 'teachermeta:', 'classroom_reset_flag', 'nudge:', 'hall:', 'kblaunch:', 'kbdlock:', 'quiz:', 'backup:', 'turmas:', 'errorlog:', 'adminlog:']
 // list_with_values (listagem em massa) é NEGADA por padrão — só esses prefixos continuam
 // listáveis sem senha, porque são dados que o próprio app precisa ler sem professor logado
 // (seletor de perfil na tela de login, /impacto, portfólio público, estado de duelo/parceiro
@@ -31,7 +31,7 @@ const PUBLIC_LIST_PREFIXES = ['student:', 'duel:', 'teamduel:', 'partner:']
 // createBackupSnapshot copia o valor bruto de cada chave) e o log de erros. Essas duas são as
 // únicas onde um "get" direto expõe dado sensível em massa (não é 1 aluno, é a base toda de uma
 // vez), então são as únicas que passam a exigir senha também na leitura.
-const GET_PROTECTED_PREFIXES = ['backup:', 'errorlog:', 'teachernotes:']
+const GET_PROTECTED_PREFIXES = ['backup:', 'errorlog:', 'teachernotes:', 'teacherreminders:']
 function needsTeacherAuth(action, key) {
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
   if (action === 'get_recent_errors') return true // lista os erros de todo mundo — sempre só-do-professor
