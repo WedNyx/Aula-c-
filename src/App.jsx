@@ -322,7 +322,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [showHallOfFame, setShowHallOfFame] = useState(false);
   const [hallEntries, setHallEntries] = useState([]);
   // relógio próprio (1x por segundo) só pra a contagem regressiva do intervalo/fim de aula ficar fluida
-  const clockNow = useAccurateNow(true, 200);
+  const clockNow = useAccurateNow(true, 1000);
   const [scheduledReminders,setScheduledReminders]=useState([]);
   useEffect(()=>{ let live=true; const load=()=>getScheduledReminders().then(r=>{if(live)setScheduledReminders(r);}); load(); const iv=setInterval(load,10000); return()=>{live=false;clearInterval(iv);}; },[]);
   const ringClassReminder=useCallback(r=>{ playSound("bell"); toast(`📣 ${r.title}`,{description:r.text||"Aviso da turma",duration:15000}); },[]);
