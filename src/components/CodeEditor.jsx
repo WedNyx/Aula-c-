@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { highlight } from "../lib/highlight.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -8,6 +8,7 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
   const textareaRef = useRef(null);
   const highlightRef = useRef(null);
   const gutterRef = useRef(null);
+  const pendingSelectionRef = useRef(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
@@ -39,6 +40,23 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
     }
   };
 
+  // Em textarea controlado, setTimeout pode disputar com autosave/polling e recolocar o cursor
+  // usando a versão anterior do texto. Guardamos a posição desejada e a aplicamos logo após o
+  // React confirmar o novo value, antes da pintura da tela.
+  useLayoutEffect(() => {
+    const pending = pendingSelectionRef.current;
+    const ta = textareaRef.current;
+    if (!pending || !ta || ta.value !== value) return;
+    pendingSelectionRef.current = null;
+    ta.setSelectionRange(pending.start, pending.end);
+    syncScroll();
+  }, [value]);
+
+  const commitEdit = (newValue, start, end = start) => {
+    pendingSelectionRef.current = { start, end };
+    onChange(newValue);
+  };
+
   const handleKeyDown = (e) => {
     if (locked) { e.preventDefault(); return; } // Nyx está analisando: código congelado até terminar
     const ta = textareaRef.current;
@@ -51,13 +69,11 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
         // o que tava selecionado e sobrar só um par vazio no lugar
         const selected = v.slice(start, end);
         const newVal = v.slice(0,start) + e.key + selected + pairs[e.key] + v.slice(end);
-        onChange(newVal);
-        setTimeout(() => { ta.selectionStart = start+1; ta.selectionEnd = end+1; }, 0);
+        commitEdit(newVal, start+1, end+1);
         return;
       }
       const newVal = v.slice(0,start) + e.key + pairs[e.key] + v.slice(end);
-      onChange(newVal);
-      setTimeout(() => { ta.selectionStart = ta.selectionEnd = start+1; }, 0);
+      commitEdit(newVal, start+1);
       return;
     }
     if (e.key === "Tab") {
@@ -72,14 +88,12 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
         const middle = v.slice(selStartLine, selEndLine);
         const after = v.slice(selEndLine);
         const indented = middle.split("\n").map(line => "    " + line).join("\n");
-        onChange(before + indented + after);
         const addedTotal = indented.length - middle.length;
-        setTimeout(() => { ta.selectionStart = start+4; ta.selectionEnd = end+addedTotal; }, 0);
+        commitEdit(before + indented + after, start+4, end+addedTotal);
         return;
       }
       const newVal = v.slice(0,start) + "    " + v.slice(end);
-      onChange(newVal);
-      setTimeout(() => { ta.selectionStart = ta.selectionEnd = start+4; }, 0);
+      commitEdit(newVal, start+4);
       return;
     }
     if (e.key === "Enter") {
@@ -89,13 +103,11 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
       const prevChar = v[start-1], nextChar = v[start];
       if (prevChar === "{" && nextChar === "}") {
         const newVal = v.slice(0,start) + "\n" + indent+"    " + "\n" + indent + v.slice(end);
-        onChange(newVal);
-        setTimeout(() => { ta.selectionStart = ta.selectionEnd = start+1+indent.length+4; }, 0);
+        commitEdit(newVal, start+1+indent.length+4);
       } else {
         const extra = prevChar === "{" ? "    " : "";
         const newVal = v.slice(0,start) + "\n" + indent + extra + v.slice(end);
-        onChange(newVal);
-        setTimeout(() => { ta.selectionStart = ta.selectionEnd = start+1+indent.length+extra.length; }, 0);
+        commitEdit(newVal, start+1+indent.length+extra.length);
       }
       return;
     }
@@ -105,8 +117,7 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
       if (pairs2[prev] === next) {
         e.preventDefault();
         const newVal = v.slice(0,start-1) + v.slice(start+1);
-        onChange(newVal);
-        setTimeout(() => { ta.selectionStart = ta.selectionEnd = start-1; }, 0);
+        commitEdit(newVal, start-1);
       }
     }
   };
