@@ -5,7 +5,7 @@ const checks=[
  ["conquistas de comandos do terminal foram removidas",!["segredo-vaca","segredo-danca","segredo-matrix","segredo-piada"].some(x=>achievements.includes(`id:\"${x}\"`))],
  ["chapéu pirata virou item comprável",/id:\"chapeuPirata\"[^\n]+cost:22/.test(items)&&!items.includes('id:"chapeuPirata", label:"Chapéu Pirata", emoji:"🏴‍☠️", slot:"head", cost:0')],
  ["Easter Egg pirata exige três peças",["chapeuPirata","vendaPirata","espada"].every(x=>shop.includes(x))&&shop.includes("isPirateSet")],
- ["teste de conhecimento usa apenas resumos estudados",app.includes('questionContext={[JSON.stringify(dynamicSummary||{}), JSON.stringify(summaryHistory||{})]')],
+ ["teste de conhecimento usa código e resumos estudados",app.includes('questionContext={[allCodeToday(), JSON.stringify(dynamicSummary||{}), JSON.stringify(summaryHistory||{})]')],
  ["professor pode escrever resumo estruturado",editor.includes("Introdução")&&editor.includes("Seções")&&editor.includes("Atividade opcional")],
  ["atividade manual acompanha o resumo",app.includes("hasBroadcastActivity")&&app.includes("broadcastResumo.atividade")],
  ["central, perfil e missões existem",["showStudentNotifications","showStudentProfile","showDailyMissions"].every(x=>app.includes(x))],

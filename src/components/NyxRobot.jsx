@@ -5,6 +5,7 @@ import { shade } from "../lib/colors.ts";
 // ── loja de acessórios do Nyx (desbloqueados com pontos de acerto) ──
 export const NYX_ITEMS = [
   // skins preservam exatamente o corpo Prisma Orbital; mudam apenas cores, materiais e luzes
+  { id:"skinPrismaOrbital", label:"Nyx Prisma Orbital", emoji:"🔮", slot:"skin", cost:30 },
   { id:"skinOrbita",       label:"Nyx Órbita",       emoji:"🪐", slot:"skin", cost:28 },
   { id:"skinGuardiao",     label:"Nyx Guardião",     emoji:"🛡️", slot:"skin", cost:32 },
   { id:"skinAurora",       label:"Nyx Aurora",       emoji:"🌌", slot:"skin", cost:35 },
@@ -75,7 +76,7 @@ export const DEFAULT_NYX_GEAR = { skin:null, head:null, head2:null, face:null, f
 
 // ── NYX: o robô assistente da turma (SVG + GSAP) ──
 let __nyxSeq = 0;
-export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) {
+export function NyxRobot({ state = "idle", size = 100, showName = true, gear, onInteract }) {
   const G = { ...DEFAULT_NYX_GEAR, ...(gear||{}) };
   const idRef = useRef(null);
   if (idRef.current === null) idRef.current = ++__nyxSeq;
@@ -90,7 +91,7 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
   const antennaSpeed = state === "thinking" ? ".5s" : "1.8s";
 
   // ⚔️🛡️ espada + escudo equipados juntos: o Nyx vira um Espartano (elmo, capa e postura de batalha exclusivos)
-  const isSpartan = G.hand === "espada" && G.shield === "escudo";
+  const isSpartan = (G.hand === "espada" || G.hand2 === "espada") && (G.shield === "escudo" || G.shield2 === "escudo");
 
   // 🎬 GSAP: dá vida ao Nyx sem mexer no sistema de humores/quirks/Espartano acima — olhos que
   // seguem o mouse, antena com física de mola, orelha que treme sozinha, pulo no clique e a cor
@@ -197,9 +198,36 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
   // clique: salto com squash & stretch, sem brigar com a animação de humor/quirk (que fica no
   // div de fora) porque esse pulo mexe num div NOVO, só dele
   const clickingRef = useRef(false);
-  const handleNyxClick = () => {
+  const clickCountRef = useRef(0);
+  const clickTimerRef = useRef(null);
+  const holdTimerRef = useRef(null);
+  const longPressRef = useRef(false);
+  const handleNyxClick = (kind = "single") => {
     if (!bounceWrapRef.current || clickingRef.current) return;
     clickingRef.current = true;
+    onInteract?.(kind);
+    gsap.killTweensOf(bounceWrapRef.current);
+    gsap.set(bounceWrapRef.current, { x:0, y:0, rotation:0, scale:1, filter:"none", transformOrigin:"50% 55%" });
+    if (kind === "double") {
+      gsap.timeline({ onComplete:()=>{ clickingRef.current=false; } })
+        .to(bounceWrapRef.current,{rotation:360,scale:1.08,duration:.7,ease:"back.inOut(1.5)"})
+        .to(bounceWrapRef.current,{rotation:0,scale:1,duration:.16});
+      return;
+    }
+    if (kind === "triple") {
+      gsap.timeline({ onComplete:()=>{ clickingRef.current=false; } })
+        .to(bounceWrapRef.current,{x:-8,rotation:-5,duration:.08})
+        .to(bounceWrapRef.current,{x:8,rotation:5,duration:.08,repeat:3,yoyo:true})
+        .to(bounceWrapRef.current,{x:0,rotation:0,scale:1.12,duration:.12})
+        .to(bounceWrapRef.current,{scale:1,duration:.35,ease:"elastic.out(1.2,.35)"});
+      return;
+    }
+    if (kind === "hold") {
+      gsap.timeline({ onComplete:()=>{ clickingRef.current=false; } })
+        .to(bounceWrapRef.current,{scale:1.12,filter:"brightness(1.45) drop-shadow(0 0 12px #8eeaff)",duration:.42})
+        .to(bounceWrapRef.current,{scale:1,filter:"none",duration:.62,ease:"elastic.out(1,.35)"});
+      return;
+    }
     const tl = gsap.timeline({ onComplete: () => { clickingRef.current = false; } });
     tl.to(bounceWrapRef.current, { scaleY: 0.82, scaleX: 1.12, duration: 0.15, ease: "power2.out" })
       .to(bounceWrapRef.current, { y: -16, scaleY: 1.05, scaleX: 0.97, duration: 0.24, ease: "power2.out" })
@@ -207,6 +235,35 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
       .to(bounceWrapRef.current, { scaleY: 0.9, scaleX: 1.06, duration: 0.08 })
       .to(bounceWrapRef.current, { scaleY: 1, scaleX: 1, duration: 0.7, ease: "elastic.out(1.1, 0.3)" });
   };
+  const finishClickSequence = () => {
+    const count=clickCountRef.current;
+    clickCountRef.current=0;
+    clickTimerRef.current=null;
+    handleNyxClick(count>=3?"triple":count===2?"double":"single");
+  };
+  const handlePointerDown = () => {
+    longPressRef.current=false;
+    clearTimeout(holdTimerRef.current);
+    holdTimerRef.current=setTimeout(()=>{
+      longPressRef.current=true;
+      clickCountRef.current=0;
+      clearTimeout(clickTimerRef.current);
+      handleNyxClick("hold");
+    },520);
+  };
+  const handlePointerUp = () => {
+    clearTimeout(holdTimerRef.current);
+    if(longPressRef.current){longPressRef.current=false;return;}
+    clickCountRef.current+=1;
+    clearTimeout(clickTimerRef.current);
+    clickTimerRef.current=setTimeout(finishClickSequence,280);
+  };
+  const cancelPointer = () => { clearTimeout(holdTimerRef.current); longPressRef.current=false; };
+  useEffect(()=>()=>{
+    clearTimeout(clickTimerRef.current);
+    clearTimeout(holdTimerRef.current);
+    if(bounceWrapRef.current)gsap.killTweensOf(bounceWrapRef.current);
+  },[]);
 
   // enquanto parado no estado idle, de vez em quando solta uma animação criativa (bocejo, pulinho, giro...)
   // pra parecer vivo — depois volta pro float calmo de sempre e agenda a próxima aleatoriamente
@@ -214,8 +271,10 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
   return (
     <div style={{ textAlign:"center", padding:4, position:"relative" }}>
       <div style={{ display:"inline-block", position:"relative" }}>
-        <div ref={bounceWrapRef} style={{ display:"inline-block", cursor:"pointer" }}
-          onMouseMove={handleNyxMouseMove} onMouseLeave={handleNyxMouseLeave} onMouseEnter={handleNyxHover} onClick={handleNyxClick}>
+        <div ref={bounceWrapRef} role="button" tabIndex={0} aria-label="Interagir com o Nyx" style={{ display:"inline-block", cursor:"pointer", touchAction:"manipulation", outline:"none" }}
+          onMouseMove={handleNyxMouseMove} onMouseLeave={handleNyxMouseLeave} onMouseEnter={handleNyxHover}
+          onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onPointerCancel={cancelPointer} onPointerLeave={cancelPointer}
+          onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();handleNyxClick("single");}}}>
         <svg width={size} height={size*1.15} viewBox="0 0 120 138" style={{ display:"block", overflow:"visible" }}>
           <defs>
             <linearGradient id={uid+"h"} x1="0" y1="0" x2="0" y2="1">
@@ -267,17 +326,13 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
           {isSpartan ? (
             <g>
               <defs>
-                <linearGradient id={uid+"crista"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fca5a5"/><stop offset=".5" stopColor="#dc2626"/><stop offset="1" stopColor="#7a1010"/></linearGradient>
-                <linearGradient id={uid+"bronze"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dcb877"/><stop offset=".5" stopColor="#a1783f"/><stop offset="1" stopColor="#6b4d24"/></linearGradient>
+                <linearGradient id={uid+"spartanPrism"} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#effcff"/><stop offset=".34" stopColor="#68e8ff"/><stop offset=".7" stopColor="#8c78ff"/><stop offset="1" stopColor="#efa5ff"/></linearGradient>
               </defs>
-              <path d="M43 6 Q60 -11 77 6 L74 10.5 Q60 -1 46 10.5 Z" fill={`url(#${uid}crista)`} stroke="#5c1010" strokeWidth="1" />
-              <path d="M46 10 Q60 2 74 10 L74 15 Q60 8 46 15 Z" fill="#b91c1c" opacity="0.9" />
-              <ellipse cx="60" cy="4" rx="17" ry="3.6" fill="#f87171" />
-              <ellipse cx="60" cy="3" rx="14" ry="1.6" fill="#fff" opacity="0.3" />
-              <path d="M28 25 Q60 6 92 25 L92 20 Q60 2 28 20 Z" fill={`url(#${uid}bronze)`} stroke="#4a3418" strokeWidth="1" />
-              <path d="M30 22 Q60 6 90 22" stroke="#f3dfae" strokeWidth="1" opacity="0.4" fill="none" />
-              <rect x="30" y="19" width="60" height="8" rx="3" fill={`url(#${uid}bronze)`} stroke="#4a3418" strokeWidth="1" />
-              <rect x="30" y="19" width="60" height="2" rx="1" fill="#f3dfae" opacity="0.4" />
+              <path d="M34 23Q60 7 86 23l-5 6Q60 18 39 29Z" fill="#17112f" stroke={`url(#${uid}spartanPrism)`} strokeWidth="1.6" />
+              <path d="M48 18 60 2l12 16-6-3-6 7-6-7z" fill={`url(#${uid}spartanPrism)`} stroke="#f4efff" strokeWidth="1.1" style={{filter:"drop-shadow(0 0 3px #68e8ff)"}} />
+              <path d="m60 6 3.5 8-3.5 4-3.5-4z" fill="#17112f" opacity=".72" />
+              <circle cx="60" cy="10.5" r="1.8" fill="#fff" opacity=".9" />
+              <path d="M40 25q20-8 40 0" fill="none" stroke="#ffd86a" strokeWidth="1.3" opacity=".85" />
             </g>
           ) : (
             <>
@@ -592,11 +647,11 @@ export function NyxRobot({ state = "idle", size = 100, showName = true, gear }) 
           {isSpartan && (
             <g className="nyx-cape">
               <defs>
-                <linearGradient id={uid+"capa"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dc2626"/><stop offset="1" stopColor="#7a1010"/></linearGradient>
+                <linearGradient id={uid+"capa"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#4937a8"/><stop offset=".55" stopColor="#241b5b"/><stop offset="1" stopColor="#0d0a24"/></linearGradient>
               </defs>
-              <path d="M42 66 Q30 100 38 122 L60 112 L82 122 Q90 100 78 66 Q60 74 42 66 Z" fill={`url(#${uid}capa)`} stroke="#5c1010" strokeWidth="1" opacity="0.94" />
-              <path d="M46 70 Q38 98 44 116" stroke="#f87171" strokeWidth="1.2" opacity="0.35" fill="none" />
-              <path d="M74 70 Q82 98 76 116" stroke="#5c1010" strokeWidth="1.2" opacity="0.35" fill="none" />
+              <path d="M42 66 Q30 100 38 122 L60 112 L82 122 Q90 100 78 66 Q60 74 42 66 Z" fill={`url(#${uid}capa)`} stroke="#bda7ff" strokeWidth="1.1" opacity="0.96" />
+              <path d="M46 70 Q38 98 44 116M74 70Q82 98 76 116" stroke="#68e8ff" strokeWidth="1" opacity="0.45" fill="none" />
+              <path d="M60 74v35" stroke="#ffd86a" strokeWidth=".8" opacity=".55" />
             </g>
           )}
 

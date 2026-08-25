@@ -5,7 +5,7 @@ import { LANG_SHIFT, turmaCalendar } from "../lib/shifts.ts";
 import { computeStreak } from "../lib/utils.js";
 import { achievementInfo, visibleAchievements } from "../lib/achievements.ts";
 import { Avatar } from "./Avatar.jsx";
-import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
+import { NyxDisplay as NyxRobot } from "./NyxDisplay.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  📊 PÁGINA PÚBLICA DE IMPACTO (/impacto) — sem login, pra mostrar pra prefeitura/patrocinador.

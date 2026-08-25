@@ -5,9 +5,14 @@ const localDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"
 export function reminderOccurrence(reminder, now = new Date()) {
   if (!reminder?.active || !reminder.date || !reminder.time) return null;
   const start = new Date(`${reminder.date}T${reminder.time}:00`);
+  if (Number.isNaN(start.getTime())) return null;
   const days = Math.max(1, Number(reminder.days)||1);
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), start.getHours(), start.getMinutes());
-  const dayIndex = Math.round((new Date(now.getFullYear(),now.getMonth(),now.getDate()) - new Date(start.getFullYear(),start.getMonth(),start.getDate())) / 86400000);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), start.getHours(), start.getMinutes(), 0, 0);
+  // Meio-dia evita que a diferença de horário de verão transforme um dia do calendário em
+  // 23 ou 25 horas e desloque a repetição do aviso.
+  const todayNoon = new Date(now.getFullYear(),now.getMonth(),now.getDate(),12);
+  const startNoon = new Date(start.getFullYear(),start.getMonth(),start.getDate(),12);
+  const dayIndex = Math.round((todayNoon - startNoon) / 86400000);
   if (dayIndex < 0 || dayIndex >= days || now < today) return null;
   return { at:today.getTime(), key:`${reminder.id}:${localDate(now)}` };
 }
@@ -49,6 +54,45 @@ export function ScheduledReminders({ reminders, turmas, onSave }) {
 
 export function useDueReminder(reminders, audience, shift, onRing) {
   const [due,setDue]=useState(null);
-  useEffect(()=>{ const check=()=>{ const now=new Date(); const found=(reminders||[]).find(r=>r.audience===audience&&(audience!=="class"||r.shift==="all"||r.shift===shift)&&reminderOccurrence(r,now)); if(!found)return; const occ=reminderOccurrence(found,now); const seen=`nyx_reminder_seen_${occ.key}_${audience}_${shift||"teacher"}`; try{if(localStorage.getItem(seen))return;localStorage.setItem(seen,"1");}catch{} setDue(found); onRing?.(found); }; check(); const t=setInterval(check,1000); return()=>clearInterval(t); },[reminders,audience,shift,onRing]);
+  useEffect(()=>{
+    let timeout;
+    const check=()=>{
+      const now=new Date();
+      // Não usamos apenas find(): se o primeiro aviso do dia já tiver sido exibido, precisamos
+      // continuar procurando os seguintes em vez de bloquear toda a fila.
+      const candidates=(reminders||[])
+        .filter(r=>r.audience===audience&&(audience!=="class"||r.shift==="all"||r.shift===shift))
+        .map(r=>({ reminder:r, occurrence:reminderOccurrence(r,now) }))
+        .filter(item=>item.occurrence)
+        .sort((a,b)=>a.occurrence.at-b.occurrence.at);
+
+      const next=candidates.find(({occurrence})=>{
+        const seen=`nyx_reminder_seen_${occurrence.key}_${audience}_${shift||"teacher"}`;
+        try { return !localStorage.getItem(seen); } catch { return true; }
+      });
+      if(!next)return;
+      const seen=`nyx_reminder_seen_${next.occurrence.key}_${audience}_${shift||"teacher"}`;
+      try { localStorage.setItem(seen,"1"); } catch {}
+      setDue(next.reminder);
+      onRing?.(next.reminder);
+    };
+    const schedule=()=>{
+      check();
+      // Alinha cada verificação ao segundo real. Atrasos de uma execução não são somados à
+      // próxima, evitando que o relógio do navegador acumule atraso com o passar da aula.
+      timeout=window.setTimeout(schedule,Math.max(50,1000-(Date.now()%1000)));
+    };
+    const syncOnReturn=()=>{ if(!document.hidden) check(); };
+    schedule();
+    window.addEventListener("focus",syncOnReturn);
+    window.addEventListener("pageshow",syncOnReturn);
+    document.addEventListener("visibilitychange",syncOnReturn);
+    return()=>{
+      window.clearTimeout(timeout);
+      window.removeEventListener("focus",syncOnReturn);
+      window.removeEventListener("pageshow",syncOnReturn);
+      document.removeEventListener("visibilitychange",syncOnReturn);
+    };
+  },[reminders,audience,shift,onRing]);
   return [due,()=>setDue(null)];
 }

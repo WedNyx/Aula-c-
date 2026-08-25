@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
-import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
+import { NyxDisplay as NyxRobot } from "./NyxDisplay.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  TOUR GUIADO DO NYX  (destaca cada área da tela do aluno)
 // ════════════════════════════════════════════════════════════════════════════
 export const TOUR_STEPS = [
-  { sel:'[data-tour="perfil"]',   emoji:"👤", title:"Seu perfil",            text:"Aqui ficam seu boneco, seu nome, sua turma, a sequência de presenças e os controles de som, cores, acessibilidade, voz e tela cheia." },
+  { sel:'[data-tour="perfil"]',   emoji:"👤", title:"Seu painel",            text:"Aqui ficam seu avatar, seu nome, sua turma e os controles principais. O botão Sair encerra somente o seu perfil." },
+  { sel:'[data-tour="status-ia"]',emoji:"💡", title:"Estado da IA",          text:"A luz verde indica que o Nyx está disponível. Se ficar vermelha ou mostrar reconexão, você ainda pode continuar escrevendo e seu código permanece guardado." },
+  { sel:'[data-tour="atividade-atual"]',emoji:"▶️",title:"Atividade atual", text:"Este cartão mostra o arquivo em que você parou, quantidade de linhas, linguagem e pontos. Use Continuar atividade para voltar direto ao trabalho." },
+  { sel:'[data-tour="caderno"]',  emoji:"📒", title:"Seu caderno",           text:"Aqui ficam os resumos e atividades enviados pelo professor, além das suas próprias anotações. Você pode criar, editar e organizar lembretes das aulas." },
   { sel:'[data-tour="perfil-jornada"]', emoji:"🌌", title:"Perfil de jornada", text:"Reúne seu pet, progresso, pontos, conquistas, vitórias e melhor tempo em um único cartão." },
   { sel:'[data-tour="novidades"]',emoji:"🔔", title:"Central de novidades",   text:"Avisos do professor, novidades da plataforma e lembretes importantes ficam organizados aqui." },
   { sel:'[data-tour="missoes"]',  emoji:"☀️", title:"Missões de hoje",       text:"Pequenos objetivos para orientar sua exploração. Não valem nota e não existe punição por não completar." },
@@ -19,14 +22,14 @@ export const TOUR_STEPS = [
   { sel:'[data-tour="desafio-livre"]', emoji:"🏗️", title:"Desafio Livre",    text:"Conte uma ideia que gostaria de construir e o Nyx organiza um plano simples, passo a passo, para você começar." },
   { sel:'[data-tour="editor"]',   emoji:"📝", title:"Seu editor de código",  text:"É aqui que você escreve seus programas em C#. Ele colore o código e fecha chaves, parênteses e aspas sozinho!" },
   { sel:'[data-tour="arquivos"]', emoji:"📄", title:"Seus arquivos",         text:"Crie quantos arquivos .cs quiser. Eles fazem parte do mesmo projeto e funcionam juntos, como no VS Code!" },
-  { sel:'[data-tour="nyx"]',      emoji:"🤖", title:"Eu fico aqui!",          text:"Enquanto você escreve, eu confiro seu código. Se algo estiver errado, mostro onde está, como corrigir e até as teclas para apertar." },
+  { sel:'[data-tour="nyx"]',      emoji:"🤖", title:"Nyx, avatar e pet",       text:"Seu avatar, seu companheiro e o Nyx ficam juntos neste espaço. Quando quiser conferir o código, use o botão Analisar código; nada começa escondido sozinho." },
   { sel:'[data-tour="pet"]',      emoji:"🐾", title:"Seu companheiro",        text:"O pet escolhido fica neste cantinho do painel. Clique nele para descobrir uma reação diferente — cada espécie tem seu próprio jeitinho." },
-  { sel:'[data-tour="loja"]',     emoji:"🎁", title:"Loja do Nyx",            text:"Cada resposta certa vira pontos! Use-os para desbloquear itens e equipar até dois acessórios ao mesmo tempo. A aparência do Nyx não entra nesse limite." },
+  { sel:'[data-tour="loja"]',     emoji:"🎁", title:"Loja do Nyx",            text:"Cada resposta certa vira pontos! Use-os apenas para personalizar o Nyx. Você pode equipar dois acessórios de cada categoria; avatares e pets são gratuitos." },
   { sel:'[data-tour="teclado"]',  emoji:"⌨️", title:"Tutorial de teclado",   text:"Ainda não decorou onde fica cada tecla? Aqui tem um tutorial completo, no seu ritmo, sempre que quiser treinar." },
   { sel:'[data-tour="ajuda"]',    emoji:"✋", title:"Precisa de ajuda?",      text:"Travou em alguma coisa? Clique aqui: seu nome acende na tela do professor e ele vem te ajudar." },
   { sel:'[data-tour="hall"]',     emoji:"🏆", title:"Hall da Fama",          text:"Veja quem se destacou nas cidades por onde a carreta já passou antes de chegar aqui!" },
   { sel:'[data-tour="terminal"]', emoji:"⌨️", title:"Terminal como o do VS Code", text:"Digite dotnet run e aperte Enter para executar seu programa! Também tem dotnet build, dir, cls e ajuda. Quando o programa pedir algo, é só digitar." },
-  { sel:'[data-tour="salvar"]',   emoji:"📚", title:"Resumo da aula",        text:"Não precisa clicar em nada! Quando o professor liberar o resumo da turma, eu crio um resumo da aula e uma atividade feita só para você, na hora." },
+  { sel:'[data-tour="salvar"]',   emoji:"📚", title:"Resumo da aula",        text:"Quando o professor enviar o material revisado, ele aparece no seu caderno com as seções e a atividade daquela aula." },
   { sel:'[data-tour="turma"]',    emoji:"🏆", title:"Turma & Você",           text:"Aqui você acompanha o ranking da turma, suas conquistas, o caderno de resumos, seu desempenho, duelos contra colegas e a corrida de digitação!" },
   { sel:'[data-tour="tema"]',     emoji:"🎨", title:"Tema do fundo",         text:"Prefere claro ou escuro? Troque aqui. E logo do lado tem o botão 🎨 Cores, pra pintar o fundo da cor que você quiser!" },
   { sel:'[data-tour="acessibilidade"]', emoji:"♿", title:"Deixe do seu jeito", text:"Letras maiores, eu lendo tudo em voz alta com a voz que você escolher, ou tela cheia — esses botões deixam a plataforma mais confortável pra você." },
@@ -38,7 +41,7 @@ export const TOUR_STEPS = [
 // essa lista atualizada manualmente sempre que uma função nova entra no painel do professor.
 export const TEACHER_TOUR_STEPS = [
   { tab:"monitor", sel:'[data-tour-prof="monitor"]',      emoji:"👥", title:"Monitoramento",        text:"Sua tela principal: acompanhe a turma em tempo real, fase de cada aluno, notas, erros no código e pedidos de ajuda acesos na hora." },
-  { tab:"monitor", sel:'[data-tour-prof="monitor-grid"]', emoji:"🧩", title:"Grade de alunos",       text:"Passe o mouse aqui pra ver os alunos (fica escondido pra não poluir a tela). Cada quadradinho é um aluno — clique em um pra abrir o painel de gerenciar (renomear, corrigir nota, ver o código, enviar mensagem ou excluir)." },
+  { tab:"monitor", sel:'[data-tour-prof="monitor-grid"]', emoji:"🧩", title:"Cards dos alunos",       text:"Cada card mostra avatar, nome, nível, pontos, atividade atual e situação. Use somente os três pontos para abrir o gerenciamento do aluno, evitando alterações acidentais." },
   { tab:"monitor", sel:'[data-tour-prof="chamada"]',      emoji:"📋", title:"Lista de Chamada",      text:"Clique pra abrir: presença separada por turno, atualizada sozinha. Dá pra marcar presença na mão (dia de filme, sem computador) e abrir o tutorial de teclado pra todo mundo de uma vez." },
   { tab:"monitor", sel:'[data-tour-prof="exportar"]',     emoji:"📊", title:"Exportar dados",        text:"Planilha colorida (Excel) com notas e presenças, PDF com o código + explicações do dia, e um backup completo da turma inteira — tudo daqui." },
   { tab:"monitor", sel:'[data-tour-prof="conteudo-auto"]',emoji:"📖", title:"Conteúdo do dia",       text:"O nome do conteúdo de hoje (o que aparece no calendário) pode ser gerado sozinho pela IA, com base no código que você escreveu." },
@@ -56,6 +59,8 @@ export const TEACHER_TOUR_STEPS = [
   { tab:"exam", sel:'[data-tour-prof="exam"]',              emoji:"🏆", title:"Prova",                text:"Gere uma prova com a IA a partir do código que a turma escreveu. Cada turno (incluindo Turma de Teste e Sala de Linguagens) tem sua prova própria e independente — pode ter uma rolando de manhã e criar outra bem diferente à tarde, sem uma bagunçar a outra." },
   { tab:"quiz", sel:'[data-tour-prof="quiz"]',              emoji:"🎉", title:"Quiz",                 text:"Monte um quiz estilo Kahoot e jogue com a turma inteira ao vivo, com placar na hora." },
   { tab:"quiz", sel:'[data-tour-prof="quiz-body"]',         emoji:"🎮", title:"Temas e salas",        text:"Escolha um tema pronto ou crie o seu, defina o tempo por pergunta e clique em Criar sala: um código aparece pra você, e os alunos entram com ele." },
+  { tab:"reminders", sel:'[data-tour-prof="reminders"]',   emoji:"🔔", title:"Avisos programados",   text:"Crie lembretes para você ou para uma turma, escolha data, horário e por quantos dias o aviso deve se repetir." },
+  { tab:"monitor", sel:'[data-tour-prof="notes"]',         emoji:"📝", title:"Suas anotações",       text:"Abra seu bloco de anotações pela barra lateral para registrar lembretes da aula sem misturar com os avisos enviados às turmas." },
   { tab:"monitor", sel:'[data-tour-prof="situacao"]',     emoji:"👀", title:"Situação",              text:"Veja rapidinho quem está indo bem e quem está com dificuldade agora, sem precisar trocar de aba." },
   { tab:"monitor", sel:'[data-tour-prof="telao"]',        emoji:"🖥️", title:"Telão",                 text:"Modo tela cheia pra projetar pra turma: ranking, meta coletiva e combos ao vivo." },
   { tab:"monitor", sel:'[data-tour-prof="turma"]',        emoji:"🔀", title:"Filtro de turma",       text:"Filtra praticamente tudo — monitoramento, chamada, prova — por turno: Manhã, Tarde, Turma de Teste ou Sala de Linguagens." },

@@ -6,7 +6,7 @@ import { useViewportWidth } from "../lib/utils.js";
 import { goFullscreen } from "../lib/schedule.ts";
 import { SHIFTS, TEST_SHIFT, LANG_SHIFT, shiftMeta, DEFAULT_TURMAS } from "../lib/shifts.ts";
 import { DEFAULT_AVATAR, Avatar, AvatarPreview, AvatarControls } from "./Avatar.jsx";
-import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
+import { NyxDisplay as NyxRobot } from "./NyxDisplay.jsx";
 import { Sparkles } from "./Sparkles.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -130,7 +130,7 @@ export function Login({ onJoin, turmas }) {
           <aside className="login-nyx-panel">
             <span className="login-step-number">{!role ? "01" : role==="teacher" ? "02" : newStudentStep===1 ? "02" : "03"}</span>
             <NyxRobot state="idle" size={132} showName={false} />
-            <strong>Nyx Prisma Orbital</strong>
+            <strong>Nyx</strong>
             <small>{!role ? "Escolha como deseja continuar" : role==="teacher" ? "Acesso ao painel do professor" : newStudentStep===1 ? "Escolha seu perfil ou faça seu cadastro" : "Personalize seu avatar"}</small>
           </aside>
 

@@ -3,7 +3,7 @@ import { shade } from "../lib/colors.ts";
 import { gradeInfo } from "../lib/utils.js";
 import { findLineIndex } from "../lib/languages.ts";
 import { CodeBlock } from "./CodeEditor.jsx";
-import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
+import { NyxDisplay as NyxRobot } from "./NyxDisplay.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  TOUR DE ERRO DO NYX  (quando "Analisar meu código" encontra erro, aponta pro editor e explica

@@ -10,7 +10,7 @@ const checks = [
   ["Teste e Linguagens são turmas de sete dias", shifts.includes("id === TEST_SHIFT.id || id === LANG_SHIFT.id")],
   ["a trava do aluno respeita a exceção", app.includes("myAllowWeekend || isSevenDayShift(shift)")],
   ["a verificação inicial respeita a exceção", app.includes("!!meta.allowWeekend || isSevenDayShift(shift)")],
-  ["o acesso usa o Nyx Prisma Orbital", login.includes('NyxPrismaOrbital as NyxRobot')],
+  ["o acesso usa o Nyx padrão da plataforma", login.includes('NyxDisplay as NyxRobot') && login.includes('<strong>Nyx</strong>')],
   ["o novo fluxo visual possui painéis e etapas", ["login-access-layout", "login-nyx-panel", "login-steps", "login-profile-grid"].every(name => login.includes(name))],
 ];
 

@@ -157,21 +157,46 @@ export function NextStepsModal({ onClose }) {
   );
 }
 
-export function NotebookModal({ history, detailedHistory, onClose }) {
+export function NotebookModal({ history, detailedHistory, notes = [], onSaveNotes, onClose }) {
   const dates = Object.keys(history || {}).sort((a,b)=>b.localeCompare(a));
   const [sel, setSel] = useState(dates[0] || null);
   const [view, setView] = useState("simples");
+  const [tab, setTab] = useState("resumos");
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState({ title:"", text:"" });
+  const [saving, setSaving] = useState(false);
   const fmt = (d) => { const [y,m,dd] = d.split("-"); return `${dd}/${m}/${y}`; };
   const hasDetailed = sel && detailedHistory && detailedHistory[sel];
+  const sortedNotes = [...notes].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  const startNew = () => { setEditingId("new"); setDraft({ title:"", text:"" }); };
+  const startEdit = note => { setEditingId(note.id); setDraft({ title:note.title||"", text:note.text||"" }); };
+  const saveNote = async () => {
+    if (!draft.title.trim() && !draft.text.trim()) return;
+    setSaving(true);
+    const now = Date.now();
+    const next = editingId === "new"
+      ? [...notes, { id:`note-${now}`, title:draft.title.trim() || "Anotação sem título", text:draft.text.trim(), createdAt:now, updatedAt:now }]
+      : notes.map(note => note.id === editingId ? { ...note, title:draft.title.trim() || "Anotação sem título", text:draft.text.trim(), updatedAt:now } : note);
+    await onSaveNotes?.(next);
+    setSaving(false); setEditingId(null); setDraft({ title:"", text:"" });
+  };
+  const removeNote = async id => {
+    if (!window.confirm("Apagar esta anotação?")) return;
+    setSaving(true); await onSaveNotes?.(notes.filter(note => note.id !== id)); setSaving(false);
+  };
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
       <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:640, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📒 Caderno de resumos</h2>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📒 Meu caderno</h2>
           <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
-        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Todos os resumos das suas aulas, guardados por dia. Ótimo para revisar antes da prova!</p>
-        {dates.length === 0 ? (
+        <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Resumos enviados pelo professor e suas próprias anotações, organizados no mesmo lugar.</p>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:16 }}>
+          <button onClick={()=>setTab("resumos")} style={{ background:tab==="resumos"?"#34d399":"#171026", color:tab==="resumos"?"#052e22":"#a99ac9", border:`1px solid ${tab==="resumos"?"#34d399":"#3b2a58"}`, borderRadius:11, padding:"9px 12px", fontWeight:850, cursor:"pointer" }}>📚 Resumos do professor</button>
+          <button onClick={()=>setTab("anotacoes")} style={{ background:tab==="anotacoes"?"#c084fc":"#171026", color:tab==="anotacoes"?"#fff":"#a99ac9", border:`1px solid ${tab==="anotacoes"?"#c084fc":"#3b2a58"}`, borderRadius:11, padding:"9px 12px", fontWeight:850, cursor:"pointer" }}>✏️ Minhas anotações · {notes.length}</button>
+        </div>
+        {tab === "resumos" && (dates.length === 0 ? (
           <p style={{ color:"#776798", fontSize:13 }}>Nenhum resumo guardado ainda — eles aparecem aqui quando você salva e finaliza uma aula.</p>
         ) : (
           <>
@@ -190,10 +215,73 @@ export function NotebookModal({ history, detailedHistory, onClose }) {
               </div>
             )}
             {sel && <SummaryPretty sum={(view==="detalhado" && hasDetailed) ? detailedHistory[sel] : history[sel]} />}
+            {sel && Array.isArray(history[sel]?.atividade) && history[sel].atividade.length > 0 && (
+              <NotebookActivity key={sel} questions={history[sel].atividade} />
+            )}
           </>
+        ))}
+        {tab === "anotacoes" && (
+          <div>
+            {editingId ? (
+              <div style={{ background:"#171026", border:"1px solid #c084fc", borderRadius:14, padding:14 }}>
+                <input autoFocus value={draft.title} onChange={e=>setDraft(d=>({...d,title:e.target.value}))} placeholder="Título da anotação"
+                  style={{ width:"100%", boxSizing:"border-box", background:"#10091c", border:"1px solid #3b2a58", borderRadius:9, padding:"10px 12px", color:"#f0e9fb", fontWeight:800, marginBottom:8 }} />
+                <textarea value={draft.text} onChange={e=>setDraft(d=>({...d,text:e.target.value}))} placeholder="Escreva aqui o que não quer esquecer da aula..." rows={9}
+                  style={{ width:"100%", boxSizing:"border-box", resize:"vertical", background:"#10091c", border:"1px solid #3b2a58", borderRadius:9, padding:"11px 12px", color:"#f0e9fb", fontFamily:"inherit", lineHeight:1.6 }} />
+                <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginTop:10 }}>
+                  <button onClick={()=>setEditingId(null)} disabled={saving} style={{ background:"transparent", border:"1px solid #3b2a58", color:"#a99ac9", borderRadius:9, padding:"8px 12px", cursor:"pointer" }}>Cancelar</button>
+                  <button onClick={saveNote} disabled={saving || (!draft.title.trim()&&!draft.text.trim())} style={{ background:"#c084fc", border:"1px solid #c084fc", color:"#fff", borderRadius:9, padding:"8px 14px", fontWeight:800, cursor:"pointer", opacity:saving?0.6:1 }}>{saving?"Salvando...":"Salvar anotação"}</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <button onClick={startNew} style={{ width:"100%", background:"linear-gradient(135deg,#9333ea,#7c3aed)", border:"1px solid #c084fc", color:"#fff", borderRadius:11, padding:"10px 14px", fontWeight:850, cursor:"pointer", marginBottom:12 }}>＋ Nova anotação</button>
+                {sortedNotes.length === 0 ? <p style={{ color:"#776798", fontSize:13 }}>Você ainda não escreveu nenhuma anotação. Crie a primeira para guardar lembretes da aula.</p> : (
+                  <div style={{ display:"grid", gap:9 }}>
+                    {sortedNotes.map(note=><article key={note.id} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"11px 13px" }}>
+                      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:10 }}>
+                        <div><strong style={{ color:"#f0e9fb", fontSize:13.5 }}>{note.title}</strong><small style={{ display:"block", color:"#776798", marginTop:2 }}>{new Date(note.updatedAt||note.createdAt).toLocaleDateString("pt-BR")}</small></div>
+                        <div style={{ display:"flex", gap:5 }}><button onClick={()=>startEdit(note)} title="Editar" style={{ background:"transparent", border:"1px solid #3b2a58", borderRadius:7, color:"#c084fc", cursor:"pointer" }}>✎</button><button onClick={()=>removeNote(note.id)} title="Apagar" style={{ background:"transparent", border:"1px solid #3b2a58", borderRadius:7, color:"#f87171", cursor:"pointer" }}>✕</button></div>
+                      </div>
+                      {note.text && <p style={{ color:"#d6c9ec", fontSize:12.5, lineHeight:1.6, whiteSpace:"pre-wrap", margin:"8px 0 0" }}>{note.text}</p>}
+                    </article>)}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         )}
       </div>
     </div>
+  );
+}
+
+function NotebookActivity({ questions }) {
+  const [answers, setAnswers] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const allAnswered = questions.every((_,i)=>answers[i] != null);
+  const score = submitted ? questions.reduce((n,q,i)=>n+(answers[i]===Number(q.correct)?1:0),0) : 0;
+  return (
+    <section style={{ marginTop:18, paddingTop:16, borderTop:"1px solid #3b2a58" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginBottom:10 }}>
+        <div><h3 style={{ color:"#22d3ee", fontSize:14.5, margin:0 }}>🎯 Atividade enviada pelo professor</h3><p style={{ color:"#776798", fontSize:11.5, margin:"3px 0 0" }}>Responda usando o resumo acima como apoio.</p></div>
+        {submitted && <span style={{ background:"#34d39918", border:"1px solid #34d399", color:"#34d399", borderRadius:999, padding:"4px 9px", fontSize:11.5, fontWeight:850 }}>{score}/{questions.length}</span>}
+      </div>
+      {questions.map((q,qi)=><div key={qi} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:12, marginBottom:9 }}>
+        <p style={{ color:"#f0e9fb", fontSize:13, fontWeight:800, margin:"0 0 8px" }}>{qi+1}. {q.q}</p>
+        {(q.opts||[]).map((option,oi)=>{
+          const chosen=answers[qi]===oi;
+          const correct=Number(q.correct)===oi;
+          const color=submitted?(correct?"#34d399":chosen?"#f87171":"#3b2a58"):(chosen?"#22d3ee":"#3b2a58");
+          return <button key={oi} onClick={()=>!submitted&&setAnswers(a=>({...a,[qi]:oi}))} disabled={submitted}
+            style={{ display:"block", width:"100%", marginBottom:6, padding:"8px 10px", background:submitted&&correct?"#34d39914":chosen?"#22d3ee12":"transparent", border:`1px solid ${color}`, borderRadius:9, color:"#d6c9ec", textAlign:"left", cursor:submitted?"default":"pointer" }}>
+            <b style={{ color, marginRight:6 }}>{"ABCD"[oi]}.</b>{option}{submitted&&correct?" ✓":""}
+          </button>;
+        })}
+      </div>)}
+      {!submitted ? <button onClick={()=>setSubmitted(true)} disabled={!allAnswered} style={{ width:"100%", padding:10, border:0, borderRadius:10, background:"#22d3ee", color:"#082f49", fontWeight:900, cursor:allAnswered?"pointer":"not-allowed", opacity:allAnswered?1:.5 }}>{allAnswered?"Corrigir minhas respostas":"Responda todas as perguntas"}</button>
+        : <button onClick={()=>{setAnswers({});setSubmitted(false);}} style={{ width:"100%", padding:9, border:"1px solid #3b2a58", borderRadius:10, background:"transparent", color:"#a99ac9", fontWeight:800, cursor:"pointer" }}>Tentar novamente</button>}
+    </section>
   );
 }
 
@@ -228,7 +316,7 @@ export function CheckinModal({ shift, studentName, onDone }) {
     if (saving) return;
     setSaving(true);
     await setCheckin(shift, studentName, todayKey(), mood);
-    onDone();
+    onDone(mood);
   };
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>

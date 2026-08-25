@@ -18,7 +18,8 @@ check("painel completo do professor tem navegação própria no celular", app.in
 for (const area of ["Monitoramento", "Meu código", "Calendário", "Feedback", "Prova", "Quiz"]) {
   check(`menu móvel mantém acesso a ${area}`, app.includes(`>${area}`) || app.includes(` ${area}`));
 }
-check("cabeçalho do aluno usa layout móvel", app.includes('className="mobile-app-header" style={styles.header}'));
+// O cabeçalho redesenhado mantém a classe móvel e acrescenta sua classe visual própria.
+check("cabeçalho do aluno usa layout móvel", /className="[^"]*mobile-app-header[^"]*" style=\{styles\.header\}/.test(app));
 check("cabeçalho do professor usa layout móvel", app.includes('className="mobile-app-header" style={{ ...styles.header'));
 check("editor do aluno pode encolher abaixo da largura fixa de desktop", app.includes('className="code-main-col" style={{ flex:"1 1 560px"'));
 check("editor do professor pode encolher no celular", codeLab.includes('className="code-main-col"'));
