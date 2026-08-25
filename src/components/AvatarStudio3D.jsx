@@ -14,12 +14,7 @@ export const AVATAR_3D_PRESETS = [
 
 export function Avatar3DRender({ preset="violet-cargo", className="", title="Avatar 3D" }) {
   const p = AVATAR_3D_PRESETS.find(item=>item.id===preset) || AVATAR_3D_PRESETS[0];
-  return <div className={`avatar-3d-render ${className}`} role="img" aria-label={`${title}: ${p.label}`} style={{ "--avatar-x":p.x, "--avatar-y":p.y }} />;
-}
-
-export function Avatar3DFace({ preset="violet-cargo", size=72 }) {
-  const p = AVATAR_3D_PRESETS.find(item=>item.id===preset) || AVATAR_3D_PRESETS[0];
-  return <div className="avatar-3d-face" role="img" aria-label={`Avatar ${p.label}`} style={{ width:size, height:size, "--avatar-x":p.x, "--avatar-y":p.y }} />;
+  return <img className={`avatar-3d-render ${className}`} src={`/avatar3d/presets/${p.id}.webp`} alt={`${title}: ${p.label}`} draggable={false} />;
 }
 
 export function AvatarStudio3D({ value, onChange, onDone, title="Personalizar avatar" }) {
@@ -50,18 +45,17 @@ export function AvatarStudio3D({ value, onChange, onDone, title="Personalizar av
 }
 
 function AvatarPresetPanel({ selected, onSelect }) {
-  const categories = ["Cabelo","Olhos","Roupas","Calças","Calçados","Acessórios"];
   return <section className="avatar-preset-panel">
-    {categories.map((category, row)=><div className="avatar-option-row" key={category}><b>{["◒","◉","◆","▥","◓","◇"][row]} <span>{category}</span></b><div className="avatar-option-scroll">{AVATAR_3D_PRESETS.map(p=><button key={p.id} title={`${category}: ${p.tags[row]}`} className={selected===p.id?"selected":""} onClick={()=>onSelect(p.id)}><Avatar3DFace preset={p.id} size={58}/><small>{p.tags[row]}</small></button>)}</div></div>)}
-    <div className="avatar-color-row"><b>🎨 Cores</b>{["#7c3aed","#2563eb","#0891b2","#16a34a","#eab308","#ea580c","#dc2626","#db2777"].map(c=><span key={c} style={{background:c}}/>)}</div>
+    <div className="avatar-preset-heading"><span>✨</span><div><b>Estilos 3D</b><small>Escolha um personagem completo. Nenhuma peça muda outra escolha escondida.</small></div></div>
+    <div className="avatar-preset-grid">{AVATAR_3D_PRESETS.map(p=><button key={p.id} className={selected===p.id?"selected":""} onClick={()=>onSelect(p.id)}><Avatar3DRender preset={p.id}/><strong>{p.label}</strong><small>{p.tags.join(" · ")}</small></button>)}</div>
   </section>;
 }
 
 function StudioPet({ pet }) {
   const file = PET_FILES[pet];
-  return file ? <img className="avatar-studio-pet" src={`/pets/${file}.png`} alt=""/> : <span className="avatar-studio-pet-emoji">{pet}</span>;
+  return file ? <img className="avatar-studio-pet" src={`/pets/${file}.webp`} alt=""/> : <span className="avatar-studio-pet-emoji">{pet}</span>;
 }
 
 function PetPanel({ selected, onSelect }) {
-  return <section className="avatar-pet-panel"><div className="avatar-pet-heading">🐾 <b>Pets</b></div><div className="avatar-pet-grid">{AVATAR_OPTS.pet.map(p=>{const file=PET_FILES[p.e];return <button key={p.label} className={selected===p.e?"selected":""} onClick={()=>onSelect(p.e)}>{file?<img src={`/pets/${file}.png`} alt=""/>:<span>{p.e||"—"}</span>}<small>{p.label}</small></button>})}</div></section>;
+  return <section className="avatar-pet-panel"><div className="avatar-pet-heading">🐾 <b>Pets</b></div><div className="avatar-pet-grid">{AVATAR_OPTS.pet.map(p=>{const file=PET_FILES[p.e];return <button key={p.label} className={selected===p.e?"selected":""} onClick={()=>onSelect(p.e)}>{file?<img src={`/pets/${file}.webp`} alt=""/>:<span>{p.e||"—"}</span>}<small>{p.label}</small></button>})}</div></section>;
 }

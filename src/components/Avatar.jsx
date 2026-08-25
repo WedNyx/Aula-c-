@@ -41,7 +41,6 @@ export const AVATAR_OPTS = {
 };
 export const DEFAULT_AVATAR = { bg:"#c084fc", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"shortHair", eyesV:"cheery", mouthV:"openedSmile", glassesV:"", pet:"", roupa:"", render3d:null };
 
-const AVATAR_3D_POS = { "violet-cargo":[0,0], cosmic:[1,0], teal:[2,0], varsity:[3,0], overalls:[0,1], future:[1,1], orange:[2,1], street:[3,1] };
 
 // ── roupas e acessórios do avatar (escolhidos na criação do perfil) ──
 export const ROUPA_ITEMS = [
@@ -64,16 +63,6 @@ export const ADVENTURER_HAIR_MAP = { short01:"shortHair", short02:"mohawk", shor
 export const NOTIONISTS_HAIR_MAP = { variant01:"shortHair", variant04:"shortHair", variant06:"shortHair", variant18:"shavedHead", variant19:"curlyShortHair", variant35:"froBun", variant08:"straightHair", variant11:"wavyBob", variant22:"straightHair", variant28:"wavyBob", variant37:"curlyBob", variant42:"bowlCutHair", variant45:"braids", variant47:"braids", variant50:"mohawk", variant57:"bunHair", variant59:"froBun", hat:"shortHair" };
 export function normalizeAvatar(cfg) {
   const c = { ...DEFAULT_AVATAR, ...(cfg||{}) };
-  // migração visual automática: perfis antigos mantêm seus dados e recebem o preset 3D mais
-  // próximo do cabelo/roupa que já usavam, sem exigir que o aluno crie o perfil novamente.
-  if (!c.render3d) {
-    if (["bunHair","froBun"].includes(c.hairV)) c.render3d = "violet-cargo";
-    else if (["curlyShortHair","curlyBob"].includes(c.hairV)) c.render3d = "teal";
-    else if (["wavyBob","straightHair","braids"].includes(c.hairV)) c.render3d = "overalls";
-    else if (["mohawk","halfShavedHead"].includes(c.hairV)) c.render3d = "future";
-    else if (c.hairV === "shavedHead") c.render3d = "varsity";
-    else c.render3d = c.roupa === "moletom" ? "cosmic" : "street";
-  }
   // o dragãozinho 🐲 virou T-Rex 🦖 quando os pets ganharam a arte animada (a biblioteca do
   // Google não tem dragão pequeno) — perfis antigos passam a mostrar o T-Rex sem precisar reeditar
   if (c.pet === "🐲") c.pet = "🦖";
@@ -183,6 +172,7 @@ export const PET_FILES = {
   "🐉":"dragao", "🦄":"unicornio", "🦖":"trex", "🦅":"aguia",
   "🦉":"coruja", "🐺":"lobo", "🦊":"raposa", "🐱":"gato",
   "🐶":"cachorro", "🐰":"coelho", "🦁":"leao", "🐢":"tartaruga",
+  "🐝":"abelha", "🦋":"borboleta", "✨":"vagalume", "🍄":"cogumelo",
 };
 const PET_MOTION_CLASS = { "🐝":"pet-bee", "🦋":"pet-butterfly", "✨":"pet-firefly", "🍄":"pet-mushroom" };
 // posição/tamanho pensados pro formato de cada bicho (sem moldura/círculo): quem tem corpo
@@ -247,15 +237,6 @@ export function Avatar({ cfg, size=72, animated=false }) {
   const key = JSON.stringify(draw);
   const uri = useMemo(() => "data:image/svg+xml;utf8," + encodeURIComponent(avatarSvg(draw)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const roupa = ROUPA_ITEMS.find(r => r.id && r.id === c.roupa);
-  if (c.render3d && AVATAR_3D_POS[c.render3d]) {
-    const [x,y] = AVATAR_3D_POS[c.render3d];
-    return (
-      <div className={`avatar-3d-small${animated ? " avatar-idle" : ""}`} role="img" aria-label="Avatar 3D do aluno"
-        style={{ width:size, height:size, "--avatar-x":x, "--avatar-y":y }}>
-        {c.pet && (PET_FILES[c.pet] ? <img className={animated?"avatar-pet":undefined} src={`/pets/${PET_FILES[c.pet]}.${animated?"webp":"png"}`} alt="" style={petStyle(PET_FILES[c.pet],size)}/>:<span style={{...petStyle(null,size),fontSize:Math.round(size*.3)}}>{c.pet}</span>)}
-      </div>
-    );
-  }
   return (
     <div className={`avatar-pop${animated ? " avatar-idle" : ""}`} style={{ position:"relative", width:size, height:size, display:"inline-block", lineHeight:0, flexShrink:0 }}>
       <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", position:"relative", background:`radial-gradient(circle at 50% 30%, ${shade(c.bg,0.25)}, ${c.bg} 58%, ${shade(c.bg,-0.25)})`, boxShadow:"0 2px 5px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.14)" }}>
@@ -271,7 +252,7 @@ export function Avatar({ cfg, size=72, animated=false }) {
           trás) — assim nunca mais tampa a boca ou o cabelo do personagem, do jeito que ficava
           ruim antes com todos os bichos numa medalha única e uniforme */}
       {c.pet && (PET_FILES[c.pet] ? (
-        <img className={animated ? "avatar-pet" : undefined} src={`/pets/${PET_FILES[c.pet]}.${animated ? "webp" : "png"}`} alt="" draggable={false} style={petStyle(PET_FILES[c.pet], size)} />
+        <img className={animated ? "avatar-pet" : undefined} src={`/pets/${PET_FILES[c.pet]}.webp`} alt="" draggable={false} style={petStyle(PET_FILES[c.pet], size)} />
       ) : (
         <span className={animated ? `avatar-pet ${PET_MOTION_CLASS[c.pet] || ""}`.trim() : undefined} style={{ ...petStyle(null, size), fontSize:Math.max(9, Math.round(size*0.3)), lineHeight:1 }}>{c.pet}</span>
       ))}
@@ -320,6 +301,7 @@ const PET_CONTEXT_MESSAGES = {
 export function PetCompanion({ pet, context = "idle" }) {
   const [reaction, setReaction] = useState(0);
   const [message, setMessage] = useState("");
+  const [action, setAction] = useState("idle");
   const timerRef = useRef(null);
   useEffect(() => () => clearTimeout(timerRef.current), []);
   const lastContextRef = useRef("idle");
@@ -328,31 +310,35 @@ export function PetCompanion({ pet, context = "idle" }) {
     // reagido a ele. Também limpamos a fala antiga para ela nunca parecer pertencer ao novo pet.
     lastContextRef.current = "idle";
     setMessage("");
+    setAction("idle");
     clearTimeout(timerRef.current);
   }, [pet]);
   useEffect(() => {
     if (!pet || !context || context === "idle" || context === lastContextRef.current) return;
     lastContextRef.current = context;
     setReaction(n => n + 1);
+    setAction(context === "complete" || context === "success" ? "complete" : "special");
     setMessage(PET_CONTEXT_MESSAGES[context] || "Seu companheiro percebeu a mudança e reagiu!");
     clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setMessage(""), 2800);
+    timerRef.current = setTimeout(() => { setMessage(""); setAction("idle"); }, 2800);
   }, [context, pet]);
   if (!pet) return null;
   const info = PET_REACTIONS[pet] || { cls:"generic", text:"Seu companheiro ficou feliz em te ver!" };
-  const react = (e) => {
+  const react = (e, kind = "click") => {
     e.stopPropagation();
     setReaction(n => n + 1);
-    setMessage(info.text);
+    setAction(kind);
+    setMessage(kind === "special" ? `${petLabel} mostrou sua reação especial!` : info.text);
     clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setMessage(""), 2200);
+    timerRef.current = setTimeout(() => { setMessage(""); setAction("idle"); }, kind === "special" ? 3000 : 2200);
   };
   const file = PET_FILES[pet];
   const petLabel = AVATAR_OPTS.pet.find(item => item.e === pet)?.label || "pet";
   return (
-    <div className="pet-companion-corner" data-tour="pet" title="Clique no seu pet">
+    <div className={`pet-companion-corner pet-${file || "generic"} pet-action-${action}`} data-tour="pet" title="Clique para interagir · clique duas vezes para a reação especial">
       {message && <div className="pet-companion-speech" role="status" aria-live="polite">{message}</div>}
-      <button key={reaction} type="button" aria-label={`Interagir com ${petLabel}`} onClick={react} className={`pet-companion-button pet-companion-${info.cls}`}>
+      <div className="pet-effect-layer" aria-hidden="true">{[0,1,2,3,4,5].map(i=><i key={i}/>)}</div>
+      <button key={`${reaction}-${action}`} type="button" aria-label={`Interagir com ${petLabel}`} onClick={react} onDoubleClick={e=>react(e,"special")} className={`pet-companion-button pet-companion-${info.cls}`}>
         {file ? <img src={`/pets/${file}.webp`} alt={petLabel} draggable={false} /> : <span aria-hidden="true">{pet}</span>}
       </button>
     </div>
