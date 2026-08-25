@@ -39,7 +39,9 @@ export const AVATAR_OPTS = {
     { e:"🍄", label:"Cogumelo" },
   ],
 };
-export const DEFAULT_AVATAR = { bg:"#c084fc", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"shortHair", eyesV:"cheery", mouthV:"openedSmile", glassesV:"", pet:"", roupa:"" };
+export const DEFAULT_AVATAR = { bg:"#c084fc", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"shortHair", eyesV:"cheery", mouthV:"openedSmile", glassesV:"", pet:"", roupa:"", render3d:null };
+
+const AVATAR_3D_POS = { "violet-cargo":[0,0], cosmic:[1,0], teal:[2,0], varsity:[3,0], overalls:[0,1], future:[1,1], orange:[2,1], street:[3,1] };
 
 // ── roupas e acessórios do avatar (escolhidos na criação do perfil) ──
 export const ROUPA_ITEMS = [
@@ -62,6 +64,16 @@ export const ADVENTURER_HAIR_MAP = { short01:"shortHair", short02:"mohawk", shor
 export const NOTIONISTS_HAIR_MAP = { variant01:"shortHair", variant04:"shortHair", variant06:"shortHair", variant18:"shavedHead", variant19:"curlyShortHair", variant35:"froBun", variant08:"straightHair", variant11:"wavyBob", variant22:"straightHair", variant28:"wavyBob", variant37:"curlyBob", variant42:"bowlCutHair", variant45:"braids", variant47:"braids", variant50:"mohawk", variant57:"bunHair", variant59:"froBun", hat:"shortHair" };
 export function normalizeAvatar(cfg) {
   const c = { ...DEFAULT_AVATAR, ...(cfg||{}) };
+  // migração visual automática: perfis antigos mantêm seus dados e recebem o preset 3D mais
+  // próximo do cabelo/roupa que já usavam, sem exigir que o aluno crie o perfil novamente.
+  if (!c.render3d) {
+    if (["bunHair","froBun"].includes(c.hairV)) c.render3d = "violet-cargo";
+    else if (["curlyShortHair","curlyBob"].includes(c.hairV)) c.render3d = "teal";
+    else if (["wavyBob","straightHair","braids"].includes(c.hairV)) c.render3d = "overalls";
+    else if (["mohawk","halfShavedHead"].includes(c.hairV)) c.render3d = "future";
+    else if (c.hairV === "shavedHead") c.render3d = "varsity";
+    else c.render3d = c.roupa === "moletom" ? "cosmic" : "street";
+  }
   // o dragãozinho 🐲 virou T-Rex 🦖 quando os pets ganharam a arte animada (a biblioteca do
   // Google não tem dragão pequeno) — perfis antigos passam a mostrar o T-Rex sem precisar reeditar
   if (c.pet === "🐲") c.pet = "🦖";
@@ -235,6 +247,15 @@ export function Avatar({ cfg, size=72, animated=false }) {
   const key = JSON.stringify(draw);
   const uri = useMemo(() => "data:image/svg+xml;utf8," + encodeURIComponent(avatarSvg(draw)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const roupa = ROUPA_ITEMS.find(r => r.id && r.id === c.roupa);
+  if (c.render3d && AVATAR_3D_POS[c.render3d]) {
+    const [x,y] = AVATAR_3D_POS[c.render3d];
+    return (
+      <div className={`avatar-3d-small${animated ? " avatar-idle" : ""}`} role="img" aria-label="Avatar 3D do aluno"
+        style={{ width:size, height:size, "--avatar-x":x, "--avatar-y":y }}>
+        {c.pet && (PET_FILES[c.pet] ? <img className={animated?"avatar-pet":undefined} src={`/pets/${PET_FILES[c.pet]}.${animated?"webp":"png"}`} alt="" style={petStyle(PET_FILES[c.pet],size)}/>:<span style={{...petStyle(null,size),fontSize:Math.round(size*.3)}}>{c.pet}</span>)}
+      </div>
+    );
+  }
   return (
     <div className={`avatar-pop${animated ? " avatar-idle" : ""}`} style={{ position:"relative", width:size, height:size, display:"inline-block", lineHeight:0, flexShrink:0 }}>
       <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", position:"relative", background:`radial-gradient(circle at 50% 30%, ${shade(c.bg,0.25)}, ${c.bg} 58%, ${shade(c.bg,-0.25)})`, boxShadow:"0 2px 5px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.14)" }}>

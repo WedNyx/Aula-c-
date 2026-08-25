@@ -5,7 +5,8 @@ import { FONT, PAGE_BG } from "../lib/theme.ts";
 import { useViewportWidth } from "../lib/utils.js";
 import { goFullscreen } from "../lib/schedule.ts";
 import { SHIFTS, TEST_SHIFT, LANG_SHIFT, shiftMeta, DEFAULT_TURMAS } from "../lib/shifts.ts";
-import { DEFAULT_AVATAR, Avatar, AvatarPreview, AvatarControls } from "./Avatar.jsx";
+import { DEFAULT_AVATAR, Avatar } from "./Avatar.jsx";
+import { AvatarStudio3D } from "./AvatarStudio3D.jsx";
 import { NyxDisplay as NyxRobot } from "./NyxDisplay.jsx";
 import { Sparkles } from "./Sparkles.jsx";
 
@@ -261,24 +262,9 @@ export function Login({ onJoin, turmas }) {
 
         {role==="student"&&newStudentStep===2&&(
           <>
-            <p style={{ color:"#fbbf24", fontWeight:600, marginBottom:10 }}>🎨 Personalize seu boneco, {name.trim().split(" ")[0]}!</p>
-
-            {/* boneco de um lado, todas as modificações do outro, lado a lado (empilha em telas estreitas) */}
-            <div style={{ display:"flex", gap:24, flexWrap:"wrap" }}>
-              <div style={{ flexShrink:0, margin:"0 auto" }}>
-                <AvatarPreview value={avatar} onChange={setAvatar} />
-              </div>
-              <div style={{ flex: isNarrow ? "1 1 100%" : "1 1 440px", minWidth: isNarrow ? 0 : 400 }}>
-                <div style={{ columnCount: isNarrow ? 1 : 2, columnGap:20 }}>
-                  <AvatarControls value={avatar} onChange={setAvatar} part="all" />
-                </div>
-              </div>
-            </div>
+            <AvatarStudio3D value={avatar} onChange={setAvatar} onDone={handleNewStudent} title={`Personalizar avatar de ${name.trim().split(" ")[0]}`} />
             {error&&<p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{error}</p>}
-            <div style={{ display:"flex", gap:8, marginTop:16 }}>
-              <button style={{ ...styles.btn("#c084fc"), flex:1 }} onClick={handleNewStudent}>Criar perfil e entrar →</button>
-              <button style={{ ...styles.btn("#3b2a58"), width:44, flex:"none" }} onClick={()=>setNewStudentStep(1)}>↩</button>
-            </div>
+            <button style={{ ...styles.btn("#3b2a58"), marginTop:10 }} onClick={()=>setNewStudentStep(1)}>← Voltar aos dados</button>
           </>
         )}
 

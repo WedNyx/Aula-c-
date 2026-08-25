@@ -15,6 +15,7 @@ import { NYX_ITEMS, DEFAULT_NYX_GEAR } from "./components/NyxRobot.jsx";
 import { NyxDisplay as NyxRobot } from "./components/NyxDisplay.jsx";
 import { PerformanceChart } from "./components/PerformanceChart.jsx";
 import { DEFAULT_AVATAR, Avatar, AvatarPreview, AvatarControls, AvatarBuilder, PetCompanion } from "./components/Avatar.jsx";
+import { AvatarStudio3D } from "./components/AvatarStudio3D.jsx";
 import { VSEditor, CodeBlock, GUIDED_BLOCKS, GUIDED_PARTICIPATION_QUIZ } from "./components/CodeEditor.jsx";
 import { Terminal } from "./components/Terminal.jsx";
 import { NyxChat } from "./components/NyxChat.jsx";
@@ -4127,13 +4128,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
       {showAvatarEdit && (
         <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
-          <div className="pop" style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:"1px solid #3e2d5e", borderRadius:22, padding:"22px 24px", maxWidth:680, width:"100%", maxHeight:"88vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
+          <div className="pop" style={{ background:"linear-gradient(180deg,#161027,#0c0818)", border:"1px solid #3e2d5e", borderRadius:22, padding:"18px 20px", maxWidth:1180, width:"100%", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-              <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#c084fc,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>🎨 Editar meu boneco</h2>
+              <span style={{ color:"#a99ac9", fontSize:12, fontWeight:800 }}>CENTRAL DO PERFIL 3D</span>
               <button onClick={()=>{ setShowAvatarEdit(false); persist({}); }} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
             </div>
-            <AvatarBuilder value={avatar} onChange={setAvatar} />
-            <button onClick={()=>{ setShowAvatarEdit(false); persist({}); }} style={{ ...styles.btn("#c084fc"), width:"100%", marginTop:16 }}>💾 Salvar e fechar</button>
+            <AvatarStudio3D value={avatar} onChange={setAvatar} onDone={()=>{ setShowAvatarEdit(false); persist({}); }} />
           </div>
         </div>
       )}

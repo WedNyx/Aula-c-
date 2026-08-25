@@ -214,6 +214,44 @@
 .student-companion-avatar:hover { filter: brightness(1.1); }
 .student-companion-card .pet-companion-corner { z-index: 3; }
 
+/* Central de avatar 3D — render leve a partir de atlas, sem WebGL nos notebooks da turma. */
+.avatar-studio-3d { color: var(--nyx-text); }
+.avatar-studio-title { display:flex; align-items:center; justify-content:center; gap:18px; margin:2px 0 8px; }
+.avatar-studio-title i { width:min(150px,18vw); height:1px; background:linear-gradient(90deg,transparent,#fbbf24); }
+.avatar-studio-title i:last-child { transform:scaleX(-1); }
+.avatar-studio-title h2 { margin:0; background:linear-gradient(100deg,#c084fc,#60a5fa); background-clip:text; -webkit-background-clip:text; color:transparent; font-size:clamp(24px,3vw,38px); }
+.avatar-studio-steps { display:flex; align-items:center; justify-content:center; gap:8px; margin:0 auto 14px; }
+.avatar-studio-steps span { width:34px; height:1px; background:#3b2a58; }
+.avatar-studio-steps button { border:0; border-radius:999px; padding:6px 12px; background:#171026; color:#776798; cursor:pointer; font-size:11px; font-weight:850; }
+.avatar-studio-steps button.active,.avatar-studio-steps button.done { color:#fff; background:#6d28d9; }
+.avatar-studio-layout { display:grid; grid-template-columns:minmax(250px,34%) minmax(0,1fr); gap:16px; }
+.avatar-studio-preview,.avatar-preset-panel,.avatar-pet-panel { border:1px solid #3b2a58; border-radius:18px; background:#0b0718cc; }
+.avatar-studio-preview { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:610px; padding:16px; overflow:hidden; }
+.avatar-studio-stage { position:relative; width:min(100%,330px); aspect-ratio:3/4; border-radius:24px; overflow:hidden; background:radial-gradient(ellipse at 50% 78%,#6d28d944,transparent 42%),linear-gradient(180deg,#0e0920,#080512); box-shadow:inset 0 0 55px #7c3aed22; }
+.avatar-studio-stage::after { content:""; position:absolute; left:12%; right:12%; bottom:4%; height:7%; border:2px solid #7c3aed; border-radius:50%; box-shadow:0 0 22px #7c3aed; }
+.avatar-3d-render { position:absolute; inset:0; z-index:1; background-image:url('/avatar3d/student-presets.png'); background-size:400% 200%; background-position:calc(var(--avatar-x) * 33.333%) calc(var(--avatar-y) * 100%); background-repeat:no-repeat; }
+.avatar-3d-face { border-radius:12px; background-image:url('/avatar3d/student-presets.png'); background-size:400% 400%; background-position:calc(var(--avatar-x) * 33.333%) calc(var(--avatar-y) * 100%); background-repeat:no-repeat; box-shadow:inset 0 0 0 1px #ffffff18; }
+.avatar-3d-small { position:relative; display:inline-block; flex-shrink:0; overflow:visible; border:2px solid #7c3aed88; border-radius:50%; background-image:url('/avatar3d/student-presets.png'); background-size:400% 400%; background-position:calc(var(--avatar-x) * 33.333%) calc(var(--avatar-y) * 100%); background-repeat:no-repeat; box-shadow:0 3px 10px #0008,0 0 12px #7c3aed44; }
+.avatar-studio-preview>strong { margin-top:10px; color:#c084fc; font-size:17px; }
+.avatar-studio-preview>small { color:#a99ac9; margin-top:3px; }
+.avatar-studio-pet { position:absolute; z-index:3; right:4%; bottom:6%; width:32%; filter:drop-shadow(0 8px 12px #000); }
+.avatar-studio-pet-emoji { position:absolute; z-index:3; right:7%; bottom:9%; font-size:64px; filter:drop-shadow(0 8px 12px #000); }
+.avatar-preset-panel { display:flex; flex-direction:column; gap:8px; padding:12px; overflow:hidden; }
+.avatar-option-row { display:grid; grid-template-columns:116px minmax(0,1fr); align-items:center; min-height:76px; border:1px solid #2d2146; border-radius:14px; padding:7px 9px; background:#100a20; }
+.avatar-option-row>b { color:#c084fc; font-size:19px; }.avatar-option-row>b span { margin-left:7px; color:#c4b5fd; font-size:13px; }
+.avatar-option-scroll { display:flex; gap:7px; overflow-x:auto; padding:2px; scrollbar-width:thin; }
+.avatar-option-scroll button { flex:0 0 68px; display:flex; flex-direction:column; align-items:center; gap:3px; border:1px solid #3b2a58; border-radius:11px; padding:4px; background:#0c0818; color:#a99ac9; cursor:pointer; }
+.avatar-option-scroll button.selected { border-color:#e879f9; box-shadow:0 0 12px #d946ef88; color:#fff; }
+.avatar-option-scroll small { width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:9px; }
+.avatar-color-row { display:flex; align-items:center; gap:10px; min-height:54px; padding:8px 14px; border:1px solid #2d2146; border-radius:14px; background:#100a20; }
+.avatar-color-row b { margin-right:auto; color:#c4b5fd; font-size:13px; }.avatar-color-row span { width:28px; height:28px; border-radius:50%; box-shadow:inset 0 0 0 2px #ffffff33; }
+.avatar-pet-panel { padding:14px; }.avatar-pet-heading { padding:0 4px 12px; color:#c4b5fd; }.avatar-pet-grid { display:grid; grid-template-columns:repeat(4,minmax(80px,1fr)); gap:10px; }
+.avatar-pet-grid button { min-height:118px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; border:1px solid #3b2a58; border-radius:15px; background:linear-gradient(180deg,#171026,#0b0716); color:#a99ac9; cursor:pointer; }
+.avatar-pet-grid button.selected { border-color:#e879f9; box-shadow:0 0 18px #d946ef99,inset 0 0 20px #7c3aed33; color:#fff; }.avatar-pet-grid img { width:76px; height:76px; object-fit:contain; }.avatar-pet-grid span { font-size:48px; }.avatar-pet-grid small { font-weight:800; }
+.avatar-studio-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:14px; }.avatar-studio-footer button { border-radius:11px; padding:12px 22px; cursor:pointer; font-weight:850; }.studio-back { border:1px solid #3b2a58; background:#171026; color:#a99ac9; }.studio-primary { min-width:280px; border:1px solid #a855f7; background:linear-gradient(135deg,#7e22ce,#4f46e5); color:#fff; box-shadow:0 8px 24px #7c3aed44; }
+@media(max-width:820px){.avatar-studio-layout{grid-template-columns:1fr}.avatar-studio-preview{min-height:420px}.avatar-studio-stage{width:250px}.avatar-option-row{grid-template-columns:90px minmax(0,1fr)}.avatar-pet-grid{grid-template-columns:repeat(3,1fr)}.studio-primary{min-width:0;flex:1}}
+@media(max-width:520px){.avatar-studio-title i{display:none}.avatar-option-row{grid-template-columns:1fr}.avatar-option-row>b{margin-bottom:5px}.avatar-pet-grid{grid-template-columns:repeat(2,1fr)}.avatar-color-row span{width:21px;height:21px}.avatar-studio-footer{flex-direction:column-reverse}.avatar-studio-footer button{width:100%}}
+
 .teacher-student-grid {
   max-height: 430px;
   overflow-y: auto;
