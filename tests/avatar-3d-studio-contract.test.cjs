@@ -7,13 +7,13 @@ const css = fs.readFileSync("src/redesign.css", "utf8");
 
 const checks = [
   ["o estúdio oferece oito personagens 3D", (studio.match(/id:"/g)||[]).length === 8],
-  ["a personalização possui as seis categorias combinadas", ["Cabelo","Olhos","Roupas","Calças","Calçados","Acessórios"].every(x=>studio.includes(`"${x}"`))],
+  ["cada opção 3D é um preset completo e previsível", studio.includes("Estilos 3D") && studio.includes("personagem completo") && !studio.includes('const categories =')],
   ["a escolha de companheiro usa todos os pets existentes", studio.includes("AVATAR_OPTS.pet.map") && studio.includes("avatar-pet-grid")],
   ["o cadastro novo usa o fluxo 3D", login.includes("<AvatarStudio3D")],
   ["o perfil existente abre o mesmo fluxo 3D", app.includes("<AvatarStudio3D")],
-  ["perfis antigos recebem migração visual automática", avatar.includes("migração visual automática") && avatar.includes("render3d")],
+  ["perfis antigos preservam o avatar atual até escolherem o 3D", avatar.includes("render3d:null") && !avatar.includes("migração visual automática")],
   ["a interface adapta avatar e pets para celular", css.includes("@media(max-width:820px)") && css.includes("@media(max-width:520px)")],
-  ["o atlas 3D de produção existe", fs.existsSync("public/avatar3d/student-presets.png")],
+  ["cada personagem possui arquivo próprio, sem recorte por CSS", ["violet-cargo","cosmic","teal","varsity","overalls","future","orange","street"].every(id=>fs.existsSync(`public/avatar3d/presets/${id}.webp`)) && studio.includes('/avatar3d/presets/${p.id}.webp')],
 ];
 let failed=0;
 for(const [label,ok] of checks){ console.log(`${ok?"✓":"✗"} ${label}`); if(!ok) failed++; }
