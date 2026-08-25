@@ -143,7 +143,7 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
 @keyframes pet3d-particle{0%{opacity:0;transform:translate(0,0) scale(.3)}25%{opacity:1}100%{opacity:0;transform:translate(var(--px,18px),var(--py,-22px)) scale(1.4)}}
 /* O Dragão usa animação quadro a quadro: nenhum translate/rotate/scale do pet é simulado
    por CSS. O único keyframe abaixo avança a janela da sprite sheet. */
-.pet-dragao .pet-companion-button,.pet-unicornio .pet-companion-button{animation:none!important;overflow:visible}
+.pet-dragao .pet-companion-button,.pet-unicornio .pet-companion-button,.pet-trex .pet-companion-button{animation:none!important;overflow:visible}
 .pet-sprite{display:block;width:58px;height:58px;flex:0 0 58px;background-repeat:no-repeat;background-size:800% 100%;background-position:0 0;image-rendering:auto;filter:drop-shadow(0 3px 5px #0008)}
 .pet-sprite-idle{animation:pet-sprite-frames 1.15s steps(7,end) infinite}
 .pet-sprite-click{animation:pet-sprite-frames 1.05s steps(7,end) 1 both}
