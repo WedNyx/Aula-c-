@@ -28,11 +28,11 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
     success:  { main: "#5c75d7", dark: "#2e468d", eye: "#dffff4", cyan: "#70f2c2", pink: "#a9c6ff", speed: 7, label: "Tudo certo!" },
     error:    { main: "#a84f91", dark: "#5c2a54", eye: "#ffe3f2", cyan: "#ff93c6", pink: "#ffc1e2", speed: 7, label: "Encontrei algo!" },
   };
-  // O Prisma Orbital atual continua padrão em agosto/2026. A evolução Modernizada assume
-  // automaticamente em setembro para quem não tiver escolhido uma skin da loja.
-  const defaultSkin = Date.now() >= new Date("2026-09-01T00:00:00-03:00").getTime() ? "skinModernizado" : null;
-  const selectedSkin = G.skin || defaultSkin;
+  // A aparência nunca muda sozinha por data. O corpo padrão é decidido por NyxDisplay e o
+  // Prisma Orbital só chega aqui quando foi equipado ou quando Lunar/Eclipse estão ativos.
+  const selectedSkin = G.skin;
   const SKINS = {
+    skinPrismaOrbital: { main:"#7565de", dark:"#35296e", eye:"#eef1ff", cyan:"#68e8ff", pink:"#efa5ff", label:"Nyx Prisma Orbital" },
     skinModernizado: { main:"#7868e5", dark:"#272144", eye:"#eef1ff", cyan:"#7ef0ff", pink:"#d8d0ff", label:"Nyx Modernizado" },
     skinLunar: { main:"#d8dcf3", dark:"#54499f", eye:"#ffffff", cyan:"#82eeff", pink:"#ffffff", label:"Tem novidade para você!" },
     skinEclipse: { main:"#6d4b91", dark:"#171020", eye:"#e8dcff", cyan:"#ba75ff", pink:"#ffd97c", label:"Recursos de IA em pausa" },
@@ -225,10 +225,11 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
         <rect x="72" y="62" width="216" height="154" rx="67" fill={`url(#${uid}shell)`} stroke="#d9caff" strokeWidth="5" />
         <path d="M109 111q71-29 142 0" fill="none" stroke="#fff" strokeWidth="4" opacity=".08" />
 
-        {isSpartan ? <NpoElmoEspartano uid={uid} /> : <>
+        <>
           <NpoHeadItem item={G.head} uid={uid} P={P} />
           {G.head2 && <g transform="translate(10 -5) scale(.94)"><NpoHeadItem item={G.head2} uid={uid + "h2"} P={P} /></g>}
-        </>}
+        </>
+        {isSpartan && <NpoElmoEspartano uid={uid} />}
 
         {/* antena lunar */}
         <g style={{ transformOrigin: "180px 64px", animation: "npo-antenna-sway 5.6s ease-in-out infinite" }}>
@@ -295,9 +296,10 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
         {/* capa Espartana (atrás do cristal e dos itens levitantes) */}
         {isSpartan && (
           <g opacity=".94">
-            <defs><linearGradient id={uid + "capa"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#dc2626" /><stop offset="1" stopColor="#7a1010" /></linearGradient></defs>
-            <path d="M132 250 Q90 300 108 366 L150 344 L180 240 Z" fill={`url(#${uid}capa)`} stroke="#5c1010" strokeWidth="1" />
-            <path d="M228 250 Q270 300 252 366 L210 344 L180 240 Z" fill={`url(#${uid}capa)`} stroke="#5c1010" strokeWidth="1" opacity=".92" />
+            <defs><linearGradient id={uid + "capa"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#4937a8" /><stop offset=".55" stopColor="#241b5b" /><stop offset="1" stopColor="#0d0a24" /></linearGradient></defs>
+            <path d="M137 248 Q94 298 108 366 L150 344 L180 240 Z" fill={`url(#${uid}capa)`} stroke="#bda7ff" strokeWidth="2.5" />
+            <path d="M223 248 Q266 298 252 366 L210 344 L180 240 Z" fill={`url(#${uid}capa)`} stroke="#bda7ff" strokeWidth="2.5" opacity=".96" />
+            <path d="M126 276q28 20 44 50M234 276q-28 20-44 50" fill="none" stroke="#68e8ff" strokeWidth="2" opacity=".48" />
           </g>
         )}
 
@@ -309,16 +311,12 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
 
         {/* itens que levitam ao lado do corpo — substituem "segurar na mão", já que essa criatura
             não tem braço; ficam no mesmo espírito dos fragmentos de cristal que já orbitam ela */}
-        {isSpartan ? (
-          <NpoEspadaEscudoEspartano uid={uid} />
-        ) : (
-          <>
-            <NpoShieldItem item={G.shield} uid={uid} />
-            {G.shield2 && <g transform="translate(-14 -8) scale(.88)"><NpoShieldItem item={G.shield2} uid={uid + "s2"} /></g>}
-            <NpoHandItem item={G.hand} uid={uid} />
-            {G.hand2 && <g transform="translate(16 -8) scale(.88)"><NpoHandItem item={G.hand2} uid={uid + "m2"} /></g>}
-          </>
-        )}
+        <>
+          <NpoShieldItem item={G.shield} uid={uid} />
+          {G.shield2 && <g transform="translate(-14 -8) scale(.88)"><NpoShieldItem item={G.shield2} uid={uid + "s2"} /></g>}
+          <NpoHandItem item={G.hand} uid={uid} />
+          {G.hand2 && <g transform="translate(16 -8) scale(.88)"><NpoHandItem item={G.hand2} uid={uid + "m2"} /></g>}
+        </>
       </svg>
 
       <style>{`
@@ -439,13 +437,13 @@ function NpoElmoEspartano({ uid }) {
   return (
     <g>
       <defs>
-        <linearGradient id={uid + "crista"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fca5a5" /><stop offset=".5" stopColor="#dc2626" /><stop offset="1" stopColor="#7a1010" /></linearGradient>
-        <linearGradient id={uid + "bronze"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#dcb877" /><stop offset=".5" stopColor="#a1783f" /><stop offset="1" stopColor="#6b4d24" /></linearGradient>
+        <linearGradient id={uid + "spartanCrown"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#eefcff" /><stop offset=".35" stopColor="#68e8ff" /><stop offset=".7" stopColor="#8c78ff" /><stop offset="1" stopColor="#efa5ff" /></linearGradient>
       </defs>
-      <path d="M132 18 Q180 -32 228 18 L220 30 Q180 -6 140 30 Z" fill={`url(#${uid}crista)`} stroke="#5c1010" strokeWidth="2.5" />
-      <ellipse cx="180" cy="10" rx="50" ry="10" fill="#f87171" />
-      <path d="M72 62 Q180 8 288 62 L288 48 Q180 -2 72 48 Z" fill={`url(#${uid}bronze)`} stroke="#4a3418" strokeWidth="2.5" />
-      <rect x="80" y="48" width="200" height="20" rx="7" fill={`url(#${uid}bronze)`} stroke="#4a3418" strokeWidth="2.5" />
+      <path d="M93 79q87-53 174 0l-15 16q-72-31-144 0z" fill="#17112f" stroke={`url(#${uid}spartanCrown)`} strokeWidth="4" />
+      <path d="M135 62 180 18l45 44-20-7-25 20-25-20z" fill={`url(#${uid}spartanCrown)`} stroke="#f4efff" strokeWidth="3" filter={`url(#${uid}glow)`} />
+      <path d="m180 29 13 25-13 12-13-12z" fill="#17112f" opacity=".72" />
+      <circle cx="180" cy="43" r="6" fill="#fff" opacity=".9" />
+      <path d="M112 86q68-27 136 0" fill="none" stroke="#ffd86a" strokeWidth="4" opacity=".8" />
     </g>
   );
 }

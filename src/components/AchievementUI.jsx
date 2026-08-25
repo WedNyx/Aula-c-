@@ -50,7 +50,7 @@ export function AchievementsModal({ unlocked, onClose, isLangRoom }) {
                 <div style={{ fontSize:26, filter:got?"none":"grayscale(1)" }}>{a.secret && !got ? "❓" : a.emoji}</div>
                 <div>
                   <div style={{ color:"#f0e9fb", fontWeight:800, fontSize:13 }}>{a.secret && !got ? "???" : a.label}</div>
-                  <div style={{ color:"#776798", fontSize:11.5 }}>{a.secret && !got ? "Um segredo espera por quem explora o terminal..." : a.desc}</div>
+                  <div style={{ color:"#776798", fontSize:11.5 }}>{a.secret && !got ? "Um segredo espera por quem explora a plataforma..." : a.desc}</div>
                 </div>
               </div>
             );

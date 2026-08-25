@@ -7,7 +7,7 @@ import { askClaude } from "../lib/ai.js";
 // ════════════════════════════════════════════════════════════════════════════
 const TERM_PROMPT = "C:\\Aula\\MeuProjeto>";
 
-export function Terminal({ files, dataTour, maxHeight = 260, onEasterEgg = null }) {
+export function Terminal({ files, dataTour, maxHeight = 260 }) {
   const [hist, setHist] = useState([
     "Terminal da Aula C#",
     'Digite "ajuda" para ver os comandos disponíveis.',
@@ -109,41 +109,6 @@ export function Terminal({ files, dataTour, maxHeight = 260, onEasterEgg = null 
     }
     if (low === "dotnet run") { doRun(); return; }
     if (low === "dotnet build") { buildProgram(); return; }
-    // ── comandos secretos: ninguém conta, eles descobrem 🥚 ──
-    if (low === "dotnet moo") {
-      push("         (__)", "         (oo)", "   /------\\/", "  / |    ||", " *  /\\---/\\", "    ~~   ~~", '"Muuu!" Você encontrou a vaca escondida do .NET! 🐄', "");
-      onEasterEgg && onEasterEgg("moo");
-      return;
-    }
-    if (low === "nyx dance") {
-      push("♪┏(・o･)┛♪┗ (･o･) ┓♪", "♪┗ (･o･) ┓♪┏(・o･)┛♪", "♪┏(・o･)┛♪┗ (･o･) ┓♪", "O Nyx está DANÇANDO! Olha pro lado! 💃", "");
-      onEasterEgg && onEasterEgg("dance");
-      return;
-    }
-    if (low === "matrix") {
-      const chars = "01アイウエオカキクケコサシスセソ";
-      const rain = Array.from({ length: 10 }, () => Array.from({ length: 46 }, () => chars[Math.floor(Math.random() * chars.length)]).join(""));
-      push(...rain, "Acorde, Neo... a Matrix te achou. 🐇", "");
-      onEasterEgg && onEasterEgg("matrix");
-      return;
-    }
-    if (low === "nyx piada") {
-      const piadas = [
-        "Como o programador pede café? while (true) { café++; }",
-        "Por que o C# terminou o namoro com o JavaScript? Porque ele tinha tipos demais... e o JS não tinha nenhum!",
-        "O que o int disse pro double? \"Para de aparecer com essas vírgulas!\"",
-        "Qual o animal favorito do programador? O polvo, porque tem 8 bits! 🐙",
-        "Erro 404: piada não encontrada. (brincadeira, essa era a piada 😅)",
-      ];
-      push(piadas[Math.floor(Math.random() * piadas.length)], "");
-      onEasterEgg && onEasterEgg("piada");
-      return;
-    }
-    if (low === "nyx pirata") {
-      push("🏴‍☠️ Arrrr! Modo pirata ativado...", "Você desbloqueou um item secreto na Loja do Nyx! Vá conferir. 🗺️", "");
-      onEasterEgg && onEasterEgg("piratahat");
-      return;
-    }
     if (low === "dotnet" || low.startsWith("dotnet ")) { push("Uso:  dotnet run  |  dotnet build", ""); return; }
     push(`'${c}' não é reconhecido como um comando. Digite "ajuda" para ver os comandos.`, "");
   };
@@ -219,4 +184,3 @@ export function Terminal({ files, dataTour, maxHeight = 260, onEasterEgg = null 
     </div>
   );
 }
-

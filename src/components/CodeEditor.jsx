@@ -9,6 +9,8 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
   const highlightRef = useRef(null);
   const gutterRef = useRef(null);
   const pendingSelectionRef = useRef(null);
+  const selectionRef = useRef({ start:0, end:0, direction:"none" });
+  const isComposingRef = useRef(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
@@ -48,17 +50,50 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
     const ta = textareaRef.current;
     if (!pending || !ta || ta.value !== value) return;
     pendingSelectionRef.current = null;
-    ta.setSelectionRange(pending.start, pending.end);
+    ta.setSelectionRange(pending.start, pending.end, pending.direction || "none");
     syncScroll();
   }, [value]);
 
   const commitEdit = (newValue, start, end = start) => {
-    pendingSelectionRef.current = { start, end };
+    selectionRef.current = { start, end, direction:"none" };
+    pendingSelectionRef.current = { start, end, direction:"none" };
     onChange(newValue);
+  };
+
+  const rememberSelection = (target = textareaRef.current) => {
+    if (!target) return;
+    selectionRef.current = {
+      start: target.selectionStart ?? 0,
+      end: target.selectionEnd ?? target.selectionStart ?? 0,
+      direction: target.selectionDirection || "none",
+    };
+  };
+
+  const handleChange = (event) => {
+    if (locked) return;
+    const target = event.currentTarget;
+    const rawValue = target.value;
+    const rawStart = target.selectionStart ?? rawValue.length;
+    const rawEnd = target.selectionEnd ?? rawStart;
+    const removedBeforeStart = (rawValue.slice(0, rawStart).match(/\r/g) || []).length;
+    const removedBeforeEnd = (rawValue.slice(0, rawEnd).match(/\r/g) || []).length;
+    const selection = {
+      start: rawStart - removedBeforeStart,
+      end: rawEnd - removedBeforeEnd,
+      direction: target.selectionDirection || "none",
+    };
+
+    // Todo input guarda a seleção junto com o texto. Assim, uma renderização disparada por
+    // autosave, monitoramento do professor ou realce de sintaxe não consegue recolocar o cursor
+    // numa linha anterior entre o keydown e a pintura seguinte.
+    selectionRef.current = selection;
+    pendingSelectionRef.current = selection;
+    onChange(rawValue.replace(/\r/g, ""));
   };
 
   const handleKeyDown = (e) => {
     if (locked) { e.preventDefault(); return; } // Nyx está analisando: código congelado até terminar
+    if (e.isComposing || isComposingRef.current) return;
     const ta = textareaRef.current;
     const start = ta.selectionStart, end = ta.selectionEnd, v = ta.value;
     const pairs = { "{":"}","(":")",'"':'"',"[":"]","'":"'" };
@@ -123,7 +158,7 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
   };
 
   const lineNums = Array.from({length: value.split("\n").length}, (_,i) => i+1);
-  const shared = { fontFamily:"'Courier New','Consolas',monospace", fontSize:14, lineHeight:"1.5em", tabSize:4, whiteSpace:"pre", overflowWrap:"normal", padding:"12px 12px 12px 0", margin:0 };
+  const shared = { fontFamily:"'Courier New','Consolas',monospace", fontSize:14, lineHeight:"1.5em", tabSize:4, whiteSpace:"pre", overflowWrap:"normal", fontVariantLigatures:"none", boxSizing:"border-box", overflowAnchor:"none", padding:"12px 12px 12px 0", margin:0 };
 
   return (
     <div data-expanded={isExpanded ? "true" : "false"} style={{ background:"#1e1e1e", borderRadius:8, border:"1px solid #3e3e42", overflow:"hidden", display:"flex", flexDirection:"column", boxShadow:isExpanded?"0 0 0 100vmax rgba(5,3,12,.82),0 24px 80px rgba(0,0,0,.75)":"0 12px 32px rgba(0,0,0,.45)", ...(isExpanded ? {position:"fixed",inset:16,zIndex:4000,height:"calc(100dvh - 32px)"} : {}) }}>
@@ -153,7 +188,7 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
               sem isso, esse caractere invisível sobra escondido no texto e a camada colorida (que só
               existe pra pintar as palavras) desenha uma letra a mais que o cursor de verdade não tem,
               indo empurrando a marcação visual pra direita conforme a linha afetada cresce */}
-          <textarea ref={textareaRef} value={value} readOnly={locked} onChange={e => { if (!locked) onChange(e.target.value.replace(/\r/g, "")); }} onKeyDown={handleKeyDown} onPaste={e => { if (!locked && onPasteText) onPasteText(e.clipboardData.getData("text")); }} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
+          <textarea ref={textareaRef} value={value} readOnly={locked} onChange={handleChange} onKeyDown={handleKeyDown} onSelect={e => rememberSelection(e.currentTarget)} onClick={e => rememberSelection(e.currentTarget)} onKeyUp={e => rememberSelection(e.currentTarget)} onCompositionStart={() => { isComposingRef.current = true; }} onCompositionEnd={e => { isComposingRef.current = false; rememberSelection(e.currentTarget); }} onPaste={e => { if (!locked && onPasteText) onPasteText(e.clipboardData.getData("text")); }} onScroll={syncScroll} spellCheck={false} autoCorrect="off" autoCapitalize="off"
             style={{ ...shared, position:"absolute", top:0, left:0, right:0, bottom:0, background:"transparent", color:"transparent", caretColor: locked ? "transparent" : "#aeafad", border:"none", outline:"none", resize:"none", zIndex:1, paddingLeft:14, overflow:"auto", cursor: locked ? "not-allowed" : "text" }} />
           {/* congela o código enquanto estiver travado (análise em andamento, professor travou o
               teclado, ou visualização somente-leitura) — a mensagem reflete o motivo de verdade,

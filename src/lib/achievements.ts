@@ -51,8 +51,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   // secretas: combo de equipamento e caça ao tesouro escondidos, sem nenhuma pista visível na loja
   { id:"espartano",          emoji:"🛡️", label:"Guerreiro Espartano", desc:"Equipou espada e escudo ao mesmo tempo e viu o Nyx virar um Espartano", secret:true },
   { id:"tesouro",            emoji:"🏴‍☠️", label:"Caçador de Tesouro", desc:"Encontrou o baú do tesouro escondido na plataforma", secret:true },
-  // segredo de equipamento: os comandos divertidos do terminal continuam existindo, mas não
-  // concedem conquistas nem entram na contagem.
+  // segredos de equipamento e de exploração da plataforma; o terminal não concede conquistas
+  // e não contém comandos secretos.
   { id:"segredo-pirata",     emoji:"🏴‍☠️", label:"Alma Pirata",     desc:"Equipou chapéu pirata, tapa-olho e espada ao mesmo tempo", secret:true },
   { id:"segredo-sanduiche",  emoji:"🥪", label:"Migalha Encontrada", desc:"Achou a migalha escondida na tela", secret:true },
   { id:"segredo-cafe",       emoji:"☕", label:"Cafeína Descoberta", desc:"Achou a marca de café escondida na tela", secret:true },

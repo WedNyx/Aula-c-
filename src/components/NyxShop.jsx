@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { NYX_ITEMS } from "./NyxRobot.jsx";
-import { NyxPrismaOrbital as NyxRobot } from "./NyxPrismaOrbital.jsx";
+import { NyxDisplay as NyxRobot } from "./NyxDisplay.jsx";
 import { useViewportWidth } from "../lib/utils.js";
 
 // nomes de exibição dos encaixes na loja — só rótulo visual, o campo "slot" de cada item e o
@@ -16,6 +16,7 @@ const SLOT_SECTIONS = [
   { slot: "costas", label: "🦸 Costas" },
 ];
 const secondKey = slot => `${slot}2`;
+const SLOT_LABELS = { head:"cabeça", face:"rosto", neck:"pescoço", hand:"órbita", shield:"escudo orbital", costas:"costas" };
 const equippedInSlot = (gear, slot) => [gear?.[slot], gear?.[secondKey(slot)]].filter(Boolean);
 const hasItem = (gear, slot, item) => equippedInSlot(gear, slot).includes(item);
 const isPirateSet = (gear = {}) => hasItem(gear,"head","chapeuPirata") && hasItem(gear,"face","vendaPirata") && hasItem(gear,"hand","espada");
@@ -62,12 +63,12 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
       }
       if (item.slot === "skin") { setEquipNotice(""); onEquip({ ...gear, skin:item.id }); return; }
       const target = !gear[item.slot] ? item.slot : !gear[second] ? second : null;
-      if (!target) { setEquipNotice(`Você já está usando dois acessórios de ${item.slot}. Tire um deles antes.`); return; }
+      if (!target) { setEquipNotice(`Você já está usando dois acessórios de ${SLOT_LABELS[item.slot]||item.slot}. Tire um deles antes.`); return; }
       setEquipNotice("");
       onEquip({ ...gear, [target]:item.id });
     } else if (wallet >= item.cost) {
       const target = item.slot === "skin" ? "skin" : !gear[item.slot] ? item.slot : !gear[second] ? second : null;
-      if (!target) { setEquipNotice(`Você já está usando dois acessórios de ${item.slot}. Tire um deles antes de comprar outro.`); return; }
+      if (!target) { setEquipNotice(`Você já está usando dois acessórios de ${SLOT_LABELS[item.slot]||item.slot}. Tire um deles antes de comprar outro.`); return; }
       setEquipNotice("");
       onBuy(item, target);
     }
@@ -123,17 +124,17 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
                       const clickable = has || canBuy;
                       const equipped = equippedInSlot(gear,item.slot).includes(item.id);
                       return (
-                        <div key={item.id} data-item={item.id} role="button" tabIndex={clickable?0:-1} onClick={()=>clickable && click(item)}
+                        <div key={item.id} data-item={item.id} role="button" tabIndex={clickable?0:-1} aria-label={`${item.label}. ${has?equipped?"Equipado":"Item comprado":canBuy?`Comprar por ${item.cost} pontos`:`Bloqueado; custa ${item.cost} pontos`}`} onClick={()=>clickable && click(item)} onKeyDown={e=>{if(clickable&&(e.key==="Enter"||e.key===" ")){e.preventDefault();click(item);}}}
                           style={{
                             background: equipped ? "#c084fc26" : "#171026",
                             border: `2px solid ${equipped ? "#c084fc" : has ? "#34d39966" : canBuy ? "#fbbf2466" : "#241f38"}`,
                             borderRadius:14, padding:"14px 10px", textAlign:"center", cursor: clickable?"pointer":"default",
                             opacity: clickable ? 1 : 0.55, position:"relative",
                           }}>
-                          <span onClick={(e)=>{ e.stopPropagation(); setRefundConfirm(false); setPreview(item); }} title="Ver prévia no Nyx antes de comprar"
-                            style={{ position:"absolute", top:6, right:6, zIndex:2, width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center", borderRadius:"50%", background:"#0000004d", fontSize:12, cursor:"pointer", opacity:1 }}>
+                          <button type="button" onClick={(e)=>{ e.stopPropagation(); setRefundConfirm(false); setPreview(item); }} title="Ver prévia no Nyx antes de comprar" aria-label={`Ver prévia de ${item.label}`}
+                            style={{ position:"absolute", top:6, right:6, zIndex:2, width:22, height:22, padding:0, border:0, color:"inherit", display:"flex", alignItems:"center", justifyContent:"center", borderRadius:"50%", background:"#0000004d", fontSize:12, cursor:"pointer", opacity:1 }}>
                             👁️
-                          </span>
+                          </button>
                           {item.slot === "skin"
                             ? <NyxRobot state="ok" size={54} showName={false} gear={{ ...gear, skin:item.id }} />
                             : <div style={{ fontSize:30, filter: clickable?"none":"grayscale(1)" }}>{item.emoji}</div>}

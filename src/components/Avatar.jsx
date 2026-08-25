@@ -259,6 +259,18 @@ export function Avatar({ cfg, size=72, animated=false }) {
 }
 
 const PET_REACTIONS = {
+  "🐉": { cls:"generic", text:"O dragão abriu as asas e soltou um brilho lunar!" },
+  "🦄": { cls:"generic", text:"O unicórnio iluminou o caminho da próxima atividade!" },
+  "🦖": { cls:"generic", text:"O T-Rex deu um passinho corajoso para comemorar!" },
+  "🦅": { cls:"generic", text:"A águia observou toda a jornada lá do alto!" },
+  "🦉": { cls:"generic", text:"A coruja piscou: ela está prestando atenção em tudo!" },
+  "🐺": { cls:"generic", text:"O lobo ficou alerta e pronto para acompanhar você!" },
+  "🦊": { cls:"generic", text:"A raposa fez uma pose esperta e curiosa!" },
+  "🐱": { cls:"generic", text:"O gato se espreguiçou e ficou pertinho do avatar!" },
+  "🐶": { cls:"generic", text:"O cachorro abanou o rabinho todo animado!" },
+  "🐰": { cls:"generic", text:"O coelho deu dois pulinhos de felicidade!" },
+  "🦁": { cls:"generic", text:"O leão fez uma pose de guardião da jornada!" },
+  "🐢": { cls:"generic", text:"A tartaruga avançou no ritmo certo: sem parar!" },
   "🐝": { cls:"bee", text:"Bzzz! Hora de explorar!" },
   "🦋": { cls:"butterfly", text:"A borboleta dançou no ar!" },
   "✨": { cls:"firefly", text:"O vagalume brilhou para você!" },
@@ -267,11 +279,44 @@ const PET_REACTIONS = {
 
 // companheiro escolhido pelo aluno fica num canto do painel do Nyx. Clicar nele dispara uma
 // reação própria; os pets antigos também respondem com um pulinho genérico.
-export function PetCompanion({ pet }) {
+const PET_CONTEXT_MESSAGES = {
+  complete:"Seu companheiro está comemorando com você!",
+  success:"Ele percebeu que deu tudo certo!",
+  error:"Seu companheiro ficou atento e vai continuar por perto.",
+  help:"Ele está esperando o professor junto com você.",
+  "mood:otimo":"Ele chegou cheio de energia também!",
+  "mood:feliz":"Seu companheiro compartilhou sua alegria!",
+  "mood:bem":"Ele está pronto para acompanhar a aula.",
+  "mood:calmo":"Ele respirou fundo e ficou tranquilo ao seu lado.",
+  "mood:neutro":"Ele ficou por perto, no ritmo de hoje.",
+  "mood:curioso":"Ele também quer descobrir o que vem pela frente!",
+  "mood:ansioso":"Ele ficou pertinho para fazer companhia.",
+  "mood:cansado":"Ele diminuiu o ritmo para acompanhar você.",
+  "mood:confuso":"Ele inclinou a cabeça e vai observar junto com você.",
+  "mood:triste":"Ele ficou ao seu lado em silêncio.",
+  "mood:dificil":"Ele decidiu não sair do seu lado hoje.",
+};
+export function PetCompanion({ pet, context = "idle" }) {
   const [reaction, setReaction] = useState(0);
   const [message, setMessage] = useState("");
   const timerRef = useRef(null);
   useEffect(() => () => clearTimeout(timerRef.current), []);
+  const lastContextRef = useRef("idle");
+  useEffect(() => {
+    // Um pet recém-escolhido precisa reagir ao contexto atual mesmo que o pet anterior já tenha
+    // reagido a ele. Também limpamos a fala antiga para ela nunca parecer pertencer ao novo pet.
+    lastContextRef.current = "idle";
+    setMessage("");
+    clearTimeout(timerRef.current);
+  }, [pet]);
+  useEffect(() => {
+    if (!pet || !context || context === "idle" || context === lastContextRef.current) return;
+    lastContextRef.current = context;
+    setReaction(n => n + 1);
+    setMessage(PET_CONTEXT_MESSAGES[context] || "Seu companheiro percebeu a mudança e reagiu!");
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setMessage(""), 2800);
+  }, [context, pet]);
   if (!pet) return null;
   const info = PET_REACTIONS[pet] || { cls:"generic", text:"Seu companheiro ficou feliz em te ver!" };
   const react = (e) => {
@@ -282,11 +327,12 @@ export function PetCompanion({ pet }) {
     timerRef.current = setTimeout(() => setMessage(""), 2200);
   };
   const file = PET_FILES[pet];
+  const petLabel = AVATAR_OPTS.pet.find(item => item.e === pet)?.label || "pet";
   return (
     <div className="pet-companion-corner" data-tour="pet" title="Clique no seu pet">
-      {message && <div className="pet-companion-speech">{message}</div>}
-      <button key={reaction} type="button" aria-label="Interagir com meu pet" onClick={react} className={`pet-companion-button pet-companion-${info.cls}`}>
-        {file ? <img src={`/pets/${file}.webp`} alt="" draggable={false} /> : <span>{pet}</span>}
+      {message && <div className="pet-companion-speech" role="status" aria-live="polite">{message}</div>}
+      <button key={reaction} type="button" aria-label={`Interagir com ${petLabel}`} onClick={react} className={`pet-companion-button pet-companion-${info.cls}`}>
+        {file ? <img src={`/pets/${file}.webp`} alt={petLabel} draggable={false} /> : <span aria-hidden="true">{pet}</span>}
       </button>
     </div>
   );

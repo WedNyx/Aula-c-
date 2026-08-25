@@ -12,7 +12,7 @@ import { VoicePickerModal } from "./components/VoicePickerModal.jsx";
 import { ColorPickerModal } from "./components/ColorPickerModal.jsx";
 import { KEY_IMAGES, KeyVisual } from "./components/KeyVisual.jsx";
 import { NYX_ITEMS, DEFAULT_NYX_GEAR } from "./components/NyxRobot.jsx";
-import { NyxPrismaOrbital as NyxRobot } from "./components/NyxPrismaOrbital.jsx";
+import { NyxDisplay as NyxRobot } from "./components/NyxDisplay.jsx";
 import { PerformanceChart } from "./components/PerformanceChart.jsx";
 import { DEFAULT_AVATAR, Avatar, AvatarPreview, AvatarControls, AvatarBuilder, PetCompanion } from "./components/Avatar.jsx";
 import { VSEditor, CodeBlock, GUIDED_BLOCKS, GUIDED_PARTICIPATION_QUIZ } from "./components/CodeEditor.jsx";
@@ -50,6 +50,7 @@ import { Calendar } from "./components/Calendar.jsx";
 import { CodeLab } from "./components/CodeLab.jsx";
 import { TeacherNotesModal } from "./components/TeacherNotesModal.jsx";
 import { ScheduledReminders, useDueReminder } from "./components/ScheduledReminders.jsx";
+import { DashboardSidebar } from "./components/DashboardSidebar.jsx";
 import { TeacherSummaryEditor } from "./components/TeacherSummaryEditor.jsx";
 import { StudentNotificationsModal, StudentProfileModal, DailyMissionsModal } from "./components/StudentHubModals.jsx";
 import { GIFT_TIERS, rollGift } from "./lib/gifts.js";
@@ -297,7 +298,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [checkinDismissed, setCheckinDismissed] = useState(() => {
     try { return localStorage.getItem(`nyx_checkin_${todayKey()}_${shift}_${studentName}`) === "1"; } catch { return false; }
   });
-  const dismissCheckin = () => { setCheckinDismissed(true); try { localStorage.setItem(`nyx_checkin_${todayKey()}_${shift}_${studentName}`, "1"); } catch {} };
+  const [todayMood, setTodayMood] = useState(null);
+  useEffect(() => {
+    let active = true;
+    getCheckin(shift, studentName, todayKey()).then(entry => { if (active && entry?.mood) setTodayMood(entry.mood); });
+    return () => { active = false; };
+  }, [shift, studentName]);
+  const dismissCheckin = (mood = null) => { if (mood) setTodayMood(mood); setCheckinDismissed(true); try { localStorage.setItem(`nyx_checkin_${todayKey()}_${shift}_${studentName}`, "1"); } catch {} };
   const [breakEndMsg, setBreakEndMsg] = useState("");
   const breakEndNotifiedRef = useRef(null);
   const breakStartNotifiedRef = useRef(null);
@@ -410,6 +417,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // versão detalhada do resumo (pedida sob demanda — alguns alunos preferem o resumo mais completo)
   const [detailedSummary, setDetailedSummary] = useState("");
   const [detailedSummaryHistory, setDetailedSummaryHistory] = useState({});
+  const [personalNotes, setPersonalNotes] = useState([]);
   const [summaryView, setSummaryView] = useState("simples"); // "simples" | "detalhado"
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailFailMsg, setDetailFailMsg] = useState("");
@@ -490,7 +498,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const activeCode = files[active]?.code || "";
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxNewsSeen, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxNewsSeen, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, personalNotes, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -687,6 +695,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       summaryHistory: s.summaryHistory || {},
       detailedSummary: s.detailedSummary || null,
       detailedSummaryHistory: s.detailedSummaryHistory || {},
+      personalNotes: s.personalNotes || [],
       guidedBlocks: s.guidedBlocks || [],
       guidedLessons: s.guidedLessons || [],
       programmingLanguage: s.programmingLanguage || null,
@@ -1271,6 +1280,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.summaryHistory) setSummaryHistory(prev.summaryHistory);
           if (prev.detailedSummary) setDetailedSummary(prev.detailedSummary);
           if (prev.detailedSummaryHistory) setDetailedSummaryHistory(prev.detailedSummaryHistory);
+          if (Array.isArray(prev.personalNotes)) setPersonalNotes(prev.personalNotes);
           if (Array.isArray(prev.guidedBlocks)) setGuidedBlocks(prev.guidedBlocks);
           if (Array.isArray(prev.guidedLessons)) setGuidedLessons(prev.guidedLessons);
           if (prev.createdAt) createdAtRef.current = prev.createdAt; // preserva a data ORIGINAL de criação (não a da sessão atual)
@@ -1559,16 +1569,14 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           // professor gerou o resumo da aula no próprio painel e mandou pronto — entra direto no
           // Caderno de resumos, não importa em que fase o aluno está agora (aplica no estado local
           // antes que o autosave periódico regrave o registro sem esse resumo). SÓ escreve se: (1)
-          // ainda não existir nada pra esse dia (não sobrescreve trabalho já feito, ex: uma ponte
-          // que o handleSave já montou), e (2) o aluno não tiver uma PONTE pendente (resumo de um
-          // dia anterior ainda sem o de hoje) — quem faltou aula precisa do catch-up personalizado
-          // que só o handleSave sabe montar; nesse caso só limpa a flag e deixa o fluxo normal
-          // (resumoAutoSave, que já está de olho no mesmo gatilho) cuidar disso corretamente.
+          // ainda não existir nada pra esse dia (não sobrescreve trabalho já feito). Resumos de
+          // dias anteriores NÃO bloqueiam a entrega: eles são justamente o histórico normal do
+          // caderno e antes eram confundidos com uma ponte pendente, fazendo alunos antigos não
+          // receberem o novo material do professor.
           const cur = stateRef.current.summaryHistory || {};
           const already = cur[fix.dateKey];
           const jaTemConteudo = already && typeof already === "object" && Array.isArray(already.secoes) && already.secoes.length > 0;
-          const temPonteAntiga = !jaTemConteudo && Object.keys(cur).some(d => d !== fix.dateKey && cur[d] && typeof cur[d] === "object" && Array.isArray(cur[d].secoes) && cur[d].secoes.length > 0);
-          if (!jaTemConteudo && !temPonteAntiga) {
+          if (!jaTemConteudo) {
             const nextHistory = { ...cur, [fix.dateKey]: fix.resumo };
             setSummaryHistory(nextHistory);
             await persist({ summaryHistory: nextHistory });
@@ -2112,11 +2120,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     setRobotState("ok");
     setRobotMsg("🏴‍☠️ VOCÊ ACHOU O TESOURO ESCONDIDO! +700 pontos do Nyx! Muito bem, caçador(a)!");
     setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 8000);
-  };
-
-  // comandos divertidos do Terminal continuam funcionando, mas não concedem conquistas nem itens.
-  const handleEasterEgg = (egg) => {
-    if (egg === "dance") { setRobotState("ok"); setRobotMsg("💃 Você achou meu passo de dança secreto! Não conta pra ninguém... ou conta, vai ser divertido."); setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000); }
   };
 
   // o Easter Egg pirata só desperta com o conjunto completo comprado e equipado.
@@ -3266,29 +3269,36 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     </button>
   );
 
+  const studentSidebarGroups = [
+    { id:"learn", label:"Aprender", items:[
+      { id:"notebook", label:"Caderno", icon:"📒", onClick:()=>setShowNotebook(true), tour:"caderno" },
+      { id:"notifications", label:"Novidades", icon:"🔔", badge:(hasNyxNews||showNudge) ? "nova" : null, onClick:()=>setShowStudentNotifications(true), tour:"novidades" },
+      { id:"missions", label:"Missões de hoje", icon:"☀️", onClick:()=>setShowDailyMissions(true), tour:"missoes" },
+    ]},
+    { id:"explore", label:"Explorar", items:[
+      { id:"trail", label:"Jornada", icon:"🗺️", onClick:()=>setShowTrail(true), tour:"jornada" },
+      { id:"games", label:"Sala de desafios", icon:"🎮", onClick:()=>setShowGamesMenu(true), tour:"games" },
+      { id:"sanctuary", label:"Santuário Lunar", icon:"🌙", onClick:()=>setShowLunarSanctuary(true) },
+      { id:"knowledge", label:"Testar conhecimento", icon:"🧠", onClick:()=>setShowKnowledgeTest(true), tour:"conhecimento" },
+      { id:"free-build", label:"Desafio livre", icon:"🏗️", badge:weeklyChallenge?.weekKey===weekKey()&&weeklyChallenge?.status==="done" ? "✓" : null, onClick:()=>setShowFreeBuild(true), tour:"desafio-livre" },
+    ]},
+    { id:"profile", label:"Perfil", items:[
+      { id:"profile", label:"Meu perfil", icon:"🌌", onClick:()=>setShowStudentProfile(true), tour:"perfil-jornada" },
+      { id:"achievements", label:"Conquistas", icon:"🎖️", badge:`${achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/${visibleAchievements(isLangRoom).length}`, onClick:()=>setShowAchievements(true), tour:"conquistas" },
+      { id:"shop", label:"Loja do Nyx", icon:"🎁", onClick:()=>setShowNyxShop(true) },
+      { id:"ranking", label:"Ranking da turma", icon:"📊", onClick:()=>setShowRanking(true), tour:"ranking" },
+      { id:"hall", label:"Hall da Fama", icon:"👑", onClick:()=>{ setShowHallOfFame(true); getHallOfFame(shift).then(setHallEntries); } },
+      { id:"tour", label:"Repetir tour", icon:"🧭", onClick:()=>setTourStep(0), tour:"repetir-tour" },
+    ]},
+  ];
+
   // ── CODING ──
   return (
-    <div className={supportClass} style={{ ...styles.container, position:"relative", paddingLeft: (!focusMode && vw > 700) ? 190 : 0 }}>
+    <div className={`${supportClass}${!focusMode && vw > 700 ? " dashboard-page-with-sidebar" : ""}`} style={{ ...styles.container, position:"relative", paddingLeft:0 }}>
       <Sparkles id="nyx-student-sparkles" position="absolute" count={26} />
       {/* navegação lateral — mesma gamificação da barra rápida de baixo, só que fixa à esquerda
           em telas largas; em celular (vw<=700) some daqui e a barra horizontal assume sozinha. */}
-      {!focusMode && vw > 700 && (
-        <div style={{ position:"fixed", left:0, top:0, bottom:0, width:190, background:"#160e24ee", backdropFilter:"blur(8px)", borderRight:"1px solid #3b2a58", zIndex:41, display:"flex", flexDirection:"column", gap:4, padding:"18px 10px", overflowY:"auto" }}>
-          <div style={{ padding:"0 6px 14px", fontWeight:900, fontSize:13, letterSpacing:1, color:"#fbbf24" }}>🎮 JOGOS</div>
-          <button data-tour="perfil-jornada" onClick={()=>setShowStudentProfile(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", padding:"9px 10px", fontSize:12.5 }}>🌌 Meu perfil</button>
-          <button data-tour="novidades" onClick={()=>setShowStudentNotifications(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", padding:"9px 10px", fontSize:12.5 }}>🔔 Novidades{(hasNyxNews||showNudge)?" · nova":""}</button>
-          <button data-tour="missoes" onClick={()=>setShowDailyMissions(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", padding:"9px 10px", fontSize:12.5 }}>☀️ Missões de hoje</button>
-          <button data-tour="repetir-tour" onClick={()=>setTourStep(0)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", padding:"9px 10px", fontSize:12.5 }}>🧭 Repetir tour</button>
-          <button data-tour="jornada" onClick={()=>{ setShowTrail(true); }} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🗺️ Jornada</button>
-          <button data-tour="conquistas" onClick={()=>setShowAchievements(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🎖️ Conquistas · {achievements.filter(id=>visibleAchievements(isLangRoom).some(a=>a.id===id)).length}/{visibleAchievements(isLangRoom).length}</button>
-          <button onClick={()=>setShowNyxShop(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🎁 Loja do Nyx</button>
-          <button data-tour="ranking" onClick={()=>setShowRanking(true)} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>📊 Ranking da turma</button>
-          <button data-tour="games" onClick={()=>setShowGamesMenu(true)} style={{ ...styles.btn("#c084fc"), textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🎮 Games</button>
-          <button data-tour="conhecimento" onClick={()=>setShowKnowledgeTest(true)} title="Teste seu conhecimento da matéria, sem dicas" style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🧠 Testar Conhecimento</button>
-          <button data-tour="desafio-livre" onClick={()=>setShowFreeBuild(true)} title="Proponha algo que você quer construir e o Nyx te ajuda a planejar como chegar lá" style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>🏗️ Desafio Livre{weeklyChallenge && weeklyChallenge.weekKey===weekKey() && weeklyChallenge.status==="done" ? " ✅" : ""}</button>
-          <button onClick={()=>{ setShowHallOfFame(true); getHallOfFame(shift).then(setHallEntries); }} style={{ ...styles.btnGhost, textAlign:"left", width:"100%", display:"flex", alignItems:"center", gap:6, padding:"9px 10px", fontSize:12.5 }}>👑 Hall da Fama</button>
-        </div>
-      )}
+      {!focusMode && vw > 700 && <DashboardSidebar ariaLabel="Navegação do aluno" groups={studentSidebarGroups} />}
       {routineBar}
       {renderHiddenEggs()}
       {/* pergunta de preferência de interação do Nyx — perfil novo, antes até da apresentação e do tour */}
@@ -3386,20 +3396,25 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <span style={{ color:"#fbbf24", fontSize:12.5, fontWeight:700 }}>🔄 Reconectando Nyx...</span>
         </div>
       )}
-      <div data-tour="perfil" className="mobile-app-header" style={styles.header}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+      <div data-tour="perfil" className="mobile-app-header student-command-header" style={styles.header}>
+        <div className="student-command-identity" style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={()=>setShowAvatarEdit(true)} title="Editar meu boneco"
             style={{ background:"transparent", border:"none", padding:0, cursor:"pointer", position:"relative", lineHeight:0 }}>
             <Avatar cfg={avatar} size={34} animated={!calmMode} />
             <span style={{ position:"absolute", right:-4, bottom:-4, background:"#c084fc", borderRadius:"50%", width:16, height:16, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, boxShadow:"0 1px 3px rgba(0,0,0,.5)" }}>✏️</span>
           </button>
-          <span className="shine" style={{ fontWeight:900, fontSize:17, background:"linear-gradient(120deg,#c084fc,#22d3ee,#c084fc)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>💻 Aula C#</span>
+          <div>
+            <span className="student-command-kicker">Painel do aluno</span>
+            <strong className="student-command-name">{studentName}</strong>
+          </div>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
-          <span style={{ fontSize:12, color: connected===false?"#f87171":connected?"#34d399":"#a99ac9" }}>
-            {connected===null ? "● conectando..." : connected ? "● conectado" : "● sem conexão"}
+        <div className="student-command-actions" style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+          <span data-tour="status-ia" className={`student-ai-status${aiDown || connected===false ? " offline" : connected ? " online" : " waiting"}`}
+            title={aiDown ? "O Nyx está se reconectando" : connected===false ? "Sem conexão com a plataforma" : connected ? "Nyx e plataforma disponíveis" : "Verificando conexão"}>
+            <span className="student-ai-light" aria-hidden="true" />
+            {aiDown ? "Nyx reconectando" : connected===false ? "IA indisponível" : connected ? "IA funcionando" : "Verificando IA"}
           </span>
-          <span style={{ display:"inline-flex", alignItems:"center", gap:8, fontSize:11 }}>
+          <span className="student-provider-health" style={{ display:"inline-flex", alignItems:"center", gap:8, fontSize:11 }}>
             {[["nvidia","✨ Nemotron"],["laguna","🌊 Laguna"]].map(([key,label]) => {
               const h = providerHealth[key];
               const recent = h && Date.now() - h.at < 5 * 60 * 1000;
@@ -3413,7 +3428,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               );
             })}
           </span>
-          <span style={{ background:"#c084fc22", padding:"4px 12px", borderRadius:20, fontSize:13 }}>👤 {studentName}</span>
           <span style={{ background:"#171026", border:"1px solid #3b2a58", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#a99ac9" }}>{shiftLabel(shift, myTurmas)}</span>
           {streakCount >= 2 && <span title="Dias de aula seguidos que você participou" style={{ background:"#f8717122", border:"1px solid #f87171", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#fca5a5", fontWeight:800 }}>🔥 {streakCount} dias seguidos</span>}
           <button data-tour="tema" style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
@@ -3600,6 +3614,34 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         </div>
       )}
 
+      {!focusMode && vw > 700 && (
+        <section data-tour="atividade-atual" className="student-current-activity" aria-labelledby="student-current-activity-title">
+          <div className="student-current-activity-copy">
+            <span className="student-current-activity-kicker">Atividade atual</span>
+            <h2 id="student-current-activity-title">
+              {accessMode ? "Continue montando seu programa" : `Continue em ${files[active]?.name || "Program.cs"}`}
+            </h2>
+            <p>
+              {accessMode
+                ? "Os blocos e as explicações do Nyx continuam exatamente de onde você parou."
+                : activeCode.trim().length > 0
+                  ? "Seu código está guardado. Continue escrevendo ou peça uma análise quando estiver pronto."
+                  : "O editor está pronto para você começar o código da aula de hoje."}
+            </p>
+          </div>
+          <div className="student-current-activity-meta">
+            <span><b>{activeCode.split("\n").length}</b> linhas</span>
+            <span><b>{nyxPoints - nyxSpent}</b> pontos Nyx</span>
+            <span><b>{studyLang?.label || "C#"}</b> linguagem</span>
+          </div>
+          <button type="button" className="student-current-activity-button" onClick={()=>{
+            document.querySelector(".code-main-col")?.scrollIntoView({ behavior: calmMode ? "auto" : "smooth", block:"start" });
+          }}>
+            Continuar atividade <span aria-hidden="true">→</span>
+          </button>
+        </section>
+      )}
+
       <div style={{ display:"flex", gap:14, padding:14, maxWidth:1180, margin:"0 auto", flexWrap:"wrap" }}>
         <div className="code-main-col" style={{ flex:"1 1 560px", minWidth:320 }}>
           {accessMode ? (
@@ -3724,7 +3766,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
               <p data-tour="salvar" style={{ color:"#a99ac9", fontSize:scaleSize(12), margin:"10px 0 0", lineHeight:1.5 }}>📚 Continue praticando — seu professor libera o resumo da aula pra turma quando chegar a hora.</p>
 
-              <Terminal files={files} dataTour="terminal" onEasterEgg={handleEasterEgg} />
+              <Terminal files={files} dataTour="terminal" />
             </div>
           ) : (
             <>
@@ -3752,7 +3794,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
               <p data-tour="salvar" style={{ color:"#a99ac9", fontSize:12, margin:"8px 0 0", lineHeight:1.5 }}>📚 Continue praticando — seu professor libera o resumo da aula pra turma quando chegar a hora.</p>
 
-              <Terminal files={files} dataTour="terminal" onEasterEgg={handleEasterEgg} />
+              <Terminal files={files} dataTour="terminal" />
             </>
           )}
         </div>
@@ -3787,9 +3829,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               />
             )
           )}
-          <div data-tour="nyx" className="cardfx" style={{ ...styles.card, position:"relative" }}>
-            <PetCompanion pet={avatar.pet} />
-            <NyxRobot state={robotState} size={88} gear={effectiveNyxGear} onInteract={handleNyxInteraction} />
+          <div data-tour="nyx" className="cardfx student-companion-card" style={{ ...styles.card, position:"relative" }}>
+            <div className="student-companion-stage">
+              <button type="button" className="student-companion-avatar" onClick={()=>setShowAvatarEdit(true)} title="Personalizar meu avatar">
+                <Avatar cfg={avatar} size={82} animated={!calmMode} />
+                <span>Você</span>
+              </button>
+              <div className="student-companion-nyx">
+                <NyxRobot state={robotState} size={88} gear={effectiveNyxGear} onInteract={handleNyxInteraction} />
+                <span>Nyx</span>
+              </div>
+              <PetCompanion pet={avatar.pet} context={phase==="done"?"complete":helpAt?"help":robotState==="ok"?"success":robotState==="error"?"error":todayMood?`mood:${todayMood}`:"idle"} />
+            </div>
             {showNyxInteractHint && <button onClick={()=>{ setShowNyxInteractHint(false); try{localStorage.setItem("nyx_interaction_hint_seen","1");}catch{} }} style={{ width:"100%", marginTop:8, background:"#82eeff12", border:"1px solid #82eeff55", borderRadius:9, color:"#b9f6ff", padding:"7px 8px", fontSize:11.5, cursor:"pointer" }}>💡 Clique, clique duas vezes ou segure o Nyx. Clique aqui para fechar.</button>}
             {hasNyxNews && !aiDown && <button onClick={()=>setShowNyxNews(true)} style={{ ...styles.btn("#82eeff"), width:"100%", marginTop:10, padding:"8px 0", fontSize:12.5 }}>🌙 Ver o que tem de novo</button>}
             {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>
@@ -4260,7 +4311,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           </div>
         </div>
       )}
-      {showNotebook && <NotebookModal history={summaryHistory} detailedHistory={detailedSummaryHistory} onClose={()=>setShowNotebook(false)} />}
+      {showNotebook && <NotebookModal
+        history={summaryHistory}
+        detailedHistory={detailedSummaryHistory}
+        notes={personalNotes}
+        onSaveNotes={async next => { setPersonalNotes(next); await persist({ personalNotes: next }); }}
+        onClose={()=>setShowNotebook(false)}
+      />}
       {showTrail && <LearningTrailModal history={summaryHistory} onClose={()=>setShowTrail(false)} />}
       {/* menu "🎮 Games" — junta num só lugar tudo que é jogo de verdade (contra o relógio ou
           contra colegas): Duelo, Duelo em Dupla, Corrida de digitação. */}
@@ -4303,7 +4360,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {showLunarSanctuary && <LunarSanctuary studentName={studentName} shift={shift} nyxPoints={nyxPoints} nyxSpent={nyxSpent} achievements={achievements} gear={nyxGear} onClose={()=>setShowLunarSanctuary(false)} onAward={async(points)=>{ const s=stateRef.current; const np=(s.nyxPoints||0)+points; stateRef.current={...s,nyxPoints:np}; setNyxPoints(np); await persist({nyxPoints:np}); checkPointsAchievements(np); }} />}
       {showKnowledgeTest && (
         <KnowledgeTestModal
-          questionContext={[JSON.stringify(dynamicSummary||{}), JSON.stringify(summaryHistory||{})].join("\n")}
+          questionContext={[allCodeToday(), JSON.stringify(dynamicSummary||{}), JSON.stringify(summaryHistory||{})].join("\n")}
           onAward={async (pts) => { const s=stateRef.current; const np=(s.nyxPoints||0)+pts; stateRef.current={...s,nyxPoints:np}; setNyxPoints(np); await persist({ nyxPoints: np }); checkPointsAchievements(np); unlockAchievement("autodidata"); }}
           onFirstToday={() => {
             const today = todayKey();
@@ -6574,6 +6631,23 @@ function TeacherView({ onLogout, teacherAuth }) {
   };
   const dot = (on) => (<span style={{ width:9, height:9, borderRadius:"50%", background:on?"#34d399":"#776798", display:"inline-block", marginRight:6, boxShadow:on?"0 0 6px #34d399":"none", ...(on?{animation:"live-dot 2s ease-in-out infinite"}:{}) }}/>);
 
+  const teacherSidebarGroups = [
+    { id:"overview", label:"Visão geral", items:[
+      { id:"monitor", label:"Monitoramento", icon:"👥", active:tab==="monitor", onClick:()=>setTab("monitor"), teacherTour:"monitor" },
+      { id:"code", label:"Meu código", icon:"👨‍💻", active:tab==="code", onClick:()=>setTab("code"), teacherTour:"code" },
+      { id:"calendar", label:"Calendário", icon:"🗓️", active:tab==="calendar", onClick:()=>setTab("calendar"), teacherTour:"calendar" },
+    ]},
+    { id:"teaching", label:"Ensino", items:[
+      { id:"feedback", label:"Feedback", icon:"💬", badge:feedbacks.length || null, active:tab==="feedback", onClick:()=>setTab("feedback"), teacherTour:"feedback" },
+      { id:"exam", label:"Provas", icon:"🏆", badge:examConfig.status!=="idle" ? "●" : null, active:tab==="exam", onClick:()=>setTab("exam"), teacherTour:"exam" },
+      { id:"quiz", label:"Quiz", icon:"🎉", badge:quizRoom ? "●" : null, active:tab==="quiz", onClick:()=>setTab("quiz"), teacherTour:"quiz" },
+    ]},
+    { id:"communication", label:"Comunicação", items:[
+      { id:"reminders", label:"Avisos programados", icon:"🔔", active:tab==="reminders", onClick:()=>setTab("reminders"), teacherTour:"reminders" },
+      { id:"notes", label:"Anotações", icon:"📝", onClick:()=>setShowTeacherNotes(true), teacherTour:"notes" },
+    ]},
+  ];
+
   if (isMobileScreen && !forceFullMode) {
     return (
       <MobileMonitorView
@@ -6590,25 +6664,13 @@ function TeacherView({ onLogout, teacherAuth }) {
   }
 
   return (
-    <div style={{ ...styles.container, position:"relative" }}>
+    <div className={!isMobileScreen ? "dashboard-page-with-sidebar" : undefined} style={{ ...styles.container, position:"relative" }}>
       <Sparkles id="nyx-teacher-sparkles" position="absolute" count={28} />
       {/* navegação lateral — as mesmas 6 abas que já existiam na barra horizontal, só que fixas
           numa coluna à esquerda (mesmo data-tour-prof, mesmo onClick — o Tour guiado continua
           funcionando igual). As ações (Situação/Telão/Resetar/Tour/Sair) continuam na barra de
           cima, não é navegação entre telas. Some no celular (o modo simples já cobre isso). */}
-      {!isMobileScreen && (
-        <div style={{ position:"fixed", left:0, top:0, bottom:0, width:190, background:"#160e24ee", backdropFilter:"blur(8px)", borderRight:"1px solid #3b2a58", zIndex:41, display:"flex", flexDirection:"column", gap:4, padding:"18px 10px", overflowY:"auto" }}>
-          <div style={{ padding:"0 6px 14px", fontWeight:900, fontSize:13, letterSpacing:1, color:"#fbbf24" }}>👨‍🏫 PAINEL</div>
-          <button data-tour-prof="monitor" style={{ ...styles.tab(tab==="monitor"), textAlign:"left", width:"100%" }} onClick={()=>setTab("monitor")}>👥 Monitoramento</button>
-          <button data-tour-prof="code" style={{ ...styles.tab(tab==="code"), textAlign:"left", width:"100%" }} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
-          <button data-tour-prof="calendar" style={{ ...styles.tab(tab==="calendar"), textAlign:"left", width:"100%" }} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
-          <button data-tour-prof="feedback" style={{ ...styles.tab(tab==="feedback"), textAlign:"left", width:"100%" }} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
-          <button data-tour-prof="exam" style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=='idle' && tab!=="exam" ? {borderColor:"#fbbf24",color:"#fbbf24"} : {}), textAlign:"left", width:"100%" }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=='idle'?' ●':''}</button>
-          <button data-tour-prof="quiz" style={{ ...styles.tab(tab==="quiz"), ...(quizRoom && tab!=="quiz" ? {borderColor:"#c084fc",color:"#c084fc"} : {}), textAlign:"left", width:"100%" }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?' ●':''}</button>
-          <button style={{ ...styles.tab(false), textAlign:"left", width:"100%" }} onClick={()=>setShowTeacherNotes(true)}>📝 Anotações</button>
-          <button style={{ ...styles.tab(tab==="reminders"), textAlign:"left", width:"100%" }} onClick={()=>setTab("reminders")}>🔔 Avisos</button>
-        </div>
-      )}
+      {!isMobileScreen && <DashboardSidebar ariaLabel="Navegação do professor" groups={teacherSidebarGroups} />}
       <Toaster theme="dark" position="top-right" richColors closeButton />
       {struggleNotice && (
         <div style={{ position:"fixed", top:12, right:12, zIndex:1300, background:"linear-gradient(135deg,#f87171,#dc2626)", color:"#fff", borderRadius:14, padding:"12px 16px", boxShadow:"0 14px 40px rgba(0,0,0,.45)", display:"flex", alignItems:"center", gap:10, maxWidth:320 }}>
@@ -7245,36 +7307,40 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
               )}
               {shown.length > 0 && monitorHover && (
-              <div style={{ maxHeight:400, overflowY:"auto", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(128px,1fr))", gap:8 }}>
+              <div className="teacher-student-grid">
                 {sorted.map((s, tileIdx)=>{
                   const d = difficultyOf(s);
                   const hasHand = s.helpAt && Date.now() - s.helpAt < 15 * 60 * 1000; // pedido de ajuda expira em 15 min
                   const hasError = s.errorAt && Date.now() - s.errorAt < 30 * 60 * 1000; // aviso de erro expira em 30 min
+                  const studentLevel = Math.max(1, Math.floor((s.nyxPoints || 0) / 50) + 1);
                   return (
-                    <div key={studentKey(s)} className="tilefx" onClick={()=>setSelected(studentKey(s)===selected?null:studentKey(s))} style={{ position:"relative", background:selected===studentKey(s)?"#c084fc22":hasHand?"#fbbf2415":hasError?"#f8717115":"#171026", border:`2px solid ${selected===studentKey(s)?"#c084fc":hasHand?"#fbbf24":hasError?"#f87171":"#3b2a58"}`, borderRadius:10, padding:"10px 10px 8px", cursor:"pointer", textAlign:"center", animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
-                      {hasHand && <span title="Pediu ajuda! Clique pra ver e marcar como atendido." style={{ position:"absolute", top:4, right:24, fontSize:15, animation:"pulse-dot 1s ease-in-out infinite" }}>✋</span>}
-                      {hasError && <span title={`A tela deu um erro: ${s.errorMsg || "sem detalhes"}`} style={{ position:"absolute", top:4, right: hasHand?42:24, fontSize:15 }}>⚠️</span>}
-                      {s.score!=null && isSameDayTs(s.doneAt) && <span style={{ position:"absolute", top:6, left:6, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:6, padding:"1px 6px", fontSize:10.5, fontWeight:800 }}>🏆 {s.score}</span>}
+                    <article key={studentKey(s)} className={`teacher-student-card tilefx${selected===studentKey(s)?" selected":""}${hasHand?" needs-help":""}${hasError?" has-error":""}`} style={{ animationDelay:`${Math.min(tileIdx*45, 500)}ms` }}>
+                      <button type="button" className="teacher-student-menu" onClick={()=>{
+                        const next = studentKey(s)===selected ? null : studentKey(s);
+                        setSelected(next);
+                        if (next) window.setTimeout(()=>document.querySelector('[data-teacher-student-detail]')?.scrollIntoView({ behavior:"smooth", block:"start" }), 0);
+                      }} aria-label={`Abrir opções de ${s.name}`} title="Abrir opções do aluno">•••</button>
+                      {hasHand && <span className="teacher-student-alert help" title="Pediu ajuda! Abra o menu para atender.">✋</span>}
+                      {hasError && <span className="teacher-student-alert error" title={`A tela deu um erro: ${s.errorMsg || "sem detalhes"}`}>⚠️</span>}
                       {Object.values(supportMap[`${s.shift||"sem-turno"}:${s.name}`] || {}).some(Boolean) && (
-                        <span title="Aluno com perfil de apoio ativo (clique pra ver no detalhe)" style={{ position:"absolute", bottom:6, left:6, fontSize:11 }}>💙</span>
+                        <span title="Aluno com perfil de apoio ativo" className="teacher-student-support">💙</span>
                       )}
                       {checkinMap[`${s.shift||"sem-turno"}:${s.name}`] && (() => {
                         const mood = checkinMoodInfo(checkinMap[`${s.shift||"sem-turno"}:${s.name}`].mood);
-                        return mood ? <span title={`Chegou hoje: ${mood.label}`} style={{ position:"absolute", bottom:6, right:6, fontSize:13 }}>{mood.emoji}</span> : null;
+                        return mood ? <span title={`Chegou hoje: ${mood.label}`} className="teacher-student-mood">{mood.emoji}</span> : null;
                       })()}
-                      <span style={{ position:"absolute", top:8, right:8 }}>{dot(isOnline(s))}</span>
-                      <div style={{ marginTop:s.score!=null?16:4 }}>
-                        <Avatar cfg={s.avatar} size={44} />
+                      <div className="teacher-student-avatar">
+                        <Avatar cfg={s.avatar} size={58} />
+                        <span className="teacher-student-online">{dot(isOnline(s))}</span>
                       </div>
-                      <div style={{ fontWeight:700, fontSize:12.5, marginTop:6, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{s.name}</div>
-                      <div style={{ marginTop:4 }}>
-                        <span style={{ ...styles.badge(phaseColor(effectivePhase(s))), fontSize:10.5 }}>{phaseLabel(effectivePhase(s))}</span>
+                      <div className="teacher-student-info">
+                        <strong title={s.name}>{s.name}</strong>
+                        <span className="teacher-student-level">Nível {studentLevel} · {s.nyxPoints || 0} pts</span>
+                        <span className="teacher-student-phase" style={{ color:phaseColor(effectivePhase(s)) }}>{phaseLabel(effectivePhase(s))}</span>
+                        <span className={`teacher-student-state ${d.level}`}>{d.level==="dif"?"⚠ Precisa de ajuda":d.level==="bem"?"✓ Indo bem":"• Começando"}</span>
+                        <small>Visto {hhmmss(s.lastSeen)}{s.score!=null&&isSameDayTs(s.doneAt)?` · Nota ${s.score}`:""}</small>
                       </div>
-                      <div style={{ marginTop:5 }}>
-                        <span style={{ ...styles.badge(d.level==="dif"?"#f87171":d.level==="bem"?"#34d399":"#a99ac9"), fontSize:10.5 }}>{d.level==="dif"?"⚠ Com dificuldade":d.level==="bem"?"✅ Indo bem":"• Começando"}</span>
-                      </div>
-                      <div style={{ color:"#776798", fontSize:10.5, marginTop:5 }}>visto {hhmmss(s.lastSeen)}</div>
-                    </div>
+                    </article>
                   );
                 })}
               </div>
@@ -7396,7 +7462,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             {/* Detalhe do aluno */}
             {sel ? (
               <>
-                <div className="cardfx" style={styles.card}>
+                <div className="cardfx" data-teacher-student-detail style={styles.card}>
                   <h3 style={{ color:"#fbbf24", display:"flex", alignItems:"center", gap:10 }}><Avatar cfg={sel.avatar} size={34} />{dot(isOnline(sel))}{sel.name}</h3>
                   <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginTop:8 }}>
                     <span style={styles.badge(phaseColor(effectivePhase(sel)))}>{phaseLabel(effectivePhase(sel))}</span>
