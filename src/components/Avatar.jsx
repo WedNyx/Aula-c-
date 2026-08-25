@@ -237,16 +237,25 @@ export function Avatar({ cfg, size=72, animated=false }) {
   const key = JSON.stringify(draw);
   const uri = useMemo(() => "data:image/svg+xml;utf8," + encodeURIComponent(avatarSvg(draw)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const roupa = ROUPA_ITEMS.find(r => r.id && r.id === c.roupa);
+  const uses3d = Boolean(c.render3d);
   return (
     <div className={`avatar-pop${animated ? " avatar-idle" : ""}`} style={{ position:"relative", width:size, height:size, display:"inline-block", lineHeight:0, flexShrink:0 }}>
-      <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", position:"relative", background:`radial-gradient(circle at 50% 30%, ${shade(c.bg,0.25)}, ${c.bg} 58%, ${shade(c.bg,-0.25)})`, boxShadow:"0 2px 5px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.14)" }}>
+      <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", position:"relative", background:uses3d ? "radial-gradient(circle at 50% 35%,#36205c,#10091e 72%)" : `radial-gradient(circle at 50% 30%, ${shade(c.bg,0.25)}, ${c.bg} 58%, ${shade(c.bg,-0.25)})`, boxShadow:"0 2px 5px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.14)" }}>
         {/* a roupa fica ATRÁS do personagem: a cabeça/queixo cobrem a gola naturalmente */}
-        {roupa && (
+        {!uses3d && roupa && (
           <svg width={size} height={size} viewBox="0 0 100 100" style={{ position:"absolute", inset:0, zIndex:0, pointerEvents:"none" }}>
             <RoupaSvg tipo={roupa.id} cor={roupa.cor} />
           </svg>
         )}
-        <img src={uri} width={size} height={size} alt="" draggable={false} className={animated ? "avatar-face" : undefined} style={{ display:"block", position:"relative", zIndex:1 }} />
+        <img
+          src={uses3d ? `/avatar3d/presets/${c.render3d}.webp` : uri}
+          width={size}
+          height={size}
+          alt=""
+          draggable={false}
+          className={animated ? "avatar-face" : undefined}
+          style={{ display:"block", position:"relative", zIndex:1, objectFit:"cover", objectPosition:uses3d ? "50% 18%" : undefined, transform:uses3d ? "scale(1.16)" : undefined }}
+        />
       </div>
       {/* cada bicho tem uma posição própria pensada pro formato dele (sem moldura/círculo por
           trás) — assim nunca mais tampa a boca ou o cabelo do personagem, do jeito que ficava
