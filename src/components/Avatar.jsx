@@ -174,6 +174,7 @@ export const PET_FILES = {
   "🐶":"cachorro", "🐰":"coelho", "🦁":"leao", "🐢":"tartaruga",
   "🐝":"abelha", "🦋":"borboleta", "✨":"vagalume", "🍄":"cogumelo",
 };
+const PET_SPRITES = { "🐉":"dragao" };
 const PET_MOTION_CLASS = { "🐝":"pet-bee", "🦋":"pet-butterfly", "✨":"pet-firefly", "🍄":"pet-mushroom" };
 // posição/tamanho pensados pro formato de cada bicho (sem moldura/círculo): quem tem corpo
 // inteiro em pé (trex/cachorro/coelho/tartaruga) fica "no chão" embaixo; quem é só rosto/busto
@@ -348,7 +349,14 @@ export function PetCompanion({ pet, context = "idle" }) {
       {message && <div className="pet-companion-speech" role="status" aria-live="polite">{message}</div>}
       <div className="pet-effect-layer" aria-hidden="true">{[0,1,2,3,4,5].map(i=><i key={i}/>)}</div>
       <button key={`${reaction}-${action}`} type="button" aria-label={`Interagir com ${petLabel}`} onClick={react} onDoubleClick={e=>react(e,"special")} className={`pet-companion-button pet-companion-${info.cls}`}>
-        {file ? <img src={`/pets/${file}.webp`} alt={petLabel} draggable={false} /> : <span aria-hidden="true">{pet}</span>}
+        {PET_SPRITES[pet] ? (
+          <span
+            className={`pet-sprite pet-sprite-${action}`}
+            style={{ backgroundImage:`url(/pets/sprites/${PET_SPRITES[pet]}-${action}.webp)` }}
+            role="img"
+            aria-label={petLabel}
+          />
+        ) : file ? <img src={`/pets/${file}.webp`} alt={petLabel} draggable={false} /> : <span aria-hidden="true">{pet}</span>}
       </button>
     </div>
   );
