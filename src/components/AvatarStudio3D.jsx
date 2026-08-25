@@ -53,9 +53,9 @@ function AvatarPresetPanel({ selected, onSelect }) {
 
 function StudioPet({ pet }) {
   const file = PET_FILES[pet];
-  return file ? <img className="avatar-studio-pet" src={`/pets/${file}.png`} alt=""/> : <span className="avatar-studio-pet-emoji">{pet}</span>;
+  return file ? <img className="avatar-studio-pet" src={`/pets/${file}.webp`} alt=""/> : <span className="avatar-studio-pet-emoji">{pet}</span>;
 }
 
 function PetPanel({ selected, onSelect }) {
-  return <section className="avatar-pet-panel"><div className="avatar-pet-heading">🐾 <b>Pets</b></div><div className="avatar-pet-grid">{AVATAR_OPTS.pet.map(p=>{const file=PET_FILES[p.e];return <button key={p.label} className={selected===p.e?"selected":""} onClick={()=>onSelect(p.e)}>{file?<img src={`/pets/${file}.png`} alt=""/>:<span>{p.e||"—"}</span>}<small>{p.label}</small></button>})}</div></section>;
+  return <section className="avatar-pet-panel"><div className="avatar-pet-heading">🐾 <b>Pets</b></div><div className="avatar-pet-grid">{AVATAR_OPTS.pet.map(p=>{const file=PET_FILES[p.e];return <button key={p.label} className={selected===p.e?"selected":""} onClick={()=>onSelect(p.e)}>{file?<img src={`/pets/${file}.webp`} alt=""/>:<span>{p.e||"—"}</span>}<small>{p.label}</small></button>})}</div></section>;
 }

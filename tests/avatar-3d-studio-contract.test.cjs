@@ -9,6 +9,7 @@ const checks = [
   ["o estúdio oferece oito personagens 3D", (studio.match(/id:"/g)||[]).length === 8],
   ["cada opção 3D é um preset completo e previsível", studio.includes("Estilos 3D") && studio.includes("personagem completo") && !studio.includes('const categories =')],
   ["a escolha de companheiro usa todos os pets existentes", studio.includes("AVATAR_OPTS.pet.map") && studio.includes("avatar-pet-grid")],
+  ["os dezesseis companheiros usam artes 3D próprias", ["dragao","unicornio","trex","aguia","coruja","lobo","raposa","gato","cachorro","coelho","leao","tartaruga","abelha","borboleta","vagalume","cogumelo"].every(id=>fs.existsSync(`public/pets/${id}.webp`)) && avatar.includes('"✨":"vagalume"')],
   ["o cadastro novo usa o fluxo 3D", login.includes("<AvatarStudio3D")],
   ["o perfil existente abre o mesmo fluxo 3D", app.includes("<AvatarStudio3D")],
   ["perfis antigos preservam o avatar atual até escolherem o 3D", avatar.includes("render3d:null") && !avatar.includes("migração visual automática")],
