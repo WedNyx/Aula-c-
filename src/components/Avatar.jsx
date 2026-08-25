@@ -301,6 +301,7 @@ const PET_CONTEXT_MESSAGES = {
 export function PetCompanion({ pet, context = "idle" }) {
   const [reaction, setReaction] = useState(0);
   const [message, setMessage] = useState("");
+  const [action, setAction] = useState("idle");
   const timerRef = useRef(null);
   useEffect(() => () => clearTimeout(timerRef.current), []);
   const lastContextRef = useRef("idle");
@@ -309,31 +310,35 @@ export function PetCompanion({ pet, context = "idle" }) {
     // reagido a ele. Também limpamos a fala antiga para ela nunca parecer pertencer ao novo pet.
     lastContextRef.current = "idle";
     setMessage("");
+    setAction("idle");
     clearTimeout(timerRef.current);
   }, [pet]);
   useEffect(() => {
     if (!pet || !context || context === "idle" || context === lastContextRef.current) return;
     lastContextRef.current = context;
     setReaction(n => n + 1);
+    setAction(context === "complete" || context === "success" ? "complete" : "special");
     setMessage(PET_CONTEXT_MESSAGES[context] || "Seu companheiro percebeu a mudança e reagiu!");
     clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setMessage(""), 2800);
+    timerRef.current = setTimeout(() => { setMessage(""); setAction("idle"); }, 2800);
   }, [context, pet]);
   if (!pet) return null;
   const info = PET_REACTIONS[pet] || { cls:"generic", text:"Seu companheiro ficou feliz em te ver!" };
-  const react = (e) => {
+  const react = (e, kind = "click") => {
     e.stopPropagation();
     setReaction(n => n + 1);
-    setMessage(info.text);
+    setAction(kind);
+    setMessage(kind === "special" ? `${petLabel} mostrou sua reação especial!` : info.text);
     clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setMessage(""), 2200);
+    timerRef.current = setTimeout(() => { setMessage(""); setAction("idle"); }, kind === "special" ? 3000 : 2200);
   };
   const file = PET_FILES[pet];
   const petLabel = AVATAR_OPTS.pet.find(item => item.e === pet)?.label || "pet";
   return (
-    <div className="pet-companion-corner" data-tour="pet" title="Clique no seu pet">
+    <div className={`pet-companion-corner pet-${file || "generic"} pet-action-${action}`} data-tour="pet" title="Clique para interagir · clique duas vezes para a reação especial">
       {message && <div className="pet-companion-speech" role="status" aria-live="polite">{message}</div>}
-      <button key={reaction} type="button" aria-label={`Interagir com ${petLabel}`} onClick={react} className={`pet-companion-button pet-companion-${info.cls}`}>
+      <div className="pet-effect-layer" aria-hidden="true">{[0,1,2,3,4,5].map(i=><i key={i}/>)}</div>
+      <button key={`${reaction}-${action}`} type="button" aria-label={`Interagir com ${petLabel}`} onClick={react} onDoubleClick={e=>react(e,"special")} className={`pet-companion-button pet-companion-${info.cls}`}>
         {file ? <img src={`/pets/${file}.webp`} alt={petLabel} draggable={false} /> : <span aria-hidden="true">{pet}</span>}
       </button>
     </div>
