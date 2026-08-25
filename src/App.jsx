@@ -132,6 +132,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [feedback, setFeedback] = useState(null);
   const [robotState, setRobotState] = useState("idle");
   const [robotMsg, setRobotMsg] = useState("");
+  const [companionTab, setCompanionTab] = useState("nyx");
   const [keysToShow, setKeysToShow] = useState([]);
   const [phase, setPhase] = useState("coding");
   const [answers, setAnswers] = useState({});
@@ -3830,17 +3831,27 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             )
           )}
           <div data-tour="nyx" className="cardfx student-companion-card" style={{ ...styles.card, position:"relative" }}>
-            <div className="student-companion-stage">
-              <button type="button" className="student-companion-avatar" onClick={()=>setShowAvatarEdit(true)} title="Personalizar meu avatar">
-                <Avatar cfg={avatar} size={82} animated={!calmMode} />
-                <span>Você</span>
-              </button>
-              <div className="student-companion-nyx">
-                <NyxRobot state={robotState} size={88} gear={effectiveNyxGear} onInteract={handleNyxInteraction} />
-                <span>Nyx</span>
-              </div>
-              <PetCompanion pet={avatar.pet} context={phase==="done"?"complete":helpAt?"help":robotState==="ok"?"success":robotState==="error"?"error":todayMood?`mood:${todayMood}`:"idle"} />
+            <div className="student-companion-tabs" role="tablist" aria-label="Nyx e perfil do aluno">
+              <button type="button" role="tab" aria-selected={companionTab==="nyx"} className={companionTab==="nyx" ? "active" : ""} onClick={()=>setCompanionTab("nyx")}>✨ Nyx</button>
+              <button type="button" role="tab" aria-selected={companionTab==="profile"} className={companionTab==="profile" ? "active" : ""} onClick={()=>setCompanionTab("profile")}>🌌 Meu perfil</button>
             </div>
+            {companionTab === "nyx" ? (
+              <div className="student-companion-stage student-nyx-stage" role="tabpanel" aria-label="Nyx">
+                <div className="student-companion-nyx">
+                  <NyxRobot state={robotState} size={104} gear={effectiveNyxGear} onInteract={handleNyxInteraction} />
+                  <span>Nyx Prisma Orbital</span>
+                </div>
+              </div>
+            ) : (
+              <div className="student-companion-stage student-profile-stage" role="tabpanel" aria-label="Meu perfil">
+                <button type="button" className="student-companion-avatar" onClick={()=>setShowAvatarEdit(true)} title="Personalizar meu avatar">
+                  <Avatar cfg={avatar} size={88} animated={!calmMode} />
+                  <span>{studentName}</span>
+                </button>
+                <PetCompanion pet={avatar.pet} context={phase==="done"?"complete":helpAt?"help":robotState==="ok"?"success":robotState==="error"?"error":todayMood?`mood:${todayMood}`:"idle"} />
+                <button type="button" className="student-profile-open" onClick={()=>setShowStudentProfile(true)}>Abrir perfil completo</button>
+              </div>
+            )}
             {showNyxInteractHint && <button onClick={()=>{ setShowNyxInteractHint(false); try{localStorage.setItem("nyx_interaction_hint_seen","1");}catch{} }} style={{ width:"100%", marginTop:8, background:"#82eeff12", border:"1px solid #82eeff55", borderRadius:9, color:"#b9f6ff", padding:"7px 8px", fontSize:11.5, cursor:"pointer" }}>💡 Clique, clique duas vezes ou segure o Nyx. Clique aqui para fechar.</button>}
             {hasNyxNews && !aiDown && <button onClick={()=>setShowNyxNews(true)} style={{ ...styles.btn("#82eeff"), width:"100%", marginTop:10, padding:"8px 0", fontSize:12.5 }}>🌙 Ver o que tem de novo</button>}
             {robotMsg&&(<div style={{ background:robotState==="error"?"#f8717111":"#34d39911", border:`1px solid ${robotState==="error"?"#f87171":"#34d399"}`, borderRadius:8, padding:12, marginTop:10, fontSize:13, lineHeight:1.6, whiteSpace:"pre-wrap" }}>
