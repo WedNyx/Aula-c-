@@ -174,7 +174,7 @@ export const PET_FILES = {
   "🐶":"cachorro", "🐰":"coelho", "🦁":"leao", "🐢":"tartaruga",
   "🐝":"abelha", "🦋":"borboleta", "✨":"vagalume", "🍄":"cogumelo",
 };
-const PET_SPRITES = { "🐉":"dragao", "🦄":"unicornio", "🦖":"trex" };
+const PET_SPRITES = { "🐉":"dragao", "🦄":"unicornio", "🦖":"trex", "🦅":"aguia" };
 const PET_MOTION_CLASS = { "🐝":"pet-bee", "🦋":"pet-butterfly", "✨":"pet-firefly", "🍄":"pet-mushroom" };
 // posição/tamanho pensados pro formato de cada bicho (sem moldura/círculo): quem tem corpo
 // inteiro em pé (trex/cachorro/coelho/tartaruga) fica "no chão" embaixo; quem é só rosto/busto
