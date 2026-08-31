@@ -141,14 +141,14 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
 @keyframes pet3d-color{0%,100%{filter:hue-rotate(0)}50%{filter:hue-rotate(90deg) brightness(1.25);transform:scale(1.12)}}
 .pet-effect-layer{position:absolute;inset:-18px;z-index:-1;pointer-events:none}.pet-effect-layer i{position:absolute;left:50%;top:50%;width:5px;height:5px;border-radius:50%;background:#c084fc;opacity:0}.pet-action-click .pet-effect-layer i,.pet-action-complete .pet-effect-layer i,.pet-action-special .pet-effect-layer i{animation:pet3d-particle 1.1s ease-out infinite}.pet-effect-layer i:nth-child(2){--px:24px;--py:-19px;animation-delay:.1s}.pet-effect-layer i:nth-child(3){--px:-25px;--py:-13px;animation-delay:.2s}.pet-effect-layer i:nth-child(4){--px:28px;--py:15px;animation-delay:.3s}.pet-effect-layer i:nth-child(5){--px:-22px;--py:20px;animation-delay:.4s}.pet-effect-layer i:nth-child(6){--px:4px;--py:-30px;animation-delay:.5s}.pet-vagalume .pet-effect-layer i,.pet-abelha .pet-effect-layer i{background:#fbbf24;box-shadow:0 0 7px #fbbf24}.pet-borboleta .pet-effect-layer i,.pet-unicornio .pet-effect-layer i{background:#60a5fa;box-shadow:0 0 7px #c084fc}
 @keyframes pet3d-particle{0%{opacity:0;transform:translate(0,0) scale(.3)}25%{opacity:1}100%{opacity:0;transform:translate(var(--px,18px),var(--py,-22px)) scale(1.4)}}
-/* O Dragão usa animação quadro a quadro: nenhum translate/rotate/scale do pet é simulado
-   por CSS. O único keyframe abaixo avança a janela da sprite sheet. */
-.pet-dragao .pet-companion-button,.pet-unicornio .pet-companion-button,.pet-trex .pet-companion-button,.pet-aguia .pet-companion-button,.pet-coruja .pet-companion-button,.pet-lobo .pet-companion-button{animation:none!important;overflow:visible}
-.pet-sprite{display:block;width:58px;height:58px;flex:0 0 58px;background-repeat:no-repeat;background-size:800% 100%;background-position:0 0;image-rendering:auto;filter:drop-shadow(0 3px 5px #0008)}
-.pet-sprite-idle{animation:pet-sprite-frames 1.15s steps(7,end) infinite}
-.pet-sprite-click{animation:pet-sprite-frames 1.05s steps(7,end) 1 both}
-.pet-sprite-complete{animation:pet-sprite-frames 1.55s steps(7,end) 1 both}
-.pet-sprite-special{animation:pet-sprite-frames 1.4s steps(7,end) 1 both}
+/* Os 16 pets usam animação quadro a quadro. O CSS somente avança a janela
+   da sprite sheet; todo o movimento visual vive nos 12 quadros da imagem. */
+.pet-companion-button:has(.pet-sprite){animation:none!important;overflow:visible}
+.pet-sprite{display:block;width:58px;height:58px;flex:0 0 58px;background-repeat:no-repeat;background-size:1200% 100%;background-position:0 0;image-rendering:auto;filter:drop-shadow(0 3px 5px #0008)}
+.pet-sprite-idle{animation:pet-sprite-frames 1.45s steps(11,end) infinite}
+.pet-sprite-click{animation:pet-sprite-frames 1.3s steps(11,end) 1 both}
+.pet-sprite-complete{animation:pet-sprite-frames 1.85s steps(11,end) 1 both}
+.pet-sprite-special{animation:pet-sprite-frames 1.7s steps(11,end) 1 both}
 @keyframes pet-sprite-frames{from{background-position:0 0}to{background-position:100% 0}}
 @media (prefers-reduced-motion: reduce){.pet-companion-corner .pet-companion-button,.pet-companion-corner .pet-effect-layer i{animation:none!important;transition:none!important}}
 @media (prefers-reduced-motion: reduce){.pet-sprite{animation:none!important;background-position:0 0!important}}
