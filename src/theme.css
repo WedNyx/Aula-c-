@@ -141,6 +141,202 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
 @keyframes pet3d-color{0%,100%{filter:hue-rotate(0)}50%{filter:hue-rotate(90deg) brightness(1.25);transform:scale(1.12)}}
 .pet-effect-layer{position:absolute;inset:-18px;z-index:-1;pointer-events:none}.pet-effect-layer i{position:absolute;left:50%;top:50%;width:5px;height:5px;border-radius:50%;background:#c084fc;opacity:0}.pet-action-click .pet-effect-layer i,.pet-action-complete .pet-effect-layer i,.pet-action-special .pet-effect-layer i{animation:pet3d-particle 1.1s ease-out infinite}.pet-effect-layer i:nth-child(2){--px:24px;--py:-19px;animation-delay:.1s}.pet-effect-layer i:nth-child(3){--px:-25px;--py:-13px;animation-delay:.2s}.pet-effect-layer i:nth-child(4){--px:28px;--py:15px;animation-delay:.3s}.pet-effect-layer i:nth-child(5){--px:-22px;--py:20px;animation-delay:.4s}.pet-effect-layer i:nth-child(6){--px:4px;--py:-30px;animation-delay:.5s}.pet-vagalume .pet-effect-layer i,.pet-abelha .pet-effect-layer i{background:#fbbf24;box-shadow:0 0 7px #fbbf24}.pet-borboleta .pet-effect-layer i,.pet-unicornio .pet-effect-layer i{background:#60a5fa;box-shadow:0 0 7px #c084fc}
 @keyframes pet3d-particle{0%{opacity:0;transform:translate(0,0) scale(.3)}25%{opacity:1}100%{opacity:0;transform:translate(var(--px,18px),var(--py,-22px)) scale(1.4)}}
+
+/* Dragão controlado: uma única arte permanece estável em todos os estados.
+   Somente posição, rotação, escala e efeitos auxiliares são animados. */
+.pet-dragao .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-dragon{position:relative;display:block;width:58px;height:58px;flex:0 0 58px;transform-origin:50% 86%;will-change:transform,filter}
+.pet-controlled-dragon img{position:relative;z-index:2;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-dragao.pet-action-idle .pet-controlled-dragon{animation:dragon-controlled-walk 3.2s ease-in-out infinite}
+.pet-dragao.pet-action-idle .pet-controlled-dragon img{animation:dragon-controlled-wings .8s ease-in-out infinite}
+.pet-dragao.pet-action-click .pet-controlled-dragon{animation:dragon-controlled-spark .9s cubic-bezier(.2,.8,.2,1) 1 both}
+.pet-dragao.pet-action-complete .pet-controlled-dragon{animation:dragon-controlled-orbit 1.85s cubic-bezier(.45,.05,.25,1) 1 both}
+.pet-dragao.pet-action-special .pet-controlled-dragon{animation:dragon-controlled-guard 1.7s ease-in-out 1 both}
+@keyframes dragon-controlled-walk{0%,100%{transform:translate(0,0) rotate(-2deg)}25%{transform:translate(-5px,-2px) rotate(2deg)}50%{transform:translate(0,-5px) rotate(-2deg)}75%{transform:translate(5px,-2px) rotate(2deg)}}
+@keyframes dragon-controlled-wings{0%,100%{transform:scale(1,1)}50%{transform:scale(1.035,.965) translateY(-1px)}}
+@keyframes dragon-controlled-spark{0%,100%{transform:translate(0,0) rotate(0) scale(1)}35%{transform:translate(-4px,-5px) rotate(-8deg) scale(1.07)}65%{transform:translate(3px,-7px) rotate(6deg) scale(1.1);filter:brightness(1.22)}}
+@keyframes dragon-controlled-orbit{0%,100%{transform:translate(0,0) rotate(0) scale(1)}20%{transform:translate(-22px,-12px) rotate(-12deg) scale(.92)}48%{transform:translate(0,-32px) rotate(2deg) scale(.84)}76%{transform:translate(22px,-12px) rotate(12deg) scale(.92)}90%{transform:translate(0,-4px) rotate(0) scale(1.04)}}
+@keyframes dragon-controlled-guard{0%,100%{transform:translate(0,0) scale(1)}30%,75%{transform:translate(-8px,2px) scale(1.22);filter:brightness(1.12) drop-shadow(0 0 7px #a855f777)}}
+.dragon-guard-wing{position:absolute;z-index:1;top:10px;width:28px;height:38px;border:2px solid #c084faaa;background:linear-gradient(135deg,#c084fa66,#6d28d944);opacity:0;filter:drop-shadow(0 0 5px #a855f7);pointer-events:none}
+.dragon-guard-wing-left{right:31px;border-radius:90% 15% 70% 25%;transform-origin:right center}
+.dragon-guard-wing-right{left:31px;border-radius:15% 90% 25% 70%;transform-origin:left center}
+.pet-dragao.pet-action-special .dragon-guard-wing-left{animation:dragon-wing-left 1.7s ease-in-out 1 both}
+.pet-dragao.pet-action-special .dragon-guard-wing-right{animation:dragon-wing-right 1.7s ease-in-out 1 both}
+@keyframes dragon-wing-left{0%,100%{opacity:0;transform:rotate(18deg) scale(.35)}30%,75%{opacity:.9;transform:rotate(-18deg) scale(1)}}
+@keyframes dragon-wing-right{0%,100%{opacity:0;transform:rotate(-18deg) scale(.35)}30%,75%{opacity:.9;transform:rotate(18deg) scale(1)}}
+
+/* Unicórnio controlado: a mesma arte é usada na caminhada, interação e celebração. */
+.pet-unicornio .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-unicorn{position:relative;display:block;width:58px;height:58px;flex:0 0 58px;transform-origin:50% 88%;will-change:transform,filter}
+.pet-controlled-unicorn img{position:relative;z-index:2;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-unicornio.pet-action-idle .pet-controlled-unicorn{animation:unicorn-controlled-walk 3.6s ease-in-out infinite}
+.pet-unicornio.pet-action-click .pet-controlled-unicorn{animation:unicorn-controlled-touch 1.1s ease-in-out 1 both}
+.pet-unicornio.pet-action-complete .pet-controlled-unicorn{animation:unicorn-controlled-rear 1.7s cubic-bezier(.2,.8,.2,1) 1 both}
+.pet-unicornio.pet-action-special .pet-controlled-unicorn{animation:unicorn-controlled-trail 1.8s ease-in-out 1 both}
+@keyframes unicorn-controlled-walk{0%,100%{transform:translateX(-4px) rotate(-1deg)}25%{transform:translate(-1px,-3px) rotate(1deg)}50%{transform:translateX(4px) rotate(1deg)}75%{transform:translate(1px,-3px) rotate(-1deg)}}
+@keyframes unicorn-controlled-touch{0%,100%{transform:translate(0,0) rotate(0)}38%,65%{transform:translate(-4px,5px) rotate(-13deg) scale(1.04);filter:brightness(1.18)}}
+@keyframes unicorn-controlled-rear{0%,100%{transform:translate(0,0) rotate(0)}35%,70%{transform:translate(0,-9px) rotate(-9deg) scale(1.09);filter:brightness(1.16)}}
+@keyframes unicorn-controlled-trail{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translate(-13px,-4px) rotate(-5deg)}55%{transform:translate(10px,-8px) rotate(5deg)}78%{transform:translate(17px,-2px) rotate(2deg)}}
+.unicorn-star{position:absolute;z-index:3;color:#fff4a8;font-size:13px;opacity:0;text-shadow:0 0 6px #fff,0 0 10px #c084fc;pointer-events:none}
+.unicorn-star-one{left:4px;top:3px}.unicorn-star-two{left:-3px;top:20px}.unicorn-star-three{left:16px;top:-7px}
+.pet-unicornio.pet-action-click .unicorn-star{animation:unicorn-star-burst 1.05s ease-out 1 both}.pet-unicornio.pet-action-click .unicorn-star-two{animation-delay:.12s}.pet-unicornio.pet-action-click .unicorn-star-three{animation-delay:.23s}
+@keyframes unicorn-star-burst{0%{opacity:0;transform:translate(8px,12px) scale(.2) rotate(0)}35%{opacity:1}100%{opacity:0;transform:translate(-8px,-14px) scale(1.25) rotate(90deg)}}
+.unicorn-rainbow{position:absolute;z-index:1;left:-18px;right:5px;top:14px;height:28px;border-radius:50%;border-top:6px solid transparent;opacity:0;background:linear-gradient(90deg,#fb7185,#facc15,#4ade80,#60a5fa,#c084fc);filter:blur(1px) drop-shadow(0 0 5px #c084fc);pointer-events:none}
+.pet-unicornio.pet-action-complete .unicorn-rainbow{animation:unicorn-rainbow-arc 1.7s ease-in-out 1 both}.pet-unicornio.pet-action-special .unicorn-rainbow{animation:unicorn-rainbow-trail 1.8s ease-out 1 both}
+@keyframes unicorn-rainbow-arc{0%,100%{opacity:0;transform:translateY(12px) scale(.3)}35%,72%{opacity:.85;transform:translateY(-12px) scale(1.15) rotate(-8deg)}}
+@keyframes unicorn-rainbow-trail{0%,100%{opacity:0;transform:translateX(20px) scaleX(.2)}25%,75%{opacity:.72;transform:translateX(-17px) scaleX(1.15)}}
+
+/* T-Rex controlado: passos, alcance, pulos e pose sem trocar a aparência do pet. */
+.pet-trex .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-trex{position:relative;display:block;width:58px;height:58px;flex:0 0 58px;transform-origin:50% 90%;will-change:transform,filter}
+.pet-controlled-trex img{position:relative;z-index:2;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-trex.pet-action-idle .pet-controlled-trex{animation:trex-controlled-steps 2.8s ease-in-out infinite}
+.pet-trex.pet-action-click .pet-controlled-trex{animation:trex-controlled-reach 1.15s ease-in-out 1 both}
+.pet-trex.pet-action-complete .pet-controlled-trex{animation:trex-controlled-hops 1.65s cubic-bezier(.25,.8,.25,1) 1 both}
+.pet-trex.pet-action-special .pet-controlled-trex{animation:trex-controlled-power 1.7s ease-in-out 1 both}
+@keyframes trex-controlled-steps{0%,100%{transform:translate(0,0) rotate(-2deg)}20%{transform:translate(-4px,-3px) rotate(3deg)}40%{transform:translate(-1px,0) rotate(-1deg)}65%{transform:translate(4px,-3px) rotate(-3deg)}82%{transform:translate(1px,0) rotate(2deg)}}
+@keyframes trex-controlled-reach{0%,100%{transform:translate(0,0) rotate(0)}35%,72%{transform:translate(-5px,-5px) rotate(-11deg) scale(1.05)}55%{transform:translate(-7px,-7px) rotate(-14deg) scale(1.07)}}
+@keyframes trex-controlled-hops{0%,100%{transform:translate(0,0) rotate(0)}22%{transform:translate(-3px,-12px) rotate(-7deg) scale(.98,1.04)}44%{transform:translate(0,1px) rotate(5deg) scale(1.05,.95)}68%{transform:translate(4px,-10px) rotate(8deg) scale(.98,1.04)}86%{transform:translate(0,1px) rotate(-3deg) scale(1.04,.96)}}
+@keyframes trex-controlled-power{0%,100%{transform:translateY(0) scale(1);filter:none}28%,76%{transform:translateY(-4px) scale(1.16);filter:brightness(1.15) drop-shadow(0 0 7px #facc1577)}45%{transform:translateY(-6px) scale(1.2) rotate(-2deg)}}
+.trex-reach-orb{position:absolute;z-index:3;left:-5px;top:3px;width:9px;height:9px;border-radius:50%;background:#fef08a;box-shadow:0 0 5px #fff,0 0 11px #facc15;opacity:0;pointer-events:none}
+.pet-trex.pet-action-click .trex-reach-orb{animation:trex-orb-tease 1.15s ease-in-out 1 both}
+@keyframes trex-orb-tease{0%,100%{opacity:0;transform:translate(0,0) scale(.3)}20%,75%{opacity:1}48%{transform:translate(-4px,-4px) scale(1.15)}}
+.trex-power-aura{position:absolute;z-index:1;inset:-8px;border-radius:50%;display:grid;place-items:center;color:#fde047;font-size:54px;opacity:0;text-shadow:0 0 7px #facc15;pointer-events:none}
+.pet-trex.pet-action-special .trex-power-aura{animation:trex-aura 1.7s ease-out 1 both}
+@keyframes trex-aura{0%,100%{opacity:0;transform:scale(.4) rotate(0)}28%,76%{opacity:.72;transform:scale(1.1) rotate(18deg)}}
+
+/* Águia controlada: paira, observa, sobrevoa e pousa sem trocar de desenho. */
+.pet-aguia .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-aguia{position:relative;display:block;width:58px;height:58px;flex:0 0 58px;transform-origin:50% 88%;will-change:transform,filter}
+.pet-controlled-aguia img{position:relative;z-index:2;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-aguia.pet-action-idle .pet-controlled-aguia{animation:aguia-controlled-hover 3.5s ease-in-out infinite}
+.pet-aguia.pet-action-click .pet-controlled-aguia{animation:aguia-controlled-watch 1.35s ease-in-out 1 both}
+.pet-aguia.pet-action-complete .pet-controlled-aguia{animation:aguia-controlled-flyover 1.9s cubic-bezier(.42,.05,.25,1) 1 both}
+.pet-aguia.pet-action-special .pet-controlled-aguia{animation:aguia-controlled-perch 2.5s ease-in-out 1 both}
+@keyframes aguia-controlled-hover{0%,100%{transform:translate(0,2px) rotate(-2deg)}35%{transform:translate(-3px,-7px) rotate(3deg)}68%{transform:translate(3px,-4px) rotate(-3deg)}86%{transform:translate(0,1px) rotate(0)}}
+@keyframes aguia-controlled-watch{0%,100%{transform:translate(0,0) rotate(0)}28%{transform:translateY(-4px) scale(1.07)}52%{transform:translateY(-4px) rotate(-8deg) scale(1.1)}76%{transform:translateY(-4px) rotate(8deg) scale(1.1)}}
+@keyframes aguia-controlled-flyover{0%,100%{transform:translate(0,0) rotate(0) scale(1)}18%{transform:translate(-30px,-15px) rotate(-12deg) scale(.9)}46%{transform:translate(-62px,-34px) rotate(-4deg) scale(.8)}73%{transform:translate(-22px,-44px) rotate(10deg) scale(.86)}90%{transform:translate(2px,-8px) rotate(2deg) scale(1.03)}}
+@keyframes aguia-controlled-perch{0%,100%{transform:translate(0,0) rotate(0) scale(1)}25%,78%{transform:translate(-47px,12px) rotate(-5deg) scale(.82)}42%,65%{transform:translate(-47px,14px) rotate(1deg) scale(.82)}}
+.aguia-wing{position:absolute;z-index:1;top:14px;width:27px;height:30px;border:2px solid #f8fafccc;background:linear-gradient(145deg,#fff8,#94a3b844);opacity:0;filter:drop-shadow(0 0 4px #e2e8f0);pointer-events:none}
+.aguia-wing-left{right:31px;border-radius:95% 20% 70% 20%;transform-origin:right center}.aguia-wing-right{left:31px;border-radius:20% 95% 20% 70%;transform-origin:left center}
+.pet-aguia.pet-action-click .aguia-wing-left{animation:aguia-wing-left-open 1.35s ease-in-out 1 both}.pet-aguia.pet-action-click .aguia-wing-right{animation:aguia-wing-right-open 1.35s ease-in-out 1 both}
+@keyframes aguia-wing-left-open{0%,100%{opacity:0;transform:rotate(25deg) scale(.25)}25%,78%{opacity:.9;transform:rotate(-24deg) scale(1)}}
+@keyframes aguia-wing-right-open{0%,100%{opacity:0;transform:rotate(-25deg) scale(.25)}25%,78%{opacity:.9;transform:rotate(24deg) scale(1)}}
+.aguia-flight-feather{position:absolute;z-index:3;right:-5px;bottom:4px;color:#f8fafc;font-size:22px;opacity:0;text-shadow:0 0 5px #94a3b8;pointer-events:none}
+.pet-aguia.pet-action-complete .aguia-flight-feather{animation:aguia-feather-trail 1.9s ease-out 1 both}
+@keyframes aguia-feather-trail{0%,100%{opacity:0;transform:translate(0,0) rotate(0)}28%{opacity:.9}75%{opacity:.3;transform:translate(28px,20px) rotate(80deg)}}
+
+/* Coruja controlada: observa, celebra e cochila mantendo a mesma silhueta. */
+.pet-coruja .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-coruja{position:relative;display:block;width:58px;height:58px;flex:0 0 58px;transform-origin:50% 90%;will-change:transform,filter}
+.pet-controlled-coruja img{position:relative;z-index:2;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-coruja.pet-action-idle .pet-controlled-coruja{animation:coruja-controlled-idle 4.6s ease-in-out infinite}
+.pet-coruja.pet-action-click .pet-controlled-coruja{animation:coruja-controlled-curious 1.45s ease-in-out 1 both}
+.pet-coruja.pet-action-complete .pet-controlled-coruja{animation:coruja-controlled-celebrate 1.65s ease-in-out 1 both}
+.pet-coruja.pet-action-special .pet-controlled-coruja{animation:coruja-controlled-sleep 2.7s ease-in-out 1 both}
+@keyframes coruja-controlled-idle{0%,18%,100%{transform:translate(0,0) rotate(0) scaleY(1)}24%{transform:translate(-2px,1px) rotate(-7deg) scaleY(.96)}30%{transform:translate(-2px,0) rotate(-7deg) scaleY(1)}55%{transform:translate(2px,0) rotate(8deg)}75%{transform:translate(3px,1px) rotate(3deg)}85%{transform:translate(-2px,0) rotate(-3deg)}}
+@keyframes coruja-controlled-curious{0%,100%{transform:rotate(0) translateY(0)}25%{transform:rotate(-16deg) translateY(-2px)}50%{transform:rotate(12deg) translateY(-3px) scale(1.04)}75%{transform:rotate(-7deg) translateY(-2px)}}
+@keyframes coruja-controlled-celebrate{0%,100%{transform:translateY(0) scale(1)}30%,72%{transform:translateY(-8px) scale(1.1);filter:brightness(1.18)}50%{transform:translateY(-11px) scale(1.13)}}
+@keyframes coruja-controlled-sleep{0%,100%{transform:translateY(0) rotate(0) scale(1)}18%,58%{transform:translateY(3px) rotate(7deg) scale(.96);filter:brightness(.72)}72%{transform:translateY(-12px) rotate(-10deg) scale(1.13);filter:brightness(1.3)}84%{transform:translateY(1px) rotate(7deg) scale(1.04)}}
+.coruja-wing{position:absolute;z-index:1;top:18px;width:25px;height:29px;border:2px solid #d6b37aaa;background:linear-gradient(145deg,#d6b37a88,#78350f55);opacity:0;filter:drop-shadow(0 0 4px #fef3c7);pointer-events:none}
+.coruja-wing-left{right:31px;border-radius:90% 15% 75% 20%;transform-origin:right center}.coruja-wing-right{left:31px;border-radius:15% 90% 20% 75%;transform-origin:left center}
+.pet-coruja.pet-action-complete .coruja-wing-left{animation:coruja-wing-left-open 1.65s ease-in-out 1 both}.pet-coruja.pet-action-complete .coruja-wing-right{animation:coruja-wing-right-open 1.65s ease-in-out 1 both}
+@keyframes coruja-wing-left-open{0%,100%{opacity:0;transform:rotate(15deg) scale(.3)}25%,76%{opacity:.9;transform:rotate(-28deg) scale(1)}}
+@keyframes coruja-wing-right-open{0%,100%{opacity:0;transform:rotate(-15deg) scale(.3)}25%,76%{opacity:.9;transform:rotate(28deg) scale(1)}}
+.coruja-stars{position:absolute;z-index:3;left:-8px;right:-8px;top:-9px;color:#fef08a;font-size:16px;letter-spacing:24px;opacity:0;text-shadow:0 0 7px #fff,0 0 11px #c084fc;pointer-events:none}
+.pet-coruja.pet-action-complete .coruja-stars{animation:coruja-star-rise 1.65s ease-out 1 both}
+@keyframes coruja-star-rise{0%,100%{opacity:0;transform:translateY(15px) scale(.3)}30%,72%{opacity:1;transform:translateY(-6px) scale(1.05)}}
+.coruja-sleep{position:absolute;z-index:3;right:-9px;top:-7px;color:#ddd6fe;font-size:12px;font-weight:800;opacity:0;text-shadow:0 0 6px #8b5cf6;pointer-events:none}
+.pet-coruja.pet-action-special .coruja-sleep{animation:coruja-zzz 2.7s ease-in-out 1 both}
+@keyframes coruja-zzz{0%,12%,66%,100%{opacity:0;transform:translateY(7px) scale(.5)}25%,58%{opacity:1;transform:translateY(-7px) scale(1)}}
+
+/* Lobo controlado: fareja, chama, corre e protege sem trocar a arte. */
+.pet-lobo .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-lobo{position:relative;display:block;width:58px;height:58px;flex:0 0 58px;transform-origin:50% 90%;will-change:transform,filter}
+.pet-controlled-lobo img{position:relative;z-index:2;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-lobo.pet-action-idle .pet-controlled-lobo{animation:lobo-controlled-sniff 3.7s ease-in-out infinite}
+.pet-lobo.pet-action-click .pet-controlled-lobo{animation:lobo-controlled-call 1.6s ease-in-out 1 both}
+.pet-lobo.pet-action-complete .pet-controlled-lobo{animation:lobo-controlled-run 1.8s cubic-bezier(.45,.05,.25,1) 1 both}
+.pet-lobo.pet-action-special .pet-controlled-lobo{animation:lobo-controlled-guard 1.9s ease-in-out 1 both}
+@keyframes lobo-controlled-sniff{0%,100%{transform:translate(0,0) rotate(0)}22%{transform:translate(-4px,2px) rotate(-7deg)}44%{transform:translate(-1px,4px) rotate(-10deg)}68%{transform:translate(4px,1px) rotate(5deg)}82%{transform:translate(2px,3px) rotate(-3deg)}}
+@keyframes lobo-controlled-call{0%,100%{transform:translateY(0) rotate(0)}22%{transform:translateY(4px) scale(.98,1.02)}45%,72%{transform:translateY(1px) rotate(-8deg) scale(1.04);filter:brightness(1.13)}}
+@keyframes lobo-controlled-run{0%,100%{transform:translate(0,0) rotate(0) scale(1)}18%{transform:translate(-25px,-3px) rotate(-5deg) scale(.92)}42%{transform:translate(-39px,-17px) rotate(9deg) scale(.84)}66%{transform:translate(15px,-19px) rotate(-8deg) scale(.87)}86%{transform:translate(21px,-3px) rotate(6deg) scale(.95)}}
+@keyframes lobo-controlled-guard{0%,100%{transform:translate(0,0) scale(1);filter:none}28%,78%{transform:translate(-7px,1px) scale(1.17);filter:brightness(1.08) drop-shadow(0 0 7px #60a5fa88)}50%{transform:translate(-9px,-2px) scale(1.2)}}
+.lobo-scent-trail{position:absolute;z-index:3;left:-10px;bottom:8px;color:#cbd5e1;font-size:20px;letter-spacing:2px;opacity:0;text-shadow:0 0 5px #94a3b8;pointer-events:none}
+.pet-lobo.pet-action-idle .lobo-scent-trail{animation:lobo-scent 3.7s ease-in-out infinite}
+@keyframes lobo-scent{0%,15%,100%{opacity:0;transform:translate(9px,0)}30%,68%{opacity:.75;transform:translate(-4px,-5px)}}
+.lobo-call-wave{position:absolute;z-index:1;left:4px;top:3px;width:20px;height:20px;border:2px solid #bfdbfe;border-radius:50%;opacity:0;pointer-events:none}
+.pet-lobo.pet-action-click .lobo-call-wave{animation:lobo-call-wave 1.5s ease-out 1 both}.pet-lobo.pet-action-click .lobo-call-wave-two{animation-delay:.18s}
+@keyframes lobo-call-wave{0%{opacity:0;transform:scale(.2)}25%{opacity:.8}100%{opacity:0;transform:translate(-12px,-12px) scale(1.8)}}
+.lobo-guard-shield{position:absolute;z-index:1;inset:-7px;border:2px solid #93c5fd;border-radius:50% 50% 58% 58%;background:radial-gradient(circle,#60a5fa16,#1d4ed844);box-shadow:0 0 9px #3b82f688;opacity:0;pointer-events:none}
+.pet-lobo.pet-action-special .lobo-guard-shield{animation:lobo-shield 1.9s ease-in-out 1 both}
+@keyframes lobo-shield{0%,100%{opacity:0;transform:scale(.4)}28%,78%{opacity:.82;transform:scale(1.05)}}
+
+/* Raposa controlada: passos leves, giro brincalhão, salto e esconderijo estáveis. */
+.pet-raposa .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-raposa{position:relative;display:block;width:58px;height:58px;flex:0 0 58px;transform-origin:50% 88%;will-change:transform,filter,opacity}
+.pet-controlled-raposa img{position:relative;z-index:2;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-raposa.pet-action-idle .pet-controlled-raposa{animation:raposa-controlled-sneak 3.4s ease-in-out infinite}
+.pet-raposa.pet-action-click .pet-controlled-raposa{animation:raposa-controlled-tail 1.4s cubic-bezier(.45,.05,.3,1) 1 both}
+.pet-raposa.pet-action-complete .pet-controlled-raposa{animation:raposa-controlled-jump 1.55s cubic-bezier(.2,.8,.2,1) 1 both}
+.pet-raposa.pet-action-special .pet-controlled-raposa{animation:raposa-controlled-hide 2.4s ease-in-out 1 both}
+@keyframes raposa-controlled-sneak{0%,100%{transform:translate(-4px,0) rotate(-2deg)}24%{transform:translate(-1px,-2px) rotate(2deg)}50%{transform:translate(4px,0) rotate(2deg)}74%{transform:translate(1px,-2px) rotate(-2deg)}}
+@keyframes raposa-controlled-tail{0%,100%{transform:rotate(0) scale(1)}22%{transform:rotate(-28deg) scale(.98)}58%{transform:rotate(290deg) scale(1.06)}82%{transform:rotate(350deg) scale(1.02)}}
+@keyframes raposa-controlled-jump{0%,100%{transform:translateY(0) rotate(0) scale(1)}28%{transform:translate(-5px,-15px) rotate(-8deg) scale(.97,1.05)}55%{transform:translate(4px,-20px) rotate(7deg) scale(1.03)}78%{transform:translateY(1px) rotate(-3deg) scale(1.06,.94)}}
+@keyframes raposa-controlled-hide{0%,100%{transform:translate(0,0) scale(1);opacity:1}24%,68%{transform:translate(-48px,18px) scale(.72);opacity:.38}78%{transform:translate(-31px,8px) scale(.84);opacity:.7}}
+.raposa-tail-ring{position:absolute;z-index:1;inset:3px;border:2px dashed #fb923c;border-radius:50%;opacity:0;filter:drop-shadow(0 0 4px #fdba74);pointer-events:none}
+.pet-raposa.pet-action-click .raposa-tail-ring{animation:raposa-ring 1.4s ease-out 1 both}
+@keyframes raposa-ring{0%,100%{opacity:0;transform:scale(.35) rotate(0)}24%,76%{opacity:.8;transform:scale(1.05) rotate(240deg)}}
+.raposa-jump-sparkles{position:absolute;z-index:3;left:-9px;right:-9px;bottom:-4px;color:#fde68a;font-size:14px;letter-spacing:10px;opacity:0;text-shadow:0 0 6px #fb923c;pointer-events:none}
+.pet-raposa.pet-action-complete .raposa-jump-sparkles{animation:raposa-sparkles 1.55s ease-out 1 both}
+@keyframes raposa-sparkles{0%,100%{opacity:0;transform:translateY(0) scale(.3)}25%{opacity:1}76%{opacity:.25;transform:translateY(-34px) scale(1.2)}}
+.raposa-hide-cloud{position:absolute;z-index:1;left:-18px;bottom:-3px;width:46px;height:24px;border-radius:50%;background:radial-gradient(ellipse,#cbd5e1aa,#64748b44 55%,transparent 70%);opacity:0;filter:blur(2px);pointer-events:none}
+.pet-raposa.pet-action-special .raposa-hide-cloud{animation:raposa-cloud 2.4s ease-in-out 1 both}
+@keyframes raposa-cloud{0%,100%{opacity:0;transform:scale(.2)}22%,70%{opacity:.72;transform:scale(1.2)}}
+
+/* Gato controlado: caminha, recebe carinho, ronrona e descansa sem trocar a arte. */
+.pet-gato .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-gato{position:relative;display:block;width:58px;height:58px;flex:0 0 58px;transform-origin:50% 90%;will-change:transform,filter}
+.pet-controlled-gato img{position:relative;z-index:2;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-gato.pet-action-idle .pet-controlled-gato{animation:gato-controlled-idle 4.4s ease-in-out infinite}
+.pet-gato.pet-action-click .pet-controlled-gato{animation:gato-controlled-nuzzle 1.45s ease-in-out 1 both}
+.pet-gato.pet-action-complete .pet-controlled-gato{animation:gato-controlled-purr 1.7s ease-in-out 1 both}
+.pet-gato.pet-action-special .pet-controlled-gato{animation:gato-controlled-rest 2.5s ease-in-out 1 both}
+@keyframes gato-controlled-idle{0%,100%{transform:translate(-4px,0) rotate(-1deg) scale(1)}18%{transform:translate(0,-2px) rotate(2deg)}40%{transform:translate(5px,0) rotate(1deg)}57%{transform:translate(4px,1px) rotate(-2deg) scale(1.08,.93)}72%{transform:translate(2px,0) rotate(0) scale(.98,1.03)}86%{transform:translate(-1px,1px) scale(1.03,.97)}}
+@keyframes gato-controlled-nuzzle{0%,100%{transform:translate(0,0) rotate(0)}28%,74%{transform:translate(-10px,-1px) rotate(-8deg) scale(1.05)}50%{transform:translate(-12px,1px) rotate(-11deg) scale(1.07)}}
+@keyframes gato-controlled-purr{0%,100%{transform:translateY(0) scale(1)}20%{transform:translateY(-9px) scale(.98,1.04)}38%{transform:translateY(1px) scale(1.05,.95)}58%{transform:translateY(-7px) scale(.99,1.03)}78%{transform:translateY(1px) scale(1.04,.96)}}
+@keyframes gato-controlled-rest{0%,100%{transform:translate(0,0) rotate(0) scale(1)}25%,75%{transform:translate(-43px,24px) rotate(-4deg) scale(1.02,.78);filter:brightness(.88)}45%,65%{transform:translate(-43px,26px) rotate(-2deg) scale(1.04,.75);filter:brightness(.8)}}
+.gato-affection{position:absolute;z-index:3;left:-5px;top:4px;color:#fb7185;font-size:15px;opacity:0;text-shadow:0 0 7px #fda4af;pointer-events:none}
+.pet-gato.pet-action-click .gato-affection{animation:gato-heart 1.45s ease-out 1 both}
+@keyframes gato-heart{0%,100%{opacity:0;transform:translateY(8px) scale(.3)}25%{opacity:1}75%{opacity:.65;transform:translate(-5px,-15px) scale(1.15)}}
+.gato-purr-ring{position:absolute;z-index:1;inset:6px;border:2px solid #c4b5fd;border-radius:50%;opacity:0;pointer-events:none}
+.pet-gato.pet-action-complete .gato-purr-ring{animation:gato-ring 1.55s ease-out 1 both}.pet-gato.pet-action-complete .gato-purr-ring-two{animation-delay:.18s}
+@keyframes gato-ring{0%{opacity:0;transform:scale(.35)}28%{opacity:.75}100%{opacity:0;transform:scale(1.45)}}
+.gato-sleep-mat{position:absolute;z-index:1;left:-9px;right:-9px;bottom:-5px;height:18px;border-radius:50%;background:radial-gradient(ellipse,#a78bfa66,#4c1d9544 55%,transparent 72%);opacity:0;filter:blur(1px);pointer-events:none}
+.pet-gato.pet-action-special .gato-sleep-mat{animation:gato-mat 2.5s ease-in-out 1 both}
+@keyframes gato-mat{0%,100%{opacity:0;transform:scale(.4)}25%,75%{opacity:.8;transform:scale(1.1)}}
+
+/* Cachorro controlado: corre, oferece a pata e busca a bola usando uma arte estável. */
+.pet-cachorro .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-cachorro{position:relative;display:block;width:58px;height:58px;flex:0 0 58px;transform-origin:50% 90%;will-change:transform,filter}
+.pet-controlled-cachorro img{position:relative;z-index:2;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-cachorro.pet-action-idle .pet-controlled-cachorro{animation:cachorro-controlled-idle 3.6s ease-in-out infinite}
+.pet-cachorro.pet-action-click .pet-controlled-cachorro{animation:cachorro-controlled-paw 1.4s ease-in-out 1 both}
+.pet-cachorro.pet-action-complete .pet-controlled-cachorro{animation:cachorro-controlled-circle 1.65s cubic-bezier(.45,.05,.25,1) 1 both}
+.pet-cachorro.pet-action-special .pet-controlled-cachorro{animation:cachorro-controlled-fetch 2s ease-in-out 1 both}
+@keyframes cachorro-controlled-idle{0%,100%{transform:translate(-5px,0) rotate(-2deg)}18%{transform:translate(0,-4px) rotate(3deg)}40%{transform:translate(6px,0) rotate(2deg)}58%{transform:translate(3px,2px) scale(1.04,.96)}76%{transform:translate(0,1px) rotate(-3deg) scale(.98,1.02)}88%{transform:translate(-2px,-1px) rotate(2deg)}}
+@keyframes cachorro-controlled-paw{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translateY(3px) scale(1.03,.97)}45%,75%{transform:translate(-7px,-4px) rotate(-7deg) scale(1.08)}}
+@keyframes cachorro-controlled-circle{0%,100%{transform:translate(0,0) rotate(0) scale(1)}20%{transform:translate(-23px,-6px) rotate(-12deg) scale(.9)}45%{transform:translate(-8px,-22px) rotate(8deg) scale(.84)}70%{transform:translate(23px,-7px) rotate(14deg) scale(.9)}88%{transform:translate(8px,1px) rotate(-5deg) scale(.97)}}
+@keyframes cachorro-controlled-fetch{0%,100%{transform:translate(0,0) rotate(0)}20%{transform:translate(-19px,-5px) rotate(-7deg) scale(.92)}48%{transform:translate(13px,-8px) rotate(8deg) scale(.96)}72%{transform:translate(3px,1px) rotate(-3deg) scale(1.05)}88%{transform:translate(0,0) scale(1.02)}}
+.cachorro-paw{position:absolute;z-index:3;left:4px;bottom:7px;width:10px;height:10px;border-radius:50%;color:#fbbf24;font-size:9px;line-height:10px;opacity:0;text-shadow:-4px -2px 0 #fbbf24,4px -2px 0 #fbbf24,0 -5px 0 #fbbf24,0 0 6px #fde68a;pointer-events:none}
+.pet-cachorro.pet-action-click .cachorro-paw{animation:cachorro-paw-show 1.4s ease-out 1 both}
+@keyframes cachorro-paw-show{0%,100%{opacity:0;transform:translateY(7px) scale(.3)}30%,75%{opacity:.9;transform:translate(-5px,-9px) scale(.8)}}
+.cachorro-run-ring{position:absolute;z-index:1;inset:1px;border:2px dashed #93c5fd;border-radius:50%;opacity:0;pointer-events:none}
+.pet-cachorro.pet-action-complete .cachorro-run-ring{animation:cachorro-ring-spin 1.65s linear 1 both}
+@keyframes cachorro-ring-spin{0%,100%{opacity:0;transform:rotate(0) scale(.4)}20%,78%{opacity:.72;transform:rotate(300deg) scale(1.1)}}
+.cachorro-light-ball{position:absolute;z-index:3;left:-5px;bottom:5px;width:12px;height:12px;border-radius:50%;background:#a5f3fc;box-shadow:0 0 6px #fff,0 0 13px #22d3ee;opacity:0;pointer-events:none}
+.pet-cachorro.pet-action-special .cachorro-light-ball{animation:cachorro-ball 2s ease-in-out 1 both}
+@keyframes cachorro-ball{0%,100%{opacity:0;transform:translate(-12px,-7px) scale(.3)}20%{opacity:1;transform:translate(-19px,-10px) scale(1)}48%{opacity:1;transform:translate(14px,-13px) scale(1.05)}72%,88%{opacity:1;transform:translate(5px,0) scale(.95)}}
 /* Os 16 pets usam animação quadro a quadro. O CSS somente avança a janela
    da sprite sheet; todo o movimento visual vive nos 12 quadros da imagem. */
 .pet-companion-button:has(.pet-sprite){animation:none!important;overflow:visible}
@@ -152,6 +348,137 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
 @keyframes pet-sprite-frames{from{background-position:0 0}to{background-position:100% 0}}
 @media (prefers-reduced-motion: reduce){.pet-companion-corner .pet-companion-button,.pet-companion-corner .pet-effect-layer i{animation:none!important;transition:none!important}}
 @media (prefers-reduced-motion: reduce){.pet-sprite{animation:none!important;background-position:0 0!important}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-dragon,.pet-controlled-dragon img,.dragon-guard-wing{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-unicorn,.unicorn-star,.unicorn-rainbow{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-trex,.trex-reach-orb,.trex-power-aura{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-aguia,.aguia-wing,.aguia-flight-feather{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-coruja,.coruja-wing,.coruja-stars,.coruja-sleep{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-lobo,.lobo-scent-trail,.lobo-call-wave,.lobo-guard-shield{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-raposa,.raposa-tail-ring,.raposa-jump-sparkles,.raposa-hide-cloud{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-gato,.gato-affection,.gato-purr-ring,.gato-sleep-mat{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-cachorro,.cachorro-paw,.cachorro-run-ring,.cachorro-light-ball{animation:none!important}}
+
+/* Coelho: transformações rígidas preservam a anatomia da arte original.
+   A curiosidade é uma inclinação do corpo, não articulação das orelhas. */
+.pet-coelho .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-coelho{position:relative;display:block;width:58px;height:58px;flex:0 0 58px;transform-origin:50% 90%}
+.pet-controlled-coelho img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-coelho.pet-action-idle .pet-controlled-coelho{animation:coelho-hop 3.6s ease-in-out infinite}
+.pet-coelho.pet-action-click .pet-controlled-coelho{animation:coelho-curious 1.4s ease-in-out both}
+.pet-coelho.pet-action-complete .pet-controlled-coelho{animation:coelho-celebrate 1.8s ease-in-out both}
+.pet-coelho.pet-action-special .pet-controlled-coelho{animation:coelho-hide 2.4s ease-in-out both}
+@keyframes coelho-hop{0%,55%,78%,100%{transform:translate(0,0)}66%{transform:translate(-3px,-8px)}89%{transform:translate(3px,-4px)}}
+@keyframes coelho-curious{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}60%{transform:rotate(7deg)}80%{transform:rotate(-3deg)}}
+@keyframes coelho-celebrate{0%,28%,57%,85%,100%{transform:translate(0,0)}14%{transform:translate(-5px,-12px)}43%{transform:translate(4px,-17px)}71%{transform:translate(2px,-9px)}}
+@keyframes coelho-hide{0%,100%{transform:translate(0,0);opacity:1}28%{transform:translate(-8px,10px);opacity:0}62%{transform:translate(8px,10px);opacity:0}80%{transform:translate(3px,-6px);opacity:1}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-coelho{animation:none!important;transform:none!important;opacity:1!important}}
+
+/* Leão: movimentos rígidos da imagem inteira, sem articulação artificial. */
+.pet-leao .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-leao{position:relative;display:block;width:58px;height:58px;flex:0 0 58px;transform-origin:50% 90%}
+.pet-controlled-leao img{position:relative;z-index:1;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-leao.pet-action-idle .pet-controlled-leao{animation:leao-stroll 4.8s ease-in-out infinite}
+.pet-leao.pet-action-click .pet-controlled-leao{animation:leao-greet 1.4s ease-in-out both}
+.pet-leao.pet-action-complete .pet-controlled-leao{animation:leao-celebrate 1.8s ease-in-out both}
+.pet-leao.pet-action-special .pet-controlled-leao{animation:leao-guard 2.4s ease-in-out both}
+@keyframes leao-stroll{0%,70%,100%{transform:translate(0,0)}20%{transform:translate(-4px,-1px)}40%{transform:translate(4px,-1px)}}
+@keyframes leao-greet{0%,100%{transform:rotate(0)}25%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}75%{transform:rotate(-2deg)}}
+@keyframes leao-celebrate{0%,45%,100%{transform:translateY(0)}23%{transform:translateY(-7px)}68%{transform:translateY(-4px)}}
+@keyframes leao-guard{0%,100%{transform:translateX(0)}25%,75%{transform:translateX(-7px)}}
+.leao-guard-aura{position:absolute;inset:0;border:2px solid #fbbf24;border-radius:50%;background:radial-gradient(circle,transparent 45%,#fbbf2433);opacity:0;pointer-events:none}
+.pet-leao.pet-action-special .leao-guard-aura{animation:leao-aura 2.4s ease-in-out both}
+@keyframes leao-aura{0%,100%{opacity:0}25%,75%{opacity:.65}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-leao,.leao-guard-aura{animation:none!important;transform:none!important}}
+
+/* Tartaruga: imagem inteira sem deformação; não simula retração no casco. */
+.pet-tartaruga .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-tartaruga{position:relative;display:block;width:58px;height:58px;flex:0 0 58px;transform-origin:50% 85%}
+.pet-controlled-tartaruga img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-tartaruga.pet-action-idle .pet-controlled-tartaruga{animation:tartaruga-stroll 6s ease-in-out infinite}
+.pet-tartaruga.pet-action-click .pet-controlled-tartaruga{animation:tartaruga-pause 1.6s ease-in-out both}
+.pet-tartaruga.pet-action-complete .pet-controlled-tartaruga{animation:tartaruga-celebrate 2s ease-in-out both}
+.pet-tartaruga.pet-action-special .pet-controlled-tartaruga{animation:tartaruga-rest 2.4s ease-in-out both}
+@keyframes tartaruga-stroll{0%,100%{transform:translateX(0)}30%{transform:translateX(-4px)}65%{transform:translateX(4px)}}
+@keyframes tartaruga-pause{0%,100%{transform:translateY(0) rotate(0)}30%,65%{transform:translateY(2px) rotate(-3deg)}}
+@keyframes tartaruga-celebrate{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}65%{transform:rotate(7deg)}}
+@keyframes tartaruga-rest{0%,100%{transform:translateY(0)}25%,75%{transform:translateY(2px)}}
+.pet-controlled-tartaruga .tartaruga-sleep{position:absolute;right:0;top:-5px;font-size:12px;color:#ddd6fe;opacity:0;pointer-events:none}
+.pet-tartaruga.pet-action-special .tartaruga-sleep{animation:tartaruga-zzz 2.4s ease-in-out both}
+@keyframes tartaruga-zzz{0%,100%{opacity:0;transform:translateY(0)}25%,75%{opacity:1;transform:translateY(-5px)}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-tartaruga,.tartaruga-sleep{animation:none!important;transform:none!important}}
+
+/* Abelha: trajetórias da imagem inteira, sem deformar as asas. */
+.pet-abelha .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-abelha{position:relative;display:block;width:58px;height:58px;flex:0 0 58px}
+.pet-controlled-abelha img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-abelha.pet-action-idle .pet-controlled-abelha{animation:abelha-hover 4s ease-in-out infinite}
+.pet-abelha.pet-action-click .pet-controlled-abelha{animation:abelha-greet 1.6s ease-in-out both}
+.pet-abelha.pet-action-complete .pet-controlled-abelha{animation:abelha-dance 2s ease-in-out both}
+.pet-abelha.pet-action-special .pet-controlled-abelha{animation:abelha-land 2.4s ease-in-out both}
+@keyframes abelha-hover{0%,100%{transform:translate(0,0)}25%{transform:translate(-5px,-4px)}50%{transform:translate(0,-8px)}75%{transform:translate(5px,-4px)}}
+@keyframes abelha-greet{0%,100%{transform:translate(0,0) rotate(0)}30%{transform:translate(-5px,-5px) rotate(-5deg)}70%{transform:translate(5px,-5px) rotate(5deg)}}
+@keyframes abelha-dance{0%,50%,100%{transform:translate(0,0)}15%{transform:translate(-10px,-8px)}35%{transform:translate(-10px,2px)}65%{transform:translate(10px,-8px)}85%{transform:translate(10px,2px)}}
+@keyframes abelha-land{0%,100%{transform:translate(0,0)}25%,75%{transform:translate(-10px,5px)}}
+.pet-controlled-abelha .abelha-heart{position:absolute;right:0;top:-5px;font-size:14px;color:#fbbf24;opacity:0;pointer-events:none}
+.pet-abelha.pet-action-click .abelha-heart{animation:abelha-heart-show 1.6s ease-in-out both}
+@keyframes abelha-heart-show{0%,100%{opacity:0;transform:translateY(0)}30%,70%{opacity:1;transform:translateY(-5px)}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-abelha,.abelha-heart{animation:none!important;transform:none!important}}
+
+/* Borboleta: voo da arte inteira; a cor muda sem deformar as asas. */
+.pet-borboleta .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-borboleta{position:relative;display:block;width:58px;height:58px;flex:0 0 58px}
+.pet-controlled-borboleta img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-borboleta.pet-action-idle .pet-controlled-borboleta{animation:borboleta-hover 4.6s ease-in-out infinite}
+.pet-borboleta.pet-action-click .pet-controlled-borboleta{animation:borboleta-land 1.8s ease-in-out both}
+.pet-borboleta.pet-action-complete .pet-controlled-borboleta{animation:borboleta-celebrate 2s ease-in-out both}
+.pet-borboleta.pet-action-special .pet-controlled-borboleta{animation:borboleta-color 2.4s ease-in-out both}
+@keyframes borboleta-hover{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(-7px,-4px) rotate(-4deg)}50%{transform:translate(0,-10px) rotate(0)}75%{transform:translate(7px,-4px) rotate(4deg)}}
+@keyframes borboleta-land{0%,100%{transform:translate(0,0)}30%,70%{transform:translate(-8px,4px)}}
+@keyframes borboleta-celebrate{0%,100%{transform:translate(0,0)}25%{transform:translate(-12px,-8px)}50%{transform:translate(0,-16px)}75%{transform:translate(12px,-8px)}}
+@keyframes borboleta-color{0%,100%{filter:hue-rotate(0deg)}50%{filter:hue-rotate(35deg)}}
+.pet-controlled-borboleta .borboleta-trail{position:absolute;left:0;bottom:0;font-size:12px;color:#bae6fd;white-space:nowrap;opacity:0;pointer-events:none}
+.pet-borboleta.pet-action-complete .borboleta-trail{animation:borboleta-trail-show 2s ease-out both}
+@keyframes borboleta-trail-show{0%,100%{opacity:0;transform:translate(0,0)}30%{opacity:.9}80%{opacity:0;transform:translate(-10px,12px)}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-borboleta,.borboleta-trail{animation:none!important;transform:none!important;filter:none!important}}
+
+/* Vagalume: flutuação rígida e luz gradual, sem flashes ou troca de quadros. */
+.pet-vagalume .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-vagalume{position:relative;display:block;width:58px;height:58px;flex:0 0 58px}
+.pet-controlled-vagalume img{position:relative;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-vagalume.pet-action-idle .pet-controlled-vagalume{animation:vagalume-hover 4.8s ease-in-out infinite}
+.pet-vagalume.pet-action-click .pet-controlled-vagalume{animation:vagalume-brighten 1.8s ease-in-out both}
+.pet-vagalume.pet-action-complete .pet-controlled-vagalume{animation:vagalume-celebrate 2s ease-in-out both}
+.pet-vagalume.pet-action-special .pet-controlled-vagalume{animation:vagalume-lantern 2.4s ease-in-out both}
+@keyframes vagalume-hover{0%,100%{transform:translate(0,0)}50%{transform:translate(3px,-6px)}}
+@keyframes vagalume-brighten{0%,100%{filter:brightness(1)}50%{filter:brightness(1.2)}}
+@keyframes vagalume-celebrate{0%,100%{transform:translate(0,0)}35%{transform:translate(-5px,-6px)}70%{transform:translate(5px,-6px)}}
+@keyframes vagalume-lantern{0%,100%{filter:brightness(1)}30%,70%{filter:brightness(1.1)}}
+.vagalume-halo{position:absolute;inset:-8px;border-radius:50%;background:radial-gradient(circle,#fde04755,transparent 70%);opacity:.3;pointer-events:none}
+.pet-vagalume.pet-action-idle .vagalume-halo{animation:vagalume-glow 4.8s ease-in-out infinite}
+.pet-vagalume.pet-action-click .vagalume-halo{animation:vagalume-glow 1.8s ease-in-out both}
+.pet-vagalume.pet-action-special .vagalume-halo{animation:vagalume-glow 2.4s ease-in-out both}
+@keyframes vagalume-glow{0%,100%{opacity:.3}50%{opacity:.85}}
+.pet-controlled-vagalume .vagalume-lights{position:absolute;inset:-5px;white-space:nowrap;font-size:14px;letter-spacing:8px;color:#fef08a;opacity:0;pointer-events:none}
+.pet-vagalume.pet-action-complete .vagalume-lights{animation:vagalume-lights-show 2s ease-in-out both}
+@keyframes vagalume-lights-show{0%,100%{opacity:0;transform:translateY(0)}40%,60%{opacity:.9;transform:translateY(-6px)}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-vagalume,.vagalume-halo,.vagalume-lights{animation:none!important;transform:none!important;filter:none!important}}
+
+/* Cogumelo: movimentos rígidos; desaparecimento sem deformar a arte. */
+.pet-cogumelo .pet-companion-button{animation:none!important;overflow:visible}
+.pet-controlled-cogumelo{position:relative;display:block;width:58px;height:58px;flex:0 0 58px}
+.pet-controlled-cogumelo img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.pet-cogumelo.pet-action-idle .pet-controlled-cogumelo{animation:cogumelo-steps 4s ease-in-out infinite}
+.pet-cogumelo.pet-action-click .pet-controlled-cogumelo{animation:cogumelo-hop 1.4s ease-in-out both}
+.pet-cogumelo.pet-action-complete .pet-controlled-cogumelo{animation:cogumelo-dance 2s ease-in-out both}
+.pet-cogumelo.pet-action-special .pet-controlled-cogumelo{animation:cogumelo-hide 2.4s ease-in-out both}
+@keyframes cogumelo-steps{0%,50%,100%{transform:translate(0,0)}25%{transform:translate(-3px,-2px)}75%{transform:translate(3px,-2px)}}
+@keyframes cogumelo-hop{0%,100%{transform:translateY(0)}45%{transform:translateY(-9px)}}
+@keyframes cogumelo-dance{0%,50%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(-4px,-3px) rotate(-5deg)}75%{transform:translate(4px,-3px) rotate(5deg)}}
+@keyframes cogumelo-hide{0%,100%{transform:translate(0,0);opacity:1}30%{transform:translate(-4px,10px);opacity:0}60%{transform:translate(6px,10px);opacity:0}80%{transform:translate(6px,0);opacity:1}}
+.pet-controlled-cogumelo .cogumelo-particles{position:absolute;left:0;bottom:0;white-space:nowrap;font-size:12px;letter-spacing:8px;color:#ddd6fe;opacity:0;pointer-events:none}
+.pet-cogumelo.pet-action-click .cogumelo-particles{animation:cogumelo-puff 1.4s ease-out both}
+@keyframes cogumelo-puff{0%,100%{opacity:0;transform:translateY(0)}35%{opacity:.8}85%{opacity:0;transform:translateY(-12px)}}
+@media (prefers-reduced-motion: reduce){.pet-controlled-cogumelo,.cogumelo-particles{animation:none!important;transform:none!important}.pet-controlled-cogumelo{opacity:1!important}}
 
 /* entrada suave de cards e telas */
 .rise { animation: rise .4s ease both; }
