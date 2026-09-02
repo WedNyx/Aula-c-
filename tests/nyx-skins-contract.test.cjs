@@ -12,7 +12,7 @@ const checks = [
   ["slot de skin preservado no equipamento", robot.includes("skin:null")],
   ["seção de aparências na loja", shop.includes('label: "🌙 Aparências"')],
   ["miniatura real do Nyx na loja", shop.includes('skin:item.id')],
-  ["Nyx padrão continua sem skin automática", display.includes("if (skin)") && !prisma.includes("2026-09-01T00:00:00-03:00")],
+  ["Prisma Orbital padrão preserva os equipamentos sem troca por data", display.includes('return <NyxPrismaOrbital') && display.includes('gear={gear}') && !prisma.includes("2026-09-01T00:00:00-03:00")],
   ["Nyx Lunar disponível", prisma.includes("skinLunar")],
   ["Nyx Eclipse disponível", prisma.includes("skinEclipse")],
   ["todas as skins cosméticas disponíveis", ["skinOrbita","skinGuardiao","skinAurora","skinLuaNova","skinMare","skinConstelacao"].every(id => prisma.includes(id))],

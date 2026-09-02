@@ -464,7 +464,7 @@ export function PetCompanion({ pet, context = "idle" }) {
             role="img"
             aria-label={petLabel}
           />
-        ) : file ? <img src={`/pets/${file}.webp`} alt={petLabel} draggable={false} /> : <span aria-hidden="true">{pet}</span>}
+        ) : file ? <img src={`/pets/${file}.webp`} alt={petLabel} draggable={false} /> : <span className="pet-emoji" aria-hidden="true">{pet}</span>}
         </span>
       </button>
     </div>

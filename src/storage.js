@@ -55,9 +55,9 @@ export async function saveStudent(shift, name, data) {
   } catch { return false }
 }
 
-export async function getStudent(shift, name) {
+export async function getStudent(shift, name, auth) {
   try {
-    const r = await kvCall({ action: 'get', key: nameToKey(shift, name) })
+    const r = await kvCall({ action: 'get', key: nameToKey(shift, name), auth })
     return r.value ? JSON.parse(r.value) : null
   } catch { return null }
 }
@@ -449,11 +449,11 @@ export async function setNyxLocks(patch, auth) {
 // nota: patchStudent escreve na MESMA chave que o próprio aluno usa pra salvar o progresso dele
 // (student:turno:nome), então essa escrita continua sem exigir senha — do contrário o autosave
 // do aluno quebraria. A senha do professor protege as ações que só ELE faz (ver kv.js).
-export async function patchStudent(shift, name, patch) {
+export async function patchStudent(shift, name, patch, auth) {
   try {
-    const cur = await getStudent(shift, name)
+    const cur = await getStudent(shift, name, auth)
     if (!cur) return false
-    const r = await kvCall({ action: 'set', key: nameToKey(shift, name), value: JSON.stringify({ ...cur, ...patch }) })
+    const r = await kvCall({ action: 'set', key: nameToKey(shift, name), value: JSON.stringify({ ...cur, ...patch }), auth })
     return r.ok === true
   } catch { return false }
 }

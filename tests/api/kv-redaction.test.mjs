@@ -1,7 +1,5 @@
-// Dado sensível de aluno (data de nascimento, CPF) não pode vazar em listagens sem senha — mas a
-// leitura pontual (action "get") precisa continuar intacta, porque patchStudent() lê o registro
-// inteiro, mistura com o patch e regrava tudo (se o "get" escondesse os campos, cada patch de
-// nota/fase apagaria a data de nascimento/CPF do aluno sem querer).
+// Dados fictícios: leituras públicas não expõem CPF/nascimento; o servidor
+// preserva esses campos durante atualizações de progresso sem autenticação.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -73,15 +71,14 @@ const studentValue = JSON.stringify({ name: 'Fulano', shift: 'matutino', score: 
   check('Listagem com senha ERRADA continua escondendo os dados sensíveis', parsed.birthDate === undefined);
 }
 
-// 4) action "get" (leitura pontual, 1 chave) NUNCA é redigida — nem sem auth — pra não quebrar o
-// ciclo de leitura-mistura-regravação do patchStudent (senão cada patch apagaria os dados sensíveis)
+// 4) A leitura individual também deve ocultar dados privados.
 {
   const req = mockReq({ action: 'get', key: 'student:matutino:Fulano' });
   const res = mockRes();
   await kvHandler(req, res);
   const parsed = JSON.parse(res._body.value);
-  check('Leitura pontual (get) SEM senha mantém birthDate intacto (protege o patchStudent)', parsed.birthDate === '2012-05-01', JSON.stringify(parsed));
-  check('Leitura pontual (get) SEM senha mantém cpf intacto', parsed.cpf === '123.456.789-00');
+  check('Leitura pontual SEM senha esconde birthDate', parsed.birthDate === undefined);
+  check('Leitura pontual SEM senha esconde cpf', parsed.cpf === undefined);
 }
 
 // 5) simula o ciclo real do patchStudent: get (sem auth) → mistura patch → set → confere que os
@@ -158,6 +155,69 @@ const studentValue = JSON.stringify({ name: 'Fulano', shift: 'matutino', score: 
   const res = mockRes();
   await kvHandler(req, res);
   check('Prefixo curto demais ("s") continua exigindo senha', res._status === 403);
+}
+
+// Regressões de leitura, autosave e remoção autenticada de dados privados.
+const teacher = 'senha-de-teste-123';
+const studentKey = 'student:matutino:Fulano';
+async function call(body) {
+  const res = mockRes();
+  await kvHandler(mockReq(body), res);
+  return res;
+}
+async function readStudent(key = studentKey, auth = teacher) {
+  const res = await call({ action: 'get', key, auth });
+  return JSON.parse(res._body.value);
+}
+async function writeStudent(value, auth, key = studentKey) {
+  return call({ action: 'set', key, value: JSON.stringify(value), auth });
+}
+{
+  const wrong = await readStudent(studentKey, 'senha-errada');
+  check('Get com senha inválida oculta ambos os campos privados', !Object.hasOwn(wrong, 'cpf') && !Object.hasOwn(wrong, 'birthDate'));
+  const original = await readStudent();
+  check('Get autenticado permite leitura dos dados privados', original.cpf === '123.456.789-00' && original.birthDate === '2012-05-01');
+  await writeStudent({ ...original, cpf: '', birthDate: 'valor-forjado', score: 96 });
+  const preserved = await readStudent();
+  check('Autosave público não apaga nem altera dados privados', preserved.cpf === original.cpf && preserved.birthDate === original.birthDate);
+  check('Autosave público ainda atualiza progresso', preserved.score === 96);
+  await writeStudent({ name: 'Fulano', score: 97 }, teacher);
+  const omitted = await readStudent();
+  check('Patch autenticado sem campos privados também os preserva', omitted.cpf === original.cpf && omitted.birthDate === original.birthDate);
+  await writeStudent({ ...omitted, cpf: 'cpf-ficticio-novo', birthDate: '2013-02-03' }, teacher);
+  const changed = await readStudent();
+  check('Professor autenticado pode corrigir os dados privados', changed.cpf === 'cpf-ficticio-novo' && changed.birthDate === '2013-02-03');
+  const results = await Promise.all([
+    writeStudent({ ...original, score: 98 }),
+    writeStudent({ ...changed, cpf: '', birthDate: '' }, teacher),
+    writeStudent({ ...original, score: 99 }),
+  ]);
+  check('Salvamentos concorrentes terminam com sucesso', results.every(r => r._body.ok === true));
+  await writeStudent(original);
+  const cleared = await readStudent();
+  check('Autosave antigo não restaura dados removidos pelo professor', cleared.cpf === '' && cleared.birthDate === '');
+  const publicRes = await call({ action: 'get', key: studentKey });
+  const redacted = JSON.parse(publicRes._body.value);
+  check('Campos privados vazios também são omitidos da resposta pública', !Object.hasOwn(redacted, 'cpf') && !Object.hasOwn(redacted, 'birthDate'));
+}
+{
+  const key = 'student:vespertino:CadastroFicticio';
+  const created = await writeStudent({ name: 'CadastroFicticio', cpf: 'cpf-ficticio', birthDate: '2012-01-01' }, undefined, key);
+  check('Cadastro inicial sem senha continua permitido', created._body.ok === true);
+  check('Cadastro inicial mantém dados para o professor', (await readStudent(key)).cpf === 'cpf-ficticio');
+  const res = await call({ action: 'get', key });
+  check('Cadastro inicial não expõe CPF na leitura pública', !Object.hasOwn(JSON.parse(res._body.value), 'cpf'));
+  const emptyKey = 'student:vespertino:SemDados';
+  await writeStudent({ name: 'SemDados' }, undefined, emptyKey);
+  await writeStudent({ name: 'SemDados', cpf: 'injetado', birthDate: 'injetada' }, undefined, emptyKey);
+  const empty = await readStudent(emptyKey);
+  check('Cadastro existente não aceita inserção pública de dados privados', !Object.hasOwn(empty, 'cpf') && !Object.hasOwn(empty, 'birthDate'));
+  const before = await readStudent(key);
+  for (const value of ['null', '[]', '{invalido', '"texto"']) {
+    const invalid = await call({ action: 'set', key, value });
+    check(`Cadastro inválido rejeitado: ${value}`, invalid._status === 400);
+  }
+  check('Escritas inválidas não corrompem cadastro existente', JSON.stringify(await readStudent(key)) === JSON.stringify(before));
 }
 
 console.log(`\n=== REDAÇÃO DE DADOS SENSÍVEIS EM /api/kv TEST: ${pass}/${pass + fail} passed ===`);

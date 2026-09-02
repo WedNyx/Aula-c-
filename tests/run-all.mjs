@@ -27,8 +27,8 @@ async function waitForServer(url, timeoutMs = 20000) {
 
 function runTestFile(file) {
   return new Promise((resolve) => {
-    const isEsm = file.endsWith('.mjs');
-    const p = spawn('node', [file], { stdio: 'inherit', cwd: path.dirname(file), env: { ...process.env, TEST_BASE_URL: BASE_URL } });
+    const p = spawn('node', [file], { stdio: 'inherit', cwd: ROOT, env: { ...process.env, TEST_BASE_URL: BASE_URL } });
+    p.on('error', (error) => { console.error(error.message); resolve(false); });
     p.on('exit', (code) => resolve(code === 0));
   });
 }
