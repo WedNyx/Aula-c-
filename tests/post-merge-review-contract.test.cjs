@@ -1,0 +1,15 @@
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const root = path.resolve(__dirname, '..');
+const read = f => fs.readFileSync(path.join(root, f), 'utf8');
+const runner = read('tests/run-all.mjs');
+assert.ok(runner.includes('cwd: ROOT, env:'), 'suíte executa testes a partir da raiz');
+const css = read('src/theme.css');
+assert.ok(!css.includes('.pet-companion-button span{'), 'efeitos não herdam tamanho forçado de emoji');
+assert.ok(css.includes('.pet-companion-button .pet-emoji{font-size:28px;line-height:1}'));
+assert.ok(read('src/components/Avatar.jsx').includes('className="pet-emoji"'));
+const layout = read('src/redesign.css');
+assert.ok(layout.includes('.student-companion-tabs button[aria-selected="true"]'));
+assert.ok(layout.includes('.student-companion-tabs button:focus-visible'));
+console.log('✓ executor, tamanho dos efeitos e estados visuais das abas protegidos');

@@ -5119,7 +5119,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     // 🔒 fim da turma nesta cidade: os responsáveis já sabiam que isso aconteceria — apaga data de
     // nascimento e CPF de todo mundo (dado sensível só existia pra gerar certificado enquanto durou
     // a turma). Depois disso ninguém mais tem acesso, nem o professor — some da planilha também.
-    await Promise.all(active.filter(s => s.birthDate || s.cpf).map(s => patchStudent(s.shift, s.name, { birthDate:"", cpf:"" })));
+    await Promise.all(active.filter(s => s.birthDate || s.cpf).map(s => patchStudent(s.shift, s.name, { birthDate:"", cpf:"" }, teacherAuth)));
     setHallMsg(`✅ ${cal.city} entrou pro Hall da Fama! Gerando o relatório de despedida em PDF...`);
     setFarewellBusy(true);
     try {

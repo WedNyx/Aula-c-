@@ -186,6 +186,13 @@
 }
 .student-current-activity-button:hover { filter: brightness(1.12); transform: translateY(-1px); }
 
+.student-companion-tabs { display:flex; gap:8px; margin-bottom:12px; }
+.student-companion-tabs button { flex:1; min-width:0; padding:9px 12px; border:1px solid #59416e; border-radius:10px; background:#171026; color:#ddd6fe; font:inherit; cursor:pointer; }
+.student-companion-tabs button[aria-selected="true"] { border-color:#c084fc; background:#3b2157; color:#fff; }
+.student-companion-tabs button:focus-visible { outline:2px solid #82eeff; outline-offset:3px; }
+.student-profile-stage { flex-wrap:wrap; }
+.student-profile-open { padding:8px 12px; border:1px solid #59416e; border-radius:9px; background:#171026; color:#ddd6fe; cursor:pointer; }
+.student-profile-open:focus-visible { outline:2px solid #82eeff; outline-offset:3px; }
 .student-companion-stage {
   position: relative;
   min-height: 112px;

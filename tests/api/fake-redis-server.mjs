@@ -11,6 +11,13 @@ const server = http.createServer((req, res) => {
   req.on('end', () => {
     const cmds = JSON.parse(body); // [[cmd, ...args]]
     const results = cmds.map(([cmd, ...args]) => {
+      if (cmd === 'EVAL' && args[0].includes('-- student-cas')) {
+        const [, , key, presence, expected, value] = args;
+        if ((presence === 'missing' && !mem.has(key)) || (presence === 'present' && mem.get(key) === expected)) {
+          mem.set(key, value); return { result: 1 };
+        }
+        return { result: 0 };
+      }
       if (cmd === 'SET') { mem.set(args[0], args[1]); return { result: 'OK' }; }
       if (cmd === 'GET') return { result: mem.has(args[0]) ? mem.get(args[0]) : null };
       if (cmd === 'DEL') { args.forEach(k => mem.delete(k)); return { result: args.length }; }

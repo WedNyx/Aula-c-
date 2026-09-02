@@ -23,14 +23,8 @@ const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'teachernotes:', 
 // (redactStudentValue) quando não autorizado — as outras três nunca guardam dado sensível.
 const PUBLIC_LIST_PREFIXES = ['student:', 'duel:', 'teamduel:', 'partner:']
 
-// "get" (leitura de UMA chave) nunca teve proteção nenhuma, de propósito, pra não travar as
-// dezenas de leituras anônimas legítimas espalhadas pelo app (aluno lendo o próprio perfil, estado
-// de duelo, sala de quiz, etc. — ver comentário de redactStudentValue mais abaixo pra entender por
-// que "student:" continua assim). MAS isso também deixava "get" ler QUALQUER chave sem senha —
-// incluindo o backup inteiro do banco (que embute todo mundo sem nenhuma redação, já que
-// createBackupSnapshot copia o valor bruto de cada chave) e o log de erros. Essas duas são as
-// únicas onde um "get" direto expõe dado sensível em massa (não é 1 aluno, é a base toda de uma
-// vez), então são as únicas que passam a exigir senha também na leitura.
+// Chaves privadas exigem autenticação. Cadastros públicos têm CPF/nascimento
+// removidos tanto na leitura individual quanto nas listagens.
 const GET_PROTECTED_PREFIXES = ['backup:', 'errorlog:', 'teachernotes:', 'teacherreminders:']
 function needsTeacherAuth(action, key) {
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
@@ -44,29 +38,46 @@ function needsTeacherAuth(action, key) {
   return false
 }
 
-// ─── dado sensível de aluno (data de nascimento, CPF) some das LISTAGENS sem senha do professor ──
-// antes disso, qualquer um que soubesse o formato da API dava list_with_values com prefix
-// "student:" e baixava data de nascimento/CPF de toda a turma, sem senha nenhuma. A leitura
-// pontual (action "get", 1 chave só) continua sem essa proteção DE PROPÓSITO pra "student:":
-// patchStudent() lê o registro inteiro, mistura com o patch e regrava tudo — se o "get" tivesse os
-// campos sensíveis escondidos, cada patch (nota, fase, código...) apagaria a data de
-// nascimento/CPF do aluno sem querer. list_with_values não tem esse problema (só
-// listagens/relatórios usam ela). "exam:config:" é uma exceção a essa regra — ver
-// redactExamConfig logo abaixo — porque lá o "get" é usado pelo PRÓPRIO aluno pra montar a tela da
-// prova, então esconder o gabarito ali é obrigatório, não opcional.
+// O servidor preserva CPF/nascimento em atualizações públicas. O cliente não
+// precisa receber esses campos para salvar progresso. Apenas o professor pode
+// alterar campos privados de um cadastro existente; o cadastro inicial continua permitido.
 const SENSITIVE_STUDENT_FIELDS = ['birthDate', 'cpf']
 function redactStudentValue(key, value, authorized) {
   if (authorized || value == null || !String(key).startsWith('student:')) return value
   try {
-    const obj = JSON.parse(value)
+    const obj = studentObject(value)
     let changed = false
     for (const f of SENSITIVE_STUDENT_FIELDS) {
-      if (obj[f]) { delete obj[f]; changed = true }
+      if (Object.hasOwn(obj, f)) { delete obj[f]; changed = true }
     }
     return changed ? JSON.stringify(obj) : value
   } catch {
-    return value
+    return null // Cadastro inválido não pode devolver texto bruto com dados pessoais.
   }
+}
+
+function studentObject(raw) {
+  const obj = JSON.parse(raw)
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw new Error('invalid_student')
+  return obj
+}
+
+async function saveStudentPrivate(key, value, authorized) {
+  const incoming = studentObject(value)
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const raw = await store.get(key)
+    const current = raw == null ? null : studentObject(raw)
+    const next = { ...incoming }
+    if (current) for (const field of SENSITIVE_STUDENT_FIELDS) {
+      // Autosaves antigos enviam strings vazias: não podem apagar/repor dados privados.
+      if (!authorized || !Object.hasOwn(incoming, field)) {
+        delete next[field]
+        if (Object.hasOwn(current, field)) next[field] = current[field]
+      }
+    }
+    if (await store.compareAndSet(key, raw, JSON.stringify(next))) return true
+  }
+  return false
 }
 
 // ─── gabarito da prova ("exam:config:<turno>") nunca pode ir pro navegador do aluno ──
@@ -337,6 +348,32 @@ const BACKEND =
 
 // ─── Operações unificadas ────────────────────────────────────────────────────
 const store = {
+  async compareAndSet(key, expected, value) {
+    if (BACKEND === 'supabase') {
+      await ensureTable()
+      if (expected == null) {
+        const { error } = await supabase.from(TABLE).insert({ key, value, updated_at: new Date().toISOString() })
+        if (error?.code === '23505') return false
+        if (error) throw new Error('student_write_failed')
+        return true
+      }
+      const { data, error } = await supabase.from(TABLE).update({ value, updated_at: new Date().toISOString() }).eq('key', key).eq('value', expected).select('key')
+      if (error) throw new Error('student_write_failed')
+      return data.length > 0
+    }
+    if (BACKEND === 'pg') {
+      const r = expected == null
+        ? await withPg(c => c.query(`INSERT INTO ${TABLE}(key,value,updated_at) VALUES($1,$2,NOW()) ON CONFLICT DO NOTHING RETURNING key`, [key,value]))
+        : await withPg(c => c.query(`UPDATE ${TABLE} SET value=$3,updated_at=NOW() WHERE key=$1 AND value=$2 RETURNING key`, [key,expected,value]))
+      return r.rowCount > 0
+    }
+    return Number(await redis('EVAL', `-- student-cas
+      local current = redis.call('GET', KEYS[1])
+      if (ARGV[1] == 'missing' and not current) or (ARGV[1] == 'present' and current == ARGV[2]) then
+        redis.call('SET', KEYS[1], ARGV[3]); return 1
+      end
+      return 0`, 1, key, expected == null ? 'missing' : 'present', expected ?? '', value)) === 1
+  },
   async set(key, value) {
     if (BACKEND === 'supabase') {
       await ensureTable()
@@ -589,13 +626,17 @@ export default async function handler(req, res) {
         if (isDuelScoreForgery(key, value)) {
           return res.status(403).json({ error: 'forbidden', message: 'A nota do duelo só pode ser gravada pelo servidor, ao corrigir as respostas.' })
         }
-        await store.set(key, value)
+        if (String(key).startsWith('student:')) {
+          try { studentObject(value) } catch { return res.status(400).json({ error: 'invalid_student' }) }
+          const authorized = await checkTeacherAuth(ip, auth)
+          if (!(await saveStudentPrivate(key, value, authorized))) return res.status(409).json({ error: 'student_write_conflict' })
+        } else await store.set(key, value)
         return res.json({ ok: true })
       }
       case 'get': {
         if (!(await checkKvRateLimit(res, 'kvget', ip))) return
         const authorized = await checkTeacherAuth(ip, auth)
-        const raw = await store.get(key)
+        const raw = redactStudentValue(key, await store.get(key), authorized)
         const redacted = redactDuelQuestions(key, redactTourneyConfig(key, redactQuizRoom(key, redactExamConfig(key, raw, authorized), authorized), authorized), authorized)
         return res.json({ value: redacted })
       }
