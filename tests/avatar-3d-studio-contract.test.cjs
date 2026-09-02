@@ -7,8 +7,9 @@ const css = fs.readFileSync("src/redesign.css", "utf8");
 const theme = fs.readFileSync("src/theme.css", "utf8");
 
 const checks = [
-  ["o estúdio oferece oito personagens 3D", (studio.match(/id:"/g)||[]).length === 8],
-  ["cada opção 3D é um preset completo e previsível", studio.includes("Estilos 3D") && studio.includes("personagem completo") && !studio.includes('const categories =')],
+  ["o estúdio oferece dezesseis personagens 2.5D", studio.includes("length:8") && studio.includes("masculino-") && studio.includes("feminino-")],
+  ["o seletor separa avatares masculinos e femininos", studio.includes("Masculinos") && studio.includes("Femininos") && studio.includes("avatar-group-tabs")],
+  ["cada opção 2.5D é um preset completo e previsível", studio.includes("Avatares 2.5D") && studio.includes("aparência completa") && !studio.includes('const categories =')],
   ["a escolha de companheiro usa todos os pets existentes", studio.includes("AVATAR_OPTS.pet.map") && studio.includes("avatar-pet-grid")],
   ["os dezesseis companheiros usam artes 3D próprias", ["dragao","unicornio","trex","aguia","coruja","lobo","raposa","gato","cachorro","coelho","leao","tartaruga","abelha","borboleta","vagalume","cogumelo"].every(id=>fs.existsSync(`public/pets/${id}.webp`)) && avatar.includes('"✨":"vagalume"')],
   ["os pets possuem ambiente, clique, conclusão e especial", ["pet-action-idle","pet-action-click","pet-action-complete","pet-action-special"].every(state=>theme.includes(state)) && avatar.includes('onDoubleClick=')],
@@ -17,7 +18,9 @@ const checks = [
   ["o perfil existente abre o mesmo fluxo 3D", app.includes("<AvatarStudio3D")],
   ["perfis antigos preservam o avatar atual até escolherem o 3D", avatar.includes("render3d:null") && !avatar.includes("migração visual automática")],
   ["a interface adapta avatar e pets para celular", css.includes("@media(max-width:820px)") && css.includes("@media(max-width:520px)")],
-  ["cada personagem possui arquivo próprio, sem recorte por CSS", ["violet-cargo","cosmic","teal","varsity","overalls","future","orange","street"].every(id=>fs.existsSync(`public/avatar3d/presets/${id}.webp`)) && studio.includes('/avatar3d/presets/${p.id}.webp')],
+  ["cada personagem possui arquivo 2.5D próprio e válido", ["masculino","feminino"].every(group=>Array.from({length:8},(_,i)=>`public/avatar25d/presets/${group}-${String(i+1).padStart(2,"0")}.webp`).every(file=>fs.existsSync(file) && fs.statSync(file).size>0)) && studio.includes('avatarPresetSrc(id)')],
+  ["perfis com presets anteriores continuam compatíveis", avatar.includes('isAvatar25D(id) ? "avatar25d" : "avatar3d"') && studio.includes("avatarPresetSrc")],
+  ["a edição usa rascunho e salva exatamente o avatar confirmado", app.includes("avatarDraft || avatar") && app.includes("onChange={setAvatarDraft}") && app.includes("stateRef.current={...stateRef.current,avatar:nextAvatar}") && app.includes("persist({ avatar:nextAvatar })")],
 ];
 let failed=0;
 for(const [label,ok] of checks){ console.log(`${ok?"✓":"✗"} ${label}`); if(!ok) failed++; }

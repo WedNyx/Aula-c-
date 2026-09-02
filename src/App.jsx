@@ -130,6 +130,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [renaming, setRenaming] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const [avatar, setAvatar] = useState(initialAvatar || DEFAULT_AVATAR);
+  const [avatarDraft, setAvatarDraft] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [robotState, setRobotState] = useState("idle");
   const [robotMsg, setRobotMsg] = useState("");
@@ -3845,7 +3846,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
             ) : (
               <div className="student-companion-stage student-profile-stage" role="tabpanel" aria-label="Meu perfil">
-                <button type="button" className="student-companion-avatar" onClick={()=>setShowAvatarEdit(true)} title="Personalizar meu avatar">
+                <button type="button" className="student-companion-avatar" onClick={()=>{ setAvatarDraft(avatar); setShowAvatarEdit(true); }} title="Personalizar meu avatar">
                   <Avatar cfg={avatar} size={88} animated={!calmMode} />
                   <span>{studentName}</span>
                 </button>
@@ -4142,9 +4143,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           <div className="pop" style={{ background:"linear-gradient(180deg,#161027,#0c0818)", border:"1px solid #3e2d5e", borderRadius:22, padding:"18px 20px", maxWidth:1180, width:"100%", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 70px rgba(0,0,0,.55)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
               <span style={{ color:"#a99ac9", fontSize:12, fontWeight:800 }}>CENTRAL DO PERFIL 3D</span>
-              <button onClick={()=>{ setShowAvatarEdit(false); persist({}); }} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
+              <button onClick={()=>{ setAvatarDraft(null); setShowAvatarEdit(false); }} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }} aria-label="Fechar sem salvar">✕</button>
             </div>
-            <AvatarStudio3D value={avatar} onChange={setAvatar} onDone={()=>{ setShowAvatarEdit(false); persist({}); }} />
+            <AvatarStudio3D value={avatarDraft || avatar} onChange={setAvatarDraft} onDone={()=>{ const nextAvatar=avatarDraft || avatar; setAvatar(nextAvatar); stateRef.current={...stateRef.current,avatar:nextAvatar}; setAvatarDraft(null); setShowAvatarEdit(false); persist({ avatar:nextAvatar }); }} />
           </div>
         </div>
       )}

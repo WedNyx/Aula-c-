@@ -40,6 +40,8 @@ export const AVATAR_OPTS = {
   ],
 };
 export const DEFAULT_AVATAR = { bg:"#c084fc", skin:"#ffd6c0", hair:"#2b2b2b", hairV:"shortHair", eyesV:"cheery", mouthV:"openedSmile", glassesV:"", pet:"", roupa:"", render3d:null };
+export const isAvatar25D = id => /^(masculino|feminino)-0[1-8]$/.test(id || "");
+export const avatarPresetSrc = id => `/${isAvatar25D(id) ? "avatar25d" : "avatar3d"}/presets/${id}.webp`;
 
 
 // ── roupas e acessórios do avatar (escolhidos na criação do perfil) ──
@@ -175,10 +177,6 @@ export const PET_FILES = {
   "🐝":"abelha", "🦋":"borboleta", "✨":"vagalume", "🍄":"cogumelo",
 };
 const PET_SPRITES = {
-  "🐉":"dragao", "🦄":"unicornio", "🦖":"trex", "🦅":"aguia",
-  "🦉":"coruja", "🐺":"lobo", "🦊":"raposa", "🐱":"gato",
-  "🐶":"cachorro", "🐰":"coelho", "🦁":"leao", "🐢":"tartaruga",
-  "🐝":"abelha", "🦋":"borboleta", "✨":"vagalume", "🍄":"cogumelo",
 };
 const PET_MOTION_CLASS = { "🐝":"pet-bee", "🦋":"pet-butterfly", "✨":"pet-firefly", "🍄":"pet-mushroom" };
 // posição/tamanho pensados pro formato de cada bicho (sem moldura/círculo): quem tem corpo
@@ -254,7 +252,7 @@ export function Avatar({ cfg, size=72, animated=false }) {
           </svg>
         )}
         <img
-          src={uses3d ? `/avatar3d/presets/${c.render3d}.webp` : uri}
+          src={uses3d ? avatarPresetSrc(c.render3d) : uri}
           width={size}
           height={size}
           alt=""
@@ -329,7 +327,11 @@ export function PetCompanion({ pet, context = "idle" }) {
     clearTimeout(timerRef.current);
   }, [pet]);
   useEffect(() => {
-    if (!pet || !context || context === "idle" || context === lastContextRef.current) return;
+    if (!pet || !context || context === "idle") {
+      lastContextRef.current = "idle";
+      return;
+    }
+    if (context === lastContextRef.current) return;
     lastContextRef.current = context;
     setReaction(n => n + 1);
     setAction(context === "complete" || context === "success" ? "complete" : "special");
@@ -353,8 +355,109 @@ export function PetCompanion({ pet, context = "idle" }) {
     <div className={`pet-companion-corner pet-${file || "generic"} pet-action-${action}`} data-tour="pet" title="Clique para interagir · clique duas vezes para a reação especial">
       {message && <div className="pet-companion-speech" role="status" aria-live="polite">{message}</div>}
       <div className="pet-effect-layer" aria-hidden="true">{[0,1,2,3,4,5].map(i=><i key={i}/>)}</div>
-      <button key={`${reaction}-${action}`} type="button" aria-label={`Interagir com ${petLabel}`} onClick={react} onDoubleClick={e=>react(e,"special")} className={`pet-companion-button pet-companion-${info.cls}`}>
-        {PET_SPRITES[pet] ? (
+      <button type="button" aria-label={`Interagir com ${petLabel}`} onClick={react} onDoubleClick={e=>react(e,"special")} className={`pet-companion-button pet-companion-${info.cls}`}>
+        <span key={`${reaction}-${action}`} style={{display:"contents"}}>
+        {file === "dragao" ? (
+          <span className="pet-controlled pet-controlled-dragon" role="img" aria-label={petLabel}>
+            <span className="dragon-guard-wing dragon-guard-wing-left" aria-hidden="true" />
+            <span className="dragon-guard-wing dragon-guard-wing-right" aria-hidden="true" />
+            <img src="/pets/dragao.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "unicornio" ? (
+          <span className="pet-controlled pet-controlled-unicorn" role="img" aria-label={petLabel}>
+            <span className="unicorn-rainbow" aria-hidden="true" />
+            <span className="unicorn-star unicorn-star-one" aria-hidden="true">✦</span>
+            <span className="unicorn-star unicorn-star-two" aria-hidden="true">✧</span>
+            <span className="unicorn-star unicorn-star-three" aria-hidden="true">✦</span>
+            <img src="/pets/unicornio.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "trex" ? (
+          <span className="pet-controlled pet-controlled-trex" role="img" aria-label={petLabel}>
+            <span className="trex-reach-orb" aria-hidden="true" />
+            <span className="trex-power-aura" aria-hidden="true">✦</span>
+            <img src="/pets/trex.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "aguia" ? (
+          <span className="pet-controlled pet-controlled-aguia" role="img" aria-label={petLabel}>
+            <span className="aguia-wing aguia-wing-left" aria-hidden="true" />
+            <span className="aguia-wing aguia-wing-right" aria-hidden="true" />
+            <span className="aguia-flight-feather" aria-hidden="true">⌁</span>
+            <img src="/pets/aguia.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "coruja" ? (
+          <span className="pet-controlled pet-controlled-coruja" role="img" aria-label={petLabel}>
+            <span className="coruja-wing coruja-wing-left" aria-hidden="true" />
+            <span className="coruja-wing coruja-wing-right" aria-hidden="true" />
+            <span className="coruja-stars" aria-hidden="true">✦ ✧</span>
+            <span className="coruja-sleep" aria-hidden="true">Zzz</span>
+            <img src="/pets/coruja.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "lobo" ? (
+          <span className="pet-controlled pet-controlled-lobo" role="img" aria-label={petLabel}>
+            <span className="lobo-scent-trail" aria-hidden="true">···</span>
+            <span className="lobo-call-wave lobo-call-wave-one" aria-hidden="true" />
+            <span className="lobo-call-wave lobo-call-wave-two" aria-hidden="true" />
+            <span className="lobo-guard-shield" aria-hidden="true" />
+            <img src="/pets/lobo.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "raposa" ? (
+          <span className="pet-controlled pet-controlled-raposa" role="img" aria-label={petLabel}>
+            <span className="raposa-tail-ring" aria-hidden="true" />
+            <span className="raposa-jump-sparkles" aria-hidden="true">✦ · ✧</span>
+            <span className="raposa-hide-cloud" aria-hidden="true" />
+            <img src="/pets/raposa.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "gato" ? (
+          <span className="pet-controlled pet-controlled-gato" role="img" aria-label={petLabel}>
+            <span className="gato-affection" aria-hidden="true">♥</span>
+            <span className="gato-purr-ring gato-purr-ring-one" aria-hidden="true" />
+            <span className="gato-purr-ring gato-purr-ring-two" aria-hidden="true" />
+            <span className="gato-sleep-mat" aria-hidden="true" />
+            <img src="/pets/gato.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "cachorro" ? (
+          <span className="pet-controlled pet-controlled-cachorro" role="img" aria-label={petLabel}>
+            <span className="cachorro-paw" aria-hidden="true">●</span>
+            <span className="cachorro-run-ring" aria-hidden="true" />
+            <span className="cachorro-light-ball" aria-hidden="true" />
+            <img src="/pets/cachorro.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "coelho" ? (
+          <span className="pet-controlled pet-controlled-coelho" role="img" aria-label={petLabel}>
+            <img src="/pets/coelho.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "leao" ? (
+          <span className="pet-controlled pet-controlled-leao" role="img" aria-label={petLabel}>
+            <span className="leao-guard-aura" aria-hidden="true" />
+            <img src="/pets/leao.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "tartaruga" ? (
+          <span className="pet-controlled pet-controlled-tartaruga" role="img" aria-label={petLabel}>
+            <span className="tartaruga-sleep" aria-hidden="true">Zzz</span>
+            <img src="/pets/tartaruga.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "abelha" ? (
+          <span className="pet-controlled pet-controlled-abelha" role="img" aria-label={petLabel}>
+            <span className="abelha-heart" aria-hidden="true">♥</span>
+            <img src="/pets/abelha.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "borboleta" ? (
+          <span className="pet-controlled pet-controlled-borboleta" role="img" aria-label={petLabel}>
+            <span className="borboleta-trail" aria-hidden="true">✦ · ✧</span>
+            <img src="/pets/borboleta.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "vagalume" ? (
+          <span className="pet-controlled pet-controlled-vagalume" role="img" aria-label={petLabel}>
+            <span className="vagalume-halo" aria-hidden="true" />
+            <span className="vagalume-lights" aria-hidden="true">· ✦ ·</span>
+            <img src="/pets/vagalume.webp" alt="" draggable={false} />
+          </span>
+        ) : file === "cogumelo" ? (
+          <span className="pet-controlled pet-controlled-cogumelo" role="img" aria-label={petLabel}>
+            <span className="cogumelo-particles" aria-hidden="true">· ✦ ·</span>
+            <img src="/pets/cogumelo.webp" alt="" draggable={false} />
+          </span>
+        ) : PET_SPRITES[pet] ? (
           <span
             className={`pet-sprite pet-sprite-${action}`}
             style={{ backgroundImage:`url(/pets/sprites/${PET_SPRITES[pet]}-${action}.webp)` }}
@@ -362,6 +465,7 @@ export function PetCompanion({ pet, context = "idle" }) {
             aria-label={petLabel}
           />
         ) : file ? <img src={`/pets/${file}.webp`} alt={petLabel} draggable={false} /> : <span aria-hidden="true">{pet}</span>}
+        </span>
       </button>
     </div>
   );
