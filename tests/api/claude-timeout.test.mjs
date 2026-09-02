@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // quem chamou nunca recebia um JSON de erro de verdade, só a página de erro da própria plataforma
 // (exatamente o "Reconectando Nyx" travado pra sempre que um professor reportou em produção).
 // Agora cada tentativa tem um timeout próprio (AbortSignal), com orçamento dividido entre a
-// tentativa principal (Anthropic, IA principal) e a reserva (NVIDIA/Nemotron) quando as duas
+// tentativa principal (NVIDIA/Nemotron) e a reserva (Anthropic) quando as duas
 // cabem na mesma chamada de função.
 process.env.KV_REST_API_URL = '';
 process.env.KV_REST_API_TOKEN = '';
@@ -50,20 +50,18 @@ function hangingFetchRespectingAbort(signal) {
 const originalFetch = global.fetch;
 global.fetch = async (url, opts = {}) => {
   const u = String(url);
-  if (u.includes('api.anthropic.com')) {
+  if (u.includes('integrate.api.nvidia.com')) {
     return hangingFetchRespectingAbort(opts.signal);
   }
-  if (u.includes('integrate.api.nvidia.com')) {
-    return { ok: true, json: async () => ({ choices: [{ message: { content: 'Resposta da NVIDIA (reserva)' } }] }) };
+  if (u.includes('api.anthropic.com')) {
+    return { ok: true, json: async () => ({ content: [{ type: 'text', text: 'Resposta da Anthropic (reserva)' }] }) };
   }
   throw new Error('fetch inesperado no teste: ' + u);
 };
 
 const { default: claudeHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/claude.js')).href);
 
-// 1) Anthropic travada (nunca responde) + NVIDIA configurada como reserva: a função NÃO pode ficar
-// pendurada pra sempre — precisa desistir da Anthropic sozinha (dentro do orçamento da função) e
-// cair pra NVIDIA, devolvendo uma resposta de verdade em vez do "Reconectando" travado pra sempre.
+// 1) NVIDIA travada deve acionar a Anthropic dentro do orçamento da função.
 {
   const t0 = Date.now();
   const req = mockReq({ prompt: 'explica isso', system: 'sistema de teste' });
@@ -72,9 +70,9 @@ const { default: claudeHandler } = await import(pathToFileURL(path.join(__dirnam
   const elapsed = Date.now() - t0;
 
   check('NÃO fica pendurado pra sempre (responde em menos de 20s, não os 30s do maxDuration)', elapsed < 20000, `${elapsed}ms`);
-  check('Espera pelo menos o timeout configurado da Anthropic antes de cair pra reserva (não desiste cedo demais)', elapsed >= 13000, `${elapsed}ms`);
-  check('Cai pra NVIDIA como reserva e devolve uma resposta de verdade (JSON válido)', res._status !== 500 && Array.isArray(res._body?.content), JSON.stringify(res._body));
-  check('O texto devolvido é mesmo o da reserva (NVIDIA), confirmando o fallback', res._body?.content?.[0]?.text === 'Resposta da NVIDIA (reserva)');
+  check('Espera o timeout da NVIDIA antes de usar a reserva', elapsed >= 13000, `${elapsed}ms`);
+  check('Cai para Anthropic com JSON válido', res._status !== 500 && Array.isArray(res._body?.content), JSON.stringify(res._body));
+  check('Texto veio da reserva Anthropic', res._body?.content?.[0]?.text === 'Resposta da Anthropic (reserva)');
 }
 
 // 2) caminho normal (sem nenhum provedor travado) continua rápido — a correção não deixou tudo
@@ -82,8 +80,8 @@ const { default: claudeHandler } = await import(pathToFileURL(path.join(__dirnam
 {
   global.fetch = async (url) => {
     const u = String(url);
-    if (u.includes('api.anthropic.com')) {
-      return { ok: true, json: async () => ({ content: [{ type: 'text', text: 'Resposta rápida da Anthropic' }] }) };
+    if (u.includes('integrate.api.nvidia.com')) {
+      return { ok: true, json: async () => ({ choices: [{ message: { content: 'Resposta rápida da NVIDIA' } }] }) };
     }
     throw new Error('fetch inesperado no teste: ' + u);
   };
@@ -93,7 +91,7 @@ const { default: claudeHandler } = await import(pathToFileURL(path.join(__dirnam
   await claudeHandler(req, res);
   const elapsed = Date.now() - t0;
   check('Caminho normal (provedor respondendo rápido) continua rápido, sem esperar timeout nenhum', elapsed < 3000, `${elapsed}ms`);
-  check('Resposta normal continua correta', res._body?.content?.[0]?.text === 'Resposta rápida da Anthropic');
+  check('Resposta normal vem da NVIDIA', res._body?.content?.[0]?.text === 'Resposta rápida da NVIDIA');
 }
 
 global.fetch = originalFetch;

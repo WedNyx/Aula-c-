@@ -9,13 +9,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // parâmetro, "N tentativas × orçamento cheio" podia estourar o maxDuration da função. Agora as
 // retentativas dividem um prazo-limite ÚNICO (deadlineAt) — o tempo total de todas juntas fica
 // sempre dentro do orçamento original, com um piso mínimo pra retentativa não nascer fadada a
-// estourar na hora. Este teste exercita a NVIDIA como reserva (a Anthropic é a IA principal e
-// falha de propósito aqui pra cair pro orçamento de 14s da reserva).
+// estourar na hora. Este teste exercita a NVIDIA principal com orçamento de 14s,
+// reservando tempo para a Anthropic se necessário.
 process.env.KV_REST_API_URL = '';
 process.env.KV_REST_API_TOKEN = '';
 process.env.NVIDIA_API_KEY = 'fake-nvidia-key';
 process.env.NVIDIA_MODEL = 'nemotron-3-reasoning-8b'; // bate no regex NVIDIA_REASONING
-process.env.ANTHROPIC_API_KEY = 'fake-anthropic-key'; // IA principal; falha aqui pra acionar a reserva (NVIDIA) com 14s de orçamento
+process.env.ANTHROPIC_API_KEY = 'fake-anthropic-key'; // reserva configurada: NVIDIA recebe 14s
 process.env.OPENROUTER_API_KEY = '';
 
 let pass = 0, fail = 0;
@@ -49,7 +49,7 @@ function slowRejectingFetch(delayMs, errorBody) {
 const originalFetch = global.fetch;
 const { default: claudeHandler } = await import(pathToFileURL(path.join(__dirname, '../../api/claude.js')).href);
 
-// Anthropic (principal) falha rápido, caindo pra reserva (NVIDIA) com orçamento fixo de 14s.
+// NVIDIA principal com orçamento fixo de 14s.
 // 1ª tentativa da NVIDIA (com reasoning) rejeitada em ~4s (erro de reasoning) → retry sem
 // reasoning, ainda COM temperature, rejeitado em ~4s (erro de temperature) → retry final sem
 // nenhum dos dois, que finalmente teria tempo de sobra pra responder — mas o orçamento da reserva
