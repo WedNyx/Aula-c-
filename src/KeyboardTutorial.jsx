@@ -276,6 +276,9 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
   useEffect(() => {
     setWrongCount(0);
     if (target?.editor) { setEditorValue(target.initialValue || ""); editorHistoryRef.current = [target.initialValue || ""]; }
+  }, [levelIdx, targetIdx]);
+
+  useEffect(() => {
     if (done) return;
     say(explanationFor(level, target));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -471,7 +474,7 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
                 <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 4px" }}>{targetIdx}/{level.targets.length} desafios neste nível · <b style={{ color:"#fbbf24" }}>{level.title}</b> ({doneTargets}/{totalTargets} no total)</p>
                 <p style={{ color:"#d6c9ec", fontSize:13, margin:"0 0 10px" }}>{target.hint}</p>
                 <div data-testid="kb-editor-wrapper">
-                  <VSEditor value={editorValue} onChange={onEditorChange} filename="Program.cs" />
+                  <VSEditor key={`${levelIdx}:${targetIdx}`} autoFocus value={editorValue} onChange={onEditorChange} filename="Program.cs" />
                 </div>
               </>
             ) : target && (

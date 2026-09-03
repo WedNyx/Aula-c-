@@ -245,10 +245,10 @@ export function Avatar({ cfg, size=72, animated=false }) {
   return (
     <div className={`avatar-pop${animated ? " avatar-idle" : ""}`} style={{ position:"relative", width:size, height:size, display:"inline-block", lineHeight:0, flexShrink:0 }}>
       <div style={{ width:size, height:size, borderRadius:"50%", overflow:"hidden", position:"relative", background:uses3d ? "radial-gradient(circle at 50% 35%,#36205c,#10091e 72%)" : `radial-gradient(circle at 50% 30%, ${shade(c.bg,0.25)}, ${c.bg} 58%, ${shade(c.bg,-0.25)})`, boxShadow:"0 2px 5px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.14)" }}>
-        {/* a roupa fica ATRÁS do personagem: a cabeça/queixo cobrem a gola naturalmente */}
+        {/* Reserva espaço para o tronco; a roupa não fica escondida atrás do rosto. */}
         {!uses3d && roupa && (
-          <svg width={size} height={size} viewBox="0 0 100 100" style={{ position:"absolute", inset:0, zIndex:0, pointerEvents:"none" }}>
-            <RoupaSvg tipo={roupa.id} cor={roupa.cor} />
+          <svg width={size} height={size} viewBox="0 0 100 100" style={{ position:"absolute", inset:0, zIndex:2, pointerEvents:"none" }}>
+            <g transform="translate(0 -100) scale(1 2)"><RoupaSvg tipo={roupa.id} cor={roupa.cor} /></g>
           </svg>
         )}
         <img
@@ -258,7 +258,7 @@ export function Avatar({ cfg, size=72, animated=false }) {
           alt=""
           draggable={false}
           className={animated ? "avatar-face" : undefined}
-          style={{ display:"block", position:"relative", zIndex:1, objectFit:"cover", objectPosition:uses3d ? "50% 18%" : undefined, transform:uses3d ? "scale(1.16)" : undefined }}
+          style={{ display:"block", position:"relative", zIndex:1, width:!uses3d && roupa ? "82%" : "100%", height:!uses3d && roupa ? "82%" : "100%", margin:"0 auto", objectFit:"cover", objectPosition:uses3d ? "50% 18%" : undefined, transform:uses3d ? "scale(1.16)" : undefined }}
         />
       </div>
       {/* cada bicho tem uma posição própria pensada pro formato dele (sem moldura/círculo por

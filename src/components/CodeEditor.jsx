@@ -4,7 +4,7 @@ import { highlight } from "../lib/highlight.jsx";
 // ════════════════════════════════════════════════════════════════════════════
 //  EDITOR ESTILO VS CODE
 // ════════════════════════════════════════════════════════════════════════════
-export function VSEditor({ value, onChange, onPasteText, filename, errorLines, locked, lockMessage }) {
+export function VSEditor({ value, onChange, onPasteText, filename, errorLines, locked, lockMessage, autoFocus = false }) {
   const textareaRef = useRef(null);
   const highlightRef = useRef(null);
   const gutterRef = useRef(null);
@@ -12,6 +12,10 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
   const selectionRef = useRef({ start:0, end:0, direction:"none" });
   const isComposingRef = useRef(false);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (autoFocus) textareaRef.current?.focus();
+  }, [autoFocus]);
 
   useEffect(() => {
     if (!isExpanded) return undefined;
@@ -96,7 +100,15 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
     if (e.isComposing || isComposingRef.current) return;
     const ta = textareaRef.current;
     const start = ta.selectionStart, end = ta.selectionEnd, v = ta.value;
+    // Não intercepta atalhos do sistema (AltGraph continua permitido para símbolos).
+    if (e.metaKey || (e.ctrlKey && !e.getModifierState?.("AltGraph"))) return;
     const pairs = { "{":"}","(":")",'"':'"',"[":"]","'":"'" };
+    if (start === end && [")", "]", "}", '"', "'"].includes(e.key) && v[start] === e.key) {
+      e.preventDefault();
+      ta.setSelectionRange(start + 1, start + 1);
+      rememberSelection(ta);
+      return;
+    }
     if (pairs[e.key]) {
       e.preventDefault();
       if (start !== end) {

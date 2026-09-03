@@ -1,0 +1,15 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const avatar = fs.readFileSync('src/components/Avatar.jsx', 'utf8');
+const editor = fs.readFileSync('src/components/CodeEditor.jsx', 'utf8');
+const tutorial = fs.readFileSync('src/KeyboardTutorial.jsx', 'utf8');
+assert.match(avatar, /translate\(0 -100\) scale\(1 2\)/);
+assert.match(avatar, /zIndex:2, pointerEvents:"none"/);
+assert.match(avatar, /width:!uses3d && roupa \? "82%"/);
+assert.match(tutorial, /key=\{`\$\{levelIdx\}:\$\{targetIdx\}`\} autoFocus/);
+assert.match(editor, /if \(autoFocus\) textareaRef.current\?\.focus\(\)/);
+assert.match(editor, /ta.setSelectionRange\(start \+ 1, start \+ 1\)/);
+assert.match(editor, /e.getModifierState\?\.\("AltGraph"\)/);
+const resetEffect = tutorial.slice(tutorial.indexOf('setWrongCount(0);'), tutorial.indexOf('const onEditorChange'));
+assert.match(resetEffect, /\}, \[levelIdx, targetIdx\]\);/);
+console.log('8 contratos: roupa visível, foco por exercício, cursor, atalhos e preservação ao alternar voz.');
