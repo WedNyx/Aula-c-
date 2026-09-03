@@ -40,20 +40,20 @@ function todayKeyLocal() {
   await page.waitForTimeout(1500); // carrega o perfil e roda o primeiro tick — sem código, marca "idle"
 
   const before = JSON.parse(kvStore.get(studentKey));
-  check('Sem código escrito, o próprio cálculo automático marca "idle" (não "present")', before.attendance?.[tk] !== 'present', JSON.stringify(before.attendance));
+  check('O acesso ao perfil registra presença mesmo sem código escrito', before.attendance?.[tk] === 'present', JSON.stringify(before.attendance));
 
   // simula exatamente o que markPresentToday faz: corrige a presença no "servidor" E marca a flag
   // que o app usa pra avisar a aba aberta (mesmo mecanismo de doSetScore/doApproveJustification)
-  const patched = { ...before, attendance: { ...(before.attendance || {}), [tk]: 'present' } };
+  const patched = { ...before, attendance: { ...(before.attendance || {}), [tk]: 'absent' }, attendanceOverrides: { [tk]: { status: 'absent', at: Date.now() } } };
   kvStore.set(studentKey, JSON.stringify(patched));
-  kvStore.set('scorefix:matutino:AlunoChamada', JSON.stringify({ kind: 'attendance', dateKey: tk, status: 'present', at: Date.now() }));
+  kvStore.set('scorefix:matutino:AlunoChamada', JSON.stringify({ kind: 'attendance', dateKey: tk, status: 'absent', at: Date.now() }));
 
   // espera o próximo autosave periódico desta aba (tick a cada 12s) — SEM a correção, ele
   // recalcularia a presença sozinho (sem código = "idle") e apagaria a marcação manual do professor
   await page.waitForTimeout(13000);
 
   const after = JSON.parse(kvStore.get(studentKey));
-  check('Depois do autosave: a presença manual do professor sobrevive (continua "present")', after.attendance?.[tk] === 'present', JSON.stringify(after.attendance));
+  check('Depois do autosave: a falta manual do professor sobrevive', after.attendance?.[tk] === 'absent', JSON.stringify(after.attendance));
   check('A flag de correção foi consumida e limpa', kvStore.get('scorefix:matutino:AlunoChamada') == null, kvStore.get('scorefix:matutino:AlunoChamada'));
   check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 5).join(' | '));
 

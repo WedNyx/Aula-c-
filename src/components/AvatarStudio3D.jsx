@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AVATAR_OPTS, PET_FILES, avatarPresetSrc } from "./Avatar.jsx";
+import { normalizePetName, petNameFor, PET_NAME_LIMIT } from "../lib/classroomUpdates.js";
 
 export const AVATAR_3D_PRESETS = [
   ...Array.from({ length:8 }, (_,i)=>({ id:`masculino-${String(i+1).padStart(2,"0")}`, label:`Masculino ${i+1}`, group:"masculino" })),
@@ -28,10 +29,17 @@ export function AvatarStudio3D({ value, onChange, onDone, title="Personalizar av
         <section className="avatar-studio-preview">
           <div className="avatar-studio-stage"><Avatar3DRender preset={selected} />{pet && <StudioPet pet={pet}/>}</div>
           <strong>{AVATAR_3D_PRESETS.find(p=>p.id===selected)?.label || "Avatar anterior"}</strong>
-          {step==="pet" && <small>{selectedPet?.label || "Sem companheiro"}</small>}
+          {step==="pet" && <small>{petNameFor(value) || selectedPet?.label || "Sem companheiro"}</small>}
         </section>
         {step==="avatar" ? <AvatarPresetPanel selected={selected} onSelect={setPreset}/> : <PetPanel selected={pet} onSelect={setPet}/>} 
       </div>
+      {step === "pet" && pet && <label className="pet-name-editor" style={{display:"grid",gap:6,margin:"14px 0",color:"#eee"}}>
+        Nome do seu pet (até {PET_NAME_LIMIT} caracteres)
+        <input aria-label="Nome do pet" maxLength={PET_NAME_LIMIT * 2} value={value.petNames?.[pet] || ""} placeholder={selectedPet?.label || "Nome do pet"}
+          onChange={e => onChange({...value, petNames:{...value.petNames, [pet]: Array.from(e.target.value.replace(/[\u0000-\u001f\u007f]/g," ")).slice(0,PET_NAME_LIMIT).join("")}})}
+          onBlur={e => onChange({...value, petNames:{...value.petNames, [pet]:normalizePetName(e.target.value)}})} />
+        <small>Deixe vazio para usar o nome da espécie. Cada pet guarda seu próprio nome.</small>
+      </label>}
       <footer className="avatar-studio-footer">
         {step==="pet" && <button className="studio-back" onClick={()=>setStep("avatar")}>← Voltar</button>}
         <button className="studio-primary" onClick={()=>step==="avatar"?setStep("pet"):onDone?.()}>{step==="avatar"?"Escolher meu companheiro":"Salvar meu perfil"} →</button>

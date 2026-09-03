@@ -16,6 +16,11 @@ import { NyxDisplay as NyxRobot } from "./components/NyxDisplay.jsx";
 import { PerformanceChart } from "./components/PerformanceChart.jsx";
 import { DEFAULT_AVATAR, Avatar, AvatarPreview, AvatarControls, AvatarBuilder, PetCompanion } from "./components/Avatar.jsx";
 import { AvatarStudio3D } from "./components/AvatarStudio3D.jsx";
+import { AttendancePanel } from "./components/AttendancePanel.jsx";
+import { ReleaseBadge } from "./components/ReleaseBadge.jsx";
+import { PLATFORM_VERSION, CURRENT_RELEASE } from "./releases.js";
+import { setAttendance } from "./storage.js";
+import { applyAttendanceOverrides, lessonsForShift, petNameFor } from "./lib/classroomUpdates.js";
 import { VSEditor, CodeBlock, GUIDED_BLOCKS, GUIDED_PARTICIPATION_QUIZ } from "./components/CodeEditor.jsx";
 import { Terminal } from "./components/Terminal.jsx";
 import { NyxChat } from "./components/NyxChat.jsx";
@@ -359,7 +364,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [providerHealth, setProviderHealth] = useState({ nvidia:null, laguna:null });
   // versão das novidades apresentadas pelo Nyx Lunar. Fica salva no perfil do aluno para não
   // repetir o tour em outro aparelho depois que ele já tiver visto.
-  const NYX_NEWS_VERSION = "2026-08-skins";
+  const NYX_NEWS_VERSION = PLATFORM_VERSION;
   const [nyxNewsSeen, setNyxNewsSeen] = useState("");
   const [showNyxNews, setShowNyxNews] = useState(false);
   const [showNyxInteractHint, setShowNyxInteractHint] = useState(() => {
@@ -603,7 +608,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     // cadastro dele já não contam como falta em nenhum lugar — ver dayCell/boletim/tendência —
     // então a partir do momento que ele entra, o dia de entrada em si também não pode virar falta)
     const isEnrollmentDay = !vistoriaOnly && tk === dateKeyOf(createdAtRef.current);
-    attendanceRef.current = { ...attendanceRef.current, [tk]: (didWork || isEnrollmentDay || attendanceRef.current[tk] === "present") ? "present" : "idle" };
+    attendanceRef.current = applyAttendanceOverrides({ ...latest?.attendance, ...attendanceRef.current, [tk]: (!vistoriaOnly || didWork || isEnrollmentDay || attendanceRef.current[tk] === "present") ? "present" : "idle" }, latest?.attendanceOverrides);
     // guarda o horário do PRIMEIRO acesso de hoje (uma vez só) — usado pra marcar "atrasado" na chamada
     if (!attendanceFirstRef.current[tk]) attendanceFirstRef.current = { ...attendanceFirstRef.current, [tk]: Date.now() };
     // 🔥 sequência de presença: paga só quando a presença de HOJE vira "present" pela primeira vez
@@ -2344,7 +2349,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       if (!isContinuation && !difficultyHint && !adaptiveTier) {
         try {
           const [teacherCode, lessons] = await Promise.all([getTeacherCode(shift), getTeacherLessons()]);
-          matchedLesson = teacherCode ? findMatchingLesson(lessons, teacherCode.files) : null;
+          matchedLesson = teacherCode ? findMatchingLesson(lessonsForShift(lessons, shift), teacherCode.files) : null;
         } catch { matchedLesson = null; }
       }
       const hasReadyContent = matchedLesson?.resumo && Array.isArray(matchedLesson?.atividade) && matchedLesson.atividade.length > 0;
@@ -3850,7 +3855,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                   <Avatar cfg={avatar} size={88} animated={!calmMode} />
                   <span>{studentName}</span>
                 </button>
-                <PetCompanion pet={avatar.pet} context={phase==="done"?"complete":helpAt?"help":robotState==="ok"?"success":robotState==="error"?"error":todayMood?`mood:${todayMood}`:"idle"} />
+                <PetCompanion pet={avatar.pet} name={petNameFor(avatar)} context={phase==="done"?"complete":helpAt?"help":robotState==="ok"?"success":robotState==="error"?"error":todayMood?`mood:${todayMood}`:"idle"} />
                 <button type="button" className="student-profile-open" onClick={()=>setShowStudentProfile(true)}>Abrir perfil completo</button>
               </div>
             )}
@@ -4121,17 +4126,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         <div style={{ position:"fixed", inset:0, background:"rgba(5,4,12,.88)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
           <div className="pop" style={{ width:"min(520px,100%)", background:"linear-gradient(145deg,#20274a,#111329)", border:"1px solid #9ab7ff66", borderRadius:22, padding:"24px", boxShadow:"0 30px 90px #000" }}>
             <div style={{ display:"flex", justifyContent:"space-between", gap:14, alignItems:"flex-start" }}>
-              <div><div style={{ color:"#9ab7ff", fontSize:10, fontWeight:900, letterSpacing:1.5 }}>NOVIDADE DA PLATAFORMA</div><h2 style={{ margin:"7px 0 8px", color:"#fff" }}>🌙 Novas aparências do Nyx</h2></div>
+              <div><div style={{ color:"#9ab7ff", fontSize:10, fontWeight:900, letterSpacing:1.5 }}>NOVIDADE DA PLATAFORMA · v{PLATFORM_VERSION}</div><h2 style={{ margin:"7px 0 8px", color:"#fff" }}>🌙 {CURRENT_RELEASE.title}</h2></div>
               <NyxRobot state="ok" size={62} showName={false} gear={{ ...nyxGear, skin:"skinLunar" }} />
             </div>
-            <p style={{ color:"#c2bed2", lineHeight:1.65, margin:"8px 0 14px" }}>A Loja do Nyx agora possui skins completas. Elas mantêm exatamente o formato Prisma Orbital e mudam apenas cores, materiais e efeitos.</p>
+            <p style={{ color:"#c2bed2", lineHeight:1.65, margin:"8px 0 14px" }}>Confira o que mudou nesta atualização:</p>
             <div style={{ display:"grid", gap:8, color:"#ded9eb", fontSize:13 }}>
-              <div style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>🛍️ Compre skins usando os pontos conquistados nas atividades.</div>
-              <div style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>🌑 O Nyx Eclipse avisa quando os recursos de IA estiverem em pausa.</div>
-              <div style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>📅 O visual Modernizado será o padrão automático a partir de setembro.</div>
+              {CURRENT_RELEASE.changes.map(change => <div key={change} style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>{change}</div>)}
             </div>
             <div style={{ display:"flex", gap:9, marginTop:18, flexWrap:"wrap" }}>
-              <button onClick={()=>{ finishNyxNews(); setShowNyxShop(true); }} style={{ ...styles.btn("#82eeff"), flex:"1 1 180px", padding:"10px" }}>🎁 Conhecer as skins</button>
+              <button onClick={()=>{ finishNyxNews(); setAvatarDraft(avatar); setShowAvatarEdit(true); }} style={{ ...styles.btn("#82eeff"), flex:"1 1 180px", padding:"10px" }}>🐾 Personalizar meu perfil</button>
               <button onClick={finishNyxNews} style={{ ...styles.btnGhost, flex:"1 1 120px", padding:"10px" }}>Entendi</button>
             </div>
           </div>
@@ -4566,6 +4569,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // 📒 caderno de resumos DO PROFESSOR (por turma selecionada em "Meu código"): guarda os resumos
   // já gerados antes de decidir mandar pra turma — dá pra revisar antes de enviar
   const [teacherResumoHistory, setTeacherResumoHistory] = useState({});
+  const [summaryLoadedShift, setSummaryLoadedShift] = useState(null);
   const [showManualSummary, setShowManualSummary] = useState(false);
   const [showTeacherNotebook, setShowTeacherNotebook] = useState(false);
   const [resumoSendBusy, setResumoSendBusy] = useState(false);
@@ -4618,6 +4622,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // prova
   const [examConfig, setExamConfig] = useState({ status: 'idle' });
   const [examGenerating, setExamGenerating] = useState(false);
+  const [manualExamShift, setManualExamShift] = useState(null);
   const [examMsg, setExamMsg] = useState("");
   // relógio pra contar o tempo de estudo restante na fase de revisão da prova
   const examNow = useAccurateNow(examConfig.status === "review", 200);
@@ -4711,6 +4716,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [dailyPdfCode, setDailyPdfCode] = useState("");
   // biblioteca de aulas (as SUAS aulas salvas + modelos de exemplo) + backup completo
   const [showLessons, setShowLessons] = useState(false);
+  const [lessonScope, setLessonScope] = useState("");
   const [myLessons, setMyLessons] = useState([]);
   // espelha myLessons pra sempre ler a versão MAIS RECENTE dentro de generateLessonContent/
   // importLessonContent — geração de conteúdo pronto demora vários segundos (chamadas ao Nyx em
@@ -5250,7 +5256,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     }
     if (!source) throw new Error(`Programe o exemplo de ${shiftMeta(shift, turmas).label} na aba "Meu código" (ou espere os alunos dessa turma começarem a escrever).`);
     // já existe uma aula salva com ESSE MESMO código, com o nome já pronto? reaproveita, sem chamar o Nyx
-    const matched = origem === "professor" ? findMatchingLesson(myLessons, proFilesByShift[shift]) : null;
+    const matched = origem === "professor" ? findMatchingLesson(lessonsForShift(myLessons, shift), proFilesByShift[shift]) : null;
     let title;
     if (matched?.contentName) {
       title = matched.contentName;
@@ -5300,7 +5306,8 @@ function TeacherView({ onLogout, teacherAuth }) {
   useEffect(() => {
     let active = true;
     getResumoTrigger(codeShift).then(v => { if (active) setResumoTriggeredToday(t => ({ ...t, [codeShift]: v?.date === todayKey() })); });
-    getTeacherResumoHistory(codeShift).then(h => { if (active) setTeacherResumoHistory(h || {}); });
+    setSummaryLoadedShift(null);
+    getTeacherResumoHistory(codeShift, true).then(h => { if (active) { setTeacherResumoHistory(h || {}); setSummaryLoadedShift(codeShift); } }).catch(()=>{if(active) setResumoTriggerMsg('❌ Não foi possível carregar o caderno. Troque o turno para tentar novamente.');});
     return () => { active = false; };
   }, [codeShift]);
   // 📚 gera o resumo de hoje a partir do código que O PROFESSOR passou pra essa turma (os alunos só
@@ -5378,6 +5385,16 @@ function TeacherView({ onLogout, teacherAuth }) {
       setShowManualSummary(false);
       setResumoTriggerMsg("✅ Seu resumo e a atividade foram guardados! Revise e envie quando quiser.");
     } else setResumoTriggerMsg("❌ Não consegui guardar o resumo agora. Tente novamente.");
+    return ok;
+  };
+  const apagarResumoProfessor = async (date) => {
+    const targetShift = codeShift;
+    const latest = await getTeacherResumoHistory(targetShift, true);
+    const next = { ...latest };
+    delete next[date];
+    const ok = await saveTeacherResumoHistory(targetShift, next, teacherAuth);
+    if (ok) setTeacherResumoHistory(next);
+    return ok;
   };
   const enviarResumoParaTurma = async (turmaId) => {
     const resumo = teacherResumoHistory[todayKey()];
@@ -6025,7 +6042,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // de hoje na mão. Vira "present" normal na chamada e na planilha, e NUNCA conta como atrasado
   // (o atraso só é calculado pelo 1º acesso do aluno, que nem existe quando ele não loga).
   const markPresentToday = async (s) => {
-    const ok = await patchStudent(s.shift, s.name, { attendance: { ...(s.attendance||{}), [tk]: "present" } });
+    const ok = await setAttendance(s.shift, s.name, tk, "present", teacherAuth);
     // se o aluno estiver com a aba aberta, o autosave periódico dele (que recalcula a presença de
     // hoje sozinho a cada 12s) sobrescreveria essa correção manual sem essa flag — mesma proteção
     // já usada em doSetScore/doApproveJustification/doDisablePortfolio
@@ -6034,11 +6051,9 @@ function TeacherView({ onLogout, teacherAuth }) {
     load();
   };
   const unmarkPresentToday = async (s) => {
-    const att = { ...(s.attendance||{}) };
-    delete att[tk];
-    const ok = await patchStudent(s.shift, s.name, { attendance: att });
-    if (ok) await setScoreFix(s.shift, s.name, { kind: "attendance", dateKey: tk, status: null }, teacherAuth);
-    flashMgmt(ok ? `↩️ Presença manual de ${s.name} desfeita.` : "❌ Não consegui desfazer agora. Tente de novo.");
+    const ok = await setAttendance(s.shift, s.name, tk, "absent", teacherAuth);
+    if (ok) await setScoreFix(s.shift, s.name, { kind: "attendance", dateKey: tk, status: "absent" }, teacherAuth);
+    flashMgmt(ok ? `Presença de ${s.name} removida por você.` : "❌ Não consegui salvar agora. Tente de novo.");
     load();
   };
 
@@ -6131,11 +6146,12 @@ function TeacherView({ onLogout, teacherAuth }) {
       const EXAM_STUDY_MS = 30 * 60 * 1000;
       const rawExamQuestions = Array.isArray(parsed.questions) ? parsed.questions : [];
       const validExamQuestions = filterValidQuestions(rawExamQuestions);
+      if (!validExamQuestions.length) throw new Error('empty_exam');
       if (validExamQuestions.length < rawExamQuestions.length) {
         reportClientError({ message: `Prova da turma ${shiftFilter}: ${rawExamQuestions.length - validExamQuestions.length} questão(ões) geradas sem gabarito válido foram descartadas automaticamente, sem penalizar os alunos.`, url: window.location.pathname, role: "sistema" });
       }
       const newConfig = { status: 'review', questions: shuffleQuestions(validExamQuestions), summary: summaryResult.trim(), shift: shiftFilter, startedAt: Date.now(), studyUntil: Date.now() + EXAM_STUDY_MS };
-      await setExamState(newConfig, teacherAuth, shiftFilter);
+      if (!(await setExamState(newConfig, teacherAuth, shiftFilter))) throw new Error('exam_save_failed');
       setExamConfig(newConfig);
       setExamMsg("✅ Prova criada! Os alunos têm 30min pra estudar. Quando todos estiverem prontos, clique em Iniciar Agora (ou espere o tempo passar).");
     } catch(e) { setExamMsg("Erro ao gerar a prova. Tente de novo."); }
@@ -6144,7 +6160,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
   const activateExam = async () => {
     const newConfig = { ...examConfig, status: 'active', activatedAt: Date.now() };
-    await setExamState(newConfig, teacherAuth, examConfig.shift || shiftFilter);
+    if (!(await setExamState(newConfig, teacherAuth, examConfig.shift || shiftFilter))) { setExamMsg("❌ Não foi possível iniciar a prova. Tente novamente."); return; }
     setExamConfig(newConfig);
     setExamMsg("✅ Prova iniciada! Os alunos estão respondendo.");
   };
@@ -6414,17 +6430,24 @@ function TeacherView({ onLogout, teacherAuth }) {
     const files = (proFiles || []).filter(f => (f.code || "").trim());
     if (!files.length) { setNameMsg(`⚠ Programe algo na turma ${shiftMeta(codeShift, turmas).label} primeiro — a aula salva é o código que está no editor.`); setTimeout(()=>setNameMsg(""), 6000); return; }
     const title = lessonName.trim() || `Aula de ${new Date().toLocaleDateString("pt-BR")}`;
-    const next = [...myLessons, { title, files: files.map(f => ({ ...f })), at: Date.now() }];
+    const next = [...myLessonsRef.current, { title, shift: codeShift, files: files.map(f => ({ ...f })), at: Date.now() }];
+    if (!(await saveTeacherLessons(next, teacherAuth))) { setNameMsg("❌ Não foi possível salvar a aula. Tente novamente."); return; }
+    myLessonsRef.current = next;
     setMyLessons(next);
     setLessonName("");
-    await saveTeacherLessons(next, teacherAuth);
     setNameMsg(`✅ "${title}" salva na sua biblioteca!`);
     setTimeout(()=>setNameMsg(""), 6000);
   };
   const deleteLesson = async (idx) => {
     const next = myLessons.filter((_, i) => i !== idx);
+    if (!(await saveTeacherLessons(next, teacherAuth))) { setNameMsg("❌ Não foi possível excluir a aula."); return; }
+    myLessonsRef.current = next;
     setMyLessons(next);
-    await saveTeacherLessons(next, teacherAuth);
+  };
+  const moveLessonToShift = async (idx, shift) => {
+    const next = myLessonsRef.current.map((lesson, i) => i === idx ? { ...lesson, shift: shift || null } : lesson);
+    if (!(await saveTeacherLessons(next, teacherAuth))) { setNameMsg("❌ Não foi possível mudar o turno da aula."); return; }
+    myLessonsRef.current = next; setMyLessons(next);
   };
 
   const lessonContentDone = (lesson) => ({
@@ -6486,8 +6509,9 @@ function TeacherView({ onLogout, teacherAuth }) {
         return;
       }
       const next = latestLessons.map((l,i) => i===targetIdx ? { ...l, contentName, explain: explainOut, resumo: resumoOut, atividade } : l);
+      if (!(await saveTeacherLessons(next, teacherAuth))) throw new Error('lesson_save_failed');
+      myLessonsRef.current = next;
       setMyLessons(next);
-      await saveTeacherLessons(next, teacherAuth);
       setNameMsg(`✅ Conteúdo pronto gerado pra "${lesson.title}" — vai ser reaproveitado toda vez que essa aula for usada.`);
       setTimeout(()=>setNameMsg(""), 8000);
     } catch {
@@ -6512,8 +6536,9 @@ function TeacherView({ onLogout, teacherAuth }) {
     if (Array.isArray(parsed.atividade)) patch.atividade = filterValidQuestions(parsed.atividade);
     if (Object.keys(patch).length === 0) { setNameMsg("⚠ Nenhum campo reconhecido no JSON (use contentName/explain/resumo/atividade)."); setTimeout(()=>setNameMsg(""), 6000); return; }
     const next = myLessons.map((l,i) => i===idx ? { ...l, ...patch } : l);
+    if (!(await saveTeacherLessons(next, teacherAuth))) { setNameMsg("❌ Não foi possível salvar a importação. O texto foi mantido para tentar novamente."); return; }
+    myLessonsRef.current = next;
     setMyLessons(next);
-    await saveTeacherLessons(next, teacherAuth);
     setShowImportLesson(null);
     setImportText("");
     setNameMsg(`✅ Conteúdo importado pra "${lesson.title}" sem gastar o Nyx.`);
@@ -6646,12 +6671,14 @@ function TeacherView({ onLogout, teacherAuth }) {
   const teacherSidebarGroups = [
     { id:"overview", label:"Visão geral", items:[
       { id:"monitor", label:"Monitoramento", icon:"👥", active:tab==="monitor", onClick:()=>setTab("monitor"), teacherTour:"monitor" },
+      { id:"attendance", label:"Lista de chamada", icon:"📋", active:tab==="attendance", onClick:()=>setTab("attendance"), teacherTour:"attendance" },
+      { id:"lessons", label:"Minhas aulas", icon:"📚", active:showLessons, onClick:()=>setShowLessons(true), teacherTour:"lessons" },
       { id:"code", label:"Meu código", icon:"👨‍💻", active:tab==="code", onClick:()=>setTab("code"), teacherTour:"code" },
       { id:"calendar", label:"Calendário", icon:"🗓️", active:tab==="calendar", onClick:()=>setTab("calendar"), teacherTour:"calendar" },
     ]},
     { id:"teaching", label:"Ensino", items:[
       { id:"feedback", label:"Feedback", icon:"💬", badge:feedbacks.length || null, active:tab==="feedback", onClick:()=>setTab("feedback"), teacherTour:"feedback" },
-      { id:"exam", label:"Provas", icon:"🏆", badge:examConfig.status!=="idle" ? "●" : null, active:tab==="exam", onClick:()=>setTab("exam"), teacherTour:"exam" },
+      { id:"materials", label:"Resumos, atividades e provas", icon:"📚", badge:examConfig.status!=="idle" ? "●" : null, active:tab==="materials" || tab==="exam", onClick:()=>setTab("materials"), teacherTour:"materials" },
       { id:"quiz", label:"Quiz", icon:"🎉", badge:quizRoom ? "●" : null, active:tab==="quiz", onClick:()=>setTab("quiz"), teacherTour:"quiz" },
     ]},
     { id:"communication", label:"Comunicação", items:[
@@ -6766,10 +6793,12 @@ function TeacherView({ onLogout, teacherAuth }) {
       {isMobileScreen && (
         <nav className="teacher-mobile-tabs" aria-label="Áreas do painel do professor">
           <button style={styles.tab(tab==="monitor")} onClick={()=>setTab("monitor")}>👥 Monitoramento</button>
+          <button style={styles.tab(tab==="attendance")} onClick={()=>setTab("attendance")}>📋 Lista de chamada</button>
+          <button style={styles.tab(false)} onClick={()=>setShowLessons(true)}>📚 Minhas aulas</button>
           <button style={styles.tab(tab==="code")} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
           <button style={styles.tab(tab==="calendar")} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
           <button style={styles.tab(tab==="feedback")} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
-          <button style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=="idle"&&tab!=="exam"?{borderColor:"#fbbf24",color:"#fbbf24"}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=="idle"?" ●":""}</button>
+          <button style={styles.tab(tab==="materials" || tab==="exam")} onClick={()=>setTab("materials")}>📚 Resumos, atividades e provas</button>
           <button style={{ ...styles.tab(tab==="quiz"), ...(quizRoom&&tab!=="quiz"?{borderColor:"#c084fc",color:"#c084fc"}:{}) }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?" ●":""}</button>
           <button style={styles.tab(false)} onClick={()=>setShowTeacherNotes(true)}>📝 Anotações</button>
           <button style={styles.tab(tab==="reminders")} onClick={()=>setTab("reminders")}>🔔 Avisos</button>
@@ -6777,7 +6806,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {/* filtro de turno (vale para monitoramento, chamada, situação e feedback) */}
-      {tab!=="code" && (
+      {tab!=="code" && tab!=="materials" && (
         <div data-tour-prof="turma" style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
           <span style={{ color:"#a99ac9", fontSize:13 }}>Turma:</span>
           <button onClick={()=>setShiftFilter("all")} style={styles.tab(shiftFilter==="all")}>Todas ({students.length})</button>
@@ -6800,6 +6829,11 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {tab==="reminders" && <ScheduledReminders reminders={scheduledReminders} turmas={activeTurmas} onSave={saveReminders} />}
+      {tab==="attendance" && <AttendancePanel students={students} shiftFilter={shiftFilter} shiftLabel={sh => shiftLabel(sh, turmas)} onSet={async (s, date, status) => {
+        const ok = await setAttendance(s.shift, s.name, date, status, teacherAuth);
+        if (ok) await load();
+        return ok;
+      }} />}
 
       {/* urgências primeiro — pedidos de ajuda e alunos parados resumidos logo no topo do
           Monitoramento, antes de qualquer gráfico ou card secundário. Não substitui o resto do
@@ -6868,7 +6902,11 @@ function TeacherView({ onLogout, teacherAuth }) {
               <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📚 Minhas aulas</h2>
               <button onClick={()=>setShowLessons(false)} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
             </div>
-            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Sua biblioteca: salve o código que está no editor com um nome e reutilize em qualquer turma, quantas vezes quiser. Carregar uma aula <b>substitui</b> o código atual da turma {shiftMeta(codeShift, turmas).label}.</p>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>As aulas novas são salvas no turno do editor. As antigas permanecem em “Sem turno” até você classificá-las. Carregar uma aula <b>substitui</b> o código atual da turma {shiftMeta(codeShift, turmas).label}.</p>
+            <label>Mostrar aulas de <select aria-label="Turno das minhas aulas" value={lessonScope || codeShift} onChange={e => setLessonScope(e.target.value)}>
+              {[...activeTurmas, TEST_SHIFT, LANG_SHIFT].filter((t,i,a) => a.findIndex(x=>x.id===t.id)===i).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              <option value="unassigned">Sem turno (anteriores)</option><option value="all">Todos os turnos</option>
+            </select></label>
 
             {/* salvar a aula atual */}
             <div style={{ background:"#171026", border:"1px dashed #34d399", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
@@ -6881,11 +6919,12 @@ function TeacherView({ onLogout, teacherAuth }) {
             </div>
 
             {/* aulas salvas */}
-            {myLessons.length === 0 ? (
+            {lessonsForShift(myLessons, lessonScope || codeShift).length === 0 ? (
               <p style={{ color:"#776798", fontSize:13, marginBottom:14 }}>Você ainda não salvou nenhuma aula. Programe na aba Meu código e clique em Salvar acima — ela aparece aqui pra sempre.</p>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
                 {myLessons.map((lesson, li) => {
+                  if (!lessonsForShift([lesson], lessonScope || codeShift).length) return null;
                   const done = lessonContentDone(lesson);
                   const allDone = done.contentName && done.explain && done.resumo && done.atividade;
                   const anyDone = done.contentName || done.explain || done.resumo || done.atividade;
@@ -6894,6 +6933,10 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <div key={li} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"10px 14px", flexWrap:"wrap" }}>
                     <div style={{ flex:"1 1 220px" }}>
                       <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
+                      <label>Turno <select aria-label={`Turno de ${lesson.title}`} value={lesson.shift || ""} disabled={lessonGenBusy!=null} onChange={e => moveLessonToShift(li, e.target.value)}>
+                        <option value="">Sem turno</option>
+                        {[...activeTurmas, TEST_SHIFT, LANG_SHIFT].filter((t,i,a) => a.findIndex(x=>x.id===t.id)===i).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                      </select></label>
                       <p style={{ color:"#776798", fontSize:11.5, margin:"3px 0 0" }}>salva em {new Date(lesson.at).toLocaleDateString("pt-BR")} · {lesson.files.length} arquivo{lesson.files.length!==1?"s":""}</p>
                       {allDone
                         ? <span title="Nome, explicação, resumo e atividade prontos — reaproveitados sozinhos toda vez que essa aula for usada, sem gastar o Nyx de novo" style={{ display:"inline-block", marginTop:5, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:20, padding:"1px 9px", fontSize:10.5, fontWeight:800 }}>🧠 Conteúdo pronto</span>
@@ -7045,8 +7088,8 @@ function TeacherView({ onLogout, teacherAuth }) {
                                   {st!=="present" && (
                                     <button onClick={()=>markPresentToday(s)} title="Marca a presença de hoje na mão (dia de filme, passeio, atividade sem computador...) — conta como presente normal, sem atraso" style={{ background:"transparent", color:"#34d399", border:"1px solid #34d399", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>✅ Marcar presente</button>
                                   )}
-                                  {st==="present" && !isSameDayTs(s.lastSeen) && (
-                                    <button onClick={()=>unmarkPresentToday(s)} title="Este aluno foi marcado presente na mão (ele não entrou hoje) — clique pra desfazer" style={{ background:"transparent", color:"#a99ac9", border:"1px solid #56407e", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>↩️ Desfazer</button>
+                                  {st==="present" && (
+                                    <button onClick={()=>unmarkPresentToday(s)} title="Marcar falta, mesmo se houve acesso ao perfil. A correção manual tem prioridade." style={{ background:"transparent", color:"#a99ac9", border:"1px solid #56407e", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>Tirar presença</button>
                                   )}
                                 </div>
                               </div>
@@ -7741,29 +7784,19 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {/* ─────────── MEU CÓDIGO (exemplo da aula, do professor) — layout expandido tipo "tela cheia" ─────────── */}
-      {tab==="code" && (
-          <div style={{ padding:"8px 14px 14px" }}>
-            <div data-tour-prof="code-info" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, flexWrap:"wrap" }}>
-                <div style={{ flex:"1 1 260px" }}>
-                  <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>👨‍💻 Meu código</h3>
-                  <p style={{ color:"#a99ac9", fontSize:12.5, margin:"3px 0 0", lineHeight:1.5 }}>Cada turma tem seu próprio exemplo. Programe aqui e gere o nome do conteúdo a partir dele — é isso que aparece no calendário.</p>
-                </div>
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  <button style={{ ...styles.btn("#34d399"), padding:"7px 12px", fontSize:12.5 }} onClick={()=>setShowLessons(true)} title="Sua biblioteca de aulas: salve o código atual com um nome e reutilize quando quiser">📚 Minhas aulas</button>
-                  <button style={{ ...styles.btn("#c084fc"), opacity:genName?0.6:1, padding:"7px 12px", fontSize:12.5 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift, turmas).label})`}</button>
-                </div>
-              </div>
-              <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                {activeTurmas.map(sh => (
-                  <button key={sh.id} onClick={()=>setCodeShift(sh.id)} style={styles.tab(codeShift===sh.id)}>{sh.emoji} {sh.label}</button>
-                ))}
-              </div>
-              {contentFor(codeShift) && <p style={{ color:"#34d399", fontSize:13, fontWeight:600, margin:"8px 0 0" }}>📖 Conteúdo de hoje ({shiftMeta(codeShift, turmas).label}): {contentFor(codeShift)}</p>}
-              {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12.5, margin:"8px 0 0", lineHeight:1.5 }}>{nameMsg}</p>}
-            </div>
-
+      {(tab==="materials" || tab==="exam") && <section style={{maxWidth:900,margin:'16px auto',padding:14}}>
+        <h2>📚 Resumos, atividades e provas</h2>
+        <nav aria-label="Materiais da aula" style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+          <button style={styles.tab(tab==='materials')} onClick={()=>setTab('materials')}>Resumos e atividades</button>
+          <button data-tour-prof="exam" style={styles.tab(tab==='exam')} onClick={()=>{setShiftFilter(codeShift);setTab('exam');}}>Provas</button>
+        </nav>
+      </section>}
+      {tab==="materials" && <section style={{maxWidth:900,margin:'auto',padding:14}}>
+        <label>Turno do material <select aria-label="Turno do material" value={codeShift} disabled={resumoTriggerBusy || resumoSendBusy} onChange={e=>setCodeShift(e.target.value)}>
+          {[...activeTurmas,TEST_SHIFT,LANG_SHIFT].filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i).map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+        </select></label>
             {(() => {
+              if (summaryLoadedShift !== codeShift) return <p role="status">{resumoTriggerMsg.startsWith('❌') ? resumoTriggerMsg : 'Carregando os materiais deste turno…'}</p>;
               const jaEnviado = !!resumoTriggeredToday[codeShift];
               const resumoHoje = teacherResumoHistory[todayKey()];
               return (
@@ -7795,7 +7828,31 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
               );
             })()}
-            {showTeacherNotebook && <NotebookModal history={teacherResumoHistory} detailedHistory={null} onClose={()=>setShowTeacherNotebook(false)} />}
+            {showTeacherNotebook && <NotebookModal history={teacherResumoHistory} detailedHistory={null} onDeleteSummary={apagarResumoProfessor} onClose={()=>setShowTeacherNotebook(false)} />}
+      </section>}
+      {tab==="code" && (
+          <div style={{ padding:"8px 14px 14px" }}>
+            <div data-tour-prof="code-info" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+                <div style={{ flex:"1 1 260px" }}>
+                  <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>👨‍💻 Meu código</h3>
+                  <p style={{ color:"#a99ac9", fontSize:12.5, margin:"3px 0 0", lineHeight:1.5 }}>Cada turma tem seu próprio exemplo. Programe aqui e gere o nome do conteúdo a partir dele — é isso que aparece no calendário.</p>
+                </div>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  <button style={{ ...styles.btn("#34d399"), padding:"7px 12px", fontSize:12.5 }} onClick={()=>setShowLessons(true)} title="Sua biblioteca de aulas: salve o código atual com um nome e reutilize quando quiser">📚 Minhas aulas</button>
+                  <button style={{ ...styles.btn("#c084fc"), opacity:genName?0.6:1, padding:"7px 12px", fontSize:12.5 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift, turmas).label})`}</button>
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                {activeTurmas.map(sh => (
+                  <button key={sh.id} onClick={()=>setCodeShift(sh.id)} style={styles.tab(codeShift===sh.id)}>{sh.emoji} {sh.label}</button>
+                ))}
+              </div>
+              {contentFor(codeShift) && <p style={{ color:"#34d399", fontSize:13, fontWeight:600, margin:"8px 0 0" }}>📖 Conteúdo de hoje ({shiftMeta(codeShift, turmas).label}): {contentFor(codeShift)}</p>}
+              {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12.5, margin:"8px 0 0", lineHeight:1.5 }}>{nameMsg}</p>}
+            </div>
+
+            <button style={styles.btnGhost} onClick={()=>setTab("materials")}>📚 Abrir resumos, atividades e provas</button>
             {showManualSummary && <TeacherSummaryEditor initial={teacherResumoHistory[todayKey()]} onSave={salvarResumoManual} onClose={()=>setShowManualSummary(false)} />}
 
             <div data-tour-prof="analise-nyx" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
@@ -8201,10 +8258,22 @@ function TeacherView({ onLogout, teacherAuth }) {
             )}
 
             {/* estado: idle */}
+            {manualExamShift !== null && <TeacherSummaryEditor exam key={manualExamShift} onClose={()=>setManualExamShift(null)} onSave={async material => {
+              const current = await getExamState(manualExamShift, teacherAuth, true);
+              if (current.status !== 'idle') throw new Error('Já existe uma prova neste turno. Feche o editor e confira a prova antes de continuar.');
+              const now = Date.now();
+              const config = { status:'review', manual:true, shift:manualExamShift, startedAt:now, studyUntil:now+30*60*1000,
+                questions:shuffleQuestions(material.atividade), summary:[material.intro, ...material.secoes.map(s=>`${s.titulo}\n${s.explicacao}\n${s.exemplo}`), material.dica].filter(Boolean).join('\n\n') };
+              if (!(await setExamState(config, teacherAuth, manualExamShift))) return false;
+              setExamConfig(config); setManualExamShift(null);
+              setExamMsg('✅ Prova manual criada! Revisão de 30 minutos; você também pode iniciar antes.');
+              return true;
+            }} />}
             {examConfig.status === 'idle' && (
               <div className="cardfx" style={styles.card}>
                 <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🏆 Criar Prova</h3>
-                <p style={{ color:"#a99ac9", fontSize:13, marginBottom:14, lineHeight:1.6 }}>A IA gera automaticamente um resumo de revisão e 10 questões de múltipla escolha com base no código de hoje. Os alunos revisam, entram na sala e então você inicia.</p>
+                <p style={{ color:"#a99ac9", fontSize:13, marginBottom:14, lineHeight:1.6 }}>Crie perguntas e gabarito manualmente, sem IA, ou gere uma prova a partir do código de hoje. A criação abre 30 minutos de revisão; depois a prova começa automaticamente, ou você pode iniciar antes.</p>
+                <button data-tour-prof="prova-manual" disabled={examGenerating} onClick={()=>setManualExamShift(shiftFilter)} style={{...styles.btn("#22d3ee"),marginRight:10}}>✍️ Criar prova manual</button>
                 <p style={{ color:"#a99ac9", fontSize:12, marginBottom:10 }}>As questões são geradas a partir do código que você escreveu na aba <b>Meu código</b>. Se não houver, usa o código dos alunos.</p>
                 <button onClick={startExam} disabled={examGenerating} style={{ ...styles.btn("#c084fc"), opacity:examGenerating?0.6:1, padding:"12px 24px", fontSize:15 }}>
                   {examGenerating ? "Gerando..." : "🚀 Gerar e Iniciar Prova"}
@@ -8445,7 +8514,7 @@ export default function App() {
     const parts = window.location.pathname.split("/").filter(Boolean);
     return <PortfolioPage shift={decodeURIComponent(parts[1] || "")} name={decodeURIComponent(parts[2] || "")} />;
   }
-  if (!session) return <Login turmas={loginTurmas} onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} />;
-  if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} />;
-  return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} />;
+  if (!session) return <><ReleaseBadge/><Login turmas={loginTurmas} onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} /></>;
+  if (session.role==="teacher") return <><ReleaseBadge/><TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} /></>;
+  return <><ReleaseBadge/><StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} /></>;
 }

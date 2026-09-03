@@ -184,11 +184,11 @@ export async function setResumoTrigger(turmaId, dateKey, auth, resumo) {
 // depois, numa ação separada (enviar pra turma toda ou pra um aluno específico), esse mesmo resumo
 // vira o gatilho (setResumoTrigger) e/ou o scoreFix que entrega no Caderno de cada aluno ──
 const teacherResumoKeyFor = (turmaId) => `teacherresumo:${turmaId || 'sem-turno'}`
-export async function getTeacherResumoHistory(turmaId) {
+export async function getTeacherResumoHistory(turmaId, strict = false) {
   try {
     const r = await kvCall({ action: 'get', key: teacherResumoKeyFor(turmaId) })
     return r.value ? JSON.parse(r.value) : {}
-  } catch { return {} }
+  } catch (error) { if (strict) throw error; return {} }
 }
 export async function saveTeacherResumoHistory(turmaId, history, auth) {
   try {
@@ -721,6 +721,12 @@ export async function getTeacherLessons() {
     return r.value ? JSON.parse(r.value) : []
   } catch { return [] }
 }
+export async function setAttendance(shift, name, date, status, auth) {
+  try {
+    const r = await kvCall({ action: 'set_attendance', key: nameToKey(shift, name), date, status, auth })
+    return r.ok === true
+  } catch { return false }
+}
 export async function saveTeacherLessons(lessons, auth) {
   try {
     const r = await kvCall({ action: 'set', key: TEACHER_LESSONS_KEY, value: JSON.stringify(lessons || []), auth })
@@ -842,11 +848,11 @@ export async function listPartners(shift) {
 // turno possível aqui, usado quando o professor quer uma prova única valendo pra manhã+tarde juntas.
 // auth é opcional: sem ela (aluno), o servidor já esconde o campo "correct" de cada questão —
 // só o professor autenticado enxerga o gabarito completo (ver redactExamConfig em api/kv.js)
-export async function getExamState(shift, auth) {
+export async function getExamState(shift, auth, strict = false) {
   try {
     const r = await kvCall({ action: 'get', key: `exam:config:${shift || 'all'}`, auth })
     return r.value ? JSON.parse(r.value) : { status: 'idle' }
-  } catch { return { status: 'idle' } }
+  } catch (error) { if (strict) throw error; return { status: 'idle' } }
 }
 
 export async function setExamState(state, auth, shift) {

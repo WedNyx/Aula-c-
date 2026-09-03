@@ -157,7 +157,7 @@ export function NextStepsModal({ onClose }) {
   );
 }
 
-export function NotebookModal({ history, detailedHistory, notes = [], onSaveNotes, onClose }) {
+export function NotebookModal({ history, detailedHistory, notes = [], onSaveNotes, onClose, onDeleteSummary }) {
   const dates = Object.keys(history || {}).sort((a,b)=>b.localeCompare(a));
   const [sel, setSel] = useState(dates[0] || null);
   const [view, setView] = useState("simples");
@@ -165,6 +165,16 @@ export function NotebookModal({ history, detailedHistory, notes = [], onSaveNote
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState({ title:"", text:"" });
   const [saving, setSaving] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState('');
+  const removeSummary = async () => {
+    if (!sel || saving || !window.confirm(`Apagar o resumo de ${sel} e sua atividade deste Caderno do professor? Cópias já enviadas aos alunos não serão apagadas. Não há desfazer aqui.`)) return;
+    setSaving(true); setDeleteMsg('');
+    try {
+      if (await onDeleteSummary(sel)) { setSel(dates.find(d=>d!==sel) || null); setDeleteMsg('Resumo apagado do Caderno do professor.'); }
+      else setDeleteMsg('Não foi possível apagar. Tente novamente.');
+    } catch { setDeleteMsg('Não foi possível apagar. Tente novamente.'); }
+    finally { setSaving(false); }
+  };
   const fmt = (d) => { const [y,m,dd] = d.split("-"); return `${dd}/${m}/${y}`; };
   const hasDetailed = sel && detailedHistory && detailedHistory[sel];
   const sortedNotes = [...notes].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
@@ -200,6 +210,8 @@ export function NotebookModal({ history, detailedHistory, notes = [], onSaveNote
           <p style={{ color:"#776798", fontSize:13 }}>Nenhum resumo guardado ainda — eles aparecem aqui quando você salva e finaliza uma aula.</p>
         ) : (
           <>
+            {onDeleteSummary && <button disabled={saving || !sel} onClick={removeSummary}>{saving ? 'Apagando…' : '🗑️ Apagar resumo selecionado'}</button>}
+            {deleteMsg && <p role="status">{deleteMsg}</p>}
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:14 }}>
               {dates.map(d => (
                 <button key={d} onClick={()=>{ setSel(d); setView("simples"); }}

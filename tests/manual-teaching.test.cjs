@@ -1,0 +1,25 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+(async()=>{
+  const {validateManualMaterial}=await import('../src/lib/manualTeaching.js');
+  const question={q:'Qual comando mostra texto?',opts:['Console.WriteLine','Console.ReadLine','if','for'],correct:0};
+  const draft={intro:'Revisão da aula',sections:[{titulo:'Saída',explicacao:'Mostra texto no console.',exemplo:'Console.WriteLine("Oi");'}],tip:'Pratique',questions:[question]};
+  assert.equal(validateManualMaterial(draft).atividade.length,1);
+  assert.equal(validateManualMaterial({...draft,sections:[]},true).atividade[0].correct,0);
+  assert.throws(()=>validateManualMaterial({...draft,questions:[]},true),/pergunta/);
+  assert.throws(()=>validateManualMaterial({...draft,intro:''},true),/introdução/);
+  assert.throws(()=>validateManualMaterial({...draft,sections:[{titulo:'Incompleta',explicacao:'',exemplo:''}]}),/seção/);
+  for(const correct of [-1,4,NaN,0.5]) assert.throws(()=>validateManualMaterial({...draft,questions:[{...question,correct}]},true),/gabarito/);
+  assert.throws(()=>validateManualMaterial({...draft,questions:[{...question,opts:['A','B','','D']}]},true),/alternativas/);
+  assert.equal(validateManualMaterial({...draft,questions:[]}).atividade.length,0);
+  assert.equal(draft.questions[0].q,question.q,'Não altera o rascunho');
+  const app=fs.readFileSync('src/App.jsx','utf8');
+  const notebook=fs.readFileSync('src/components/LearningModals.jsx','utf8');
+  assert.ok(app.includes('label:"Resumos, atividades e provas"'));
+  assert.ok(app.includes('aria-label="Materiais da aula"'));
+  assert.ok(app.includes('getExamState(manualExamShift, teacherAuth, true)'));
+  assert.ok(app.includes('getTeacherResumoHistory(targetShift, true)'));
+  assert.ok(notebook.includes('window.confirm(`Apagar o resumo'));
+  assert.ok(notebook.includes('Cópias já enviadas aos alunos não serão apagadas'));
+  console.log('Materiais manuais: validação, gabarito, rascunho e contratos de navegação/exclusão aprovados.');
+})().catch(e=>{console.error(e);process.exitCode=1;});
