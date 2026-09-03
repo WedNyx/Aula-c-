@@ -16,6 +16,11 @@ import { NyxDisplay as NyxRobot } from "./components/NyxDisplay.jsx";
 import { PerformanceChart } from "./components/PerformanceChart.jsx";
 import { DEFAULT_AVATAR, Avatar, AvatarPreview, AvatarControls, AvatarBuilder, PetCompanion } from "./components/Avatar.jsx";
 import { AvatarStudio3D } from "./components/AvatarStudio3D.jsx";
+import { AttendancePanel } from "./components/AttendancePanel.jsx";
+import { ReleaseBadge } from "./components/ReleaseBadge.jsx";
+import { PLATFORM_VERSION, CURRENT_RELEASE } from "./releases.js";
+import { setAttendance } from "./storage.js";
+import { applyAttendanceOverrides, lessonsForShift, petNameFor } from "./lib/classroomUpdates.js";
 import { VSEditor, CodeBlock, GUIDED_BLOCKS, GUIDED_PARTICIPATION_QUIZ } from "./components/CodeEditor.jsx";
 import { Terminal } from "./components/Terminal.jsx";
 import { NyxChat } from "./components/NyxChat.jsx";
@@ -359,7 +364,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [providerHealth, setProviderHealth] = useState({ nvidia:null, laguna:null });
   // versão das novidades apresentadas pelo Nyx Lunar. Fica salva no perfil do aluno para não
   // repetir o tour em outro aparelho depois que ele já tiver visto.
-  const NYX_NEWS_VERSION = "2026-08-skins";
+  const NYX_NEWS_VERSION = PLATFORM_VERSION;
   const [nyxNewsSeen, setNyxNewsSeen] = useState("");
   const [showNyxNews, setShowNyxNews] = useState(false);
   const [showNyxInteractHint, setShowNyxInteractHint] = useState(() => {
@@ -603,7 +608,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     // cadastro dele já não contam como falta em nenhum lugar — ver dayCell/boletim/tendência —
     // então a partir do momento que ele entra, o dia de entrada em si também não pode virar falta)
     const isEnrollmentDay = !vistoriaOnly && tk === dateKeyOf(createdAtRef.current);
-    attendanceRef.current = { ...attendanceRef.current, [tk]: (didWork || isEnrollmentDay || attendanceRef.current[tk] === "present") ? "present" : "idle" };
+    attendanceRef.current = applyAttendanceOverrides({ ...latest?.attendance, ...attendanceRef.current, [tk]: (!vistoriaOnly || didWork || isEnrollmentDay || attendanceRef.current[tk] === "present") ? "present" : "idle" }, latest?.attendanceOverrides);
     // guarda o horário do PRIMEIRO acesso de hoje (uma vez só) — usado pra marcar "atrasado" na chamada
     if (!attendanceFirstRef.current[tk]) attendanceFirstRef.current = { ...attendanceFirstRef.current, [tk]: Date.now() };
     // 🔥 sequência de presença: paga só quando a presença de HOJE vira "present" pela primeira vez
@@ -2344,7 +2349,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       if (!isContinuation && !difficultyHint && !adaptiveTier) {
         try {
           const [teacherCode, lessons] = await Promise.all([getTeacherCode(shift), getTeacherLessons()]);
-          matchedLesson = teacherCode ? findMatchingLesson(lessons, teacherCode.files) : null;
+          matchedLesson = teacherCode ? findMatchingLesson(lessonsForShift(lessons, shift), teacherCode.files) : null;
         } catch { matchedLesson = null; }
       }
       const hasReadyContent = matchedLesson?.resumo && Array.isArray(matchedLesson?.atividade) && matchedLesson.atividade.length > 0;
@@ -3850,7 +3855,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                   <Avatar cfg={avatar} size={88} animated={!calmMode} />
                   <span>{studentName}</span>
                 </button>
-                <PetCompanion pet={avatar.pet} context={phase==="done"?"complete":helpAt?"help":robotState==="ok"?"success":robotState==="error"?"error":todayMood?`mood:${todayMood}`:"idle"} />
+                <PetCompanion pet={avatar.pet} name={petNameFor(avatar)} context={phase==="done"?"complete":helpAt?"help":robotState==="ok"?"success":robotState==="error"?"error":todayMood?`mood:${todayMood}`:"idle"} />
                 <button type="button" className="student-profile-open" onClick={()=>setShowStudentProfile(true)}>Abrir perfil completo</button>
               </div>
             )}
@@ -4121,17 +4126,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         <div style={{ position:"fixed", inset:0, background:"rgba(5,4,12,.88)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }}>
           <div className="pop" style={{ width:"min(520px,100%)", background:"linear-gradient(145deg,#20274a,#111329)", border:"1px solid #9ab7ff66", borderRadius:22, padding:"24px", boxShadow:"0 30px 90px #000" }}>
             <div style={{ display:"flex", justifyContent:"space-between", gap:14, alignItems:"flex-start" }}>
-              <div><div style={{ color:"#9ab7ff", fontSize:10, fontWeight:900, letterSpacing:1.5 }}>NOVIDADE DA PLATAFORMA</div><h2 style={{ margin:"7px 0 8px", color:"#fff" }}>🌙 Novas aparências do Nyx</h2></div>
+              <div><div style={{ color:"#9ab7ff", fontSize:10, fontWeight:900, letterSpacing:1.5 }}>NOVIDADE DA PLATAFORMA · v{PLATFORM_VERSION}</div><h2 style={{ margin:"7px 0 8px", color:"#fff" }}>🌙 {CURRENT_RELEASE.title}</h2></div>
               <NyxRobot state="ok" size={62} showName={false} gear={{ ...nyxGear, skin:"skinLunar" }} />
             </div>
-            <p style={{ color:"#c2bed2", lineHeight:1.65, margin:"8px 0 14px" }}>A Loja do Nyx agora possui skins completas. Elas mantêm exatamente o formato Prisma Orbital e mudam apenas cores, materiais e efeitos.</p>
+            <p style={{ color:"#c2bed2", lineHeight:1.65, margin:"8px 0 14px" }}>Confira o que mudou nesta atualização:</p>
             <div style={{ display:"grid", gap:8, color:"#ded9eb", fontSize:13 }}>
-              <div style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>🛍️ Compre skins usando os pontos conquistados nas atividades.</div>
-              <div style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>🌑 O Nyx Eclipse avisa quando os recursos de IA estiverem em pausa.</div>
-              <div style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>📅 O visual Modernizado será o padrão automático a partir de setembro.</div>
+              {CURRENT_RELEASE.changes.map(change => <div key={change} style={{ background:"#ffffff0a", borderRadius:10, padding:10 }}>{change}</div>)}
             </div>
             <div style={{ display:"flex", gap:9, marginTop:18, flexWrap:"wrap" }}>
-              <button onClick={()=>{ finishNyxNews(); setShowNyxShop(true); }} style={{ ...styles.btn("#82eeff"), flex:"1 1 180px", padding:"10px" }}>🎁 Conhecer as skins</button>
+              <button onClick={()=>{ finishNyxNews(); setAvatarDraft(avatar); setShowAvatarEdit(true); }} style={{ ...styles.btn("#82eeff"), flex:"1 1 180px", padding:"10px" }}>🐾 Personalizar meu perfil</button>
               <button onClick={finishNyxNews} style={{ ...styles.btnGhost, flex:"1 1 120px", padding:"10px" }}>Entendi</button>
             </div>
           </div>
@@ -4711,6 +4714,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [dailyPdfCode, setDailyPdfCode] = useState("");
   // biblioteca de aulas (as SUAS aulas salvas + modelos de exemplo) + backup completo
   const [showLessons, setShowLessons] = useState(false);
+  const [lessonScope, setLessonScope] = useState("");
   const [myLessons, setMyLessons] = useState([]);
   // espelha myLessons pra sempre ler a versão MAIS RECENTE dentro de generateLessonContent/
   // importLessonContent — geração de conteúdo pronto demora vários segundos (chamadas ao Nyx em
@@ -5250,7 +5254,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     }
     if (!source) throw new Error(`Programe o exemplo de ${shiftMeta(shift, turmas).label} na aba "Meu código" (ou espere os alunos dessa turma começarem a escrever).`);
     // já existe uma aula salva com ESSE MESMO código, com o nome já pronto? reaproveita, sem chamar o Nyx
-    const matched = origem === "professor" ? findMatchingLesson(myLessons, proFilesByShift[shift]) : null;
+    const matched = origem === "professor" ? findMatchingLesson(lessonsForShift(myLessons, shift), proFilesByShift[shift]) : null;
     let title;
     if (matched?.contentName) {
       title = matched.contentName;
@@ -6025,7 +6029,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // de hoje na mão. Vira "present" normal na chamada e na planilha, e NUNCA conta como atrasado
   // (o atraso só é calculado pelo 1º acesso do aluno, que nem existe quando ele não loga).
   const markPresentToday = async (s) => {
-    const ok = await patchStudent(s.shift, s.name, { attendance: { ...(s.attendance||{}), [tk]: "present" } });
+    const ok = await setAttendance(s.shift, s.name, tk, "present", teacherAuth);
     // se o aluno estiver com a aba aberta, o autosave periódico dele (que recalcula a presença de
     // hoje sozinho a cada 12s) sobrescreveria essa correção manual sem essa flag — mesma proteção
     // já usada em doSetScore/doApproveJustification/doDisablePortfolio
@@ -6034,11 +6038,9 @@ function TeacherView({ onLogout, teacherAuth }) {
     load();
   };
   const unmarkPresentToday = async (s) => {
-    const att = { ...(s.attendance||{}) };
-    delete att[tk];
-    const ok = await patchStudent(s.shift, s.name, { attendance: att });
-    if (ok) await setScoreFix(s.shift, s.name, { kind: "attendance", dateKey: tk, status: null }, teacherAuth);
-    flashMgmt(ok ? `↩️ Presença manual de ${s.name} desfeita.` : "❌ Não consegui desfazer agora. Tente de novo.");
+    const ok = await setAttendance(s.shift, s.name, tk, "absent", teacherAuth);
+    if (ok) await setScoreFix(s.shift, s.name, { kind: "attendance", dateKey: tk, status: "absent" }, teacherAuth);
+    flashMgmt(ok ? `Presença de ${s.name} removida por você.` : "❌ Não consegui salvar agora. Tente de novo.");
     load();
   };
 
@@ -6414,17 +6416,24 @@ function TeacherView({ onLogout, teacherAuth }) {
     const files = (proFiles || []).filter(f => (f.code || "").trim());
     if (!files.length) { setNameMsg(`⚠ Programe algo na turma ${shiftMeta(codeShift, turmas).label} primeiro — a aula salva é o código que está no editor.`); setTimeout(()=>setNameMsg(""), 6000); return; }
     const title = lessonName.trim() || `Aula de ${new Date().toLocaleDateString("pt-BR")}`;
-    const next = [...myLessons, { title, files: files.map(f => ({ ...f })), at: Date.now() }];
+    const next = [...myLessonsRef.current, { title, shift: codeShift, files: files.map(f => ({ ...f })), at: Date.now() }];
+    if (!(await saveTeacherLessons(next, teacherAuth))) { setNameMsg("❌ Não foi possível salvar a aula. Tente novamente."); return; }
+    myLessonsRef.current = next;
     setMyLessons(next);
     setLessonName("");
-    await saveTeacherLessons(next, teacherAuth);
     setNameMsg(`✅ "${title}" salva na sua biblioteca!`);
     setTimeout(()=>setNameMsg(""), 6000);
   };
   const deleteLesson = async (idx) => {
     const next = myLessons.filter((_, i) => i !== idx);
+    if (!(await saveTeacherLessons(next, teacherAuth))) { setNameMsg("❌ Não foi possível excluir a aula."); return; }
+    myLessonsRef.current = next;
     setMyLessons(next);
-    await saveTeacherLessons(next, teacherAuth);
+  };
+  const moveLessonToShift = async (idx, shift) => {
+    const next = myLessonsRef.current.map((lesson, i) => i === idx ? { ...lesson, shift: shift || null } : lesson);
+    if (!(await saveTeacherLessons(next, teacherAuth))) { setNameMsg("❌ Não foi possível mudar o turno da aula."); return; }
+    myLessonsRef.current = next; setMyLessons(next);
   };
 
   const lessonContentDone = (lesson) => ({
@@ -6486,8 +6495,9 @@ function TeacherView({ onLogout, teacherAuth }) {
         return;
       }
       const next = latestLessons.map((l,i) => i===targetIdx ? { ...l, contentName, explain: explainOut, resumo: resumoOut, atividade } : l);
+      if (!(await saveTeacherLessons(next, teacherAuth))) throw new Error('lesson_save_failed');
+      myLessonsRef.current = next;
       setMyLessons(next);
-      await saveTeacherLessons(next, teacherAuth);
       setNameMsg(`✅ Conteúdo pronto gerado pra "${lesson.title}" — vai ser reaproveitado toda vez que essa aula for usada.`);
       setTimeout(()=>setNameMsg(""), 8000);
     } catch {
@@ -6512,8 +6522,9 @@ function TeacherView({ onLogout, teacherAuth }) {
     if (Array.isArray(parsed.atividade)) patch.atividade = filterValidQuestions(parsed.atividade);
     if (Object.keys(patch).length === 0) { setNameMsg("⚠ Nenhum campo reconhecido no JSON (use contentName/explain/resumo/atividade)."); setTimeout(()=>setNameMsg(""), 6000); return; }
     const next = myLessons.map((l,i) => i===idx ? { ...l, ...patch } : l);
+    if (!(await saveTeacherLessons(next, teacherAuth))) { setNameMsg("❌ Não foi possível salvar a importação. O texto foi mantido para tentar novamente."); return; }
+    myLessonsRef.current = next;
     setMyLessons(next);
-    await saveTeacherLessons(next, teacherAuth);
     setShowImportLesson(null);
     setImportText("");
     setNameMsg(`✅ Conteúdo importado pra "${lesson.title}" sem gastar o Nyx.`);
@@ -6646,6 +6657,8 @@ function TeacherView({ onLogout, teacherAuth }) {
   const teacherSidebarGroups = [
     { id:"overview", label:"Visão geral", items:[
       { id:"monitor", label:"Monitoramento", icon:"👥", active:tab==="monitor", onClick:()=>setTab("monitor"), teacherTour:"monitor" },
+      { id:"attendance", label:"Lista de chamada", icon:"📋", active:tab==="attendance", onClick:()=>setTab("attendance"), teacherTour:"attendance" },
+      { id:"lessons", label:"Minhas aulas", icon:"📚", active:showLessons, onClick:()=>setShowLessons(true), teacherTour:"lessons" },
       { id:"code", label:"Meu código", icon:"👨‍💻", active:tab==="code", onClick:()=>setTab("code"), teacherTour:"code" },
       { id:"calendar", label:"Calendário", icon:"🗓️", active:tab==="calendar", onClick:()=>setTab("calendar"), teacherTour:"calendar" },
     ]},
@@ -6766,6 +6779,8 @@ function TeacherView({ onLogout, teacherAuth }) {
       {isMobileScreen && (
         <nav className="teacher-mobile-tabs" aria-label="Áreas do painel do professor">
           <button style={styles.tab(tab==="monitor")} onClick={()=>setTab("monitor")}>👥 Monitoramento</button>
+          <button style={styles.tab(tab==="attendance")} onClick={()=>setTab("attendance")}>📋 Lista de chamada</button>
+          <button style={styles.tab(false)} onClick={()=>setShowLessons(true)}>📚 Minhas aulas</button>
           <button style={styles.tab(tab==="code")} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
           <button style={styles.tab(tab==="calendar")} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
           <button style={styles.tab(tab==="feedback")} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
@@ -6800,6 +6815,11 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {tab==="reminders" && <ScheduledReminders reminders={scheduledReminders} turmas={activeTurmas} onSave={saveReminders} />}
+      {tab==="attendance" && <AttendancePanel students={students} shiftFilter={shiftFilter} shiftLabel={sh => shiftLabel(sh, turmas)} onSet={async (s, date, status) => {
+        const ok = await setAttendance(s.shift, s.name, date, status, teacherAuth);
+        if (ok) await load();
+        return ok;
+      }} />}
 
       {/* urgências primeiro — pedidos de ajuda e alunos parados resumidos logo no topo do
           Monitoramento, antes de qualquer gráfico ou card secundário. Não substitui o resto do
@@ -6868,7 +6888,11 @@ function TeacherView({ onLogout, teacherAuth }) {
               <h2 style={{ margin:0, fontSize:20, fontWeight:900, background:"linear-gradient(135deg,#34d399,#22d3ee)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>📚 Minhas aulas</h2>
               <button onClick={()=>setShowLessons(false)} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
             </div>
-            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Sua biblioteca: salve o código que está no editor com um nome e reutilize em qualquer turma, quantas vezes quiser. Carregar uma aula <b>substitui</b> o código atual da turma {shiftMeta(codeShift, turmas).label}.</p>
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>As aulas novas são salvas no turno do editor. As antigas permanecem em “Sem turno” até você classificá-las. Carregar uma aula <b>substitui</b> o código atual da turma {shiftMeta(codeShift, turmas).label}.</p>
+            <label>Mostrar aulas de <select aria-label="Turno das minhas aulas" value={lessonScope || codeShift} onChange={e => setLessonScope(e.target.value)}>
+              {[...activeTurmas, TEST_SHIFT, LANG_SHIFT].filter((t,i,a) => a.findIndex(x=>x.id===t.id)===i).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              <option value="unassigned">Sem turno (anteriores)</option><option value="all">Todos os turnos</option>
+            </select></label>
 
             {/* salvar a aula atual */}
             <div style={{ background:"#171026", border:"1px dashed #34d399", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
@@ -6881,11 +6905,12 @@ function TeacherView({ onLogout, teacherAuth }) {
             </div>
 
             {/* aulas salvas */}
-            {myLessons.length === 0 ? (
+            {lessonsForShift(myLessons, lessonScope || codeShift).length === 0 ? (
               <p style={{ color:"#776798", fontSize:13, marginBottom:14 }}>Você ainda não salvou nenhuma aula. Programe na aba Meu código e clique em Salvar acima — ela aparece aqui pra sempre.</p>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
                 {myLessons.map((lesson, li) => {
+                  if (!lessonsForShift([lesson], lessonScope || codeShift).length) return null;
                   const done = lessonContentDone(lesson);
                   const allDone = done.contentName && done.explain && done.resumo && done.atividade;
                   const anyDone = done.contentName || done.explain || done.resumo || done.atividade;
@@ -6894,6 +6919,10 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <div key={li} style={{ display:"flex", alignItems:"center", gap:10, background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:"10px 14px", flexWrap:"wrap" }}>
                     <div style={{ flex:"1 1 220px" }}>
                       <p style={{ color:"#f0e9fb", fontWeight:800, fontSize:13.5, margin:0 }}>{lesson.title}</p>
+                      <label>Turno <select aria-label={`Turno de ${lesson.title}`} value={lesson.shift || ""} disabled={lessonGenBusy!=null} onChange={e => moveLessonToShift(li, e.target.value)}>
+                        <option value="">Sem turno</option>
+                        {[...activeTurmas, TEST_SHIFT, LANG_SHIFT].filter((t,i,a) => a.findIndex(x=>x.id===t.id)===i).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                      </select></label>
                       <p style={{ color:"#776798", fontSize:11.5, margin:"3px 0 0" }}>salva em {new Date(lesson.at).toLocaleDateString("pt-BR")} · {lesson.files.length} arquivo{lesson.files.length!==1?"s":""}</p>
                       {allDone
                         ? <span title="Nome, explicação, resumo e atividade prontos — reaproveitados sozinhos toda vez que essa aula for usada, sem gastar o Nyx de novo" style={{ display:"inline-block", marginTop:5, background:"#34d39922", border:"1px solid #34d399", color:"#34d399", borderRadius:20, padding:"1px 9px", fontSize:10.5, fontWeight:800 }}>🧠 Conteúdo pronto</span>
@@ -7045,8 +7074,8 @@ function TeacherView({ onLogout, teacherAuth }) {
                                   {st!=="present" && (
                                     <button onClick={()=>markPresentToday(s)} title="Marca a presença de hoje na mão (dia de filme, passeio, atividade sem computador...) — conta como presente normal, sem atraso" style={{ background:"transparent", color:"#34d399", border:"1px solid #34d399", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>✅ Marcar presente</button>
                                   )}
-                                  {st==="present" && !isSameDayTs(s.lastSeen) && (
-                                    <button onClick={()=>unmarkPresentToday(s)} title="Este aluno foi marcado presente na mão (ele não entrou hoje) — clique pra desfazer" style={{ background:"transparent", color:"#a99ac9", border:"1px solid #56407e", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>↩️ Desfazer</button>
+                                  {st==="present" && (
+                                    <button onClick={()=>unmarkPresentToday(s)} title="Marcar falta, mesmo se houve acesso ao perfil. A correção manual tem prioridade." style={{ background:"transparent", color:"#a99ac9", border:"1px solid #56407e", borderRadius:8, padding:"2px 8px", fontSize:11, fontWeight:600, cursor:"pointer" }}>Tirar presença</button>
                                   )}
                                 </div>
                               </div>
@@ -8445,7 +8474,7 @@ export default function App() {
     const parts = window.location.pathname.split("/").filter(Boolean);
     return <PortfolioPage shift={decodeURIComponent(parts[1] || "")} name={decodeURIComponent(parts[2] || "")} />;
   }
-  if (!session) return <Login turmas={loginTurmas} onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} />;
-  if (session.role==="teacher") return <TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} />;
-  return <StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} />;
+  if (!session) return <><ReleaseBadge/><Login turmas={loginTurmas} onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} /></>;
+  if (session.role==="teacher") return <><ReleaseBadge/><TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} /></>;
+  return <><ReleaseBadge/><StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} /></>;
 }

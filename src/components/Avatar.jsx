@@ -311,7 +311,7 @@ const PET_CONTEXT_MESSAGES = {
   "mood:triste":"Ele ficou ao seu lado em silêncio.",
   "mood:dificil":"Ele decidiu não sair do seu lado hoje.",
 };
-export function PetCompanion({ pet, context = "idle" }) {
+export function PetCompanion({ pet, name = "", context = "idle" }) {
   const [reaction, setReaction] = useState(0);
   const [message, setMessage] = useState("");
   const [action, setAction] = useState("idle");
@@ -350,9 +350,10 @@ export function PetCompanion({ pet, context = "idle" }) {
     timerRef.current = setTimeout(() => { setMessage(""); setAction("idle"); }, kind === "special" ? 3000 : 2200);
   };
   const file = PET_FILES[pet];
-  const petLabel = AVATAR_OPTS.pet.find(item => item.e === pet)?.label || "pet";
+  const petLabel = String(name || "").trim().slice(0,48) || AVATAR_OPTS.pet.find(item => item.e === pet)?.label || "pet";
   return (
     <div className={`pet-companion-corner pet-${file || "generic"} pet-action-${action}`} data-tour="pet" title="Clique para interagir · clique duas vezes para a reação especial">
+      {name && <span style={{position:"absolute",bottom:0,left:0,right:0,transform:"translateY(100%)",fontSize:12,color:"#eee",textAlign:"center",overflowWrap:"anywhere"}}>{petLabel}</span>}
       {message && <div className="pet-companion-speech" role="status" aria-live="polite">{message}</div>}
       <div className="pet-effect-layer" aria-hidden="true">{[0,1,2,3,4,5].map(i=><i key={i}/>)}</div>
       <button type="button" aria-label={`Interagir com ${petLabel}`} onClick={react} onDoubleClick={e=>react(e,"special")} className={`pet-companion-button pet-companion-${info.cls}`}>

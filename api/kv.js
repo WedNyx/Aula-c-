@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { isValidTeacherPassword, teacherLoginFailBucket } from './_teacherAuth.js'
 import { clientIp } from './_ip.js'
+import { applyAttendanceOverrides } from '../src/lib/classroomUpdates.js'
 
 const TABLE = 'kv_store'
 
@@ -27,6 +28,7 @@ const PUBLIC_LIST_PREFIXES = ['student:', 'duel:', 'teamduel:', 'partner:']
 // removidos tanto na leitura individual quanto nas listagens.
 const GET_PROTECTED_PREFIXES = ['backup:', 'errorlog:', 'teachernotes:', 'teacherreminders:']
 function needsTeacherAuth(action, key) {
+  if (action === 'set_attendance') return true
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
   if (action === 'get_recent_errors') return true // lista os erros de todo mundo — sempre só-do-professor
   if (action === 'get_admin_log') return true // lista as ações administrativas — sempre só-do-professor
@@ -68,6 +70,10 @@ async function saveStudentPrivate(key, value, authorized) {
     const raw = await store.get(key)
     const current = raw == null ? null : studentObject(raw)
     const next = { ...incoming }
+    // Só a ação autenticada set_attendance pode criar ou remover decisões de chamada.
+    next.attendanceOverrides = current?.attendanceOverrides || {}
+    next.attendanceFirst = { ...incoming.attendanceFirst, ...current?.attendanceFirst }
+    next.attendance = applyAttendanceOverrides({ ...current?.attendance, ...incoming.attendance }, next.attendanceOverrides)
     if (current) for (const field of SENSITIVE_STUDENT_FIELDS) {
       // Autosaves antigos enviam strings vazias: não podem apagar/repor dados privados.
       if (!authorized || !Object.hasOwn(incoming, field)) {
@@ -621,6 +627,29 @@ export default async function handler(req, res) {
 
   try {
     switch (action) {
+      case 'set_attendance': {
+        if (!(await checkKvRateLimit(res, 'kvset', ip))) return
+        const { date, status } = req.body || {}
+        const validDate = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date
+        if (!String(key).startsWith('student:') || !validDate || !['present', 'absent', 'auto'].includes(status)) return res.status(400).json({ error: 'invalid_attendance' })
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const raw = await store.get(key)
+          if (raw == null) return res.status(404).json({ error: 'student_not_found' })
+          const student = studentObject(raw)
+          const overrides = { ...student.attendanceOverrides }
+          const attendance = { ...student.attendance }
+          if (status === 'auto') {
+            delete overrides[date]
+            // O acesso original é mantido; não se inventa presença quando não houve acesso.
+            if (student.attendanceFirst?.[date]) attendance[date] = 'present'
+            else delete attendance[date]
+          } else overrides[date] = { status, at: Date.now() }
+          student.attendanceOverrides = overrides
+          student.attendance = applyAttendanceOverrides(attendance, overrides)
+          if (await store.compareAndSet(key, raw, JSON.stringify(student))) return res.json({ ok: true })
+        }
+        return res.status(409).json({ error: 'student_write_conflict' })
+      }
       case 'set': {
         if (!(await checkKvRateLimit(res, 'kvset', ip))) return
         if (isDuelScoreForgery(key, value)) {

@@ -721,6 +721,12 @@ export async function getTeacherLessons() {
     return r.value ? JSON.parse(r.value) : []
   } catch { return [] }
 }
+export async function setAttendance(shift, name, date, status, auth) {
+  try {
+    const r = await kvCall({ action: 'set_attendance', key: nameToKey(shift, name), date, status, auth })
+    return r.ok === true
+  } catch { return false }
+}
 export async function saveTeacherLessons(lessons, auth) {
   try {
     const r = await kvCall({ action: 'set', key: TEACHER_LESSONS_KEY, value: JSON.stringify(lessons || []), auth })
