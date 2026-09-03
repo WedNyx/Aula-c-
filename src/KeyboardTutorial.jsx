@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { phraseMatches } from "./lib/utils.js";
+import { shiftPracticePhrase } from "./lib/keyboardPractice.js";
 import { VSEditor } from "./components/CodeEditor.jsx";
 
 // carregado sob demanda (React.lazy) a partir do App.jsx — só quem realmente abre o
@@ -135,9 +136,6 @@ const KEYBOARD_LEVELS = [
 ];
 // A escrita livre começa apenas quando o aluno chega ao Shift. Antes disso, ele só precisa achar
 // e apertar cada tecla — sem interromper cada letra com uma linha complicada de código.
-const PRACTICE_PHRASES = {
-  3: ["Oi Nyx", "Bom dia", "Eu consegui", "Vamos codar", "Aula de C#"],
-};
 // revisão leve no final do treino todo (não é uma prova — não trava nem penaliza, é só reforçar o
 // que foi visto). Versão normal com 4 perguntas; versão fácil (quem tem algum apoio marcado) com só
 // 2, mais concretas/visuais e sem misturar assunto — nunca aparece pra quem está no Modo Guiado, que
@@ -310,11 +308,10 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
   // símbolos e acentos avançam ao acertar a tecla, sem uma frase extra a cada clique.
   const startPhrase = () => {
     if (accessMode || level.id !== 3) { advanceTarget(); return; }
-    const pool = PRACTICE_PHRASES[level.id];
-    if (!pool || !pool.length) { advanceTarget(); return; }
-    const frase = pool[Math.floor(Math.random() * pool.length)];
-    setPhraseState({ typed: "", frase });
-    say(`Agora escreva: ${frase}`);
+    const frase = shiftPracticePhrase(target.char);
+    if (!frase) { advanceTarget(); return; }
+    setPhraseState({ typed: "", frase, key: target.char });
+    say(`Agora pratique a letra ${target.char} maiúscula usando Shift. Escreva: ${frase}`);
   };
 
   const onPhraseType = (v) => {
@@ -457,7 +454,7 @@ export default function KeyboardTutorialModal({ onClose, onFinish, speak, stopSp
               </div>
             ) : phraseState ? (
               <>
-                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 10px" }}>🖊️ Boa! Agora pratique o Shift com esta frase curta:</p>
+                <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 10px" }}>🖊️ Boa! Agora pratique o Shift com esta frase curta. Use Shift + {phraseState.key} para escrever a letra {phraseState.key} maiúscula:</p>
                 <pre data-testid="kb-phrase-text" style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:10, padding:"12px 14px", fontFamily:"'Courier New',monospace", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{phraseState.frase}</pre>
                 <textarea data-testid="kb-phrase-input" autoFocus value={phraseState.typed} onChange={e=>onPhraseType(e.target.value)} onPaste={e=>e.preventDefault()} spellCheck={false} autoCorrect="off" autoCapitalize="off"
                   style={{ width:"100%", minHeight:70, marginTop:8, background:"#171026", border:"2px solid #3b2a58", borderRadius:12, padding:"10px 12px", color:"#f0e9fb", fontFamily:"'Courier New',monospace", fontSize:14, outline:"none" }} />

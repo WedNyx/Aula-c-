@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const src = fs.readFileSync("src/KeyboardTutorial.jsx", "utf8");
 const checks = [
   ["prática extra somente no nível Shift", src.includes("accessMode || level.id !== 3")],
-  ["frases de Shift são curtas", src.includes('["Oi Nyx", "Bom dia", "Eu consegui", "Vamos codar", "Aula de C#"]')],
+  ["frase de Shift vinculada à tecla atual", src.includes('shiftPracticePhrase(target.char)')],
   ["prática final simples", src.includes('line: "Oi, Nyx! Eu gosto de C#."')],
   ["instrução do Shift simplificada", src.includes("pratique o Shift com esta frase curta")],
   ["instrução final simplificada", src.includes("Digite esta frase curta para revisar")],
