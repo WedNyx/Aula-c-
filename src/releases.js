@@ -4,6 +4,7 @@ export const RELEASES = [
     'Dê um nome a cada pet no editor do perfil.',
     'Minhas aulas organizadas por turno, mantendo as antigas em Sem turno.',
     'Lista de chamada com data, acesso registrado e correção manual protegida.',
+    'Resumos, atividades e provas em uma área própria: criação manual sem IA e exclusão de resumos do professor.',
     'Versão visível e histórico das novidades da plataforma.',
     'Tutorial de teclado com frases correspondentes à letra estudada.',
   ] },

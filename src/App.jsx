@@ -4569,6 +4569,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // 📒 caderno de resumos DO PROFESSOR (por turma selecionada em "Meu código"): guarda os resumos
   // já gerados antes de decidir mandar pra turma — dá pra revisar antes de enviar
   const [teacherResumoHistory, setTeacherResumoHistory] = useState({});
+  const [summaryLoadedShift, setSummaryLoadedShift] = useState(null);
   const [showManualSummary, setShowManualSummary] = useState(false);
   const [showTeacherNotebook, setShowTeacherNotebook] = useState(false);
   const [resumoSendBusy, setResumoSendBusy] = useState(false);
@@ -4621,6 +4622,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // prova
   const [examConfig, setExamConfig] = useState({ status: 'idle' });
   const [examGenerating, setExamGenerating] = useState(false);
+  const [manualExamShift, setManualExamShift] = useState(null);
   const [examMsg, setExamMsg] = useState("");
   // relógio pra contar o tempo de estudo restante na fase de revisão da prova
   const examNow = useAccurateNow(examConfig.status === "review", 200);
@@ -5304,7 +5306,8 @@ function TeacherView({ onLogout, teacherAuth }) {
   useEffect(() => {
     let active = true;
     getResumoTrigger(codeShift).then(v => { if (active) setResumoTriggeredToday(t => ({ ...t, [codeShift]: v?.date === todayKey() })); });
-    getTeacherResumoHistory(codeShift).then(h => { if (active) setTeacherResumoHistory(h || {}); });
+    setSummaryLoadedShift(null);
+    getTeacherResumoHistory(codeShift, true).then(h => { if (active) { setTeacherResumoHistory(h || {}); setSummaryLoadedShift(codeShift); } }).catch(()=>{if(active) setResumoTriggerMsg('❌ Não foi possível carregar o caderno. Troque o turno para tentar novamente.');});
     return () => { active = false; };
   }, [codeShift]);
   // 📚 gera o resumo de hoje a partir do código que O PROFESSOR passou pra essa turma (os alunos só
@@ -5382,6 +5385,16 @@ function TeacherView({ onLogout, teacherAuth }) {
       setShowManualSummary(false);
       setResumoTriggerMsg("✅ Seu resumo e a atividade foram guardados! Revise e envie quando quiser.");
     } else setResumoTriggerMsg("❌ Não consegui guardar o resumo agora. Tente novamente.");
+    return ok;
+  };
+  const apagarResumoProfessor = async (date) => {
+    const targetShift = codeShift;
+    const latest = await getTeacherResumoHistory(targetShift, true);
+    const next = { ...latest };
+    delete next[date];
+    const ok = await saveTeacherResumoHistory(targetShift, next, teacherAuth);
+    if (ok) setTeacherResumoHistory(next);
+    return ok;
   };
   const enviarResumoParaTurma = async (turmaId) => {
     const resumo = teacherResumoHistory[todayKey()];
@@ -6133,11 +6146,12 @@ function TeacherView({ onLogout, teacherAuth }) {
       const EXAM_STUDY_MS = 30 * 60 * 1000;
       const rawExamQuestions = Array.isArray(parsed.questions) ? parsed.questions : [];
       const validExamQuestions = filterValidQuestions(rawExamQuestions);
+      if (!validExamQuestions.length) throw new Error('empty_exam');
       if (validExamQuestions.length < rawExamQuestions.length) {
         reportClientError({ message: `Prova da turma ${shiftFilter}: ${rawExamQuestions.length - validExamQuestions.length} questão(ões) geradas sem gabarito válido foram descartadas automaticamente, sem penalizar os alunos.`, url: window.location.pathname, role: "sistema" });
       }
       const newConfig = { status: 'review', questions: shuffleQuestions(validExamQuestions), summary: summaryResult.trim(), shift: shiftFilter, startedAt: Date.now(), studyUntil: Date.now() + EXAM_STUDY_MS };
-      await setExamState(newConfig, teacherAuth, shiftFilter);
+      if (!(await setExamState(newConfig, teacherAuth, shiftFilter))) throw new Error('exam_save_failed');
       setExamConfig(newConfig);
       setExamMsg("✅ Prova criada! Os alunos têm 30min pra estudar. Quando todos estiverem prontos, clique em Iniciar Agora (ou espere o tempo passar).");
     } catch(e) { setExamMsg("Erro ao gerar a prova. Tente de novo."); }
@@ -6146,7 +6160,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
   const activateExam = async () => {
     const newConfig = { ...examConfig, status: 'active', activatedAt: Date.now() };
-    await setExamState(newConfig, teacherAuth, examConfig.shift || shiftFilter);
+    if (!(await setExamState(newConfig, teacherAuth, examConfig.shift || shiftFilter))) { setExamMsg("❌ Não foi possível iniciar a prova. Tente novamente."); return; }
     setExamConfig(newConfig);
     setExamMsg("✅ Prova iniciada! Os alunos estão respondendo.");
   };
@@ -6664,7 +6678,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     ]},
     { id:"teaching", label:"Ensino", items:[
       { id:"feedback", label:"Feedback", icon:"💬", badge:feedbacks.length || null, active:tab==="feedback", onClick:()=>setTab("feedback"), teacherTour:"feedback" },
-      { id:"exam", label:"Provas", icon:"🏆", badge:examConfig.status!=="idle" ? "●" : null, active:tab==="exam", onClick:()=>setTab("exam"), teacherTour:"exam" },
+      { id:"materials", label:"Resumos, atividades e provas", icon:"📚", badge:examConfig.status!=="idle" ? "●" : null, active:tab==="materials" || tab==="exam", onClick:()=>setTab("materials"), teacherTour:"materials" },
       { id:"quiz", label:"Quiz", icon:"🎉", badge:quizRoom ? "●" : null, active:tab==="quiz", onClick:()=>setTab("quiz"), teacherTour:"quiz" },
     ]},
     { id:"communication", label:"Comunicação", items:[
@@ -6784,7 +6798,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           <button style={styles.tab(tab==="code")} onClick={()=>setTab("code")}>👨‍💻 Meu código</button>
           <button style={styles.tab(tab==="calendar")} onClick={()=>setTab("calendar")}>🗓️ Calendário</button>
           <button style={styles.tab(tab==="feedback")} onClick={()=>setTab("feedback")}>💬 Feedback ({feedbacks.length})</button>
-          <button style={{ ...styles.tab(tab==="exam"), ...(examConfig.status!=="idle"&&tab!=="exam"?{borderColor:"#fbbf24",color:"#fbbf24"}:{}) }} onClick={()=>setTab("exam")}>🏆 Prova{examConfig.status!=="idle"?" ●":""}</button>
+          <button style={styles.tab(tab==="materials" || tab==="exam")} onClick={()=>setTab("materials")}>📚 Resumos, atividades e provas</button>
           <button style={{ ...styles.tab(tab==="quiz"), ...(quizRoom&&tab!=="quiz"?{borderColor:"#c084fc",color:"#c084fc"}:{}) }} onClick={()=>setTab("quiz")}>🎉 Quiz{quizRoom?" ●":""}</button>
           <button style={styles.tab(false)} onClick={()=>setShowTeacherNotes(true)}>📝 Anotações</button>
           <button style={styles.tab(tab==="reminders")} onClick={()=>setTab("reminders")}>🔔 Avisos</button>
@@ -6792,7 +6806,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {/* filtro de turno (vale para monitoramento, chamada, situação e feedback) */}
-      {tab!=="code" && (
+      {tab!=="code" && tab!=="materials" && (
         <div data-tour-prof="turma" style={{ maxWidth:1180, margin:"10px auto 0", padding:"0 14px", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
           <span style={{ color:"#a99ac9", fontSize:13 }}>Turma:</span>
           <button onClick={()=>setShiftFilter("all")} style={styles.tab(shiftFilter==="all")}>Todas ({students.length})</button>
@@ -7770,29 +7784,19 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {/* ─────────── MEU CÓDIGO (exemplo da aula, do professor) — layout expandido tipo "tela cheia" ─────────── */}
-      {tab==="code" && (
-          <div style={{ padding:"8px 14px 14px" }}>
-            <div data-tour-prof="code-info" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, flexWrap:"wrap" }}>
-                <div style={{ flex:"1 1 260px" }}>
-                  <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>👨‍💻 Meu código</h3>
-                  <p style={{ color:"#a99ac9", fontSize:12.5, margin:"3px 0 0", lineHeight:1.5 }}>Cada turma tem seu próprio exemplo. Programe aqui e gere o nome do conteúdo a partir dele — é isso que aparece no calendário.</p>
-                </div>
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  <button style={{ ...styles.btn("#34d399"), padding:"7px 12px", fontSize:12.5 }} onClick={()=>setShowLessons(true)} title="Sua biblioteca de aulas: salve o código atual com um nome e reutilize quando quiser">📚 Minhas aulas</button>
-                  <button style={{ ...styles.btn("#c084fc"), opacity:genName?0.6:1, padding:"7px 12px", fontSize:12.5 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift, turmas).label})`}</button>
-                </div>
-              </div>
-              <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                {activeTurmas.map(sh => (
-                  <button key={sh.id} onClick={()=>setCodeShift(sh.id)} style={styles.tab(codeShift===sh.id)}>{sh.emoji} {sh.label}</button>
-                ))}
-              </div>
-              {contentFor(codeShift) && <p style={{ color:"#34d399", fontSize:13, fontWeight:600, margin:"8px 0 0" }}>📖 Conteúdo de hoje ({shiftMeta(codeShift, turmas).label}): {contentFor(codeShift)}</p>}
-              {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12.5, margin:"8px 0 0", lineHeight:1.5 }}>{nameMsg}</p>}
-            </div>
-
+      {(tab==="materials" || tab==="exam") && <section style={{maxWidth:900,margin:'16px auto',padding:14}}>
+        <h2>📚 Resumos, atividades e provas</h2>
+        <nav aria-label="Materiais da aula" style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+          <button style={styles.tab(tab==='materials')} onClick={()=>setTab('materials')}>Resumos e atividades</button>
+          <button data-tour-prof="exam" style={styles.tab(tab==='exam')} onClick={()=>{setShiftFilter(codeShift);setTab('exam');}}>Provas</button>
+        </nav>
+      </section>}
+      {tab==="materials" && <section style={{maxWidth:900,margin:'auto',padding:14}}>
+        <label>Turno do material <select aria-label="Turno do material" value={codeShift} disabled={resumoTriggerBusy || resumoSendBusy} onChange={e=>setCodeShift(e.target.value)}>
+          {[...activeTurmas,TEST_SHIFT,LANG_SHIFT].filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i).map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+        </select></label>
             {(() => {
+              if (summaryLoadedShift !== codeShift) return <p role="status">{resumoTriggerMsg.startsWith('❌') ? resumoTriggerMsg : 'Carregando os materiais deste turno…'}</p>;
               const jaEnviado = !!resumoTriggeredToday[codeShift];
               const resumoHoje = teacherResumoHistory[todayKey()];
               return (
@@ -7824,7 +7828,31 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
               );
             })()}
-            {showTeacherNotebook && <NotebookModal history={teacherResumoHistory} detailedHistory={null} onClose={()=>setShowTeacherNotebook(false)} />}
+            {showTeacherNotebook && <NotebookModal history={teacherResumoHistory} detailedHistory={null} onDeleteSummary={apagarResumoProfessor} onClose={()=>setShowTeacherNotebook(false)} />}
+      </section>}
+      {tab==="code" && (
+          <div style={{ padding:"8px 14px 14px" }}>
+            <div data-tour-prof="code-info" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+                <div style={{ flex:"1 1 260px" }}>
+                  <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>👨‍💻 Meu código</h3>
+                  <p style={{ color:"#a99ac9", fontSize:12.5, margin:"3px 0 0", lineHeight:1.5 }}>Cada turma tem seu próprio exemplo. Programe aqui e gere o nome do conteúdo a partir dele — é isso que aparece no calendário.</p>
+                </div>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  <button style={{ ...styles.btn("#34d399"), padding:"7px 12px", fontSize:12.5 }} onClick={()=>setShowLessons(true)} title="Sua biblioteca de aulas: salve o código atual com um nome e reutilize quando quiser">📚 Minhas aulas</button>
+                  <button style={{ ...styles.btn("#c084fc"), opacity:genName?0.6:1, padding:"7px 12px", fontSize:12.5 }} onClick={()=>generateContentName(codeShift)} disabled={genName}>{genName?"Gerando...":`✨ Gerar nome do conteúdo (${shiftMeta(codeShift, turmas).label})`}</button>
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                {activeTurmas.map(sh => (
+                  <button key={sh.id} onClick={()=>setCodeShift(sh.id)} style={styles.tab(codeShift===sh.id)}>{sh.emoji} {sh.label}</button>
+                ))}
+              </div>
+              {contentFor(codeShift) && <p style={{ color:"#34d399", fontSize:13, fontWeight:600, margin:"8px 0 0" }}>📖 Conteúdo de hoje ({shiftMeta(codeShift, turmas).label}): {contentFor(codeShift)}</p>}
+              {nameMsg && <p style={{ color:nameMsg.startsWith("✅")?"#34d399":"#fbbf24", fontSize:12.5, margin:"8px 0 0", lineHeight:1.5 }}>{nameMsg}</p>}
+            </div>
+
+            <button style={styles.btnGhost} onClick={()=>setTab("materials")}>📚 Abrir resumos, atividades e provas</button>
             {showManualSummary && <TeacherSummaryEditor initial={teacherResumoHistory[todayKey()]} onSave={salvarResumoManual} onClose={()=>setShowManualSummary(false)} />}
 
             <div data-tour-prof="analise-nyx" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
@@ -8230,10 +8258,22 @@ function TeacherView({ onLogout, teacherAuth }) {
             )}
 
             {/* estado: idle */}
+            {manualExamShift !== null && <TeacherSummaryEditor exam key={manualExamShift} onClose={()=>setManualExamShift(null)} onSave={async material => {
+              const current = await getExamState(manualExamShift, teacherAuth, true);
+              if (current.status !== 'idle') throw new Error('Já existe uma prova neste turno. Feche o editor e confira a prova antes de continuar.');
+              const now = Date.now();
+              const config = { status:'review', manual:true, shift:manualExamShift, startedAt:now, studyUntil:now+30*60*1000,
+                questions:shuffleQuestions(material.atividade), summary:[material.intro, ...material.secoes.map(s=>`${s.titulo}\n${s.explicacao}\n${s.exemplo}`), material.dica].filter(Boolean).join('\n\n') };
+              if (!(await setExamState(config, teacherAuth, manualExamShift))) return false;
+              setExamConfig(config); setManualExamShift(null);
+              setExamMsg('✅ Prova manual criada! Revisão de 30 minutos; você também pode iniciar antes.');
+              return true;
+            }} />}
             {examConfig.status === 'idle' && (
               <div className="cardfx" style={styles.card}>
                 <h3 style={{ color:"#fbbf24", marginBottom:4 }}>🏆 Criar Prova</h3>
-                <p style={{ color:"#a99ac9", fontSize:13, marginBottom:14, lineHeight:1.6 }}>A IA gera automaticamente um resumo de revisão e 10 questões de múltipla escolha com base no código de hoje. Os alunos revisam, entram na sala e então você inicia.</p>
+                <p style={{ color:"#a99ac9", fontSize:13, marginBottom:14, lineHeight:1.6 }}>Crie perguntas e gabarito manualmente, sem IA, ou gere uma prova a partir do código de hoje. A criação abre 30 minutos de revisão; depois a prova começa automaticamente, ou você pode iniciar antes.</p>
+                <button data-tour-prof="prova-manual" disabled={examGenerating} onClick={()=>setManualExamShift(shiftFilter)} style={{...styles.btn("#22d3ee"),marginRight:10}}>✍️ Criar prova manual</button>
                 <p style={{ color:"#a99ac9", fontSize:12, marginBottom:10 }}>As questões são geradas a partir do código que você escreveu na aba <b>Meu código</b>. Se não houver, usa o código dos alunos.</p>
                 <button onClick={startExam} disabled={examGenerating} style={{ ...styles.btn("#c084fc"), opacity:examGenerating?0.6:1, padding:"12px 24px", fontSize:15 }}>
                   {examGenerating ? "Gerando..." : "🚀 Gerar e Iniciar Prova"}
