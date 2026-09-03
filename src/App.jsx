@@ -7829,6 +7829,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               );
             })()}
             {showTeacherNotebook && <NotebookModal history={teacherResumoHistory} detailedHistory={null} onDeleteSummary={apagarResumoProfessor} onClose={()=>setShowTeacherNotebook(false)} />}
+            {showManualSummary && <TeacherSummaryEditor initial={teacherResumoHistory[todayKey()]} onSave={salvarResumoManual} onClose={()=>setShowManualSummary(false)} />}
       </section>}
       {tab==="code" && (
           <div style={{ padding:"8px 14px 14px" }}>
@@ -7853,7 +7854,6 @@ function TeacherView({ onLogout, teacherAuth }) {
             </div>
 
             <button style={styles.btnGhost} onClick={()=>setTab("materials")}>📚 Abrir resumos, atividades e provas</button>
-            {showManualSummary && <TeacherSummaryEditor initial={teacherResumoHistory[todayKey()]} onSave={salvarResumoManual} onClose={()=>setShowManualSummary(false)} />}
 
             <div data-tour-prof="analise-nyx" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
               <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>✨ Análise de código do Nyx</h3>
