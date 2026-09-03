@@ -7792,7 +7792,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         </nav>
       </section>}
       {tab==="materials" && <section style={{maxWidth:900,margin:'auto',padding:14}}>
-        <label>Turno do material <select aria-label="Turno do material" value={codeShift} disabled={resumoTriggerBusy || resumoSendBusy} onChange={e=>setCodeShift(e.target.value)}>
+        <label className="teacher-control-label">Turno do material <select className="teacher-select" aria-label="Turno do material" value={codeShift} disabled={resumoTriggerBusy || resumoSendBusy} onChange={e=>setCodeShift(e.target.value)}>
           {[...activeTurmas,TEST_SHIFT,LANG_SHIFT].filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i).map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
         </select></label>
             {(() => {

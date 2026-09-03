@@ -41,7 +41,7 @@ export const TOUR_STEPS = [
 // essa lista atualizada manualmente sempre que uma função nova entra no painel do professor.
 export const TEACHER_TOUR_STEPS = [
   { tab:"attendance", sel:'[data-tour-prof="attendance-body"]', emoji:"📋", title:"Lista de chamada", text:"Escolha a data e o turno para ver os acessos. Dê ou tire presença quando necessário: sua correção tem prioridade sobre novos acessos. Voltar ao automático remove essa decisão manual." },
-  { tab:"monitor", sel:'[data-tour="versao"]', emoji:"🆕", title:"Versões da plataforma", text:"Este botão mostra a versão atual e o histórico das novidades. Minhas aulas agora permite organizar e filtrar as aulas salvas por turno; as antigas ficam em Sem turno até você classificá-las." },
+  { tab:"monitor", sel:'[data-tour="versao"]', emoji:"🔖", title:"Versão da plataforma", text:"Este indicador mostra apenas o número da versão instalada, para facilitar a identificação em caso de suporte." },
   { tab:"monitor", sel:'[data-tour-prof="monitor"]',      emoji:"👥", title:"Monitoramento",        text:"Sua tela principal: acompanhe a turma em tempo real, fase de cada aluno, notas, erros no código e pedidos de ajuda acesos na hora." },
   { tab:"monitor", sel:'[data-tour-prof="monitor-grid"]', emoji:"🧩", title:"Cards dos alunos",       text:"Cada card mostra avatar, nome, nível, pontos, atividade atual e situação. Use somente os três pontos para abrir o gerenciamento do aluno, evitando alterações acidentais." },
   { tab:"monitor", sel:'[data-tour-prof="chamada"]',      emoji:"📋", title:"Lista de Chamada",      text:"Clique pra abrir: presença separada por turno, atualizada sozinha. Dá pra marcar presença na mão (dia de filme, sem computador) e abrir o tutorial de teclado pra todo mundo de uma vez." },
