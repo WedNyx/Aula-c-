@@ -7792,7 +7792,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         </nav>
       </section>}
       {tab==="materials" && <section style={{maxWidth:900,margin:'auto',padding:14}}>
-        <label>Turno do material <select aria-label="Turno do material" value={codeShift} disabled={resumoTriggerBusy || resumoSendBusy} onChange={e=>setCodeShift(e.target.value)}>
+        <label className="teacher-control-label">Turno do material <select className="teacher-select" aria-label="Turno do material" value={codeShift} disabled={resumoTriggerBusy || resumoSendBusy} onChange={e=>setCodeShift(e.target.value)}>
           {[...activeTurmas,TEST_SHIFT,LANG_SHIFT].filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i).map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
         </select></label>
             {(() => {
@@ -7829,6 +7829,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               );
             })()}
             {showTeacherNotebook && <NotebookModal history={teacherResumoHistory} detailedHistory={null} onDeleteSummary={apagarResumoProfessor} onClose={()=>setShowTeacherNotebook(false)} />}
+            {showManualSummary && <TeacherSummaryEditor initial={teacherResumoHistory[todayKey()]} onSave={salvarResumoManual} onClose={()=>setShowManualSummary(false)} />}
       </section>}
       {tab==="code" && (
           <div style={{ padding:"8px 14px 14px" }}>
@@ -7853,7 +7854,6 @@ function TeacherView({ onLogout, teacherAuth }) {
             </div>
 
             <button style={styles.btnGhost} onClick={()=>setTab("materials")}>📚 Abrir resumos, atividades e provas</button>
-            {showManualSummary && <TeacherSummaryEditor initial={teacherResumoHistory[todayKey()]} onSave={salvarResumoManual} onClose={()=>setShowManualSummary(false)} />}
 
             <div data-tour-prof="analise-nyx" className="cardfx" style={{ ...styles.card, padding:12, margin:"6px 0" }}>
               <h3 style={{ color:"#fbbf24", margin:0, fontSize:15 }}>✨ Análise de código do Nyx</h3>

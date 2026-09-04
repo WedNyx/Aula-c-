@@ -1,0 +1,17 @@
+.teacher-control-label { display:flex; align-items:center; gap:12px; flex-wrap:wrap; color:#d6c9ec; font-size:14px; font-weight:700; margin:0 0 16px; }
+.teacher-select, .attendance-date { color-scheme:dark; font:inherit; color:#f0e9fb; background:#211631; border:1px solid #70548f; border-radius:12px; min-height:44px; padding:10px 14px; box-sizing:border-box; max-width:100%; }
+.teacher-select { min-width:190px; cursor:pointer; }
+.teacher-select option { background:#211631; color:#f0e9fb; }
+.attendance-action { appearance:none; font:inherit; font-size:13px; font-weight:750; display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:44px; padding:10px 14px; border-radius:11px; border:1px solid #70548f; background:#2a1d3d; color:#e9ddfb; cursor:pointer; transition:background .15s,border-color .15s; }
+.attendance-action--present { background:#103b31; color:#a7f3d0; border-color:#33896c; }
+.attendance-action--absent { background:#442337; color:#fecdd3; border-color:#a65873; }
+.attendance-action:hover:not(:disabled) { background:#44315e; border-color:#c4a0ef; }
+.attendance-action--present:hover:not(:disabled) { background:#185543; border-color:#6ee7b7; }
+.attendance-action--absent:hover:not(:disabled) { background:#623047; border-color:#fda4af; }
+.attendance-action:focus-visible, .teacher-select:focus-visible, .attendance-date:focus-visible { outline:3px solid #e9c7ff; outline-offset:3px; }
+.attendance-action:disabled, .teacher-select:disabled, .attendance-date:disabled { opacity:.55; cursor:not-allowed; }
+.attendance-panel td { padding:10px 12px 10px 0; border-bottom:1px solid #342440; }
+.attendance-panel th { color:#baa7d5; padding:8px 12px 8px 0; font-size:13px; }
+.platform-version { position:fixed; bottom:6px; left:8px; z-index:800; pointer-events:none; border:1px solid #594077; border-radius:12px; background:#150d25; color:#cbbce8; font-size:11px; padding:5px 10px; font-variant-numeric:tabular-nums; }
+@media (prefers-reduced-motion:reduce) { .attendance-action { transition:none; } }
+@media (max-width:600px) { .teacher-control-label { align-items:stretch; } .teacher-select { flex:1; min-width:150px; } }

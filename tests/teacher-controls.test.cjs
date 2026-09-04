@@ -1,0 +1,15 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const read = p => fs.readFileSync(p,'utf8');
+const badge=read('src/components/ReleaseBadge.jsx');
+assert.ok(badge.includes('v{PLATFORM_VERSION}'));
+assert.ok(!/dialog|Novidades|ReleaseHistory|onClick/.test(badge));
+const panel=read('src/components/AttendancePanel.jsx');
+for(const status of ['present','absent','auto']) assert.ok(panel.includes(`save(s, '${status}')`));
+assert.ok(panel.includes('attendance-action--present'));
+assert.ok(panel.includes('attendance-action--absent'));
+const app=read('src/App.jsx');
+assert.ok(app.includes('className="teacher-select" aria-label="Turno do material"'));
+const css=read('src/components/TeacherControls.css');
+for(const selector of [':focus-visible',':disabled','prefers-reduced-motion','color-scheme:dark']) assert.ok(css.includes(selector));
+console.log('Controles da chamada/turno e versão sem janela: contratos aprovados.');
