@@ -30,6 +30,13 @@ function mockReqRes(password) {
 }
 
 const { default: handler } = await import(pathToFileURL(path.join(__dirname, '../../api/auth.js')).href);
+const { isValidTeacherPassword } = await import(pathToFileURL(path.join(__dirname, '../../api/_teacherAuth.js')).href);
+
+// Sem configuração explícita, nenhuma senha padrão deve existir.
+const configuredTeacherPassword = process.env.TEACHER_PASSWORD;
+delete process.env.TEACHER_PASSWORD;
+check('Sem TEACHER_PASSWORD, autenticação falha fechada', isValidTeacherPassword('M1n3cr@ft2006') === false);
+process.env.TEACHER_PASSWORD = configuredTeacherPassword;
 
 // 5 tentativas erradas seguidas — mede se o atraso cresce a cada uma
 const delays = [];
