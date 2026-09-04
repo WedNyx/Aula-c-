@@ -28,9 +28,9 @@ async function isAuthorized(req) {
     await recordLoginFailure(bucketKey, 600)
     return { ok: false, trusted: false }
   }
-  // sem CRON_SECRET configurado, aceita qualquer chamada do próprio Cron (GET sem senha) —
-  // menos seguro, mas não trava o backup agendado só porque a variável não foi configurada ainda
-  return { ok: !cronSecret && req.method === 'GET', trusted: false }
+  // Sem CRON_SECRET, o backup agendado deve falhar fechado. Aceitar GET anônimo permitiria que
+  // qualquer pessoa disparasse uma varredura e uma gravação completas do banco.
+  return { ok: false, trusted: false }
 }
 
 export default async function handler(req, res) {

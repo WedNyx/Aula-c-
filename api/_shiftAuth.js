@@ -4,11 +4,11 @@
 // bundle nas ferramentas do navegador).
 
 const SHIFT_PASSWORDS = {
-  teste: process.env.TEST_SHIFT_PASSWORD || 'T3steSystem',
-  linguagens: process.env.LANG_SHIFT_PASSWORD || 'MultiLang2026',
+  teste: process.env.TEST_SHIFT_PASSWORD || '',
+  linguagens: process.env.LANG_SHIFT_PASSWORD || '',
 }
 
 export function isValidShiftPassword(shiftId, password) {
   const expected = SHIFT_PASSWORDS[shiftId]
-  return typeof expected === 'string' && typeof password === 'string' && password === expected
+  return !!expected && typeof password === 'string' && password === expected
 }

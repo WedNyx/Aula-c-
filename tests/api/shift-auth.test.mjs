@@ -18,8 +18,8 @@ process.env.KV_REST_API_URL = `http://localhost:${PORT}`;
 process.env.KV_REST_API_TOKEN = 'fake-token';
 process.env.TEACHER_PASSWORD = 'senha-de-teste-123';
 process.env.FAKE_REDIS_PORT = String(PORT);
-delete process.env.TEST_SHIFT_PASSWORD;
-delete process.env.LANG_SHIFT_PASSWORD;
+process.env.TEST_SHIFT_PASSWORD = 'senha-teste-configurada';
+process.env.LANG_SHIFT_PASSWORD = 'senha-linguagens-configurada';
 
 const server = spawn('node', [path.join(__dirname, 'fake-redis-server.mjs')], { stdio: 'inherit', env: process.env });
 await new Promise(r => setTimeout(r, 500));
@@ -37,15 +37,15 @@ const { req: reqBadShift, res: resBadShift } = mockReqRes('turma-que-nao-existe'
 await handler(reqBadShift, resBadShift);
 check('shiftId inválido é rejeitado (400)', resBadShift._status === 400);
 
-const { req: reqTestOk, res: resTestOk } = mockReqRes('teste', 'T3steSystem');
+const { req: reqTestOk, res: resTestOk } = mockReqRes('teste', 'senha-teste-configurada');
 await handler(reqTestOk, resTestOk);
 check('Senha certa da turma de teste: ok:true', resTestOk._body.ok === true);
 
-const { req: reqLangOk, res: resLangOk } = mockReqRes('linguagens', 'MultiLang2026');
+const { req: reqLangOk, res: resLangOk } = mockReqRes('linguagens', 'senha-linguagens-configurada');
 await handler(reqLangOk, resLangOk);
 check('Senha certa da sala de linguagens: ok:true', resLangOk._body.ok === true);
 
-const { req: reqCross, res: resCross } = mockReqRes('teste', 'MultiLang2026');
+const { req: reqCross, res: resCross } = mockReqRes('teste', 'senha-linguagens-configurada');
 await handler(reqCross, resCross);
 check('Senha da sala de linguagens NÃO destrava a turma de teste', resCross._body.ok === false);
 

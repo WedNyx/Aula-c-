@@ -65,12 +65,12 @@ await seed('loginfail:teacher:1.2.3.4', JSON.stringify({ count: 2 }));
   check('Backup NÃO inclui chaves técnicas (ratelimit/loginfail)', res._body.keys === 2, `keys=${res._body.keys}`);
 }
 
-// 3) lista os backups (rota de leitura, sem senha)
+// 3) sem CRON_SECRET, GET anônimo também deve falhar fechado
 {
   const req = mockReq({ method: 'GET', query: { list: '1' } });
   const res = mockRes();
   await backupHandler(req, res);
-  check('Listagem de backups funciona e mostra o que acabou de ser criado', Array.isArray(res._body.backups) && res._body.backups.length === 1, JSON.stringify(res._body));
+  check('GET sem CRON_SECRET e sem senha é negado', res._status === 401, JSON.stringify(res._body));
 }
 
 // 4) com senha errada → nega
