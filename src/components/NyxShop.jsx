@@ -17,6 +17,15 @@ const SLOT_SECTIONS = [
 ];
 const secondKey = slot => `${slot}2`;
 const SLOT_LABELS = { head:"cabeça", face:"rosto", neck:"pescoço", hand:"órbita", shield:"escudo orbital", costas:"costas" };
+const SKIN_DESCRIPTIONS = {
+  skinPrismaOrbital: "Cristais prismáticos, feixes coloridos e um sistema orbital luminoso.",
+  skinOrbita: "Planetas e trajetórias animadas giram ao redor do Nyx.",
+  skinGuardiao: "Armadura, escudo e proteção dourada de um guardião lunar.",
+  skinAurora: "Cortinas de luz turquesa, azul e violeta atravessam o céu.",
+  skinLuaNova: "Uma carapaça escura cercada por luas e estrelas discretas.",
+  skinMare: "Ondas, barbatanas, bolhas e uma cauda feita de água.",
+  skinConstelacao: "Mapas estelares e constelações brilhantes cobrem o Nyx.",
+};
 const equippedInSlot = (gear, slot) => [gear?.[slot], gear?.[secondKey(slot)]].filter(Boolean);
 const hasItem = (gear, slot, item) => equippedInSlot(gear, slot).includes(item);
 const isPirateSet = (gear = {}) => hasItem(gear,"head","chapeuPirata") && hasItem(gear,"face","vendaPirata") && hasItem(gear,"hand","espada");
@@ -139,6 +148,7 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
                             ? <NyxRobot state="ok" size={54} showName={false} gear={{ ...gear, skin:item.id }} />
                             : <div style={{ fontSize:30, filter: clickable?"none":"grayscale(1)" }}>{item.emoji}</div>}
                           <div style={{ color:"#f0e9fb", fontSize:12.5, fontWeight:700, marginTop:6 }}>{item.label}</div>
+                          {item.slot === "skin" && <div style={{ color:"#9d8fba", fontSize:10.5, lineHeight:1.35, marginTop:5 }}>{SKIN_DESCRIPTIONS[item.id]}</div>}
                           {has ? (
                             equipped
                               ? <div style={{ color:"#c084fc", fontSize:11, fontWeight:800, marginTop:4 }}>✓ Equipado</div>
@@ -174,6 +184,7 @@ export function NyxShop({ wallet, spent = 0, owned, gear, onEquip, onBuy, onRefu
               </div>
               <NyxRobot state="ok" size={110} showName={false} gear={{ ...gear, [preview.slot]: preview.id }} />
               <div style={{ color:"#f0e9fb", fontWeight:800, fontSize:14.5, marginTop:8 }}>{preview.emoji} {preview.label}</div>
+              {preview.slot === "skin" && <p style={{ color:"#a99ac9", fontSize:12, lineHeight:1.45, margin:"7px 0 0" }}>{SKIN_DESCRIPTIONS[preview.id]}</p>}
               <button onClick={()=>click(preview)} disabled={!clickable}
                 style={{
                   marginTop:14, width:"100%", padding:"10px 0", borderRadius:10, border:"none", fontWeight:800, fontSize:13, cursor: clickable?"pointer":"default", opacity: clickable?1:0.6,
