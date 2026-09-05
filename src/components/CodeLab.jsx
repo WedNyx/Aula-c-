@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { quickCheck } from "../lib/utils.js";
 import { askClaudeJson } from "../lib/ai.js";
 import { otherFilesCtx } from "../lib/languages.ts";
@@ -8,7 +8,7 @@ import { Terminal } from "./Terminal.jsx";
 import { KeyVisual } from "./KeyVisual.jsx";
 import { NYX_ITEMS, DEFAULT_NYX_GEAR } from "./NyxRobot.jsx";
 import { NyxDisplay as NyxRobot } from "./NyxDisplay.jsx";
-import { NyxShop } from "./NyxShop.jsx";
+const NyxShop=lazy(()=>import("./NyxShop.jsx").then(module=>({default:module.NyxShop})));
 
 export function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code:"" }], onChange = ()=>{}, terminalMaxHeight, gear = DEFAULT_NYX_GEAR, onEquip = ()=>{} }) {
   const setFiles = (updater) => onChange(typeof updater === "function" ? updater(files) : updater);
@@ -110,7 +110,7 @@ export function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code
           {keysToShow.length>0 && (<div style={{ marginTop:10 }}><p style={{ color:accent, fontSize:12, fontWeight:600, marginBottom:4 }}>Teclas para usar:</p>{keysToShow.map((k,i)=><KeyVisual key={i} char={k}/>)}</div>)}
         </div>
         {showShop && (
-          <NyxShop wallet={9999} owned={NYX_ITEMS.map(i=>i.id)} gear={gear} onEquip={onEquip} onBuy={()=>{}} isTestShift={true} onClose={()=>setShowShop(false)} />
+          <Suspense fallback={<div role="status" style={{position:"fixed",inset:0,zIndex:1400,display:"grid",placeItems:"center",background:"rgba(11,6,20,.72)",color:"#e9d5ff",fontWeight:800}}>Carregando loja…</div>}><NyxShop wallet={9999} owned={NYX_ITEMS.map(i=>i.id)} gear={gear} onEquip={onEquip} onBuy={()=>{}} isTestShift={true} onClose={()=>setShowShop(false)} /></Suspense>
         )}
         <div style={{ ...card, fontSize:12, color:"#776798", lineHeight:1.8 }}>
           <p style={{ color:accent, fontWeight:600, marginBottom:6 }}>👩‍🏫 O exemplo da aula</p>

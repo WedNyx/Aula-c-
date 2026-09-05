@@ -1,6 +1,6 @@
 // "Enviar resumo de hoje" pra UM aluno só (painel "⚙️ Gerenciar aluno"), igual "Enviar código da
 // turma" — não deve puxar o resto da turma inteira pra atividade (só entrega no Caderno dele).
-const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } = require('/home/user/Aula-c-/tests/helpers.cjs');
+const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } = require('./helpers.cjs');
 
 (async () => {
   const now = new Date();

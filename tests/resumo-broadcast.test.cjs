@@ -1,7 +1,7 @@
 // Resumo gerado uma vez no painel do professor (a partir do código QUE ELE escreveu) e enviado
 // pronto pra turma inteira — em vez de cada aluno pedir o próprio resumo pro Nyx (já que eles só
 // copiam o código do professor, é redundante e inconsistente gerar de novo pra cada um).
-const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } = require('/home/user/Aula-c-/tests/helpers.cjs');
+const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } = require('./helpers.cjs');
 
 (async () => {
   const csharpCode = 'using System;\nclass Program { static void Main() { Console.WriteLine("oi"); } }';

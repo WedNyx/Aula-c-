@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const app=fs.readFileSync('src/App.jsx','utf8');
+const panel=fs.readFileSync('src/components/LanguageRunPanel.jsx','utf8');
+const tour=fs.readFileSync('src/components/TourOverlay.jsx','utf8');
+assert.match(app,/studyLang \? <LanguageRunPanel language=\{studyLang\}/);
+assert.match(panel,/html:\{icon:/);assert.match(panel,/css:\{icon:/);assert.match(panel,/js:\{icon:/);assert.match(panel,/php:\{icon:/);
+assert.match(panel,/language\?\.preview&&<button/);
+assert.match(panel,/PHP precisa de um servidor/);
+assert.match(panel,/console\.log/);
+assert.match(tour,/Na Sala de Linguagens/);
+console.log('Sala de Linguagens usa prévia própria e não mostra comandos dotnet fora do C#.');

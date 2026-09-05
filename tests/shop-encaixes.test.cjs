@@ -1,4 +1,4 @@
-const { launchBrowser, mockRoutes, baseKvStore, loginNewStudent, check, summary } = require("/home/user/Aula-c-/tests/helpers.cjs");
+const { launchBrowser, mockRoutes, baseKvStore, loginNewStudent, check, summary } = require("./helpers.cjs");
 
 (async () => {
   const kvStore = baseKvStore({ city: 'Sobradinho' });

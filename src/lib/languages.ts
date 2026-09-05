@@ -12,6 +12,17 @@ export interface StudyLanguage {
   starter: string;
   system: string;
 }
+
+export interface LocalLanguageDiagnostic {
+  ok: false;
+  line: number;
+  trecho: string;
+  title: string;
+  explanation: string;
+  example: string;
+  missing: string[];
+  message: string;
+}
 export const STUDY_LANGUAGES: StudyLanguage[] = [
   {
     id: "html", label: "HTML", emoji: "🌐", fileName: "index.html", codeLang: "html", preview: true,
@@ -115,6 +126,99 @@ Ponto e vírgula faltando; chaves/parênteses/colchetes não fechados; usar = no
 Fale sempre em português brasileiro simples, gentil e encorajador — o aluno é iniciante, mas sua análise é a de um especialista. Trate cada erro como parte normal do aprendizado, nunca como falha.`,
   },
 ];
+
+// Verificação pequena e determinística para a Sala de Linguagens. Ela só cobre erros cuja
+// correção é inequívoca; assim continua útil sem IA sem inventar problemas em código válido.
+export function quickCheckLanguage(code: string | null | undefined, langId: string | null | undefined): LocalLanguageDiagnostic | null {
+  const source = String(code || "").replace(/\r/g, "");
+  const lines = source.split("\n");
+  const result = (line: number, title: string, explanation: string, example: string, missing: string[] = []): LocalLanguageDiagnostic => ({
+    ok: false,
+    line,
+    trecho: lines[Math.max(0, line - 1)]?.trim() || "",
+    title,
+    explanation,
+    example,
+    missing,
+    message: `Linha ${line}: ${title}. ${explanation}${example ? ` Exemplo: ${example}` : ""}`,
+  });
+
+  if (langId === "html") {
+    const voidTags = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"]);
+    const stack: Array<{ tag: string; line: number }> = [];
+    const clean = source.replace(/<!--[\s\S]*?-->/g, "");
+    const tagPattern = /<\s*(\/?)\s*([a-zA-Z][\w-]*)([^>]*)>/g;
+    let match: RegExpExecArray | null;
+    while ((match = tagPattern.exec(clean))) {
+      const closing = !!match[1];
+      const tag = match[2].toLowerCase();
+      const tail = match[3] || "";
+      const line = clean.slice(0, match.index).split("\n").length;
+      if ((tail.match(/"/g) || []).length % 2 || (tail.match(/'/g) || []).length % 2) {
+        return result(line, "há uma aspa de atributo aberta", "Todo valor de atributo precisa terminar com a mesma aspa.", `<${tag} class="nome">`, ['"']);
+      }
+      if (voidTags.has(tag) || tail.trim().endsWith("/")) continue;
+      if (!closing) stack.push({ tag, line });
+      else {
+        const top = stack[stack.length - 1];
+        if (!top) return result(line, `a tag </${tag}> não tem abertura`, `Abra <${tag}> antes de tentar fechá-la.`, `<${tag}>conteúdo</${tag}>`, [`<${tag}>`]);
+        if (top.tag !== tag) return result(line, "as tags estão fechando fora de ordem", `A tag <${top.tag}> ainda está aberta e precisa fechar antes de </${tag}>.`, `</${top.tag}>`, [`</${top.tag}>`]);
+        stack.pop();
+      }
+    }
+    if (stack.length) {
+      const top = stack[stack.length - 1];
+      return result(top.line, `a tag <${top.tag}> ainda não foi fechada`, "Toda tag aberta precisa ser fechada na ordem certa.", `</${top.tag}>`, [`</${top.tag}>`]);
+    }
+    return null;
+  }
+
+  const withoutCommentsAndStrings = source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+    .replace(/`(?:[^`\\]|\\.)*`/g, "``")
+    .replace(langId === "php" ? /\/\/.*$/gm : /\/\/.*$/gm, "");
+  const wantedPairs: Record<string, string> = langId === "css" ? { "{": "}" } : { "{": "}", "(": ")", "[": "]" };
+  const openerFor = Object.fromEntries(Object.entries(wantedPairs).map(([open, close]) => [close, open]));
+  const stack: Array<{ char: string; index: number }> = [];
+  for (let index = 0; index < withoutCommentsAndStrings.length; index += 1) {
+    const char = withoutCommentsAndStrings[index];
+    if (wantedPairs[char]) stack.push({ char, index });
+    else if (openerFor[char]) {
+      const line = withoutCommentsAndStrings.slice(0, index).split("\n").length;
+      const top = stack[stack.length - 1];
+      if (!top) return result(line, `há um “${char}” sem abertura`, `Esse símbolo precisa de “${openerFor[char]}” antes dele.`, `${openerFor[char]} ... ${char}`, [openerFor[char]]);
+      if (top.char !== openerFor[char]) return result(line, "os símbolos estão fechando fora de ordem", `Feche primeiro o “${top.char}” com “${wantedPairs[top.char]}”.`, `${top.char} ... ${wantedPairs[top.char]}`, [wantedPairs[top.char]]);
+      stack.pop();
+    }
+  }
+  if (stack.length) {
+    const top = stack[stack.length - 1];
+    const line = withoutCommentsAndStrings.slice(0, top.index).split("\n").length;
+    return result(line, `você abriu “${top.char}” e ainda não fechou`, `Coloque “${wantedPairs[top.char]}” no final da parte correspondente.`, `${top.char} ... ${wantedPairs[top.char]}`, [wantedPairs[top.char]]);
+  }
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    if (!line || line.startsWith("//") || line.startsWith("/*") || line.startsWith("*")) continue;
+    if (langId === "js" && /\bConsole\.log\s*\(/.test(line)) {
+      return result(index + 1, "console.log começa com letra minúscula", "JavaScript diferencia letras maiúsculas de minúsculas.", line.replace("Console.log", "console.log"));
+    }
+    if (langId === "css" && /^[a-z-]+\s+[^:{}]+;?$/.test(line) && !/[{},]$/.test(line)) {
+      const property = line.split(/\s+/)[0];
+      const value = line.slice(property.length).trim().replace(/;$/, "");
+      return result(index + 1, "parece faltar dois-pontos", "No CSS, os dois-pontos separam a propriedade do valor.", `${property}: ${value};`, [":"]);
+    }
+    if (langId === "php" && /^(?:echo|print)\b/.test(line) && !/[;{}]$/.test(line)) {
+      return result(index + 1, "parece faltar ponto e vírgula", "Comandos echo e print terminam com ponto e vírgula.", `${line};`, [";"]);
+    }
+  }
+  if (langId === "php" && source.trim() && !/<\?php\b/.test(source)) {
+    return result(1, "falta a abertura do PHP", "O código PHP começa com <?php para o servidor reconhecer a linguagem.", "<?php", ["<?php"]);
+  }
+  return null;
+}
 export const langById = (id: string | null | undefined): StudyLanguage | null => STUDY_LANGUAGES.find(l => l.id === id) || null;
 
 // checklist de revisão usado no prompt de análise de código — um por linguagem, no mesmo espírito

@@ -1,6 +1,6 @@
 // Novo fluxo em 2 passos: "Gerar resumo" só guarda no Caderno do PROFESSOR; "Enviar pra turma
 // toda" (ou "Enviar resumo de hoje" no painel de um aluno) é que entrega pros alunos.
-const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } = require('/home/user/Aula-c-/tests/helpers.cjs');
+const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } = require('./helpers.cjs');
 
 (async () => {
   const now = new Date();

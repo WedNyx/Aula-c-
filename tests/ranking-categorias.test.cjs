@@ -1,4 +1,4 @@
-const { launchBrowser, mockRoutes, baseKvStore, check, summary } = require("/home/user/Aula-c-/tests/helpers.cjs");
+const { launchBrowser, mockRoutes, baseKvStore, check, summary } = require("./helpers.cjs");
 
 function dstr(d) { return d.toISOString().slice(0, 10); }
 // pega uma quarta-feira desta semana e uma da semana passada, pra cair certinho nos buckets do weekKey()

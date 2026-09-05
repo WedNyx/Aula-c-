@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const app=fs.readFileSync('src/App.jsx','utf8');
+assert.match(app,/const studyMode = !!selfSupport\.estudo/);
+assert.match(app,/\["estudo", "📚 Modo estudo"/);
+assert.match(app,/!studyMode \? \[\{ id:"games"/);
+assert.match(app,/!studyMode \? \[\{ id:"achievements"/);
+assert.match(app,/!focusMode && !studyMode && <button data-tour="loja"/);
+assert.match(app,/studyMode \? TOUR_STEPS\.filter/);
+assert.match(app,/id:"notebook"/);assert.match(app,/id:"sites"/);assert.match(app,/id:"knowledge"/);
+console.log('Modo Estudo mantém ferramentas acadêmicas e recolhe gamificação competitiva.');

@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const app=fs.readFileSync('src/App.jsx','utf8');
+const modal=fs.readFileSync('src/components/MaterialDeliveryModal.jsx','utf8');
+assert.match(app,/📤 Escolher e enviar/);
+assert.match(app,/setMaterialDeliveryShift\(codeShift\)/);
+assert.match(app,/enviarResumoParaTurma\(materialDeliveryShift,selected\)/);
+assert.match(app,/const resumo = selectedMaterial \|\| teacherResumoHistory\[todayKey\(\)\]/);
+assert.match(modal,/Escolher o que enviar/);
+assert.match(modal,/checked=\{selection\.sections\.includes\(index\)\}/);
+assert.match(modal,/checked=\{selection\.questions\.includes\(index\)\}/);
+assert.match(modal,/disabled=\{busy\|\|!selected\}/);
+console.log('Envio para a turma exige revisão e permite escolher partes do resumo e da atividade.');
