@@ -225,16 +225,16 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
 }
 
 // bloco de código colorido (para os exemplos do resumo)
-export function CodeBlock({ code }) {
+export function CodeBlock({ code, filename = "", compact = false, wrap = false, label = "exemplo" }) {
   return (
-    <div style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:8, overflow:"hidden", margin:"10px 0 2px" }}>
+    <div style={{ background:"#1e1e1e", border:"1px solid #3e3e42", borderRadius:8, overflow:"hidden", margin:compact ? "6px 0 0" : "10px 0 2px" }}>
       <div style={{ background:"#2d2d30", padding:"4px 12px", fontSize:11, color:"#9aa0a6", borderBottom:"1px solid #3e3e42", display:"flex", alignItems:"center", gap:6 }}>
         <span style={{width:9,height:9,borderRadius:"50%",background:"#ff5f56",display:"inline-block"}}/>
         <span style={{width:9,height:9,borderRadius:"50%",background:"#ffbd2e",display:"inline-block"}}/>
         <span style={{width:9,height:9,borderRadius:"50%",background:"#27c93f",display:"inline-block"}}/>
-        <span style={{ marginLeft:6 }}>exemplo</span>
+        <span style={{ marginLeft:6 }}>{filename || label}</span>
       </div>
-      <div style={{ padding:"10px 14px", fontFamily:"'Courier New','Consolas',monospace", fontSize:13.5, lineHeight:"1.6em", overflowX:"auto", whiteSpace:"pre" }}>{highlight(String(code||""))}</div>
+      <div style={{ padding:compact ? "8px 10px" : "10px 14px", fontFamily:"'Courier New','Consolas',monospace", fontSize:compact ? 11.5 : 13.5, lineHeight:"1.6em", overflow:"auto", maxHeight:compact ? 240 : undefined, whiteSpace:wrap ? "pre-wrap" : "pre" }}>{highlight(String(code||""), [], filename)}</div>
     </div>
   );
 }

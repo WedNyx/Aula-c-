@@ -157,14 +157,39 @@ export function quickCheck(code){
     .replace(/"(?:[^"\\]|\\.)*"/g, '""')     // conteúdo de strings
     .replace(/'(?:[^'\\]|\\.)'/g, "''")      // chars como '{'
     .replace(/\/\/.*$/gm, "");               // comentários //
-  const count = (ch) => c.split(ch).length - 1;
-  const pairs = { "{":"}", "(":")", "[":"]" };
-  for (const o of Object.keys(pairs)){
-    const cl = pairs[o], co = count(o), cc = count(cl);
-    if (co > cc) return { ok:false, message:`Você abriu "${o}" e ainda não fechou com "${cl}". Vá até onde abriu e coloque "${cl}".`, missing:[cl] };
-    if (cc > co) return { ok:false, message:`Tem um "${cl}" a mais, sem o "${o}" para combinar. Confira e apague o que sobrou.`, missing:[o] };
+  const lines = String(code || "").replace(/\r/g, "").split("\n");
+  const result = (line, title, explanation, example, missing=[]) => ({
+    ok:false, line, trecho:line ? lines[line-1]?.trim() || "" : "", title, explanation, example, missing,
+    message:`Linha ${line || "?"}: ${title}. ${explanation}${example ? ` Exemplo: ${example}` : ""}`,
+  });
+  const pairs = { "{":"}", "(":")", "[":"]" }, openerFor = { "}":"{", ")":"(", "]":"[" }, stack = [];
+  for (let i=0; i<c.length; i++) {
+    const ch = c[i];
+    if (pairs[ch]) stack.push({ ch, index:i });
+    else if (openerFor[ch]) {
+      const expected = openerFor[ch], top = stack[stack.length-1];
+      const line = c.slice(0,i).split("\n").length;
+      if (!top) return result(line, `há um “${ch}” sem abertura`, `Esse símbolo precisa de um “${expected}” antes dele.`, `${expected} ... ${ch}`, [expected]);
+      if (top.ch !== expected) return result(line, `os símbolos estão fechando fora de ordem`, `O “${ch}” encontrou um “${top.ch}” ainda aberto. Feche primeiro com “${pairs[top.ch]}”.`, `${top.ch} ... ${pairs[top.ch]}`, [pairs[top.ch]]);
+      stack.pop();
+    }
+  }
+  if (stack.length) {
+    const top = stack[stack.length-1], line = c.slice(0,top.index).split("\n").length, close = pairs[top.ch];
+    return result(line, `você abriu “${top.ch}” e ainda não fechou`, `Coloque “${close}” ao final do bloco ou expressão correspondente.`, `${top.ch} ... ${close}`, [close]);
   }
   if ((c.match(/"/g)||[]).length % 2 !== 0)
-    return { ok:false, message:`Tem uma aspa " aberta e sem fechar. Toda aspa que abre precisa fechar: "seu texto".`, missing:['"'] };
+    return result(lines.findIndex(line => (line.match(/"/g)||[]).length % 2 !== 0)+1, `há uma aspa aberta`, `Todo texto iniciado com aspas precisa terminar com outra aspa.`, `"seu texto"`, ['"']);
+  for (let index=0; index<lines.length; index++) {
+    const raw = lines[index], line = raw.trim();
+    if (!line || line.startsWith("//")) continue;
+    if (/\bconsole\s*\.\s*(writeline|write|readline)\b/i.test(line) && !/\bConsole\s*\.\s*(WriteLine|Write|ReadLine)\b/.test(line)) {
+      return result(index+1, `a escrita de Console está diferente`, `C# diferencia letras maiúsculas de minúsculas. Use exatamente “Console.WriteLine”, “Console.Write” ou “Console.ReadLine”.`, line.replace(/console\s*\.\s*writeline/i,"Console.WriteLine").replace(/console\s*\.\s*write/i,"Console.Write").replace(/console\s*\.\s*readline/i,"Console.ReadLine"));
+    }
+    const clearStatement = /^(?:(?:string|int|float|double|decimal|bool|char|var)\s+[A-Za-z_]\w*\s*=|Console\.(?:WriteLine|Write|ReadLine)\s*\(|return\s+|(?:break|continue)\b|[A-Za-z_]\w*\s*(?:\+\+|--|[+\-*/]?=))/.test(line);
+    if (clearStatement && !/[;{}:,]$/.test(line) && !line.endsWith("(")) {
+      return result(index+1, `parece faltar ponto e vírgula`, `Instruções em C# normalmente terminam com “;”.`, `${line};`, [';']);
+    }
+  }
   return null;
 }

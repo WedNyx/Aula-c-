@@ -29,6 +29,7 @@ const PUBLIC_LIST_PREFIXES = ['student:', 'duel:', 'teamduel:', 'partner:']
 const GET_PROTECTED_PREFIXES = ['backup:', 'errorlog:', 'teachernotes:', 'teacherreminders:']
 function needsTeacherAuth(action, key) {
   if (action === 'set_attendance') return true
+  if (action === 'list_music_suggestions' || action === 'resolve_music_suggestion') return true
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
   if (action === 'get_recent_errors') return true // lista os erros de todo mundo — sempre só-do-professor
   if (action === 'get_admin_log') return true // lista as ações administrativas — sempre só-do-professor
@@ -627,6 +628,43 @@ export default async function handler(req, res) {
 
   try {
     switch (action) {
+      case 'submit_music_suggestion': {
+        const withinLimit = await rateLimitCheck(`ratelimit:musicsuggestion:${ip}`, 10, 600)
+        if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas sugestões seguidas. Aguarde um pouco.' })
+        const { turmaId, studentName, track } = req.body || {}
+        const turmaKey = String(turmaId || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 80)
+        const title = String(track?.title || '').trim().slice(0, 100)
+        const artist = String(track?.artist || '').trim().slice(0, 80)
+        const student = String(studentName || '').trim().slice(0, 80)
+        let parsedUrl
+        try { parsedUrl = new URL(String(track?.url || '').trim()) } catch { return res.status(400).json({ error: 'invalid_track' }) }
+        if (!turmaKey || !title || !student || parsedUrl.protocol !== 'https:') return res.status(400).json({ error: 'invalid_track' })
+        const rawMeta = await store.get('teachermeta:main')
+        let meta = {}
+        try { meta = rawMeta ? JSON.parse(rawMeta) : {} } catch {}
+        const config = meta?.musicSettings?.[turmaId]
+        if (!config?.enabled || !config?.studentsCanAdd) return res.status(403).json({ error: 'suggestions_disabled' })
+        parsedUrl.username = ''; parsedUrl.password = ''
+        const pending = await store.listWithValues(`musicsuggestion:${turmaKey}:`)
+        if (pending.length >= 50) return res.status(409).json({ error:'suggestion_queue_full' })
+        const duplicate = pending.some(item=>{try{const saved=JSON.parse(item.value);return saved.studentName===student&&saved.url===parsedUrl.href}catch{return false}})
+        if (duplicate) return res.status(409).json({ error:'duplicate_suggestion' })
+        const suggestion = { id:`${Date.now()}-${Math.random().toString(36).slice(2,10)}`, turmaId:turmaKey, studentName:student, title, artist, url:parsedUrl.href, createdAt:Date.now() }
+        await store.set(`musicsuggestion:${suggestion.turmaId}:${suggestion.id}`, JSON.stringify(suggestion))
+        return res.json({ ok:true })
+      }
+      case 'list_music_suggestions': {
+        const turmaId = String(req.body?.turmaId || 'sem-turno').slice(0, 80)
+        const items = await store.listWithValues(`musicsuggestion:${turmaId}:`)
+        return res.json({ items:items.map(item=>{try{return JSON.parse(item.value)}catch{return null}}).filter(Boolean).sort((a,b)=>a.createdAt-b.createdAt) })
+      }
+      case 'resolve_music_suggestion': {
+        const turmaId = String(req.body?.turmaId || 'sem-turno').slice(0, 80)
+        const id = String(req.body?.id || '').replace(/[^a-zA-Z0-9-]/g, '')
+        if (!id) return res.status(400).json({ error:'invalid_suggestion' })
+        await store.delete(`musicsuggestion:${turmaId}:${id}`)
+        return res.json({ ok:true })
+      }
       case 'set_attendance': {
         if (!(await checkKvRateLimit(res, 'kvset', ip))) return
         const { date, status } = req.body || {}

@@ -54,3 +54,27 @@ export function DashboardSidebar({ ariaLabel, groups, footer, compact = false })
     </aside>
   );
 }
+
+export function DashboardMobileNav({ ariaLabel, groups }) {
+  const items = groups.flatMap(group => group.items.map(item => ({ ...item, groupLabel:group.label })));
+  return (
+    <nav className="teacher-mobile-tabs dashboard-mobile-nav" aria-label={ariaLabel}>
+      {items.map(item => (
+        <button
+          key={item.id}
+          type="button"
+          className={item.active ? "active" : ""}
+          onClick={item.onClick}
+          disabled={item.disabled}
+          aria-current={item.active ? "page" : undefined}
+          aria-label={`${item.label}, ${item.groupLabel}`}
+          title={item.groupLabel}
+        >
+          {item.icon && <span aria-hidden="true">{item.icon}</span>}
+          <span>{item.mobileLabel || item.label}</span>
+          {item.badge != null && <span className="dashboard-mobile-badge">{item.badge}</span>}
+        </button>
+      ))}
+    </nav>
+  );
+}

@@ -44,6 +44,8 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
     skinConstelacao: { main:"#5048a0", dark:"#0e0d23", eye:"#fff3bd", cyan:"#8f84e7", pink:"#ffe19a", label:"Nyx Constelação" },
   };
   const P = { ...(MAP[st] || MAP.idle), ...(SKINS[selectedSkin] || {}) };
+  const keepsPrismaOrbit = !selectedSkin || ["skinPrismaOrbital", "skinModernizado", "skinLunar", "skinEclipse"].includes(selectedSkin);
+  const keepsPrismaTail = !selectedSkin || ["skinPrismaOrbital", "skinModernizado", "skinLunar", "skinEclipse"].includes(selectedSkin);
 
   const hasGear = (slot, item) => G[slot] === item || G[`${slot}2`] === item;
   const isSpartan = hasGear("hand", "espada") && hasGear("shield", "escudo");
@@ -135,7 +137,7 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
       if (firstPaint) gsap.set(el, vars);
       else gsap.to(el, { ...vars, duration: 0.65, ease: "power2.inOut" });
     });
-  }, [st]);
+  }, [st, selectedSkin]);
 
   return (
     <div style={{ textAlign: "center", display: "inline-block" }}>
@@ -170,6 +172,9 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
           <linearGradient id={uid + "matCapeRed"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#ff8a8a"/><stop offset=".5" stopColor="#d62828"/><stop offset="1" stopColor="#6e0f0f"/></linearGradient>
           <linearGradient id={uid + "matSteel"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#eef2f7"/><stop offset=".5" stopColor="#9aa7b8"/><stop offset="1" stopColor="#4b5563"/></linearGradient>
           <linearGradient id={uid + "matSteelDark"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#5b6577"/><stop offset="1" stopColor="#232833"/></linearGradient>
+          <linearGradient id={uid + "aurora"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#5ffff0"/><stop offset=".34" stopColor="#53b9ff"/><stop offset=".68" stopColor="#9a78ff"/><stop offset="1" stopColor="#f39dff"/></linearGradient>
+          <linearGradient id={uid + "water"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#d8fbff"/><stop offset=".38" stopColor="#59dfff"/><stop offset=".72" stopColor="#247bd4"/><stop offset="1" stopColor="#4b46b8"/></linearGradient>
+          <radialGradient id={uid + "galaxy"}><stop stopColor="#fff"/><stop offset=".18" stopColor="#73ecff"/><stop offset=".5" stopColor="#896cff"/><stop offset="1" stopColor="#160d47"/></radialGradient>
         </defs>
 
         <ellipse cx="180" cy="374" rx="90" ry="15" fill="#000" opacity=".55" filter={`url(#${uid}soft)`} />
@@ -181,30 +186,21 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
           <circle cx="315" cy="276" r="2" opacity=".7"><animate attributeName="opacity" values="1;0.3;1" dur="2.7s" repeatCount="indefinite" /></circle>
         </g>
 
-        {/* detalhes de superfície das skins: ficam dentro/ao redor da mesma silhueta e nunca
-            substituem cabeça, corpo, rosto, sensores, cauda ou encaixes de acessórios */}
-        {selectedSkin === "skinLunar" && <g fill="#fff" opacity=".82"><circle cx="48" cy="104" r="3"/><circle cx="310" cy="91" r="2"/><path d="M55 258a15 15 0 1 0 14 23 12 12 0 1 1-14-23"/></g>}
-        {selectedSkin === "skinEclipse" && <g><path d="M180 62h41q67 0 67 67v20q0 67-67 67h-41z" fill="#100d18" opacity=".44"/><circle cx="180" cy="281" r="31" fill="#09070d" opacity=".62"/></g>}
-        {selectedSkin === "skinOrbita" && <g fill="#effcff"><circle cx="48" cy="245" r="8"/><circle cx="311" cy="244" r="5"/></g>}
-        {selectedSkin === "skinGuardiao" && <path d="M122 230q58-28 116 0l-8 80q-50 29-100 0z" fill="#ffd47b" opacity=".12"/>}
-        {selectedSkin === "skinAurora" && <path d="M75 114q105-73 210 0M95 88q85-47 170 0" fill="none" stroke={`url(#${uid}prism)`} strokeWidth="5" opacity=".65"/>}
-        {selectedSkin === "skinLuaNova" && <g fill="#fff" opacity=".72"><circle cx="117" cy="82" r="2"/><circle cx="244" cy="108" r="2"/><circle cx="137" cy="245" r="2"/></g>}
-        {selectedSkin === "skinMare" && <path d="M124 304q56 25 112 0" fill="none" stroke="#59dfff" strokeWidth="8" opacity=".28"/>}
-        {selectedSkin === "skinConstelacao" && <g><g fill="#fff3bd"><circle cx="119" cy="81" r="3"/><circle cx="158" cy="69" r="3"/><circle cx="242" cy="107" r="3"/><circle cx="138" cy="245" r="3"/></g><path d="m119 81 39-12 84 38M138 245l42 36" fill="none" stroke="#ffe19a" strokeWidth="2" opacity=".6"/></g>}
-        {selectedSkin === "skinModernizado" && <path d="M116 84q64-24 128 0" fill="none" stroke="#fff" strokeWidth="3" opacity=".35"/>}
+        {/* cada aparência altera também a silhueta e o ambiente, mantendo livres os encaixes */}
+        <NpoSkinBack skin={selectedSkin} uid={uid} />
 
         {/* anel orbital atrás do personagem */}
-        <g transform="rotate(-9 180 244)" filter={`url(#${uid}glow)`}>
+        {keepsPrismaOrbit && <g transform="rotate(-9 180 244)" filter={`url(#${uid}glow)`}>
           <path ref={orbitRingRef} d="M48 244a132 39 0 1 0 264 0a132 39 0 1 0-264 0" fill="none" strokeWidth="2.5" strokeDasharray="11 9" opacity=".82" style={{ animation: "npo-orbit-flow 1.8s linear infinite" }} />
           <path d="M48 244a132 39 0 1 0 264 0a132 39 0 1 0-264 0" fill="none" stroke="#d9faff" strokeWidth=".7" opacity=".42" />
           <circle r="8" fill="#e8ddff" stroke={P.cyan} strokeWidth="2.5"><animateMotion dur={`${P.speed}s`} repeatCount="indefinite" path="M48 244a132 39 0 1 0 264 0a132 39 0 1 0-264 0" /></circle>
           <circle r="5.5" fill="#a887f2" stroke="#e4fbff" strokeWidth="1.7"><animateMotion dur={`${P.speed}s`} begin="-3.5s" repeatCount="indefinite" path="M48 244a132 39 0 1 0 264 0a132 39 0 1 0-264 0" /></circle>
-        </g>
+        </g>}
         {!G.shield && !G.shield2 && <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite" }}><path d="M63 286 43 306 70 302Z" fill={`url(#${uid}crystal)`} /></g>}
         {!G.hand && !G.hand2 && <g style={{ animation: "npo-fragment-float 3.4s ease-in-out infinite -1.7s" }}><path d="m297 185 24-11-13 27Z" fill={`url(#${uid}crystal)`} /></g>}
 
         {/* cauda de energia */}
-        <path d="M132 306c-69 8-98 65-51 64 38-1 39-42 12-38 21-25 56-11 67 7" fill="none" stroke={`url(#${uid}prism)`} strokeWidth="19" strokeLinecap="round" opacity=".66" filter={`url(#${uid}glow)`} style={{ transformOrigin: "132px 306px", animation: "npo-tail-sway 4.2s ease-in-out infinite" }} />
+        {keepsPrismaTail && <path d="M132 306c-69 8-98 65-51 64 38-1 39-42 12-38 21-25 56-11 67 7" fill="none" stroke={`url(#${uid}prism)`} strokeWidth="19" strokeLinecap="round" opacity=".66" filter={`url(#${uid}glow)`} style={{ transformOrigin: "132px 306px", animation: "npo-tail-sway 4.2s ease-in-out infinite" }} />}
 
         {/* costas — renderiza atrás do corpo, como uma capa */}
         {G.costas === "capaHeroi" && <NpoCapaHeroi uid={uid} />}
@@ -215,6 +211,7 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
         <path ref={feetLineRef} d="M148 328v31M212 328v31" strokeWidth="32" strokeLinecap="round" />
         <ellipse cx="145" cy="365" rx="34" ry="17" fill="#241b50" stroke="#7d6ad0" strokeWidth="3" /><ellipse cx="215" cy="365" rx="34" ry="17" fill="#241b50" stroke="#7d6ad0" strokeWidth="3" />
         <rect x="121" y="220" width="118" height="120" rx="45" fill={`url(#${uid}shell)`} stroke="#d7c7ff" strokeWidth="4" />
+        <NpoSkinBody skin={selectedSkin} uid={uid} />
 
         {/* orelhas/sensores prismáticos */}
         <path d="M82 146C28 121 40 67 69 42c31 26 49 55 51 86-11 15-23 21-38 18Z" fill={`url(#${uid}crystal)`} stroke="#e7d6ff" strokeWidth="5" opacity=".93" style={{ transformOrigin: "105px 139px", animation: "npo-sensor-left 7.8s ease-in-out infinite" }} />
@@ -224,6 +221,7 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
         {/* cabeça facetada */}
         <rect x="72" y="62" width="216" height="154" rx="67" fill={`url(#${uid}shell)`} stroke="#d9caff" strokeWidth="5" />
         <path d="M109 111q71-29 142 0" fill="none" stroke="#fff" strokeWidth="4" opacity=".08" />
+        <NpoSkinHead skin={selectedSkin} uid={uid} />
 
         <>
           <NpoHeadItem item={G.head} uid={uid} P={P} />
@@ -308,6 +306,7 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
         <path d="M180 239v84M144 281h72M180 239l-36 42 36-9 36 9Z" fill="none" stroke="#fff" strokeWidth="2" opacity=".58" />
         <circle cx="180" cy="281" r="22" fill="#151126" opacity=".7" />
         <path d="M188 261a23 23 0 1 0 0 40 19 19 0 1 1 0-40" fill="#fff3ca" style={{ animation: "npo-pulse 2s ease-in-out infinite" }} />
+        <NpoSkinCore skin={selectedSkin} uid={uid} />
 
         {/* itens que levitam ao lado do corpo — substituem "segurar na mão", já que essa criatura
             não tem braço; ficam no mesmo espírito dos fragmentos de cristal que já orbitam ela */}
@@ -331,6 +330,14 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
         @keyframes npo-tail-sway{0%,100%{transform:rotate(0) scaleY(1)}50%{transform:rotate(-5deg) scaleY(.94)}}
         @keyframes npo-sensor-left{0%,72%,100%{transform:rotate(0)}76%{transform:rotate(-5deg)}80%{transform:rotate(3deg)}}
         @keyframes npo-sensor-right{0%,78%,100%{transform:rotate(0)}82%{transform:rotate(5deg)}86%{transform:rotate(-3deg)}}
+        @keyframes npo-skin-spin{to{transform:rotate(360deg)}}
+        @keyframes npo-aurora-wave{50%{transform:translateY(10px) skewX(-4deg);opacity:.5}}
+        @keyframes npo-tide{50%{transform:translateY(-9px)}}
+        @keyframes npo-eclipse-jitter{0%,90%,100%{transform:translate(0)}92%{transform:translate(3px,-2px)}96%{transform:translate(-2px,2px)}}
+        @keyframes npo-skin-drift{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-8px) scaleY(1.05)}}
+        @keyframes npo-water-flow{to{stroke-dashoffset:-54}}
+        @keyframes npo-guardian-pulse{50%{opacity:.42;transform:scale(1.035)}}
+        @keyframes npo-star-twinkle{0%,100%{opacity:.35}50%{opacity:1}}
       `}</style>
       </div>
       {showName && (
@@ -341,6 +348,98 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
       )}
     </div>
   );
+}
+
+function NpoSkinBack({ skin, uid }) {
+  if (skin === "skinOrbita") return <g data-skin-detail="orbita" fill="none" filter={`url(#${uid}glow)`}>
+    <ellipse cx="180" cy="205" rx="164" ry="67" stroke="#70efff" strokeWidth="3" strokeDasharray="18 11" opacity=".8" transform="rotate(22 180 205)" style={{animation:"npo-skin-spin 9s linear infinite",transformOrigin:"180px 205px"}}/>
+    <ellipse cx="180" cy="205" rx="142" ry="112" stroke="#8f84ff" strokeWidth="2" strokeDasharray="7 15" opacity=".58" transform="rotate(-34 180 205)"/>
+    <ellipse cx="180" cy="205" rx="118" ry="154" stroke="#d9faff" strokeWidth="1.6" strokeDasharray="3 18" opacity=".42" transform="rotate(52 180 205)"/>
+    <circle cx="43" cy="126" r="13" fill="#a98cff" stroke="#effcff" strokeWidth="2"/><circle cx="308" cy="300" r="8" fill="#70efff"/>
+    <path d="m284 74 13-8 13 8v16l-13 8-13-8zM297 66v-13m-19 18-13-7m45 7 13-7" stroke="#d9faff" strokeWidth="3"/><circle cx="76" cy="319" r="6" fill="#fff" stroke="#70efff" strokeWidth="2"/>
+  </g>;
+  if (skin === "skinGuardiao") return <g data-skin-detail="guardiao" filter={`url(#${uid}glow)`}>
+    <g fill="none" stroke="#ffd873" strokeWidth="3" opacity=".72" style={{animation:"npo-guardian-pulse 3s ease-in-out infinite",transformOrigin:"180px 205px"}}><path d="m180 24 122 69v139l-122 69L58 232V93z"/><path d="m180 48 101 57v115l-101 57-101-57V105z" strokeDasharray="12 9"/></g>
+    <path d="M123 211Q76 255 92 361l88-49 88 49q16-106-31-150z" fill="#39236f" stroke="#ffd873" strokeWidth="3" opacity=".88"/>
+    <g fill={`url(#${uid}matGold)`} stroke="#fff1ba" strokeWidth="3"><path d="m112 213-47 20 18 55 43-30z"/><path d="m248 213 47 20-18 55-43-30z"/><path d="m128 310-31 42 43 12 24-34z"/><path d="m232 310 31 42-43 12-24-34z"/></g>
+    <path d="M276 234 326 250v58q-18 34-50 43-32-9-50-43v-58z" fill="#37216c" stroke="#ffe5a0" strokeWidth="5"/><path d="m276 256 8 17 19 2-14 13 4 19-17-9-17 9 4-19-14-13 19-2z" fill="#ffd873"/>
+  </g>;
+  if (skin === "skinAurora") return <g data-skin-detail="aurora" filter={`url(#${uid}glow)`} opacity=".78">
+    <path d="M92 249C30 188 45 91 116 33c-20 78 37 84 21 174-6 34-20 49-45 42Z" fill={`url(#${uid}aurora)`} style={{animation:"npo-skin-drift 5.4s ease-in-out infinite",transformOrigin:"110px 180px"}}/>
+    <path d="M268 249c62-61 47-158-24-216 20 78-37 84-21 174 6 34 20 49 45 42Z" fill={`url(#${uid}aurora)`} style={{animation:"npo-skin-drift 5.8s ease-in-out infinite reverse",transformOrigin:"250px 180px"}}/>
+    <path d="M46 329C83 233 128 164 166 66c23 94 91 134 148 47-6 117-86 111-106 234" fill="none" stroke={`url(#${uid}aurora)`} strokeWidth="12" strokeLinecap="round" opacity=".62" style={{animation:"npo-aurora-wave 4.8s ease-in-out infinite"}}/>
+  </g>;
+  if (skin === "skinLuaNova") return <g data-skin-detail="lua-nova" filter={`url(#${uid}glow)`}>
+    <circle cx="180" cy="196" r="167" fill="#03040a" opacity=".82"/><circle cx="180" cy="196" r="156" fill="none" stroke="#8b7cff" strokeWidth="7" opacity=".78"/>
+    <circle cx="180" cy="196" r="140" fill="none" stroke="#dfe3ff" strokeWidth="2" strokeDasharray="110 54" opacity=".35" style={{animation:"npo-skin-spin 18s linear infinite",transformOrigin:"180px 196px"}}/>
+    <path d="M50 76a52 52 0 1 0 48 86A43 43 0 1 1 50 76" fill="#e9ecff" opacity=".92"/>
+    <g fill="#dfe3ff"><circle cx="303" cy="72" r="4" style={{animation:"npo-star-twinkle 2s infinite"}}/><circle cx="319" cy="184" r="3" style={{animation:"npo-star-twinkle 2.8s infinite"}}/><circle cx="48" cy="310" r="3" style={{animation:"npo-star-twinkle 3.2s infinite"}}/></g>
+  </g>;
+  if (skin === "skinMare") return <g data-skin-detail="mare" fill="none" strokeLinecap="round" filter={`url(#${uid}glow)`}>
+    <g data-skin-silhouette="mare-fins" fill={`url(#${uid}water)`} stroke="#d8fbff" strokeWidth="3" opacity=".78" style={{animation:"npo-tide 4.2s ease-in-out infinite"}}>
+      <path d="M128 205Q63 172 27 207q43 15 61 44-39 2-57 31 62 10 111-39z"/>
+      <path d="M232 205q65-33 101 2-43 15-61 44 39 2 57 31-62 10-111-39z"/>
+      <path d="M151 326q29 28 58 0l29 35q-58 36-116 0z" opacity=".88"/>
+    </g>
+    <path d="M18 297q39-38 78 0t78 0 78 0 78 0" stroke="#59dfff" strokeWidth="10" strokeDasharray="28 8" opacity=".64" style={{animation:"npo-water-flow 3.6s linear infinite"}}/>
+    <path d="M35 333q32-27 64 0t64 0 64 0 64 0" stroke="#b9f7ff" strokeWidth="5" strokeDasharray="18 9" opacity=".48" style={{animation:"npo-water-flow 4.8s linear infinite reverse"}}/>
+    <path d="M238 315q73 8 61 53-8 28-39 14 27-1 19-22-7-18-44-8" stroke={`url(#${uid}water)`} strokeWidth="18" opacity=".78" style={{animation:"npo-tail-sway 4.2s ease-in-out infinite",transformOrigin:"238px 315px"}}/>
+    <g data-skin-silhouette="mare-bubbles" fill="#d8fbff" stroke="#59dfff" strokeWidth="2" opacity=".75"><circle cx="42" cy="155" r="9"/><circle cx="66" cy="124" r="5"/><circle cx="307" cy="146" r="11"/><circle cx="329" cy="111" r="5"/></g>
+  </g>;
+  if (skin === "skinConstelacao") return <g data-skin-detail="constelacao" stroke="#ffe19a" filter={`url(#${uid}glow)`}>
+    <path d="M113 185 38 119l19 91-29 58 92-35M247 185l75-66-19 91 29 58-92-35" fill="#463b98" fillOpacity=".34" stroke="#8f84e7" strokeWidth="2"/>
+    <path d="m43 99 56-37 39 47 73-73 102 71M38 295l72-42 69 80 75-72 69 40" fill="none" strokeWidth="2" opacity=".7"/>
+    {[[43,99],[99,62],[138,109],[211,36],[313,107],[38,295],[110,253],[179,333],[254,261],[323,301]].map(([cx,cy],i)=><circle key={i} cx={cx} cy={cy} r={i%3===0?5:3} fill="#fff3bd"/>)}
+  </g>;
+  if (skin === "skinLunar") return <g data-skin-detail="lunar" filter={`url(#${uid}glow)`}>
+    <circle cx="180" cy="195" r="160" fill="none" stroke="#eef7ff" strokeWidth="3" strokeDasharray="3 15" opacity=".65"/>
+    <path d="M42 235a28 28 0 1 0 28 43 23 23 0 1 1-28-43M290 78a20 20 0 1 0 20 31 17 17 0 1 1-20-31" fill="#fff" opacity=".9"/>
+  </g>;
+  if (skin === "skinEclipse") return <g data-skin-detail="eclipse" filter={`url(#${uid}glow)`}>
+    <circle cx="180" cy="199" r="158" fill="none" stroke="#ba75ff" strokeWidth="9" strokeDasharray="92 34 18 55" opacity=".45" style={{animation:"npo-eclipse-jitter 2.6s steps(2) infinite"}}/>
+    <path d="m45 103 38 7-29 12m251 118-42 5 34 13M66 319l42-17" fill="none" stroke="#ffd97c" strokeWidth="5" opacity=".75"/>
+  </g>;
+  return null;
+}
+
+function NpoSkinBody({ skin, uid }) {
+  if (skin === "skinGuardiao") return <g data-skin-surface="guardiao" fill="none" stroke="#ffe5a0" strokeWidth="5"><path d="M135 243h90v74l-45 24-45-24z"/><path d="m151 256 29 20 29-20"/><path d="m180 246 8 16 18 3-13 12 3 18-16-8-16 8 3-18-13-12 18-3z" fill="#ffd873" strokeWidth="2"/></g>;
+  if (skin === "skinMare") return <g data-skin-surface="mare" fill="#8beaff" opacity=".82"><path d="m124 258-25-17 8 37zM236 258l25-17-8 37z"/><path d="M139 319q41-21 82 0-41 26-82 0" opacity=".35"/><path d="M137 273q21-19 43 0t43 0M143 294q18-15 37 0t37 0" fill="none" stroke="#d8fbff" strokeWidth="4" strokeLinecap="round"/><path d="m180 237 13 17-13 17-13-17z" fill="#d8fbff" stroke="#59dfff" strokeWidth="2"/></g>;
+  if (skin === "skinConstelacao") return <g data-skin-surface="constelacao" stroke="#fff3bd" strokeWidth="2"><path d="m143 245 25 18 19-14 29 26" fill="none" opacity=".8"/><circle cx="143" cy="245" r="4" fill="#fff"/><circle cx="168" cy="263" r="3" fill="#fff"/><circle cx="187" cy="249" r="4" fill="#fff"/><circle cx="216" cy="275" r="3" fill="#fff"/></g>;
+  if (skin === "skinLuaNova") return <path data-skin-surface="lua-nova" d="M180 222h59v118h-59z" fill="#070812" opacity=".5"/>;
+  if (skin === "skinLunar") return <path data-skin-surface="lunar" d="M190 246a38 38 0 1 0 0 70 31 38 0 1 1 0-70" fill="#fff" opacity=".24"/>;
+  if (skin === "skinEclipse") return <g data-skin-surface="eclipse"><path d="M180 220h59v120h-59z" fill="#09070d" opacity=".55"/><path d="m133 267 31 5m38 34 28 5" stroke="#ffd97c" strokeWidth="3"/></g>;
+  if (skin === "skinAurora") return <path data-skin-surface="aurora" d="M132 264q48-38 96 0t-2 55q-46-36-92 0" fill={`url(#${uid}prism)`} opacity=".38"/>;
+  if (skin === "skinOrbita") return <g data-skin-surface="orbita" fill="none" stroke="#d9faff"><ellipse cx="180" cy="279" rx="49" ry="19" strokeWidth="3"/><circle cx="223" cy="270" r="6" fill="#70efff"/></g>;
+  return null;
+}
+
+function NpoSkinHead({ skin, uid }) {
+  if (skin === "skinLuaNova") return <g data-skin-head="lua-nova">
+    <rect x="72" y="62" width="216" height="154" rx="67" fill="#050611" opacity=".48"/>
+    <path d="M87 91a43 43 0 1 0 41 69A35 35 0 1 1 87 91M273 91a43 43 0 1 1-41 69 35 35 0 1 0 41-69" fill="#dfe3ff" opacity=".34" filter={`url(#${uid}glow)`}/>
+  </g>;
+  if (skin === "skinConstelacao") return <g data-skin-head="constelacao" fill="none" stroke="#fff3bd" strokeWidth="1.8" opacity=".78" filter={`url(#${uid}glow)`}>
+    <path d="m83 117 31-25 24 17m84-17 30 25 24-19"/><circle cx="83" cy="117" r="3" fill="#fff"/><circle cx="114" cy="92" r="4" fill="#fff"/><circle cx="138" cy="109" r="3" fill="#fff"/><circle cx="222" cy="92" r="4" fill="#fff"/><circle cx="252" cy="117" r="3" fill="#fff"/><circle cx="276" cy="98" r="3" fill="#fff"/>
+  </g>;
+  if (skin === "skinMare") return <g data-skin-head="mare" fill={`url(#${uid}water)`} stroke="#d8fbff" strokeWidth="2.5" opacity=".78">
+    <path d="M88 130Q42 103 29 132q30 4 49 29-22 5-31 25 36 2 62-34z"/><path d="M272 130q46-27 59 2-30 4-49 29 22 5 31 25-36 2-62-34z"/>
+  </g>;
+  if (skin === "skinGuardiao") return <g data-skin-head="guardiao" fill={`url(#${uid}matGold)`} stroke="#fff1ba" strokeWidth="3"><path d="m74 116-22-26 17-30 27 17-12 31z"/><path d="m286 116 22-26-17-30-27 17 12 31z"/></g>;
+  if (skin === "skinAurora") return <g data-skin-head="aurora" fill={`url(#${uid}aurora)`} opacity=".56" filter={`url(#${uid}glow)`}><path d="M77 119Q40 70 75 24q4 43 28 67z"/><path d="M283 119q37-49 2-95-4 43-28 67z"/></g>;
+  return null;
+}
+
+function NpoSkinCore({ skin, uid }) {
+  if (skin === "skinOrbita") return <g data-skin-core="orbita" fill="none" filter={`url(#${uid}glow)`}>
+    <ellipse cx="180" cy="281" rx="31" ry="10" stroke="#d9faff" strokeWidth="4" transform="rotate(-12 180 281)"/><circle cx="180" cy="281" r="13" fill="#397cc5" stroke="#70efff" strokeWidth="2"/><circle cx="208" cy="275" r="4" fill="#fff"/>
+  </g>;
+  if (skin === "skinGuardiao") return <path data-skin-core="guardiao" d="m180 252 20 10v18q-5 20-20 28-15-8-20-28v-18z" fill="#4a2c87" stroke="#ffe5a0" strokeWidth="4" filter={`url(#${uid}glow)`}/>;
+  if (skin === "skinAurora") return <path data-skin-core="aurora" d="M180 250c18 21 22 35 9 54-7 10-22 10-30 1-14-17-4-34 21-55Z" fill={`url(#${uid}aurora)`} stroke="#e8fff7" strokeWidth="3" filter={`url(#${uid}glow)`}/>;
+  if (skin === "skinLuaNova") return <g data-skin-core="lua-nova" filter={`url(#${uid}glow)`}><circle cx="180" cy="281" r="25" fill="#050611" stroke="#817cff" strokeWidth="3"/><path d="M190 260a24 24 0 1 0 0 42 19 19 0 1 1 0-42" fill="#dfe3ff"/></g>;
+  if (skin === "skinMare") return <g data-skin-core="mare" fill="none" strokeLinecap="round" filter={`url(#${uid}glow)`}><path d="M153 286q14-30 34-9t22-8q-4 36-31 37-17 0-25-20Z" fill={`url(#${uid}water)`} stroke="#d8fbff" strokeWidth="3"/><path d="M158 287q14-12 27 0t20-2" stroke="#fff" strokeWidth="3"/></g>;
+  if (skin === "skinConstelacao") return <g data-skin-core="constelacao" filter={`url(#${uid}glow)`}><circle cx="180" cy="281" r="27" fill={`url(#${uid}galaxy)`} stroke="#fff3bd" strokeWidth="3"/><path d="m160 288 14-18 13 10 16-15M174 270l6 22 23-27" fill="none" stroke="#fff" strokeWidth="1.8"/><circle cx="160" cy="288" r="3" fill="#fff"/><circle cx="174" cy="270" r="3" fill="#fff"/><circle cx="187" cy="280" r="3" fill="#fff"/><circle cx="203" cy="265" r="3" fill="#fff"/></g>;
+  return null;
 }
 
 // ── acessórios: cabeça ──

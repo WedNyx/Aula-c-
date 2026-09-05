@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict');
+const {build}=require('esbuild');
+(async()=>{const out=await build({entryPoints:['src/lib/classMusic.js'],bundle:true,write:false,platform:'node',format:'cjs'});const mod={exports:{}};new Function('module','exports','require',out.outputFiles[0].text)(mod,mod.exports,require);const {musicForTurma,updateMusicSettings,addTrack,removeTrack,MAX_CLASS_TRACKS}=mod.exports;
+assert.deepEqual(musicForTurma({},'a'),{enabled:false,surface:'student',studentsCanAdd:false,tracks:[]});
+let all=updateMusicSettings({},'manha',{enabled:true,surface:'teacher',studentsCanAdd:true});assert.equal(musicForTurma(all,'manha').surface,'teacher');assert.equal(musicForTurma(all,'tarde').enabled,false);
+assert.equal(addTrack(all,'manha',{title:'Teste',url:'javascript:alert(1)'}).ok,false);
+const added=addTrack(all,'manha',{title:'Faixa autorizada',artist:'Artista',url:'https://audio.example/faixa.mp3'});assert.equal(added.ok,true);all=added.settings;assert.equal(musicForTurma(all,'manha').tracks.length,1);
+assert.equal(addTrack(all,'manha',{title:'Duplicada',url:'https://audio.example/faixa.mp3'}).ok,false);all=removeTrack(all,'manha',musicForTurma(all,'manha').tracks[0].id);assert.equal(musicForTurma(all,'manha').tracks.length,0);
+let full={};for(let i=0;i<MAX_CLASS_TRACKS;i++)full=addTrack(full,'x',{title:`Faixa ${i}`,url:`https://audio.example/${i}.mp3`}).settings;assert.equal(addTrack(full,'x',{title:'Extra',url:'https://audio.example/extra.mp3'}).ok,false);
+console.log('Música tem permissão e playlist separadas por turma, com links HTTPS e limite seguro.');})();

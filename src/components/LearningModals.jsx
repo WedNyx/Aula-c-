@@ -3,6 +3,7 @@ import { setCheckin } from "../storage.js";
 import { todayKey } from "../lib/schedule.ts";
 import { PerformanceChart } from "./PerformanceChart.jsx";
 import { SummaryPretty } from "./SummaryPretty.jsx";
+import { CHECKIN_MOODS } from "../lib/checkinMoods.js";
 
 // ── 👾 chefão: tela de estudo de 10min antes da batalha — mostra o código atual do aluno e os
 // resumos/explicações de tudo que ele já aprendeu, com contagem regressiva até o chefão aparecer ──
@@ -309,19 +310,6 @@ function motivationalMessage(avg, name) {
 }
 // ── 😊 check-in emocional: aparece 1x por dia pro aluno, antes de começar a codar — rapidinho,
 // sem nota nem cobrança, só pro professor ter mais contexto sobre a turma naquele dia ──
-export const CHECKIN_MOODS = [
-  { id: "otimo",   emoji: "😄", label: "Empolgado" },
-  { id: "feliz",   emoji: "😊", label: "Feliz" },
-  { id: "bem",     emoji: "🙂", label: "Bem" },
-  { id: "calmo",   emoji: "😌", label: "Tranquilo" },
-  { id: "neutro",  emoji: "😐", label: "Neutro" },
-  { id: "curioso", emoji: "🤔", label: "Curioso" },
-  { id: "ansioso", emoji: "😬", label: "Ansioso" },
-  { id: "cansado", emoji: "😴", label: "Cansado" },
-  { id: "confuso", emoji: "😵‍💫", label: "Confuso" },
-  { id: "triste",  emoji: "😔", label: "Triste" },
-  { id: "dificil", emoji: "😣", label: "Dia difícil" },
-];
 export function CheckinModal({ shift, studentName, onDone }) {
   const [saving, setSaving] = useState(false);
   const pick = async (mood) => {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { RUN_SYSTEM } from "../lib/ai-prompts.ts";
 import { askClaude } from "../lib/ai.js";
+import { quickCheck } from "../lib/utils.js";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  TERMINAL  (estilo VS Code: digite dotnet run, dotnet build, cls, dir, ajuda)
@@ -16,6 +17,7 @@ export function Terminal({ files, dataTour, maxHeight = 260 }) {
   const [mode, setMode] = useState("shell"); // shell = digitando comandos | program = programa pedindo entrada
   const [val, setVal] = useState("");
   const [running, setRunning] = useState(false);
+  const [copied,setCopied]=useState(false);
   const inputsRef = useRef([]);
   const runStartRef = useRef(0);
   const cmdHistRef = useRef([]);
@@ -26,6 +28,7 @@ export function Terminal({ files, dataTour, maxHeight = 260 }) {
   useEffect(() => { if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight; }, [hist, running, mode]);
 
   const push = (...lines) => setHist(prev => [...prev, ...lines]);
+  const helpLines = ["Comandos disponíveis:","  dotnet run      executa o seu programa","  dotnet build    só compila e mostra os erros","  dir  (ou ls)    lista os arquivos do projeto","  cls  (ou clear) limpa o terminal","  ajuda           mostra esta lista",""];
   const projectSrc = () => (files||[]).filter(f => (f.code||"").trim()).map(f => `// ===== ${f.name} =====\n${f.code}`).join("\n\n");
 
   const simulate = async () => {
@@ -57,6 +60,8 @@ export function Terminal({ files, dataTour, maxHeight = 260 }) {
 
   const doRun = () => {
     if (!projectSrc().trim()) { push("Nenhum código para executar. Escreva algo no editor primeiro.", ""); return; }
+    const localError = quickCheck(projectSrc());
+    if (localError) { push(`Verificação local: ${localError.message}`, "Corrija o código e tente novamente.", ""); return; }
     inputsRef.current = [];
     setMode("shell");
     setHist(prev => { runStartRef.current = prev.length; return [...prev, "⏳ compilando..."]; });
@@ -65,6 +70,8 @@ export function Terminal({ files, dataTour, maxHeight = 260 }) {
 
   const buildProgram = async () => {
     if (!projectSrc().trim()) { push("Nenhum código para compilar. Escreva algo no editor primeiro.", ""); return; }
+    const localError = quickCheck(projectSrc());
+    if (localError) { push(`Verificação local: ${localError.message}`, "Build FAILED.", ""); return; }
     setRunning(true);
     setHist(prev => { runStartRef.current = prev.length; return [...prev, "⏳ compilando..."]; });
     try {
@@ -92,15 +99,7 @@ export function Terminal({ files, dataTour, maxHeight = 260 }) {
     const low = c.toLowerCase().replace(/\s+/g, " ");
     if (low === "cls" || low === "clear") { setHist([]); return; }
     if (low === "ajuda" || low === "help") {
-      push(
-        "Comandos disponíveis:",
-        "  dotnet run      executa o seu programa",
-        "  dotnet build    só compila e mostra os erros",
-        "  dir  (ou ls)    lista os arquivos do projeto",
-        "  cls  (ou clear) limpa o terminal",
-        "  ajuda           mostra esta lista",
-        ""
-      );
+      push(...helpLines);
       return;
     }
     if (low === "dir" || low === "ls") {
@@ -126,7 +125,12 @@ export function Terminal({ files, dataTour, maxHeight = 260 }) {
     push("^C", "");
   };
 
+  const clearTerminal=()=>{setHist([]);setMode("shell");inputsRef.current=[];setVal("");};
+  const copyOutput=async()=>{try{await navigator.clipboard.writeText(hist.join("\n"));setCopied(true);setTimeout(()=>setCopied(false),1800);}catch{setCopied(false);}};
+
   const onKey = (e) => {
+    if (e.ctrlKey && e.key.toLowerCase() === "l") { e.preventDefault(); if(!running)clearTerminal(); return; }
+    if (mode === "program" && e.key === "Escape") { e.preventDefault(); cancelProgram(); return; }
     if (e.key === "Enter") { mode === "shell" ? execCommand() : submitProgramInput(); return; }
     if (mode === "program" && e.key === "c" && e.ctrlKey) { e.preventDefault(); cancelProgram(); return; }
     if (mode === "shell" && e.key === "ArrowUp") {
@@ -148,6 +152,8 @@ export function Terminal({ files, dataTour, maxHeight = 260 }) {
   };
 
   const mono = { fontFamily:"'Courier New',monospace", fontSize:13 };
+  const status=running?{label:"Compilando…",color:"#fbbf24"}:mode==="program"?{label:"Aguardando entrada",color:"#34d399"}:{label:"Pronto",color:"#60a5fa"};
+  const lineColor=line=>/error|failed|não consegui|não é reconhecido|verificação local/i.test(line)?"#f87171":/succeeded|0 Error|✅/i.test(line)?"#34d399":/⏳|compilando/i.test(line)?"#fbbf24":"#d4d4d4";
 
   return (
     <div data-tour={dataTour} style={{ background:"#0a0a0a", border:"1px solid #333", borderRadius:10, marginTop:12, overflow:"hidden", boxShadow:"0 10px 28px rgba(0,0,0,.4)" }}>
@@ -158,24 +164,30 @@ export function Terminal({ files, dataTour, maxHeight = 260 }) {
             <span style={{ width:10, height:10, borderRadius:"50%", background:"#febc2e" }} />
             <span style={{ width:10, height:10, borderRadius:"50%", background:"#28c840" }} />
           </span>
-          ⌨️ Terminal <span style={{ color:"#555", fontSize:11 }}>· digite os comandos como no VS Code</span>
+          ⌨️ Terminal <span style={{ color:"#555", fontSize:11 }}>· digite os comandos como no VS Code</span><span role="status" style={{color:status.color,fontSize:11,fontWeight:800}}>● {status.label}</span>
         </span>
         <div style={{ display:"flex", gap:6 }}>
           {mode === "program" && !running && (
             <button onClick={cancelProgram} style={{ background:"#3a1d1d", border:"1px solid #7f1d1d", color:"#fca5a5", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:12 }}>■ parar (Ctrl+C)</button>
           )}
-          <button onClick={()=>{ setHist([]); setMode("shell"); inputsRef.current = []; }} style={{ background:"#222", border:"1px solid #444", color:"#bbb", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:12 }}>limpar</button>
-          <button onClick={doRun} disabled={running} style={{ background:"#34d399", border:"none", color:"#03301f", borderRadius:6, padding:"3px 12px", cursor:"pointer", fontSize:12, fontWeight:800, opacity:running?0.6:1 }}>{running?"executando...":"▶ dotnet run"}</button>
+          <button onClick={copyOutput} disabled={!hist.length} title="Copiar a saída do terminal" style={{ background:"#222", border:"1px solid #444", color:copied?"#34d399":"#bbb", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:12 }}>{copied?"copiado ✓":"copiar"}</button>
+          <button onClick={clearTerminal} disabled={running} title="Limpar (Ctrl+L)" style={{ background:"#222", border:"1px solid #444", color:"#bbb", borderRadius:6, padding:"3px 8px", cursor:running?"not-allowed":"pointer", fontSize:12, opacity:running?0.55:1 }}>limpar</button>
+          <button onClick={doRun} disabled={running} style={{ background:"#34d399", border:"none", color:"#03301f", borderRadius:6, padding:"3px 12px", cursor:running?"not-allowed":"pointer", fontSize:12, fontWeight:800, opacity:running?0.6:1 }}>{running?"executando...":"▶ dotnet run"}</button>
         </div>
       </div>
-      <div ref={boxRef} style={{ minHeight:110, maxHeight, overflow:"auto", padding:12, cursor:"text" }} onClick={()=>{ if (inputRef.current) inputRef.current.focus(); }}>
-        <pre style={{ ...mono, margin:0, color:"#d4d4d4", whiteSpace:"pre-wrap" }}>{hist.join("\n")}</pre>
+      <div aria-label="Atalhos do terminal" style={{display:"flex",gap:6,flexWrap:"wrap",padding:"7px 12px",background:"#101010",borderBottom:"1px solid #252525"}}>{[
+        ["Compilar",buildProgram],
+        ["Listar arquivos",()=>setHist(prev=>[...prev,TERM_PROMPT+" dir",...(files||[]).map(f=>`  ${f.name}${(f.code||"").trim()?"":"  (vazio)"}`),""])],
+        ["Ajuda",()=>setHist(prev=>[...prev,TERM_PROMPT+" ajuda",...helpLines])],
+      ].map(([label,action])=><button key={label} type="button" onClick={action} disabled={running} style={{background:"#1b1b1b",border:"1px solid #3a3a3a",borderRadius:6,color:"#bbb",padding:"4px 9px",fontSize:11,cursor:running?"not-allowed":"pointer",opacity:running ? 0.55 : 1}}>{label}</button>)}</div>
+      <div ref={boxRef} role="log" aria-live="polite" aria-label="Saída do terminal" style={{ minHeight:110, maxHeight, overflow:"auto", padding:12, cursor:"text" }} onClick={()=>{ if (inputRef.current) inputRef.current.focus(); }}>
+        <pre style={{ ...mono, margin:0, whiteSpace:"pre-wrap" }}>{hist.map((line,index)=><span key={index} style={{display:"block",minHeight:"1em",color:lineColor(line)}}>{line||" "}</span>)}</pre>
         {!running && (
           <div style={{ display:"flex", alignItems:"center", gap:6 }}>
             {mode === "shell"
               ? <span style={{ ...mono, color:"#d4d4d4", whiteSpace:"nowrap" }}>{TERM_PROMPT}</span>
               : <span style={{ ...mono, color:"#34d399" }}>❯</span>}
-            <input ref={inputRef} value={val} onChange={e=>setVal(e.target.value)} onKeyDown={onKey}
+            <input ref={inputRef} aria-label={mode==="shell" ? "Comando do terminal" : "Entrada do programa"} value={val} onChange={e=>setVal(e.target.value)} onKeyDown={onKey}
               spellCheck={false} autoCorrect="off" autoCapitalize="off"
               style={{ ...mono, flex:1, background:"transparent", border:"none", outline:"none", boxShadow:"none", color:mode==="shell"?"#d4d4d4":"#34d399", caretColor:"#d4d4d4", padding:0 }} />
           </div>

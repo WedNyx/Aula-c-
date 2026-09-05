@@ -655,7 +655,10 @@ export async function getTeacherMeta() {
 }
 
 export async function saveTeacherMeta(meta, auth) {
-  try { await kvCall({ action: 'set', key: TEACHER_META_KEY, value: JSON.stringify(meta), auth }) } catch {}
+  try {
+    const result = await kvCall({ action: 'set', key: TEACHER_META_KEY, value: JSON.stringify(meta), auth })
+    return result.ok === true
+  } catch { return false }
 }
 
 // bloco de anotações privado do professor. Tanto a leitura quanto a escrita exigem a senha
@@ -703,6 +706,21 @@ export async function saveClassScheduledReminders(reminders, auth) {
     const r = await kvCall({ action: 'set', key: CLASS_REMINDERS_KEY, value: JSON.stringify(reminders || []), auth })
     return r.ok === true
   } catch { return false }
+}
+
+export async function submitMusicSuggestion(turmaId, studentName, track) {
+  try { const r=await kvCall({action:'submit_music_suggestion',turmaId,studentName,track}); return r.ok===true }
+  catch { return false }
+}
+
+export async function listMusicSuggestions(turmaId, auth) {
+  try { const r=await kvCall({action:'list_music_suggestions',turmaId,auth}); return Array.isArray(r.items)?r.items:[] }
+  catch { return [] }
+}
+
+export async function resolveMusicSuggestion(turmaId, id, auth) {
+  try { const r=await kvCall({action:'resolve_music_suggestion',turmaId,id,auth}); return r.ok===true }
+  catch { return false }
 }
 
 export async function saveTeacherCode(files, shift, auth) {

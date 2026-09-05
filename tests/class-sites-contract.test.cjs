@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const app=fs.readFileSync('src/App.jsx','utf8');
+const component=fs.readFileSync('src/components/ClassLinks.jsx','utf8');
+const tour=fs.readFileSync('src/components/TourOverlay.jsx','utf8');
+assert.match(app,/label:"Sites da turma"/);
+assert.match(app,/classLinksFor\(m\.resourceLinks, shift\)/);
+assert.match(app,/tab==="sites" && <TeacherClassLinksPanel/);
+assert.match(component,/target="_blank" rel="noopener noreferrer"/);
+assert.match(component,/addClassLink\(resourceLinks,turmaId/);
+assert.match(component,/removeClassLink\(resourceLinks,turmaId/);
+assert.match(tour,/\[data-tour="sites-turma"\]/);
+assert.match(tour,/tab:"sites"/);
+console.log('Professor gerencia sites por turma e alunos recebem atalhos externos seguros.');

@@ -2,7 +2,7 @@
 // turma assim que fica pronto — não importa a fase dele agora (mesmo sem ter escrito nada ainda,
 // mesmo sem passar pela atividade). Usa o mesmo mecanismo de scoreFix já usado pra nota corrigida/
 // presença corrigida etc., pra não perder a corrida com o autosave periódico do próprio aluno.
-const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } = require('/home/user/Aula-c-/tests/helpers.cjs');
+const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } = require('./helpers.cjs');
 
 (async () => {
   const now = new Date();

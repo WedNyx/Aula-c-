@@ -2,6 +2,7 @@ import { useState } from "react";
 import { difficultyOf } from "../lib/studentStatus.ts";
 import { DEFAULT_TURMAS } from "../lib/shifts.ts";
 import { Avatar } from "./Avatar.jsx";
+import { CodeBlock } from "./CodeEditor.jsx";
 
 const PHASE_LABEL = {
   coding: "💻 Escrevendo código",
@@ -100,8 +101,7 @@ export function MobileMonitorView({ students, turmas, shiftFilter, setShiftFilte
                         <summary style={{ color: "#22d3ee", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>👨‍💻 Ver código</summary>
                         {(s.files && s.files.length ? s.files : [{ name: "Program.cs", code: s.code || "" }]).map((f, i) => (
                           <div key={i} style={{ marginTop: 8 }}>
-                            <p style={{ color: "#776798", fontSize: 10.5, margin: "0 0 4px" }}>{f.name}</p>
-                            <pre style={{ background: "#0e0a18", border: "1px solid #3b2a58", borderRadius: 8, padding: 10, color: "#a5f3fc", fontFamily: "'Courier New',monospace", fontSize: 11.5, overflowX: "auto", whiteSpace: "pre-wrap", margin: 0, maxHeight: 220 }}>{f.code || "(vazio)"}</pre>
+                            <CodeBlock code={f.code || "(vazio)"} filename={f.name || "Program.cs"} compact wrap />
                           </div>
                         ))}
                       </details>

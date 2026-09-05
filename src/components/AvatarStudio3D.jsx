@@ -14,7 +14,7 @@ export function Avatar3DRender({ preset="violet-cargo", className="", title="Ava
   return <img className={`avatar-3d-render ${className}`} src={avatarPresetSrc(id)} alt={`${title}: ${label}`} draggable={false} />;
 }
 
-export function AvatarStudio3D({ value, onChange, onDone, title="Personalizar avatar" }) {
+export function AvatarStudio3D({ value, onChange, onDone, title="Personalizar avatar", saving=false, saveError="" }) {
   const [step, setStep] = useState("avatar");
   const selected = value.render3d || "masculino-01";
   const pet = value.pet || "";
@@ -41,9 +41,12 @@ export function AvatarStudio3D({ value, onChange, onDone, title="Personalizar av
         <small>Deixe vazio para usar o nome da espécie. Cada pet guarda seu próprio nome.</small>
       </label>}
       <footer className="avatar-studio-footer">
-        {step==="pet" && <button className="studio-back" onClick={()=>setStep("avatar")}>← Voltar</button>}
-        <button className="studio-primary" onClick={()=>step==="avatar"?setStep("pet"):onDone?.()}>{step==="avatar"?"Escolher meu companheiro":"Salvar meu perfil"} →</button>
+        {step==="pet" && <button className="studio-back" disabled={saving} onClick={()=>setStep("avatar")}>← Voltar</button>}
+        <button className="studio-primary" disabled={saving} aria-busy={saving} onClick={()=>step==="avatar"?setStep("pet"):onDone?.()}>
+          {step==="avatar" ? "Escolher meu companheiro" : saving ? "Salvando…" : "Salvar meu perfil"} {!saving && "→"}
+        </button>
       </footer>
+      {saveError && <div className="avatar-save-error" role="alert">{saveError}</div>}
     </div>
   );
 }
