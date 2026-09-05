@@ -351,12 +351,25 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
 }
 
 function NpoSkinBack({ skin, uid }) {
+  if (skin === "skinPrismaOrbital") return <g data-skin-detail="prisma-orbital" filter={`url(#${uid}glow)`}>
+    <g fill={`url(#${uid}crystal)`} stroke="#fff" strokeWidth="1.8" opacity=".88">
+      <path d="m52 259 14-18 12 22-15 13z"/><path d="m307 194-14-16-10 23 16 11z"/>
+    </g>
+    <g fill="#78edff"><circle cx="42" cy="219" r="3"/><circle cx="319" cy="246" r="2.5"/><circle cx="87" cy="325" r="2"/></g>
+  </g>;
   if (skin === "skinOrbita") return <g data-skin-detail="orbita" fill="none" filter={`url(#${uid}glow)`}>
-    <ellipse cx="180" cy="205" rx="164" ry="67" stroke="#70efff" strokeWidth="3" strokeDasharray="18 11" opacity=".8" transform="rotate(22 180 205)" style={{animation:"npo-skin-spin 9s linear infinite",transformOrigin:"180px 205px"}}/>
-    <ellipse cx="180" cy="205" rx="142" ry="112" stroke="#8f84ff" strokeWidth="2" strokeDasharray="7 15" opacity=".58" transform="rotate(-34 180 205)"/>
-    <ellipse cx="180" cy="205" rx="118" ry="154" stroke="#d9faff" strokeWidth="1.6" strokeDasharray="3 18" opacity=".42" transform="rotate(52 180 205)"/>
-    <circle cx="43" cy="126" r="13" fill="#a98cff" stroke="#effcff" strokeWidth="2"/><circle cx="308" cy="300" r="8" fill="#70efff"/>
-    <path d="m284 74 13-8 13 8v16l-13 8-13-8zM297 66v-13m-19 18-13-7m45 7 13-7" stroke="#d9faff" strokeWidth="3"/><circle cx="76" cy="319" r="6" fill="#fff" stroke="#70efff" strokeWidth="2"/>
+    <g style={{animation:"npo-skin-spin 13s linear infinite",transformOrigin:"180px 210px"}}>
+      <ellipse cx="180" cy="210" rx="155" ry="70" stroke="#70efff" strokeWidth="2.8" strokeDasharray="14 8" opacity=".72" transform="rotate(-12 180 210)"/>
+      <circle cx="27" cy="230" r="12" fill="#48dff2" stroke="#eaffff" strokeWidth="2"/>
+      <circle cx="329" cy="185" r="9" fill="#a88cff" stroke="#f7f2ff" strokeWidth="2"/>
+    </g>
+    <g style={{animation:"npo-skin-spin 18s linear infinite reverse",transformOrigin:"180px 210px"}}>
+      <ellipse cx="180" cy="210" rx="128" ry="112" stroke="#8f84ff" strokeWidth="2" opacity=".46" transform="rotate(36 180 210)"/>
+      <circle cx="102" cy="108" r="8" fill="#fff2b9" stroke="#fff" strokeWidth="1.5"/>
+      <circle cx="268" cy="297" r="7" fill="#61eaff" stroke="#fff" strokeWidth="1.5"/>
+    </g>
+    <path d="M45 148a19 19 0 1 0 21 29 15 15 0 1 1-21-29" fill="#fff6c8" stroke="none" opacity=".9"/>
+    <path d="M300 97a17 17 0 1 0 18 26 14 14 0 1 1-18-26" fill="#dffcff" stroke="none" opacity=".84"/>
   </g>;
   if (skin === "skinGuardiao") return <g data-skin-detail="guardiao" filter={`url(#${uid}glow)`}>
     <g fill="none" stroke="#ffd873" strokeWidth="3" opacity=".72" style={{animation:"npo-guardian-pulse 3s ease-in-out infinite",transformOrigin:"180px 205px"}}><path d="m180 24 122 69v139l-122 69L58 232V93z"/><path d="m180 48 101 57v115l-101 57-101-57V105z" strokeDasharray="12 9"/></g>
@@ -364,10 +377,11 @@ function NpoSkinBack({ skin, uid }) {
     <g fill={`url(#${uid}matGold)`} stroke="#fff1ba" strokeWidth="3"><path d="m112 213-47 20 18 55 43-30z"/><path d="m248 213 47 20-18 55-43-30z"/><path d="m128 310-31 42 43 12 24-34z"/><path d="m232 310 31 42-43 12-24-34z"/></g>
     <path d="M276 234 326 250v58q-18 34-50 43-32-9-50-43v-58z" fill="#37216c" stroke="#ffe5a0" strokeWidth="5"/><path d="m276 256 8 17 19 2-14 13 4 19-17-9-17 9 4-19-14-13 19-2z" fill="#ffd873"/>
   </g>;
-  if (skin === "skinAurora") return <g data-skin-detail="aurora" filter={`url(#${uid}glow)`} opacity=".78">
-    <path d="M92 249C30 188 45 91 116 33c-20 78 37 84 21 174-6 34-20 49-45 42Z" fill={`url(#${uid}aurora)`} style={{animation:"npo-skin-drift 5.4s ease-in-out infinite",transformOrigin:"110px 180px"}}/>
-    <path d="M268 249c62-61 47-158-24-216 20 78-37 84-21 174 6 34 20 49 45 42Z" fill={`url(#${uid}aurora)`} style={{animation:"npo-skin-drift 5.8s ease-in-out infinite reverse",transformOrigin:"250px 180px"}}/>
-    <path d="M46 329C83 233 128 164 166 66c23 94 91 134 148 47-6 117-86 111-106 234" fill="none" stroke={`url(#${uid}aurora)`} strokeWidth="12" strokeLinecap="round" opacity=".62" style={{animation:"npo-aurora-wave 4.8s ease-in-out infinite"}}/>
+  if (skin === "skinAurora") return <g data-skin-detail="aurora" filter={`url(#${uid}glow)`}>
+    <path d="M30 302C63 212 50 100 113 31c-6 80 54 99 29 188-10 36-34 69-55 104Z" fill={`url(#${uid}aurora)`} opacity=".48" style={{animation:"npo-aurora-wave 5.2s ease-in-out infinite",transformOrigin:"105px 180px"}}/>
+    <path d="M85 332c32-104 42-213 105-304-7 91 42 135 11 228-11 34-33 62-48 91Z" fill={`url(#${uid}aurora)`} opacity=".4" style={{animation:"npo-aurora-wave 6.3s ease-in-out infinite reverse",transformOrigin:"165px 185px"}}/>
+    <path d="M181 337c48-91 48-207 108-282-15 87 38 126 2 210-15 35-43 58-61 82Z" fill={`url(#${uid}aurora)`} opacity=".46" style={{animation:"npo-aurora-wave 5.7s ease-in-out infinite",transformOrigin:"250px 190px"}}/>
+    <g fill="#dffff8"><circle cx="49" cy="79" r="3"/><circle cx="306" cy="101" r="4"/><circle cx="319" cy="287" r="2.5"/></g>
   </g>;
   if (skin === "skinLuaNova") return <g data-skin-detail="lua-nova" filter={`url(#${uid}glow)`}>
     <circle cx="180" cy="196" r="167" fill="#03040a" opacity=".82"/><circle cx="180" cy="196" r="156" fill="none" stroke="#8b7cff" strokeWidth="7" opacity=".78"/>
@@ -387,9 +401,13 @@ function NpoSkinBack({ skin, uid }) {
     <g data-skin-silhouette="mare-bubbles" fill="#d8fbff" stroke="#59dfff" strokeWidth="2" opacity=".75"><circle cx="42" cy="155" r="9"/><circle cx="66" cy="124" r="5"/><circle cx="307" cy="146" r="11"/><circle cx="329" cy="111" r="5"/></g>
   </g>;
   if (skin === "skinConstelacao") return <g data-skin-detail="constelacao" stroke="#ffe19a" filter={`url(#${uid}glow)`}>
-    <path d="M113 185 38 119l19 91-29 58 92-35M247 185l75-66-19 91 29 58-92-35" fill="#463b98" fillOpacity=".34" stroke="#8f84e7" strokeWidth="2"/>
-    <path d="m43 99 56-37 39 47 73-73 102 71M38 295l72-42 69 80 75-72 69 40" fill="none" strokeWidth="2" opacity=".7"/>
-    {[[43,99],[99,62],[138,109],[211,36],[313,107],[38,295],[110,253],[179,333],[254,261],[323,301]].map(([cx,cy],i)=><circle key={i} cx={cx} cy={cy} r={i%3===0?5:3} fill="#fff3bd"/>)}
+    <circle cx="180" cy="197" r="164" fill="#171238" fillOpacity=".34" stroke="#8f84e7" strokeWidth="2.5"/>
+    <circle cx="180" cy="197" r="148" fill="none" stroke="#786ee0" strokeWidth="1.5" opacity=".5"/>
+    <circle cx="180" cy="197" r="131" fill="none" stroke="#b9b3ff" strokeWidth="1" strokeDasharray="3 10" opacity=".48"/>
+    <path d="m43 133 44-49 49 31 51-69 55 58 67-37 27 72M30 283l65-39 42 57 55-44 50 59 78-45" fill="none" strokeWidth="2" opacity=".78"/>
+    {[[43,133],[87,84],[136,115],[187,46],[242,104],[309,67],[336,139],[30,283],[95,244],[137,301],[192,257],[242,316],[320,271]].map(([cx,cy],i)=><circle key={i} cx={cx} cy={cy} r={i%4===0?5:3.2} fill="#fff3bd" style={{animation:`npo-star-twinkle ${1.8+i*.14}s ease-in-out infinite`}}/>)}
+    <path d="M28 323q48-43 94-11 45 31 91-4 55-42 119 10-55 62-151 61-97-1-153-56Z" fill={`url(#${uid}galaxy)`} stroke="none" opacity=".34"/>
+    <g fill="#fff" stroke="none" opacity=".78"><circle cx="58" cy="43" r="2"/><circle cx="301" cy="52" r="2.5"/><circle cx="17" cy="211" r="2"/><circle cx="342" cy="218" r="2"/><circle cx="76" cy="355" r="2.5"/><circle cx="289" cy="363" r="2"/></g>
   </g>;
   if (skin === "skinLunar") return <g data-skin-detail="lunar" filter={`url(#${uid}glow)`}>
     <circle cx="180" cy="195" r="160" fill="none" stroke="#eef7ff" strokeWidth="3" strokeDasharray="3 15" opacity=".65"/>
@@ -403,6 +421,7 @@ function NpoSkinBack({ skin, uid }) {
 }
 
 function NpoSkinBody({ skin, uid }) {
+  if (skin === "skinPrismaOrbital") return <g data-skin-surface="prisma-orbital" fill="none" strokeLinecap="round"><path d="M131 260 180 231l49 29-49 75z" fill={`url(#${uid}prism)`} opacity=".28" stroke="#fff" strokeWidth="2"/><path d="m137 306 43-66 43 66" stroke="#f8e8ff" strokeWidth="2.5" opacity=".72"/><path d="m143 314 37-31 37 31" stroke="#6defff" strokeWidth="3" opacity=".68"/></g>;
   if (skin === "skinGuardiao") return <g data-skin-surface="guardiao" fill="none" stroke="#ffe5a0" strokeWidth="5"><path d="M135 243h90v74l-45 24-45-24z"/><path d="m151 256 29 20 29-20"/><path d="m180 246 8 16 18 3-13 12 3 18-16-8-16 8 3-18-13-12 18-3z" fill="#ffd873" strokeWidth="2"/></g>;
   if (skin === "skinMare") return <g data-skin-surface="mare" fill="#8beaff" opacity=".82"><path d="m124 258-25-17 8 37zM236 258l25-17-8 37z"/><path d="M139 319q41-21 82 0-41 26-82 0" opacity=".35"/><path d="M137 273q21-19 43 0t43 0M143 294q18-15 37 0t37 0" fill="none" stroke="#d8fbff" strokeWidth="4" strokeLinecap="round"/><path d="m180 237 13 17-13 17-13-17z" fill="#d8fbff" stroke="#59dfff" strokeWidth="2"/></g>;
   if (skin === "skinConstelacao") return <g data-skin-surface="constelacao" stroke="#fff3bd" strokeWidth="2"><path d="m143 245 25 18 19-14 29 26" fill="none" opacity=".8"/><circle cx="143" cy="245" r="4" fill="#fff"/><circle cx="168" cy="263" r="3" fill="#fff"/><circle cx="187" cy="249" r="4" fill="#fff"/><circle cx="216" cy="275" r="3" fill="#fff"/></g>;
@@ -415,6 +434,7 @@ function NpoSkinBody({ skin, uid }) {
 }
 
 function NpoSkinHead({ skin, uid }) {
+  if (skin === "skinPrismaOrbital") return <g data-skin-head="prisma-orbital" fill="none" strokeLinecap="round" filter={`url(#${uid}glow)`}><path d="m88 91 30-22 24 18M272 91l-30-22-24 18" stroke="#ffb6ef" strokeWidth="3" opacity=".65"/><path d="M102 76h156" stroke="#72ebff" strokeWidth="2" opacity=".46"/></g>;
   if (skin === "skinLuaNova") return <g data-skin-head="lua-nova">
     <rect x="72" y="62" width="216" height="154" rx="67" fill="#050611" opacity=".48"/>
     <path d="M87 91a43 43 0 1 0 41 69A35 35 0 1 1 87 91M273 91a43 43 0 1 1-41 69 35 35 0 1 0 41-69" fill="#dfe3ff" opacity=".34" filter={`url(#${uid}glow)`}/>
@@ -426,11 +446,12 @@ function NpoSkinHead({ skin, uid }) {
     <path d="M88 130Q42 103 29 132q30 4 49 29-22 5-31 25 36 2 62-34z"/><path d="M272 130q46-27 59 2-30 4-49 29 22 5 31 25-36 2-62-34z"/>
   </g>;
   if (skin === "skinGuardiao") return <g data-skin-head="guardiao" fill={`url(#${uid}matGold)`} stroke="#fff1ba" strokeWidth="3"><path d="m74 116-22-26 17-30 27 17-12 31z"/><path d="m286 116 22-26-17-30-27 17 12 31z"/></g>;
-  if (skin === "skinAurora") return <g data-skin-head="aurora" fill={`url(#${uid}aurora)`} opacity=".56" filter={`url(#${uid}glow)`}><path d="M77 119Q40 70 75 24q4 43 28 67z"/><path d="M283 119q37-49 2-95-4 43-28 67z"/></g>;
+  if (skin === "skinAurora") return <g data-skin-head="aurora" fill="none" stroke={`url(#${uid}aurora)`} strokeLinecap="round" filter={`url(#${uid}glow)`}><path d="M83 94q34-38 67-7t63-5 64 10" strokeWidth="8" opacity=".56"/><path d="M92 78q30-31 58-7t59-3 58 7" strokeWidth="3" opacity=".72"/></g>;
   return null;
 }
 
 function NpoSkinCore({ skin, uid }) {
+  if (skin === "skinPrismaOrbital") return <g data-skin-core="prisma-orbital" filter={`url(#${uid}glow)`}><path d="m180 252 24 29-24 29-24-29z" fill={`url(#${uid}crystal)`} stroke="#fff" strokeWidth="3"/><path d="m180 253-9 28 9 28 10-28z" fill="#fff" opacity=".38"/><path d="m204 281 27-10m-27 16 27 5m-75-11-27-10m27 16-27 5" stroke="#7eeeff" strokeWidth="3" fill="none" strokeLinecap="round"/></g>;
   if (skin === "skinOrbita") return <g data-skin-core="orbita" fill="none" filter={`url(#${uid}glow)`}>
     <ellipse cx="180" cy="281" rx="31" ry="10" stroke="#d9faff" strokeWidth="4" transform="rotate(-12 180 281)"/><circle cx="180" cy="281" r="13" fill="#397cc5" stroke="#70efff" strokeWidth="2"/><circle cx="208" cy="275" r="4" fill="#fff"/>
   </g>;
