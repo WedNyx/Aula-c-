@@ -1,5 +1,10 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
+  { version: '1.2.1', title: 'Aurora Renovada', date: '2026-09-07', changes: [
+    'Nyx Aurora ganhou cortinas luminosas mais largas, fluidas e fiéis ao tema de aurora boreal.',
+    'Efeitos em ciano, violeta e rosa agora se movimentam atrás do personagem sem prejudicar sua leitura.',
+    'Cristal e detalhes visuais da aparência foram harmonizados com a nova iluminação.',
+  ] },
   { version: '1.2.0', title: 'Horizontes do Nyx', date: '2026-09-05', changes: [
     'Lista de chamada com acompanhamento direto, indicadores e correções rápidas.',
     'Materiais, links de aula e recursos organizados para cada turma.',
