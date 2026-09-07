@@ -172,7 +172,10 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
           <linearGradient id={uid + "matCapeRed"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#ff8a8a"/><stop offset=".5" stopColor="#d62828"/><stop offset="1" stopColor="#6e0f0f"/></linearGradient>
           <linearGradient id={uid + "matSteel"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#eef2f7"/><stop offset=".5" stopColor="#9aa7b8"/><stop offset="1" stopColor="#4b5563"/></linearGradient>
           <linearGradient id={uid + "matSteelDark"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#5b6577"/><stop offset="1" stopColor="#232833"/></linearGradient>
-          <linearGradient id={uid + "aurora"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#5ffff0"/><stop offset=".34" stopColor="#53b9ff"/><stop offset=".68" stopColor="#9a78ff"/><stop offset="1" stopColor="#f39dff"/></linearGradient>
+          <linearGradient id={uid + "aurora"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#71fff0"/><stop offset=".32" stopColor="#56c8ff"/><stop offset=".67" stopColor="#9b7cff"/><stop offset="1" stopColor="#f4a4ff"/></linearGradient>
+          <linearGradient id={uid + "auroraCurtain"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#e8ffff" stopOpacity=".92"/><stop offset=".22" stopColor="#66f4ff" stopOpacity=".82"/><stop offset=".56" stopColor="#9b7cff" stopOpacity=".64"/><stop offset=".82" stopColor="#ef8cff" stopOpacity=".38"/><stop offset="1" stopColor="#5536a8" stopOpacity="0"/></linearGradient>
+          <linearGradient id={uid + "auroraEdge"} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#dfffff"/><stop offset=".34" stopColor="#61f1ff"/><stop offset=".7" stopColor="#d57cff"/><stop offset="1" stopColor="#8457ef" stopOpacity="0"/></linearGradient>
+          <radialGradient id={uid + "auroraCore"} cx="35%" cy="24%"><stop stopColor="#fff"/><stop offset=".2" stopColor="#b9fff4"/><stop offset=".52" stopColor="#63cfff"/><stop offset=".78" stopColor="#9b7cff"/><stop offset="1" stopColor="#f0a0ff"/></radialGradient>
           <linearGradient id={uid + "water"} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#d8fbff"/><stop offset=".38" stopColor="#59dfff"/><stop offset=".72" stopColor="#247bd4"/><stop offset="1" stopColor="#4b46b8"/></linearGradient>
           <radialGradient id={uid + "galaxy"}><stop stopColor="#fff"/><stop offset=".18" stopColor="#73ecff"/><stop offset=".5" stopColor="#896cff"/><stop offset="1" stopColor="#160d47"/></radialGradient>
         </defs>
@@ -331,7 +334,10 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
         @keyframes npo-sensor-left{0%,72%,100%{transform:rotate(0)}76%{transform:rotate(-5deg)}80%{transform:rotate(3deg)}}
         @keyframes npo-sensor-right{0%,78%,100%{transform:rotate(0)}82%{transform:rotate(5deg)}86%{transform:rotate(-3deg)}}
         @keyframes npo-skin-spin{to{transform:rotate(360deg)}}
-        @keyframes npo-aurora-wave{50%{transform:translateY(10px) skewX(-4deg);opacity:.5}}
+        @keyframes npo-aurora-left{0%,100%{transform:rotate(-2deg) scaleY(.98);opacity:.7}50%{transform:rotate(3deg) scaleY(1.035);opacity:.94}}
+        @keyframes npo-aurora-right{0%,100%{transform:rotate(2deg) scaleY(1.02);opacity:.82}50%{transform:rotate(-3deg) scaleY(.97);opacity:.98}}
+        @keyframes npo-aurora-inner{0%,100%{transform:translateY(5px) scaleX(.92);opacity:.4}50%{transform:translateY(-8px) scaleX(1.08);opacity:.76}}
+        @keyframes npo-aurora-shimmer{0%,100%{opacity:.28;transform:translateY(4px)}50%{opacity:.9;transform:translateY(-7px)}}
         @keyframes npo-tide{50%{transform:translateY(-9px)}}
         @keyframes npo-eclipse-jitter{0%,90%,100%{transform:translate(0)}92%{transform:translate(3px,-2px)}96%{transform:translate(-2px,2px)}}
         @keyframes npo-skin-drift{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-8px) scaleY(1.05)}}
@@ -377,11 +383,21 @@ function NpoSkinBack({ skin, uid }) {
     <g fill={`url(#${uid}matGold)`} stroke="#fff1ba" strokeWidth="3"><path d="m112 213-47 20 18 55 43-30z"/><path d="m248 213 47 20-18 55-43-30z"/><path d="m128 310-31 42 43 12 24-34z"/><path d="m232 310 31 42-43 12-24-34z"/></g>
     <path d="M276 234 326 250v58q-18 34-50 43-32-9-50-43v-58z" fill="#37216c" stroke="#ffe5a0" strokeWidth="5"/><path d="m276 256 8 17 19 2-14 13 4 19-17-9-17 9 4-19-14-13 19-2z" fill="#ffd873"/>
   </g>;
-  if (skin === "skinAurora") return <g data-skin-detail="aurora" filter={`url(#${uid}glow)`}>
-    <path d="M30 302C63 212 50 100 113 31c-6 80 54 99 29 188-10 36-34 69-55 104Z" fill={`url(#${uid}aurora)`} opacity=".48" style={{animation:"npo-aurora-wave 5.2s ease-in-out infinite",transformOrigin:"105px 180px"}}/>
-    <path d="M85 332c32-104 42-213 105-304-7 91 42 135 11 228-11 34-33 62-48 91Z" fill={`url(#${uid}aurora)`} opacity=".4" style={{animation:"npo-aurora-wave 6.3s ease-in-out infinite reverse",transformOrigin:"165px 185px"}}/>
-    <path d="M181 337c48-91 48-207 108-282-15 87 38 126 2 210-15 35-43 58-61 82Z" fill={`url(#${uid}aurora)`} opacity=".46" style={{animation:"npo-aurora-wave 5.7s ease-in-out infinite",transformOrigin:"250px 190px"}}/>
-    <g fill="#dffff8"><circle cx="49" cy="79" r="3"/><circle cx="306" cy="101" r="4"/><circle cx="319" cy="287" r="2.5"/></g>
+  if (skin === "skinAurora") return <g data-skin-detail="aurora">
+    <ellipse cx="180" cy="205" rx="150" ry="172" fill="#4e30a5" opacity=".13" filter={`url(#${uid}soft)`}/>
+    <g filter={`url(#${uid}glow)`} style={{animation:"npo-aurora-left 5.8s ease-in-out infinite",transformOrigin:"132px 190px"}}>
+      <path d="M137 92C106 62 80 42 64 51 47 61 61 91 84 112 50 103 27 111 25 130c-2 21 28 39 72 45-35 18-53 42-43 59 12 20 51 9 92-24z" fill={`url(#${uid}auroraCurtain)`} opacity=".7"/>
+      <path d="M132 92C101 65 77 51 63 58 52 65 67 92 91 112M91 113c-34-4-55 5-56 18-1 15 26 30 63 36M99 173c-29 19-40 38-31 49" fill="none" stroke={`url(#${uid}auroraEdge)`} strokeWidth="5" strokeLinecap="round" opacity=".78"/>
+    </g>
+    <g filter={`url(#${uid}glow)`} style={{animation:"npo-aurora-right 6.4s ease-in-out -2.1s infinite",transformOrigin:"228px 190px"}}>
+      <path d="M223 92c31-30 57-50 73-41 17 10 3 40-20 61 34-9 57-1 59 18 2 21-28 39-72 45 35 18 53 42 43 59-12 20-51 9-92-24z" fill={`url(#${uid}auroraCurtain)`} opacity=".74"/>
+      <path d="M228 92c31-27 55-41 69-34 11 7-4 34-28 54m0 1c34-4 55 5 56 18 1 15-26 30-63 36m-1 6c29 19 40 38 31 49" fill="none" stroke={`url(#${uid}auroraEdge)`} strokeWidth="5" strokeLinecap="round" opacity=".82"/>
+    </g>
+    <g fill={`url(#${uid}auroraCurtain)`} opacity=".58" style={{animation:"npo-aurora-inner 4.8s ease-in-out -1.2s infinite",transformOrigin:"180px 198px"}}>
+      <path d="M142 50c18 18 24 45 16 77-7 28-3 61 13 91l-29 30c-20-43-27-86-17-126 7-29 5-51-6-67z"/>
+      <path d="M218 50c-18 18-24 45-16 77 7 28 3 61-13 91l29 30c20-43 27-86 17-126-7-29-5-51 6-67z"/>
+    </g>
+    <g fill="#eaffff" filter={`url(#${uid}glow)`} style={{animation:"npo-aurora-shimmer 3.6s ease-in-out infinite"}}><circle cx="55" cy="98" r="2.5"/><circle cx="305" cy="108" r="3"/><circle cx="42" cy="251" r="2"/><circle cx="319" cy="267" r="2"/></g>
   </g>;
   if (skin === "skinLuaNova") return <g data-skin-detail="lua-nova" filter={`url(#${uid}glow)`}>
     <circle cx="180" cy="196" r="167" fill="#03040a" opacity=".82"/><circle cx="180" cy="196" r="156" fill="none" stroke="#8b7cff" strokeWidth="7" opacity=".78"/>
@@ -428,7 +444,7 @@ function NpoSkinBody({ skin, uid }) {
   if (skin === "skinLuaNova") return <path data-skin-surface="lua-nova" d="M180 222h59v118h-59z" fill="#070812" opacity=".5"/>;
   if (skin === "skinLunar") return <path data-skin-surface="lunar" d="M190 246a38 38 0 1 0 0 70 31 38 0 1 1 0-70" fill="#fff" opacity=".24"/>;
   if (skin === "skinEclipse") return <g data-skin-surface="eclipse"><path d="M180 220h59v120h-59z" fill="#09070d" opacity=".55"/><path d="m133 267 31 5m38 34 28 5" stroke="#ffd97c" strokeWidth="3"/></g>;
-  if (skin === "skinAurora") return <path data-skin-surface="aurora" d="M132 264q48-38 96 0t-2 55q-46-36-92 0" fill={`url(#${uid}prism)`} opacity=".38"/>;
+  if (skin === "skinAurora") return <g data-skin-surface="aurora" fill="none" strokeLinecap="round"><path d="M139 258q41-27 82 0M139 307q41 25 82 0" stroke={`url(#${uid}aurora)`} strokeWidth="4" opacity=".5"/><path d="M151 270q29-19 58 0M151 294q29 18 58 0" stroke="#c9fff7" strokeWidth="2" opacity=".42"/></g>;
   if (skin === "skinOrbita") return <g data-skin-surface="orbita" fill="none" stroke="#d9faff"><ellipse cx="180" cy="279" rx="49" ry="19" strokeWidth="3"/><circle cx="223" cy="270" r="6" fill="#70efff"/></g>;
   return null;
 }
@@ -446,7 +462,7 @@ function NpoSkinHead({ skin, uid }) {
     <path d="M88 130Q42 103 29 132q30 4 49 29-22 5-31 25 36 2 62-34z"/><path d="M272 130q46-27 59 2-30 4-49 29 22 5 31 25-36 2-62-34z"/>
   </g>;
   if (skin === "skinGuardiao") return <g data-skin-head="guardiao" fill={`url(#${uid}matGold)`} stroke="#fff1ba" strokeWidth="3"><path d="m74 116-22-26 17-30 27 17-12 31z"/><path d="m286 116 22-26-17-30-27 17 12 31z"/></g>;
-  if (skin === "skinAurora") return <g data-skin-head="aurora" fill="none" stroke={`url(#${uid}aurora)`} strokeLinecap="round" filter={`url(#${uid}glow)`}><path d="M83 94q34-38 67-7t63-5 64 10" strokeWidth="8" opacity=".56"/><path d="M92 78q30-31 58-7t59-3 58 7" strokeWidth="3" opacity=".72"/></g>;
+  if (skin === "skinAurora") return <g data-skin-head="aurora" fill="none" strokeLinecap="round" filter={`url(#${uid}glow)`}><path d="M86 103q25-31 51-17M274 103q-25-31-51-17" stroke={`url(#${uid}aurora)`} strokeWidth="5" opacity=".52"/><path d="M105 75q21-17 40 1M255 75q-21-17-40 1" stroke="#bafff4" strokeWidth="2" opacity=".58"/></g>;
   return null;
 }
 
@@ -456,7 +472,11 @@ function NpoSkinCore({ skin, uid }) {
     <ellipse cx="180" cy="281" rx="31" ry="10" stroke="#d9faff" strokeWidth="4" transform="rotate(-12 180 281)"/><circle cx="180" cy="281" r="13" fill="#397cc5" stroke="#70efff" strokeWidth="2"/><circle cx="208" cy="275" r="4" fill="#fff"/>
   </g>;
   if (skin === "skinGuardiao") return <path data-skin-core="guardiao" d="m180 252 20 10v18q-5 20-20 28-15-8-20-28v-18z" fill="#4a2c87" stroke="#ffe5a0" strokeWidth="4" filter={`url(#${uid}glow)`}/>;
-  if (skin === "skinAurora") return <path data-skin-core="aurora" d="M180 250c18 21 22 35 9 54-7 10-22 10-30 1-14-17-4-34 21-55Z" fill={`url(#${uid}aurora)`} stroke="#e8fff7" strokeWidth="3" filter={`url(#${uid}glow)`}/>;
+  if (skin === "skinAurora") return <g data-skin-core="aurora" filter={`url(#${uid}glow)`}>
+    <path d="m180 251 23 30-23 29-23-29z" fill={`url(#${uid}auroraCore)`} stroke="#eaffff" strokeWidth="3"/>
+    <path d="m180 252-8 29 8 28 9-28z" fill="#fff" opacity=".34"/>
+    <path d="m158 281 14-4 8 4 9-5 13 5" fill="none" stroke="#d2fff8" strokeWidth="2" opacity=".82"/>
+  </g>;
   if (skin === "skinLuaNova") return <g data-skin-core="lua-nova" filter={`url(#${uid}glow)`}><circle cx="180" cy="281" r="25" fill="#050611" stroke="#817cff" strokeWidth="3"/><path d="M190 260a24 24 0 1 0 0 42 19 19 0 1 1 0-42" fill="#dfe3ff"/></g>;
   if (skin === "skinMare") return <g data-skin-core="mare" fill="none" strokeLinecap="round" filter={`url(#${uid}glow)`}><path d="M153 286q14-30 34-9t22-8q-4 36-31 37-17 0-25-20Z" fill={`url(#${uid}water)`} stroke="#d8fbff" strokeWidth="3"/><path d="M158 287q14-12 27 0t20-2" stroke="#fff" strokeWidth="3"/></g>;
   if (skin === "skinConstelacao") return <g data-skin-core="constelacao" filter={`url(#${uid}glow)`}><circle cx="180" cy="281" r="27" fill={`url(#${uid}galaxy)`} stroke="#fff3bd" strokeWidth="3"/><path d="m160 288 14-18 13 10 16-15M174 270l6 22 23-27" fill="none" stroke="#fff" strokeWidth="1.8"/><circle cx="160" cy="288" r="3" fill="#fff"/><circle cx="174" cy="270" r="3" fill="#fff"/><circle cx="187" cy="280" r="3" fill="#fff"/><circle cx="203" cy="265" r="3" fill="#fff"/></g>;
