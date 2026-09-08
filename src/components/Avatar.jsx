@@ -258,7 +258,7 @@ export function Avatar({ cfg, size=72, animated=false }) {
           alt=""
           draggable={false}
           className={animated ? "avatar-face" : undefined}
-          style={{ display:"block", position:"relative", zIndex:1, width:!uses3d && roupa ? "82%" : "100%", height:!uses3d && roupa ? "82%" : "100%", margin:"0 auto", objectFit:"cover", objectPosition:uses3d ? "50% 18%" : undefined, transform:uses3d ? "scale(1.16)" : undefined }}
+          style={{ display:"block", position:"relative", zIndex:1, width:!uses3d && roupa ? "82%" : "100%", height:!uses3d && roupa ? "82%" : "100%", margin:"0 auto", objectFit:uses3d ? "contain" : "cover", objectPosition:uses3d ? "50% 50%" : undefined, transform:uses3d ? "scale(1.02)" : undefined }}
         />
       </div>
       {/* cada bicho tem uma posição própria pensada pro formato dele (sem moldura/círculo por

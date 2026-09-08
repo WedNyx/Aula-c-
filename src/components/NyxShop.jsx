@@ -21,7 +21,7 @@ const SKIN_DESCRIPTIONS = {
   skinPrismaOrbital: "Cristais prismáticos, feixes coloridos e um sistema orbital luminoso.",
   skinOrbita: "Planetas e trajetórias animadas giram ao redor do Nyx.",
   skinGuardiao: "Armadura, escudo e proteção dourada de um guardião lunar.",
-  skinAurora: "Cortinas de luz turquesa, azul e violeta atravessam o céu.",
+  skinAurora: "Cortinas suaves em ciano, violeta e rosa dançam atrás do Nyx, refletidas no cristal do peito.",
   skinLuaNova: "Uma carapaça escura cercada por luas e estrelas discretas.",
   skinMare: "Ondas, barbatanas, bolhas e uma cauda feita de água.",
   skinConstelacao: "Mapas estelares e constelações brilhantes cobrem o Nyx.",
