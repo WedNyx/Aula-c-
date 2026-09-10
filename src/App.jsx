@@ -2514,6 +2514,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       if (fullCode.trim().length < 10) return;
       const triggered = await getResumoTrigger(shift);
       if (!active || triggered?.date !== todayKey() || stateRef.current.phase !== "coding") return;
+      // já tem EXATAMENTE esse resumo no caderno de hoje (terminou a atividade e voltou pro
+      // código) — não manda de volta pro resumo só porque o gatilho do professor continua
+      // valendo o dia inteiro; handleSave() muda a fase sem checar isso, então quem decide
+      // se há algo realmente novo pra processar precisa ser aqui, antes de chamá-lo
+      const todaySummary = stateRef.current.summaryHistory?.[todayKey()];
+      const alreadyHasThisBroadcast = triggered?.resumo && todaySummary && JSON.stringify(todaySummary) === JSON.stringify(triggered.resumo);
+      if (alreadyHasThisBroadcast) return;
       resumoAutoSaveRef.current = true;
       try { await handleSaveRef.current(); } finally { resumoAutoSaveRef.current = false; }
     }, 5000);
