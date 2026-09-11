@@ -606,6 +606,14 @@ input:focus, textarea:focus { border-color: #c084fc !important; box-shadow: 0 0 
 }
 .high-contrast *:focus-visible { outline: 3px solid #fbbf24 !important; outline-offset: 2px; }
 
+/* apoio motor do professor: alvos maiores sem alterar os cards de alunos ou o editor */
+.teacher-motor-support button, .teacher-motor-support input,
+.teacher-motor-support textarea, .teacher-motor-support select {
+  min-height: 44px;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
 /* 🎁 presente misterioso balançando, pedindo pra ser aberto */
 @keyframes gift-wiggle {
   0%, 100% { transform: rotate(0deg) scale(1); }

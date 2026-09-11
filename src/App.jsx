@@ -163,7 +163,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [score, setScore] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [keyboardLocked, setKeyboardLockedState] = useState(false);
-  const lastProviderRef = useRef("nvidia"); // lembra o último modelo que funcionou, pra próxima análise tentar ele primeiro
+  const lastProviderRef = useRef("gemini"); // lembra o último modelo que funcionou, pra próxima análise tentar ele primeiro
   // 🔌 modo offline total: quando a análise ou o "Salvar e Finalizar" não rolam por falta de
   // internet (não uma simples instabilidade), fica marcado aqui pra tentar de novo sozinho assim
   // que a conexão voltar — o aluno não precisa ficar clicando até funcionar
@@ -385,9 +385,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [streakRewardDay, setStreakRewardDay] = useState(null);
   const [streakToast, setStreakToast] = useState("");
   // 🩺 saúde do Nyx pro aluno também ver — mesmo aviso "Reconectando" e os pontinhos por
-  // modelo (Nemotron/Laguna) que já existiam só no painel do professor
+  // modelo (Gemini/Nemotron/Laguna) que já existiam só no painel do professor
   const [aiDown, setAiDown] = useState(false);
-  const [providerHealth, setProviderHealth] = useState({ nvidia:null, laguna:null });
+  const [providerHealth, setProviderHealth] = useState({ gemini:null, nvidia:null, laguna:null });
   // versão das novidades apresentadas pelo Nyx Lunar. Fica salva no perfil do aluno para não
   // repetir o tour em outro aparelho depois que ele já tiver visto.
   const NYX_NEWS_VERSION = PLATFORM_VERSION;
@@ -400,11 +400,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   useEffect(() => {
     let active = true;
     const check = async () => {
-      const [h, nvidia, laguna] = await Promise.all([getAiHealth(), getAiHealthByProvider("nvidia"), getAiHealthByProvider("laguna")]);
+      const [h, gemini, nvidia, laguna] = await Promise.all([getAiHealth(), getAiHealthByProvider("gemini"), getAiHealthByProvider("nvidia"), getAiHealthByProvider("laguna")]);
       if (!active) return;
       // só acende "Reconectando Nyx" depois de 2 falhas SEGUIDAS (ver reportAiHealth em storage.js)
       setAiDown(!!h && h.ok === false && (h.streak || 1) >= 2 && Date.now() - h.at < 5 * 60 * 1000);
-      setProviderHealth({ nvidia, laguna });
+      setProviderHealth({ gemini, nvidia, laguna });
     };
     check();
     const iv = setInterval(check, 10000);
@@ -1952,7 +1952,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     // tenta os dois modelos gratuitos primeiro (na ordem de sempre) e, só se os DOIS falharem de
     // verdade (é aí que aparece "Reconectando Nyx"), usa a Anthropic (Sonnet 5) como último recurso —
     // assim o aluno não fica travado esperando o gratuito voltar, mas o gasto pago só entra quando precisa
-    const order = [lastProviderRef.current, ANALYZE_PROVIDERS.find(p => p !== lastProviderRef.current), "anthropic"];
+    const order = [...new Set([lastProviderRef.current, ...ANALYZE_PROVIDERS, "anthropic"].filter(Boolean))];
     let lastErr = null;
     for (const provider of order) {
       try {
@@ -3566,7 +3566,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             {aiDown ? "Nyx reconectando" : connected===false ? "IA indisponível" : connected ? "IA funcionando" : "Verificando IA"}
           </span>
           <span className="student-provider-health" style={{ display:"inline-flex", alignItems:"center", gap:8, fontSize:11 }}>
-            {[["nvidia","✨ Nemotron"],["laguna","🌊 Laguna"]].map(([key,label]) => {
+            {[["gemini","💎 Gemini"],["nvidia","✨ Nemotron"],["laguna","🌊 Laguna"]].map(([key,label]) => {
               const h = providerHealth[key];
               const recent = h && Date.now() - h.at < 5 * 60 * 1000;
               const color = !recent ? "#5d679c" : h.ok ? "#34d399" : "#f87171";
@@ -4660,6 +4660,23 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [adminLogLoading, setAdminLogLoading] = useState(false);
   const loadAdminLog = async () => { setAdminLogLoading(true); setAdminLog(await getAdminLog(teacherAuth)); setAdminLogLoading(false); };
   const [tab, setTab] = useState("monitor");
+  const [showTeacherSupport, setShowTeacherSupport] = useState(false);
+  const [teacherSupport, setTeacherSupport] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("nyx_teacher_self_support") || "{}"); }
+    catch { return {}; }
+  });
+  const toggleTeacherSupport = flag => setTeacherSupport(current => {
+    const next = { ...current, [flag]: !current[flag] };
+    try { localStorage.setItem("nyx_teacher_self_support", JSON.stringify(next)); } catch {}
+    return next;
+  });
+  const teacherSupportClass = [
+    teacherSupport.sensorial && "calm",
+    teacherSupport.leitura && "easy-read",
+    teacherSupport.visual && "high-contrast",
+    teacherSupport.motora && "teacher-motor-support",
+  ].filter(Boolean).join(" ") || undefined;
+  useEffect(() => { setSoundsCalm(!!teacherSupport.sensorial); return () => setSoundsCalm(false); }, [teacherSupport.sensorial]);
   const [showTeacherNotes, setShowTeacherNotes] = useState(false);
   const [scheduledReminders,setScheduledReminders]=useState([]);
   useEffect(()=>{ let live=true; const load=async()=>{ const [mine,classes]=await Promise.all([getTeacherScheduledReminders(teacherAuth),getClassScheduledReminders()]); if(live)setScheduledReminders([...mine,...classes]); }; load(); const iv=setInterval(load,10000); return()=>{live=false;clearInterval(iv);}; },[teacherAuth]);
@@ -5069,14 +5086,13 @@ function TeacherView({ onLogout, teacherAuth }) {
     const iv = setInterval(check, 10000);
     return () => { active = false; clearInterval(iv); };
   }, []);
-  // 🩺 saúde de CADA modelo separado (Nemotron/Laguna) — pontinho no cabeçalho, pra o professor ver
-  // de longe se algum dos dois está fora do ar antes de a turma toda esbarrar nisso
-  const [providerHealth, setProviderHealth] = useState({ nvidia:null, laguna:null });
+  // 🩺 saúde de CADA modelo separado (Gemini/Nemotron/Laguna) — pontinho no cabeçalho
+  const [providerHealth, setProviderHealth] = useState({ gemini:null, nvidia:null, laguna:null });
   useEffect(() => {
     let active = true;
     const check = async () => {
-      const [nvidia, laguna] = await Promise.all([getAiHealthByProvider("nvidia"), getAiHealthByProvider("laguna")]);
-      if (active) setProviderHealth({ nvidia, laguna });
+      const [gemini, nvidia, laguna] = await Promise.all([getAiHealthByProvider("gemini"), getAiHealthByProvider("nvidia"), getAiHealthByProvider("laguna")]);
+      if (active) setProviderHealth({ gemini, nvidia, laguna });
     };
     check();
     const iv = setInterval(check, 10000);
@@ -6912,7 +6928,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   }
 
   return (
-    <div className={!isMobileScreen ? "dashboard-page-with-sidebar" : undefined} style={{ ...styles.container, position:"relative" }}>
+    <div className={`${teacherSupportClass || ""}${!isMobileScreen ? " dashboard-page-with-sidebar" : ""}`.trim() || undefined} style={{ ...styles.container, position:"relative" }}>
       <Sparkles id="nyx-teacher-sparkles" position="absolute" count={28} />
       {/* navegação lateral — as mesmas 6 abas que já existiam na barra horizontal, só que fixas
           numa coluna à esquerda (mesmo data-tour-prof, mesmo onClick — o Tour guiado continua
@@ -6972,7 +6988,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           </span>
           {tab!=="code" && (
             <span data-tour="saude-ia" style={{ marginLeft:12, display:"inline-flex", alignItems:"center", gap:10, fontSize:11.5, verticalAlign:"middle" }}>
-              {[["nvidia","✨ Nemotron"],["laguna","🌊 Laguna"]].map(([key,label]) => {
+              {[["gemini","💎 Gemini"],["nvidia","✨ Nemotron"],["laguna","🌊 Laguna"]].map(([key,label]) => {
                 const h = providerHealth[key];
                 const recent = h && Date.now() - h.at < 5 * 60 * 1000;
                 const color = !recent ? "#5d679c" : h.ok ? "#34d399" : "#f87171";
@@ -6992,6 +7008,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           {tab!=="code" && <button className="btn-ghost" data-tour-prof="telao" style={styles.btnGhost} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
           {isMobileScreen && <button style={styles.btn("#c084fc")} onClick={()=>setForceFullMode(false)} title="Volta pra lista simples de acompanhamento, melhor pro celular">📱 Modo simples</button>}
           {tab!=="code" && <button data-tour-prof="reset" style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
+          {tab!=="code" && <button data-tour-prof="apoio-professor" className="btn-ghost" style={{...styles.btnGhost,background:Object.values(teacherSupport).some(Boolean)?"#3b82f622":undefined,borderColor:Object.values(teacherSupport).some(Boolean)?"#3b82f6":undefined}} onClick={()=>setShowTeacherSupport(true)} title="Ajustar o painel para você">🧩 Meus apoios</button>}
           {tab!=="code" && <button className="btn-ghost" style={styles.btnGhost} onClick={()=>{ const first = TEACHER_TOUR_STEPS[0]; if (first.tab) setTab(first.tab); setProfTourStep(0); }} title="Tour guiado por todas as funções do painel do professor, entrando em cada aba pra mostrar de verdade">🧭 Tour</button>}
           <button data-tour-prof="sair" style={{ ...styles.btnGhost, fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
         </div>
@@ -7000,6 +7017,21 @@ function TeacherView({ onLogout, teacherAuth }) {
       {/* no modo completo do celular a sidebar de desktop não existe; esta faixa mantém todas as
           áreas do painel acessíveis sem obrigar o professor a voltar ao computador */}
       {isMobileScreen && <DashboardMobileNav ariaLabel="Áreas do painel do professor" groups={teacherSidebarGroups} />}
+
+      {showTeacherSupport && (
+        <div role="dialog" aria-modal="true" aria-labelledby="teacher-support-title" onClick={()=>setShowTeacherSupport(false)} style={{position:"fixed",inset:0,zIndex:1500,background:"rgba(11,6,20,.82)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div className="pop" onClick={event=>event.stopPropagation()} style={{background:"linear-gradient(180deg,#231636,#171026)",border:"1px solid #4c356d",borderRadius:20,padding:20,width:"min(560px,100%)",boxShadow:"0 24px 70px rgba(0,0,0,.55)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}><div><h2 id="teacher-support-title" style={{margin:0,color:"#c084fc",fontSize:20}}>🧩 Meus apoios</h2><p style={{margin:"5px 0 0",color:"#a99ac9",fontSize:13}}>Ajustes somente para o seu painel. Eles ficam salvos neste dispositivo.</p></div><button aria-label="Fechar meus apoios" onClick={()=>setShowTeacherSupport(false)} style={{background:"transparent",border:0,color:"#a99ac9",fontSize:22,cursor:"pointer"}}>✕</button></div>
+            <div style={{display:"grid",gap:9,marginTop:16}}>{[
+              ["sensorial","🧘 Modo calmo","Reduz animações, brilhos e sons do painel."],
+              ["leitura","📖 Leitura facilitada","Aumenta o espaço entre letras, palavras e linhas."],
+              ["visual","👁️ Apoio visual","Aumenta textos, contraste, bordas e destaque do foco."],
+              ["motora","🖱️ Controles maiores","Aumenta botões e campos para facilitar os cliques."],
+            ].map(([flag,label,hint])=><button key={flag} type="button" aria-pressed={!!teacherSupport[flag]} onClick={()=>toggleTeacherSupport(flag)} style={{background:teacherSupport[flag]?"#3b82f622":"#120b20",border:`1px solid ${teacherSupport[flag]?"#3b82f6":"#3b2a58"}`,borderRadius:12,padding:"11px 13px",color:"#f0e9fb",cursor:"pointer",textAlign:"left",display:"flex",gap:11,alignItems:"center"}}><span aria-hidden="true" style={{fontSize:20}}>{teacherSupport[flag]?"✓":"○"}</span><span><b style={{display:"block"}}>{label}</b><small style={{display:"block",color:"#a99ac9",marginTop:3,lineHeight:1.4}}>{hint}</small></span></button>)}</div>
+            <button type="button" onClick={()=>{setTeacherSupport({});try{localStorage.removeItem("nyx_teacher_self_support")}catch{}}} disabled={!Object.values(teacherSupport).some(Boolean)} style={{...styles.btnGhost,width:"100%",marginTop:14,opacity:Object.values(teacherSupport).some(Boolean)?1:.5}}>Restaurar painel padrão</button>
+          </div>
+        </div>
+      )}
 
       {/* filtro de turno (vale para monitoramento, chamada, situação e feedback) */}
       {tab!=="code" && tab!=="materials" && (

@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const app=fs.readFileSync('src/App.jsx','utf8');
+const css=fs.readFileSync('src/theme.css','utf8');
+const releases=fs.readFileSync('src/releases.js','utf8');
+assert.match(app,/nyx_teacher_self_support/);
+assert.match(app,/data-tour-prof="apoio-professor"/);
+assert.match(app,/Modo calmo/);
+assert.match(app,/Leitura facilitada/);
+assert.match(app,/Apoio visual/);
+assert.match(app,/Controles maiores/);
+assert.match(app,/role="dialog" aria-modal="true"/);
+assert.match(css,/\.teacher-motor-support button/);
+assert.match(releases,/version: '1\.4\.0'/);
+assert.doesNotMatch(releases,/version: '1\.4\.1'/);
+console.log('Professor pode ativar apoios locais sem criar uma nova versão da plataforma.');
