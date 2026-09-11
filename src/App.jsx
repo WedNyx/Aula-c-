@@ -171,6 +171,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const pendingSaveRef = useRef(false);
   // erros da última análise (linha sublinhada de vermelho até corrigir) + tour do Nyx explicando cada um
   const [codeErrors, setCodeErrors] = useState([]);
+  const [instantDiagnostic, setInstantDiagnostic] = useState(null);
   const [showErrorWalkthrough, setShowErrorWalkthrough] = useState(false);
   const [errorWalkStep, setErrorWalkStep] = useState(0);
   // 🧗 ajuda em níveis: a Nyx não entrega a correção pronta de cara — aponta a região do erro,
@@ -531,6 +532,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const summarySnapshotRef = useRef(null);
   const activeCode = files[active]?.code || "";
 
+  // verificação básica enquanto o aluno digita: funciona localmente, não chama IA, não soma
+  // erro no histórico e espera uma pequena pausa para não piscar durante cada tecla pressionada
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (activeCode.trim().length < 4) { setInstantDiagnostic(null); return; }
+      setInstantDiagnostic(studyLang ? quickCheckLanguage(activeCode, studyLang.id) : quickCheck(activeCode));
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [activeCode, studyLang?.id]);
+
   useEffect(() => {
     stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxNewsSeen, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, personalNotes, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
@@ -541,6 +552,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
   // ── início do intervalo: som suave uma vez só por intervalo ──
   const classStatusNow = classStatus(mySchedule, myAllowWeekend || isSevenDayShift(shift));
+  // O Santuário Lunar recebe o aluno na primeira entrada desta sessão. Ao fechar, ele segue
+  // normalmente para o editor e o modal não reaparece a cada atualização de estado da aula.
+  useEffect(() => {
+    if (!loaded || !classStatusNow.open || studyMode) return;
+    const key = `nyx_sanctuary_welcome_${shift}_${studentName}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch {}
+    setShowLunarSanctuary(true);
+  }, [loaded, classStatusNow.open, studyMode, shift, studentName]);
+
   useEffect(() => {
     const bStart = mySchedule?.breakStart && mySchedule?.breakMin ? `${todayKey()}-${mySchedule.breakStart}-${mySchedule.breakMin}` : null;
     if (!bStart) return;
@@ -1579,6 +1602,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           setExamScore(fix.score); setExamAppeal(ap);
           await clearScoreFix(shift, studentName);
           await persist({ examScore: fix.score, examAppeal: ap });
+        } else if (fix && fix.kind === "teacher-code-edit" && Array.isArray(fix.files) && fix.files.length) {
+          // edição direta feita pelo professor no monitoramento: atualiza também o estado desta
+          // sessão antes do próximo autosave, impedindo que o código antigo volte por cima.
+          const editedFiles = fix.files.map(f => ({ name:f.name || "Program.cs", code:String(f.code || "").replace(/\r/g, "") }));
+          stateRef.current = { ...stateRef.current, files:editedFiles, code:editedFiles[0]?.code || "" };
+          setFiles(editedFiles);
+          setActive(0);
+          await clearScoreFix(shift, studentName);
+          await persist({ files:editedFiles, code:editedFiles[0]?.code || "", teacherCodeEditedAt:fix.editedAt || Date.now() });
+          setRobotMsg("✅ O professor fez uma correção no seu código. A nova versão já está aberta no editor.");
+          setRobotState("ok");
+          setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000);
         } else if (fix && fix.kind === "help-attended") {
           // professor marcou o pedido de ajuda como atendido
           setHelpAt(null);
@@ -1973,7 +2008,10 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // enquanto houver erros sinalizados, sublinha em vermelho a linha correspondente no editor — some
   // sozinho quando o aluno edita a linha (o Nyx só reanalisa de novo se o aluno pedir, clicando em
   // "Analisar código" ou no botão de reverificar do card de erro — nunca mais por conta própria)
-  const errorLinesForEditor = codeErrors.map(e => findLineIndex(activeCode, e.trecho)).filter(i => i >= 0);
+  const errorLinesForEditor = [...new Set([
+    ...codeErrors.map(e => findLineIndex(activeCode, e.trecho)).filter(i => i >= 0),
+    ...(instantDiagnostic?.line ? [instantDiagnostic.line - 1] : []),
+  ])];
   useEffect(() => {
     if (!codeErrors.length) return;
     const stillPresent = codeErrors.filter(e => findLineIndex(activeCode, e.trecho) >= 0);
@@ -2514,10 +2552,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       if (fullCode.trim().length < 10) return;
       const triggered = await getResumoTrigger(shift);
       if (!active || triggered?.date !== todayKey() || stateRef.current.phase !== "coding") return;
-      // já tem EXATAMENTE esse resumo no caderno de hoje (terminou a atividade e voltou pro
-      // código) — não manda de volta pro resumo só porque o gatilho do professor continua
-      // valendo o dia inteiro; handleSave() muda a fase sem checar isso, então quem decide
-      // se há algo realmente novo pra processar precisa ser aqui, antes de chamá-lo
+      // Se este mesmo resumo já foi entregue hoje, voltar ao código não deve dispará-lo outra vez.
       const todaySummary = stateRef.current.summaryHistory?.[todayKey()];
       const alreadyHasThisBroadcast = triggered?.resumo && todaySummary && JSON.stringify(todaySummary) === JSON.stringify(triggered.resumo);
       if (alreadyHasThisBroadcast) return;
@@ -3369,6 +3404,17 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {analyzing ? "🔍 Analisando..." : "✨ Analisar código"}
     </button>
   );
+  const editorStatusText = keyboardLocked
+    ? "🔒 O professor travou o teclado — espere ele liberar de novo."
+    : saveWarn
+    ? saveWarn
+    : analyzing
+    ? "🔍 Verificando..."
+    : instantDiagnostic
+    ? `⚡ Verificação sem IA: ${instantDiagnostic.message}`
+    : activeCode.trim().length < 12
+    ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx"
+    : "✅ Verificação básica sem IA: nenhum erro evidente. Você ainda pode pedir a análise completa do Nyx.";
 
   const studentSidebarGroups = [
     { id:"learn", label:"Aprender", items:[
@@ -3867,7 +3913,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               )}
 
               <div data-tour="guided-actions" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:16, flexWrap:"wrap", gap:8 }}>
-                <span style={{ color: saveWarn ? "#fbbf24" : "#776798", fontSize:scaleSize(12) }}>{saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
+                <span role="status" style={{ color: instantDiagnostic ? "#f87171" : saveWarn ? "#fbbf24" : "#776798", fontSize:scaleSize(12) }}>{editorStatusText}</span>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {analyzeButtons}
                 </div>
@@ -3895,7 +3941,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
               </div>
 
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, flexWrap:"wrap", gap:8 }}>
-                <span style={{ color: keyboardLocked ? "#f87171" : saveWarn ? "#fbbf24" : "#776798", fontSize:12 }}>{keyboardLocked ? "🔒 O professor travou o teclado — espere ele liberar de novo." : saveWarn || (analyzing ? "🔍 Verificando..." : activeCode.trim().length < 12 ? "✍️ Escreva um pouco mais de código neste arquivo para poder pedir a análise do Nyx" : "✨ Peça ao Nyx quando quiser que ele confira seu código")}</span>
+                <span role="status" style={{ color: keyboardLocked || instantDiagnostic ? "#f87171" : saveWarn ? "#fbbf24" : "#776798", fontSize:12 }}>{editorStatusText}</span>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {analyzeButtons}
                 </div>
@@ -4455,12 +4501,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             </div>
             <p style={{color:"#a99ac9",fontSize:12.5,margin:"-6px 0 14px"}}>Escolha uma experiência. Cada cartão explica o que acontece antes de você abrir.</p>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))", gap:9 }}>
-              {!nyxLocks.zeker && <button onClick={()=>{ setShowGamesMenu(false); setShowDuel(true); }} style={{ ...styles.btnGhost, textAlign:"left", display:"flex", alignItems:"center", gap:8, padding:"12px 14px", fontSize:14 }}>⚔️ Duelo</button>}
+              {!nyxLocks.zeker && <button onClick={()=>{ setShowGamesMenu(false); setShowDuel(true); }} title="Desafie 1 colega em uma disputa individual de perguntas de C#" style={{ ...styles.btnGhost, textAlign:"left", display:"flex", alignItems:"center", gap:8, padding:"12px 14px", fontSize:14 }}>⚔️ Duelo</button>}
               {!nyxLocks.zeker && <button onClick={()=>{ setShowGamesMenu(false); setShowTeamDuel(true); }} title="Chame 1 parceiro pra jogar em dupla contra outros 2 colegas" style={{ ...styles.btnGhost, textAlign:"left", display:"flex", alignItems:"center", gap:8, padding:"12px 14px", fontSize:14 }}>🤝⚔️ Duelo em Dupla</button>}
               <button onClick={()=>{ setShowGamesMenu(false); setShowRace(true); }} title="Digite um trecho de código contra o relógio — pontos 1x por dia e pódio da turma" style={{ ...styles.btnGhost, textAlign:"left", display:"flex", alignItems:"center", gap:8, padding:"12px 14px", fontSize:14 }}>🏁 Corrida de digitação{typingBest ? ` · ${(typingBest.ms/1000).toFixed(1)}s` : ""}</button>
-              <button onClick={()=>{ setShowGamesMenu(false); setShowLunarSanctuary(true); }} style={{ ...styles.btnGhost, textAlign:"left", padding:"12px 14px", fontSize:14 }}>🌙 Santuário e desafios</button>
-              <button onClick={()=>{ setShowGamesMenu(false); setShowKnowledgeTest(true); }} style={{ ...styles.btnGhost, textAlign:"left", padding:"12px 14px", fontSize:14 }}>🧠 Testar Conhecimento</button>
-              <button onClick={()=>{ setShowGamesMenu(false); setShowFreeBuild(true); }} style={{ ...styles.btnGhost, textAlign:"left", padding:"12px 14px", fontSize:14 }}>🏗️ Desafio Livre</button>
+              <button onClick={()=>{ setShowGamesMenu(false); setShowLunarSanctuary(true); }} title="Explore seu espaço pessoal, jogos rápidos e a jornada coletiva da turma" style={{ ...styles.btnGhost, textAlign:"left", padding:"12px 14px", fontSize:14 }}>🌙 Santuário e desafios</button>
+              <button onClick={()=>{ setShowGamesMenu(false); setShowKnowledgeTest(true); }} title="Revise individualmente apenas os conteúdos que já apareceram nas suas aulas" style={{ ...styles.btnGhost, textAlign:"left", padding:"12px 14px", fontSize:14 }}>🧠 Testar Conhecimento</button>
+              <button onClick={()=>{ setShowGamesMenu(false); setShowFreeBuild(true); }} title="Escolha algo para construir e receba do Nyx um plano de programação passo a passo" style={{ ...styles.btnGhost, textAlign:"left", padding:"12px 14px", fontSize:14 }}>🏗️ Desafio Livre</button>
             </div>
           </div>
         </div>
@@ -4586,11 +4632,16 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [struggleNotice, setStruggleNotice] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [selAccessMode, setSelAccessMode] = useState(false);
+  const [studentCodeDraft, setStudentCodeDraft] = useState(null);
+  const [studentCodeActive, setStudentCodeActive] = useState(0);
+  const [studentCodeBaseline, setStudentCodeBaseline] = useState("");
+  const [studentCodeConflict, setStudentCodeConflict] = useState(false);
+  const [studentCodeSaving, setStudentCodeSaving] = useState(false);
   // perfis de apoio (educação inclusiva) do aluno selecionado + mapa geral pros tiles
   const [selSupport, setSelSupport] = useState({});
   const [supportMap, setSupportMap] = useState({});
   const [checkinMap, setCheckinMap] = useState({}); // 😊 check-in emocional do dia: "turno:nome" → { mood, at }
-  useEffect(() => { setRenameVal(""); setScoreVal(""); setNyxPointVal(""); setConfirmDelete(false); }, [selected]);
+  useEffect(() => { setRenameVal(""); setScoreVal(""); setNyxPointVal(""); setConfirmDelete(false); setStudentCodeDraft(null); setStudentCodeConflict(false); }, [selected]);
   const [resetting, setResetting] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetScope, setResetScope] = useState("all");
@@ -6456,6 +6507,45 @@ function TeacherView({ onLogout, teacherAuth }) {
     return Object.values(tally).sort((a,b)=>b.count-a.count);
   })();
   const sel = selected ? students.find(s=>studentKey(s)===selected) : null;
+  const codeFilesOf = (student) => Array.isArray(student?.files) && student.files.length
+    ? student.files.map(f => ({ name:f.name || "Program.cs", code:String(f.code || "").replace(/\r/g, "") }))
+    : [{ name:"Program.cs", code:String(student?.code || "").replace(/\r/g, "") }];
+  const codeSignature = (studentOrFiles) => JSON.stringify(Array.isArray(studentOrFiles) ? studentOrFiles : codeFilesOf(studentOrFiles));
+  const beginStudentCodeEdit = async (student) => {
+    const latest = await getStudent(student.shift, student.name, teacherAuth) || student;
+    const draft = codeFilesOf(latest);
+    setStudentCodeDraft(draft);
+    setStudentCodeActive(0);
+    setStudentCodeBaseline(codeSignature(draft));
+    setStudentCodeConflict(false);
+  };
+  const cancelStudentCodeEdit = () => {
+    setStudentCodeDraft(null);
+    setStudentCodeConflict(false);
+  };
+  const saveStudentCodeEdit = async (student, overwrite = false) => {
+    if (!student || !studentCodeDraft?.length || studentCodeSaving) return;
+    setStudentCodeSaving(true);
+    try {
+      const latest = await getStudent(student.shift, student.name, teacherAuth);
+      if (!latest) { flashMgmt("❌ Não consegui buscar a versão atual do código."); return; }
+      if (!overwrite && codeSignature(latest) !== studentCodeBaseline) {
+        setStudentCodeConflict(true);
+        return;
+      }
+      const files = studentCodeDraft.map(f => ({ name:f.name || "Program.cs", code:String(f.code || "").replace(/\r/g, "") }));
+      const editedAt = Date.now();
+      const ok = await patchStudent(student.shift, student.name, { files, code:files[0]?.code || "", teacherCodeEditedAt:editedAt }, teacherAuth);
+      if (!ok) { flashMgmt("❌ Não consegui salvar o código agora. Tente novamente."); return; }
+      await setScoreFix(student.shift, student.name, { kind:"teacher-code-edit", files, editedAt }, teacherAuth);
+      setStudents(current => current.map(item => studentKey(item) === studentKey(student) ? { ...item, files, code:files[0]?.code || "", teacherCodeEditedAt:editedAt } : item));
+      setStudentCodeDraft(null);
+      setStudentCodeConflict(false);
+      flashMgmt(`✅ Código de ${student.name} salvo e enviado ao editor do aluno.`);
+    } finally {
+      setStudentCodeSaving(false);
+    }
+  };
   useEffect(() => {
     let alive = true;
     if (sel) getAccessMode(sel.shift, sel.name).then(v => { if (alive) setSelAccessMode(v); });
@@ -6815,6 +6905,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         tk={tk}
         markPresentToday={markPresentToday}
         unmarkPresentToday={unmarkPresentToday}
+        onEditCode={(student) => { setSelected(studentKey(student)); setForceFullMode(true); }}
         onOpenFull={() => setForceFullMode(true)}
       />
     );
@@ -7840,17 +7931,41 @@ function TeacherView({ onLogout, teacherAuth }) {
                     </div>
                   </div>
                 </div>
-                {Array.isArray(sel.files) && sel.files.length>0 ? sel.files.map((f,i)=>(
-                  <div key={i} className="cardfx" style={styles.card}>
-                    <h4 style={{ color:"#c084fc", marginBottom:8 }}>📄 {f.name}</h4>
-                    <CodeBlock code={f.code || "(vazio)"} filename={f.name || "Program.cs"} compact wrap />
+                <section className="cardfx" data-tour-prof="student-code-editor" style={{ ...styles.card, borderColor:studentCodeDraft ? "#22d3ee" : "#3b2a58" }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, flexWrap:"wrap", marginBottom:10 }}>
+                    <div>
+                      <h4 style={{ color:"#c084fc", margin:0 }}>💻 Código do aluno</h4>
+                      <p style={{ color:"#776798", fontSize:11.5, margin:"4px 0 0" }}>{studentCodeDraft ? "Edite abaixo e salve diretamente no perfil do aluno." : "Visualização protegida. Entre no modo de edição somente quando precisar corrigir algo."}</p>
+                    </div>
+                    {!studentCodeDraft && <button onClick={()=>beginStudentCodeEdit(sel)} style={{ ...styles.btn("#22d3ee"), padding:"7px 14px", fontSize:12.5 }}>✏️ Editar código</button>}
                   </div>
-                )) : sel.code && (
-                  <div className="cardfx" style={styles.card}>
-                    <h4 style={{ color:"#c084fc", marginBottom:8 }}>💻 Código</h4>
-                    <pre style={{ background:"#1e1e1e", padding:12, borderRadius:8, fontFamily:"monospace", fontSize:13, color:"#a5f3fc", overflow:"auto", maxHeight:240, whiteSpace:"pre-wrap" }}>{sel.code}</pre>
-                  </div>
-                )}
+                  {studentCodeDraft ? (
+                    <>
+                      {studentCodeDraft.length > 1 && <div role="tablist" aria-label="Arquivos do aluno" style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
+                        {studentCodeDraft.map((f,i)=><button key={`${f.name}-${i}`} role="tab" aria-selected={studentCodeActive===i} onClick={()=>setStudentCodeActive(i)} style={{ ...styles.btn(studentCodeActive===i?"#22d3ee":"#3b2a58"), padding:"5px 11px", fontSize:11.5 }}>{f.name}</button>)}
+                      </div>}
+                      <VSEditor value={studentCodeDraft[studentCodeActive]?.code || ""} filename={studentCodeDraft[studentCodeActive]?.name || "Program.cs"} autoFocus onChange={newCode=>setStudentCodeDraft(current=>current.map((f,i)=>i===studentCodeActive?{...f,code:newCode}:f))} />
+                      {studentCodeConflict && <div role="alert" style={{ marginTop:10, border:"1px solid #fbbf24", background:"#fbbf2410", borderRadius:8, padding:10 }}>
+                        <strong style={{ color:"#fbbf24", fontSize:12.5 }}>⚠️ O código mudou enquanto você editava.</strong>
+                        <p style={{ color:"#d6c9ec", fontSize:11.5, margin:"4px 0 8px" }}>O aluno ou outra sessão salvou uma versão mais nova. Recarregue para não perder essa mudança, ou substitua somente se tiver certeza.</p>
+                        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                          <button onClick={()=>beginStudentCodeEdit(sel)} style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:11.5 }}>↻ Recarregar versão atual</button>
+                          <button onClick={()=>saveStudentCodeEdit(sel,true)} disabled={studentCodeSaving} style={{ ...styles.btn("#fbbf24"), padding:"6px 12px", fontSize:11.5 }}>Substituir mesmo assim</button>
+                        </div>
+                      </div>}
+                      <div style={{ display:"flex", justifyContent:"flex-end", gap:8, flexWrap:"wrap", marginTop:10 }}>
+                        <button onClick={cancelStudentCodeEdit} disabled={studentCodeSaving} style={{ ...styles.btnGhost, padding:"7px 14px", fontSize:12.5 }}>Cancelar</button>
+                        <button onClick={()=>saveStudentCodeEdit(sel)} disabled={studentCodeSaving} style={{ ...styles.btn("#34d399"), padding:"7px 14px", fontSize:12.5 }}>{studentCodeSaving ? "⏳ Salvando..." : "💾 Salvar no editor do aluno"}</button>
+                      </div>
+                    </>
+                  ) : codeFilesOf(sel).map((f,i)=>(
+                    <div key={`${f.name}-${i}`} style={{ marginTop:i?12:0 }}>
+                      <h5 style={{ color:"#c084fc", margin:"0 0 7px" }}>📄 {f.name}</h5>
+                      <CodeBlock code={f.code || "(vazio)"} filename={f.name || "Program.cs"} compact wrap />
+                    </div>
+                  ))}
+                  {sel.teacherCodeEditedAt && !studentCodeDraft && <p style={{ color:"#34d399", fontSize:11.5, margin:"10px 0 0" }}>✓ Última correção do professor: {new Date(sel.teacherCodeEditedAt).toLocaleString("pt-BR")}</p>}
+                </section>
                 {sel.scoreHistory && Object.keys(sel.scoreHistory).length > 0 && (
                   <div className="cardfx" style={styles.card}>
                     <h4 style={{ color:"#c084fc", marginBottom:12 }}>📈 Histórico de notas (atividades)</h4>

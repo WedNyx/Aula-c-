@@ -1,5 +1,10 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
+  { version: '1.3.0', title: 'Correção à Distância', date: '2026-09-10', changes: [
+    'Professor pode editar e salvar o código do aluno diretamente pelo monitoramento.',
+    'A correção é sincronizada com o editor aberto do aluno e fica identificada no painel.',
+    'Aviso de conflito protege alterações mais novas feitas pelo aluno durante a correção.',
+  ] },
   { version: '1.2.1', title: 'Aurora Renovada', date: '2026-09-07', changes: [
     'Nyx Aurora ganhou cortinas luminosas mais largas, fluidas e fiéis ao tema de aurora boreal.',
     'Efeitos em ciano, violeta e rosa agora se movimentam atrás do personagem sem prejudicar sua leitura.',

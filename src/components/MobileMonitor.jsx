@@ -30,7 +30,7 @@ function timeAgo(lastSeen) {
 //  sozinho quando a tela é estreita (ver useViewportWidth em TeacherView); "🖥️ Modo completo"
 //  sempre disponível pra quem precisar mexer em alguma configuração específica.
 // ════════════════════════════════════════════════════════════════════════════
-export function MobileMonitorView({ students, turmas, shiftFilter, setShiftFilter, tk, markPresentToday, unmarkPresentToday, onOpenFull }) {
+export function MobileMonitorView({ students, turmas, shiftFilter, setShiftFilter, tk, markPresentToday, unmarkPresentToday, onEditCode, onOpenFull }) {
   const [expanded, setExpanded] = useState(null); // chave "turno::nome" do aluno com as ações abertas
   const [busyKey, setBusyKey] = useState(null);
   const shiftList = Array.isArray(turmas) && turmas.length ? turmas : DEFAULT_TURMAS;
@@ -95,6 +95,7 @@ export function MobileMonitorView({ students, turmas, shiftFilter, setShiftFilte
                         style={{ background: present ? "#3b2a58" : "#34d399", color: present ? "#f0e9fb" : "#03301f", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 800, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
                         {present ? "↩️ Desmarcar presença" : "✅ Marcar presença hoje"}
                       </button>
+                      <button onClick={() => onEditCode(s)} style={{ background:"#22d3ee", color:"#052936", border:"none", borderRadius:8, padding:"7px 12px", fontSize:12, fontWeight:800, cursor:"pointer" }}>✏️ Editar código</button>
                     </div>
                     {(s.code || (s.files || []).some(f => (f.code || "").trim())) ? (
                       <details style={{ marginTop: 10 }}>
