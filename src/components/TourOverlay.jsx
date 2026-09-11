@@ -88,6 +88,7 @@ export const TEACHER_TOUR_STEPS = [
   { tab:"monitor", sel:'[data-tour-prof="turma"]',        emoji:"🔀", title:"Filtro de turma",       text:"Filtra praticamente tudo — monitoramento, chamada, prova — por turno: Manhã, Tarde, Turma de Teste ou Sala de Linguagens." },
   { tab:"monitor", sel:'[data-tour-prof="reset"]',        emoji:"🔄", title:"Resetar",               text:"Zera o dia da turma selecionada no filtro acima, pra começar uma aula nova do zero." },
   { tab:"monitor", sel:'[data-tour="saude-ia"]',          emoji:"📡", title:"Saúde da IA",           text:"O Gemini é a IA principal do Nyx. As bolinhas também mostram a saúde do Nemotron e do Laguna, usados como reservas — verde indica resposta normal e vermelho indica falha na última tentativa." },
+  { tab:"monitor", sel:'[data-tour-prof="apoio-professor"]', emoji:"🧩", title:"Ajustes para você", text:"Em Meus apoios, você pode deixar o próprio painel mais calmo, facilitar a leitura, aumentar o contraste ou ampliar os controles. As escolhas ficam apenas no seu dispositivo." },
   { tab:"monitor", sel:'[data-tour="chat-prof"]',         emoji:"💬", title:"Fale comigo!",          text:"Dúvidas rápidas sobre a turma, ou comandos especiais como zek (chama atenção geral) e zeker (bloqueia duelos) — é só conversar comigo aqui." },
   { tab:"monitor", sel:'[data-tour-prof="sair"]',         emoji:"🚪", title:"Sair",                  text:"Esse tour eu mantenho sempre atualizado conforme novas funções chegam ao painel — pode chamar de novo quando quiser relembrar algo. Bom trabalho! 🚀" },
 ];
