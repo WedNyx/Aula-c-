@@ -6,7 +6,7 @@ import { nyxPrefsInstruction } from "./ai-prompts.ts";
 // ════════════════════════════════════════════════════════════════════════════
 // modelos que o botão de análise tenta, nesta ordem de preferência — se o primeiro falhar
 // (chave não configurada, instabilidade etc.), o segundo é tentado sozinho, sem avisar o aluno
-export const ANALYZE_PROVIDERS = ["nvidia", "laguna"];
+export const ANALYZE_PROVIDERS = ["gemini", "nvidia", "laguna"];
 // pontos quando uma parceria de código é resolvida — quem ajuda ganha mais que quem foi ajudado
 // (o esforço de ensinar vale mais que o de receber ajuda), e cada papel tem um teto por semana pra
 // não virar um jeito de farmar pontos combinando pareamentos repetidos com o mesmo colega
@@ -51,7 +51,7 @@ async function fetchClaudeOnce(prompt, system, bodyOpts) {
 // só usado quando quem chama já sabe que é UMA tentativa dentro de uma sequência com fallback
 // automático (ver analyzeCode em App.jsx), pra uma falha isolada do primeiro modelo tentado não
 // preocupar a sala toda quando o próximo modelo resolve sozinho. O indicador POR MODELO
-// (Nemotron/Laguna) continua sendo atualizado normalmente mesmo com silentHealth — só a chave geral
+// (Gemini/Nemotron/Laguna) continua sendo atualizado normalmente mesmo com silentHealth — só a chave geral
 // fica de fora até quem chama decidir o resultado final da sequência.
 export async function askClaude(prompt, system, opts = {}){
   const { silentHealth, ...bodyOpts } = opts;
