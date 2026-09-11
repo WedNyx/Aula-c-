@@ -14,7 +14,11 @@ export function sanitizeTrack(track) {
   try { url=new URL(String(track?.url||"").trim()); } catch { return null; }
   if(url.protocol!=="https:"||!title)return null;
   url.username="";url.password="";
-  return {id:String(track?.id||`${Date.now()}-${Math.random().toString(36).slice(2)}`),title,artist,url:url.href,addedBy:String(track?.addedBy||"professor").slice(0,80)};
+  let provider=track?.provider,externalId=String(track?.externalId||"");
+  if(!provider&&/(^|\.)youtu\.be$|(^|\.)youtube\.com$/.test(url.hostname)){provider="youtube";externalId=url.hostname.endsWith("youtu.be")?url.pathname.slice(1):url.searchParams.get("v")||"";}
+  if(!provider&&/(^|\.)spotify\.com$/.test(url.hostname)){provider="spotify";externalId=url.pathname.match(/\/track\/([A-Za-z0-9]+)/)?.[1]||"";}
+  if(!["youtube","spotify"].includes(provider)){provider="audio";externalId="";}
+  return {id:String(track?.id||`${Date.now()}-${Math.random().toString(36).slice(2)}`),provider,externalId,title,artist,url:url.href,addedBy:String(track?.addedBy||"professor").slice(0,80)};
 }
 
 export function musicForTurma(allSettings,turmaId){return normalizeMusicSettings(allSettings?.[turmaId]);}

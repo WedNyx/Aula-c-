@@ -1,5 +1,11 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
+  { version: '1.4.0', title: 'Nyx Conectado', date: '2026-09-11', changes: [
+    'Gemini passa a ser a IA principal do Nyx, com os provedores anteriores mantidos como reservas automáticas.',
+    'Professor pode pesquisar músicas pelo YouTube e Spotify sem expor as credenciais das APIs.',
+    'Faixas aprovadas são reproduzidas nos players oficiais do YouTube e Spotify dentro da plataforma.',
+    'Tour do professor e indicadores de saúde da IA foram atualizados para explicar a nova integração.',
+  ] },
   { version: '1.3.0', title: 'Correção à Distância', date: '2026-09-10', changes: [
     'Professor pode editar e salvar o código do aluno diretamente pelo monitoramento.',
     'A correção é sincronizada com o editor aberto do aluno e fica identificada no painel.',

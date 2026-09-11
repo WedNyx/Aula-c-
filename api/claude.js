@@ -1,12 +1,16 @@
 // Cérebro do Nyx: dois modelos que o aluno/professor escolhe na hora (botões no app —
-// Nemotron/Laguna), com NVIDIA Nemotron como IA principal para as outras features do
+// Gemini/Nemotron/Laguna), com Google Gemini como IA principal para as outras features do
 // sistema (chat, terminal, provas, resumos) que não pedem um modelo específico.
-// Anthropic Claude é a reserva automática caso a NVIDIA falhe ou não esteja configurada.
+// NVIDIA Nemotron e Anthropic Claude são reservas automáticas caso o Gemini falhe.
 // A resposta é sempre normalizada para o formato { content: [{ text: "..." }] },
 // para que o restante do app (App.jsx) não precise saber qual provedor respondeu.
 
 import { rateLimitCheck } from './kv.js'
 import { clientIp } from './_ip.js'
+
+const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || ''
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+const GEMINI_BASE_URL = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/, '')
 
 const NVIDIA_KEY = process.env.NVIDIA_API_KEY || ''
 const NVIDIA_MODEL = process.env.NVIDIA_MODEL || ''
@@ -19,8 +23,8 @@ const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'poolside/laguna-xs-2.1
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || ''
 
 // provedor usado quando ninguém pede um modelo específico (chat do Nyx, terminal, provas, resumos...)
-// — NVIDIA primeiro; mantém o modelo já definido em NVIDIA_MODEL no ambiente.
-const PROVIDER = NVIDIA_KEY && NVIDIA_MODEL ? 'nvidia' : (ANTHROPIC_KEY ? 'anthropic' : null)
+// — Gemini primeiro; depois mantém os provedores que já existiam como reserva.
+const PROVIDER = GEMINI_KEY ? 'gemini' : (NVIDIA_KEY && NVIDIA_MODEL ? 'nvidia' : (ANTHROPIC_KEY ? 'anthropic' : null))
 
 const DEFAULT_SYSTEM =
   'Você é um robô assistente de programação para alunos iniciantes de C#. Responda sempre em português brasileiro simples e encorajador.'
@@ -58,6 +62,30 @@ const MIN_RETRY_TIMEOUT_MS = 3000
 function timeoutFromDeadline(deadlineAt) {
   if (!deadlineAt) return DEFAULT_TIMEOUT_MS
   return Math.max(MIN_RETRY_TIMEOUT_MS, deadlineAt - Date.now())
+}
+
+async function callGemini({ prompt, system, temperature, max_tokens, timeoutMs }) {
+  const response = await fetch(`${GEMINI_BASE_URL}/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'x-goog-api-key':GEMINI_KEY },
+    body:JSON.stringify({
+      systemInstruction:{ parts:[{ text:system || DEFAULT_SYSTEM }] },
+      contents:[{ role:'user', parts:[{ text:String(prompt || '') }] }],
+      generationConfig:{
+        temperature:typeof temperature === 'number' ? temperature : 0.2,
+        maxOutputTokens:Math.min(Number(max_tokens) || 2000, 6000),
+      },
+    }),
+    signal:AbortSignal.timeout(timeoutMs || DEFAULT_TIMEOUT_MS),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const message = data?.error?.message || `Gemini API error ${response.status}`
+    throw Object.assign(new Error(message), { status:response.status })
+  }
+  const text = (data?.candidates?.[0]?.content?.parts || []).map(part => part?.text || '').join('')
+  if (!text) throw Object.assign(new Error('O Gemini não devolveu texto nesta tentativa.'), { status:502 })
+  return { content:[{ type:'text', text }] }
 }
 
 async function callNvidiaRaw({ prompt, system, temperature, max_tokens, reasoning, deadlineAt, skipTemperature }) {
@@ -186,6 +214,10 @@ async function callAnthropic({ prompt, system, temperature, max_tokens, timeoutM
 // falhar, o erro sobe direto pra tela, porque a pessoa escolheu ESSE modelo de propósito.
 async function callExplicitProvider(provider, args) {
   const withDeadline = { ...args, deadlineAt: Date.now() + DEFAULT_TIMEOUT_MS }
+  if (provider === 'gemini') {
+    if (!GEMINI_KEY) throw Object.assign(new Error('Gemini ainda não está configurado: falta GEMINI_API_KEY no Vercel.'), { status:503, missingKey:true })
+    return callGemini({ ...args, timeoutMs:DEFAULT_TIMEOUT_MS })
+  }
   if (provider === 'laguna') {
     if (!OPENROUTER_KEY) {
       throw Object.assign(new Error('Laguna ainda não está configurado: falta OPENROUTER_API_KEY no Vercel.'), { status: 503, missingKey: true })
@@ -204,6 +236,8 @@ export default async function handler(req, res) {
     return res.json({
       configured: !!PROVIDER || !!OPENROUTER_KEY,
       provider: PROVIDER,
+      hasGemini: !!GEMINI_KEY,
+      geminiModel: GEMINI_KEY ? GEMINI_MODEL : null,
       hasNvidiaKey: !!NVIDIA_KEY,
       hasNvidiaModel: !!NVIDIA_MODEL,
       hasOpenRouter: !!OPENROUTER_KEY,
@@ -225,7 +259,7 @@ export default async function handler(req, res) {
 
   // botão Nemotron ou botão Laguna: modelo específico escolhido pela pessoa, sem troca automática
   // (o cliente é quem decide se/quando recorre à Anthropic como último recurso — ver provider === 'anthropic')
-  if (provider === 'nvidia' || provider === 'laguna') {
+  if (provider === 'gemini' || provider === 'nvidia' || provider === 'laguna') {
     try {
       const data = await callExplicitProvider(provider, { prompt, system, temperature, max_tokens })
       return res.json(data)
@@ -255,6 +289,7 @@ export default async function handler(req, res) {
     const hint = NVIDIA_KEY && !NVIDIA_MODEL
       ? 'NVIDIA_API_KEY está configurada, mas falta NVIDIA_MODEL (copie o nome exato do modelo em build.nvidia.com).'
       : 'Nenhuma IA configurada. Adicione no Vercel (Settings → Environment Variables):\n' +
+        '• GEMINI_API_KEY (Google AI Studio), ou\n' +
         '• ANTHROPIC_API_KEY (console.anthropic.com), ou\n' +
         '• NVIDIA_API_KEY + NVIDIA_MODEL (build.nvidia.com)'
     return res.status(503).json({ error: 'missing_api_key', message: hint })
@@ -264,14 +299,32 @@ export default async function handler(req, res) {
     // quando existe uma 2ª perna possível (Anthropic de reserva) dentro desta MESMA chamada
     // de função, reserva metade do maxDuration pra cada uma — senão a 1ª tentativa hipoteticamente
     // travada consome o orçamento inteiro (vercel.json) e a reserva nunca chega a rodar
-    const hasBackupLeg = PROVIDER === 'nvidia' && !!ANTHROPIC_KEY
-    const primaryTimeout = hasBackupLeg ? 14000 : DEFAULT_TIMEOUT_MS
+    const hasBackupLeg = (PROVIDER === 'gemini' && (!!(NVIDIA_KEY && NVIDIA_MODEL) || !!ANTHROPIC_KEY)) || (PROVIDER === 'nvidia' && !!ANTHROPIC_KEY)
+    const primaryTimeout = PROVIDER === 'gemini' && hasBackupLeg ? 10000 : (hasBackupLeg ? 14000 : DEFAULT_TIMEOUT_MS)
     const primaryDeadline = Date.now() + primaryTimeout
     const data = PROVIDER === 'anthropic'
       ? await callAnthropic({ prompt, system, temperature, max_tokens, timeoutMs: primaryTimeout })
-      : await callNvidia({ prompt, system, temperature, max_tokens, deadlineAt: primaryDeadline })
+      : PROVIDER === 'gemini'
+        ? await callGemini({ prompt, system, temperature, max_tokens, timeoutMs:primaryTimeout })
+        : await callNvidia({ prompt, system, temperature, max_tokens, deadlineAt: primaryDeadline })
     return res.json(data)
   } catch (e) {
+    // Gemini principal: tenta Nemotron e depois Anthropic, sem expor a troca ao aluno.
+    if (PROVIDER === 'gemini' && NVIDIA_KEY && NVIDIA_MODEL) {
+      try {
+        return res.json(await callNvidia({ prompt, system, temperature, max_tokens, deadlineAt:Date.now() + (ANTHROPIC_KEY ? 10000 : 18000) }))
+      } catch (nvidiaError) {
+        if (ANTHROPIC_KEY) {
+          try { return res.json(await callAnthropic({ prompt, system, temperature, max_tokens, timeoutMs:8000 })) }
+          catch (anthropicError) { return res.status(anthropicError.status || 500).json({ error:String(anthropicError.message || anthropicError) }) }
+        }
+        return res.status(nvidiaError.status || 500).json({ error:String(nvidiaError.message || nvidiaError) })
+      }
+    }
+    if (PROVIDER === 'gemini' && ANTHROPIC_KEY) {
+      try { return res.json(await callAnthropic({ prompt, system, temperature, max_tokens, timeoutMs:14000 })) }
+      catch (backupError) { return res.status(backupError.status || 500).json({ error:String(backupError.message || backupError) }) }
+    }
     // Se a NVIDIA falhar, usa a Anthropic configurada como reserva.
     if (PROVIDER === 'nvidia' && ANTHROPIC_KEY) {
       try {
