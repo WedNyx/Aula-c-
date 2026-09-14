@@ -75,6 +75,15 @@ async function saveStudentPrivate(key, value, authorized) {
     next.attendanceOverrides = current?.attendanceOverrides || {}
     next.attendanceFirst = { ...incoming.attendanceFirst, ...current?.attendanceFirst }
     next.attendance = applyAttendanceOverrides({ ...current?.attendance, ...incoming.attendance }, next.attendanceOverrides)
+    // Uma atividade por data aceita uma única tentativa. O registro que já chegou ao banco vence
+    // autosaves antigos e envios concorrentes, inclusive preservando nota e pontos já concedidos.
+    next.activityAttempts = { ...(incoming.activityAttempts || {}), ...(current?.activityAttempts || {}) }
+    if (current?.activityAttempts && Object.keys(incoming.activityAttempts || {}).some(date => current.activityAttempts[date])) {
+      next.nyxPoints = current.nyxPoints
+      next.scoreHistory = { ...(incoming.scoreHistory || {}), ...(current.scoreHistory || {}) }
+      next.score = current.score
+      next.doneAt = current.doneAt
+    }
     if (current) for (const field of SENSITIVE_STUDENT_FIELDS) {
       // Autosaves antigos enviam strings vazias: não podem apagar/repor dados privados.
       if (!authorized || !Object.hasOwn(incoming, field)) {

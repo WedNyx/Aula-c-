@@ -43,7 +43,8 @@ import { ClassTrendChart } from "./components/ClassTrendChart.jsx";
 import { ConfettiParty } from "./components/ConfettiParty.jsx";
 import { ErrorHighlightRing, ErrorWalkthroughCard, FloatingErrorBubble, NyxFeedbackModal, ErrorExplainModal } from "./components/ErrorUI.jsx";
 import { AchievementToast, AchievementsModal, RankingModal, ClassGoalBar } from "./components/AchievementUI.jsx";
-import { CHECKIN_MOODS } from "./lib/checkinMoods.js";
+import { CHECKIN_MOODS, nyxWelcomeForMood } from "./lib/checkinMoods.js";
+import { TeacherNyxAlertBubble } from "./components/TeacherNyxAlertBubble.jsx";
 import { MobileMonitorView } from "./components/MobileMonitor.jsx";
 import { Sparkles } from "./components/Sparkles.jsx";
 import { CollapsibleCard } from "./components/CollapsibleCard.jsx";
@@ -339,7 +340,15 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     getCheckin(shift, studentName, todayKey()).then(entry => { if (active && entry?.mood) setTodayMood(entry.mood); });
     return () => { active = false; };
   }, [shift, studentName]);
-  const dismissCheckin = (mood = null) => { if (mood) setTodayMood(mood); setCheckinDismissed(true); try { localStorage.setItem(`nyx_checkin_${todayKey()}_${shift}_${studentName}`, "1"); } catch {} };
+  const dismissCheckin = (mood = null) => {
+    if (mood) {
+      setTodayMood(mood);
+      setRobotState("happy"); setRobotMsg(nyxWelcomeForMood(studentName, mood, todayKey()));
+      window.setTimeout(() => { setRobotState("idle"); setRobotMsg(""); }, 12000);
+    }
+    setCheckinDismissed(true);
+    try { localStorage.setItem(`nyx_checkin_${todayKey()}_${shift}_${studentName}`, "1"); } catch {}
+  };
   const [breakEndMsg, setBreakEndMsg] = useState("");
   const breakEndNotifiedRef = useRef(null);
   const breakStartNotifiedRef = useRef(null);
@@ -2588,7 +2597,13 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     setDetailLoading(false);
   };
 
-  const handleStartActivity = async () => { setRevealedHints({}); setPhase("activity"); await persist({ phase:"activity" }); };
+  const handleStartActivity = async () => {
+    if (stateRef.current.activityAttempts?.[todayKey()]) {
+      setSaveWarn("✅ Você já respondeu a atividade de hoje. Cada atividade aceita uma única tentativa.");
+      setTimeout(()=>setSaveWarn(""), 6000); return;
+    }
+    setRevealedHints({}); setPhase("activity"); await persist({ phase:"activity" });
+  };
 
   // só marca a alternativa escolhida — certo/errado só aparece depois de Enviar Atividade
   const pickAnswer = (i, j) => {
@@ -2628,6 +2643,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   };
 
   const handleSubmitActivity = async () => {
+    const activityKey = todayKey();
+    if (stateRef.current.activityAttempts?.[activityKey]) {
+      setSaveWarn("✅ Sua tentativa desta atividade já foi enviada e não pode ser respondida novamente.");
+      setPhase("done"); return;
+    }
     const activity = dynamicActivity || [];
     // a questão bônus (dificuldade adaptativa) NUNCA entra na conta da nota — só rende ponto
     // extra se acertada, e não desconta nada se ficar em branco ou errada
@@ -2638,6 +2658,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     const bonusHit = bonusIdx >= 0 && answers[bonusIdx] === activity[bonusIdx].correct;
     const finalScore = Math.round((pts/required.length)*100);
     const completedAt = Date.now();
+    const activityAttempts = { ...(stateRef.current.activityAttempts || {}), [activityKey]: { submittedAt:completedAt, score:finalScore } };
+    stateRef.current = { ...stateRef.current, activityAttempts };
     setScore(finalScore);
     setDoneAt(completedAt);
     setPhase("done");
@@ -2649,7 +2671,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     const newScoreHistory = { ...stateRef.current.scoreHistory, [todayKey()]: finalScore };
     setScoreHistory(newScoreHistory);
     stateRef.current = { ...stateRef.current, nyxPoints: newNyxPoints, scoreHistory: newScoreHistory };
-    await persist({ phase:"done", score:finalScore, answers, nyxPoints: newNyxPoints, doneAt: completedAt, scoreHistory: newScoreHistory });
+    await persist({ phase:"done", score:finalScore, answers, nyxPoints: newNyxPoints, doneAt: completedAt, scoreHistory: newScoreHistory, activityAttempts });
     checkPointsAchievements(newNyxPoints);
     unlockAchievement("primeira-atividade");
     if (finalScore >= 100) unlockAchievement("nota-cem");
@@ -5603,6 +5625,11 @@ function TeacherView({ onLogout, teacherAuth }) {
       const turmaStudents = students.filter(s => (s.shift || "sem-turno") === turmaId);
       await Promise.all(turmaStudents.map(s => setScoreFix(s.shift, s.name, { kind: "resumo-broadcast", dateKey: todayKey(), resumo }, teacherAuth)));
       if (ok) {
+        const deliveredAt = Date.now();
+        const current = teacherResumoHistory[todayKey()] || resumo;
+        const delivery = { id:`turma-${turmaId}-${deliveredAt}`, kind:"turma", targetId:turmaId, targetLabel:shiftMeta(turmaId, turmas).label, studentCount:turmaStudents.length, deliveredAt };
+        const nextHistory = { ...teacherResumoHistory, [todayKey()]: { ...current, deliveryHistory:[...(current.deliveryHistory||[]), delivery] } };
+        if (await saveTeacherResumoHistory(turmaId, nextHistory, teacherAuth)) setTeacherResumoHistory(nextHistory);
         setResumoTriggeredToday(t => ({ ...t, [turmaId]: true }));
         setMaterialDeliveryShift(null);
         setResumoTriggerMsg(`✅ Resumo enviado pro Caderno de ${turmaStudents.length} aluno${turmaStudents.length===1?"":"s"} da turma ${shiftMeta(turmaId, turmas).label}!`);
@@ -5625,8 +5652,15 @@ function TeacherView({ onLogout, teacherAuth }) {
     const history = turmaId === codeShift ? teacherResumoHistory : await getTeacherResumoHistory(turmaId);
     const resumo = history[todayKey()];
     if (!resumo) { flashMgmt("❌ Ainda não tem resumo gerado hoje pra essa turma."); return; }
-    await setScoreFix(s.shift, s.name, { kind: "resumo-broadcast", dateKey: todayKey(), resumo }, teacherAuth);
-    flashMgmt(`✅ Resumo enviado pro Caderno de ${s.name}!`);
+    const sent = await setScoreFix(s.shift, s.name, { kind: "resumo-broadcast", dateKey: todayKey(), resumo }, teacherAuth);
+    if (sent) {
+      const deliveredAt = Date.now();
+      const current = history[todayKey()] || resumo;
+      const delivery = { id:`aluno-${s.shift}-${s.name}-${deliveredAt}`, kind:"aluno", targetId:studentKey(s), targetLabel:s.name, studentCount:1, deliveredAt };
+      const nextHistory = { ...history, [todayKey()]: { ...current, deliveryHistory:[...(current.deliveryHistory||[]), delivery] } };
+      if (await saveTeacherResumoHistory(turmaId, nextHistory, teacherAuth) && turmaId === codeShift) setTeacherResumoHistory(nextHistory);
+      flashMgmt(`✅ Resumo enviado pro Caderno de ${s.name}!`);
+    } else flashMgmt("❌ Não consegui enviar o resumo agora.");
   };
 
   // envia um aviso para um aluno específico aparecer na tela dele
@@ -6983,12 +7017,9 @@ function TeacherView({ onLogout, teacherAuth }) {
           <span style={{ color:"#ddd6fe", fontSize:12.5, fontWeight:700 }}>{autoNameMsg}</span>
         </div>
       )}
-      {helpNotice && (
-        <div style={{ position:"fixed", top: (breakEndMsgTeacher?42:0) + (autoNameMsg?42:0) + 12, right:12, zIndex:1200, background:"#2a1a10", border:"1px solid #fbbf24", borderRadius:10, padding:"7px 12px", display:"flex", alignItems:"center", gap:8, boxShadow:"0 8px 24px rgba(0,0,0,.4)" }}>
-          <span style={{ fontSize:15 }}>✋</span>
-          <span style={{ color:"#fcd9a0", fontSize:12.5, fontWeight:700 }}>{helpNotice}</span>
-        </div>
-      )}
+      <TeacherNyxAlertBubble students={students} checkins={checkinMap} helpNotice={helpNotice}
+        onViewStudent={(student) => { setTab("monitor"); setSelected(studentKey(student)); window.setTimeout(()=>document.querySelector('[data-teacher-student-detail]')?.scrollIntoView({behavior:"smooth",block:"start"}),0); }}
+      />
       {errorNotice && (
         <div style={{ position:"fixed", top: (breakEndMsgTeacher?42:0) + (autoNameMsg?42:0) + (helpNotice?42:0) + 12, right:12, zIndex:1200, background:"#2a1010", border:"1px solid #f87171", borderRadius:10, padding:"7px 12px", display:"flex", alignItems:"center", gap:8, boxShadow:"0 8px 24px rgba(0,0,0,.4)", maxWidth:340 }}>
           <span style={{ fontSize:15 }}>⚠️</span>
