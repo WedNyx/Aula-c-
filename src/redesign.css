@@ -367,3 +367,8 @@
 .teacher-command-actions{display:flex;align-items:center;gap:8px}.teacher-command-primary{background:#166534;border-color:#34d399;color:#d1fae5}.teacher-command-mobile{background:#4c1d95;border-color:#a78bfa}
 .student-command-streak{background:#f8717122;border:1px solid #f87171;padding:4px 10px;border-radius:20px;font-size:12px;color:#fca5a5;font-weight:800}
 @media(max-width:700px){.student-command-actions{gap:7px!important}.student-command-actions>.battery-status,.student-command-actions>.student-ai-status{order:0}.student-command-actions>.dashboard-action-menu{order:1}.dashboard-action-menu-panel{position:fixed;top:auto;left:12px!important;right:12px!important;bottom:76px;width:auto}.teacher-command-actions{margin-left:auto}}
+
+/* Movimento progressivo: evita flashes antes do GSAP e respeita preferência/sistema econômico. */
+html[data-motion="full"] [data-motion-ready="true"]{will-change:transform,opacity}
+html[data-motion="reduced"] .cardfx,html[data-motion="reduced"] .teacher-student-tile,html[data-motion="reduced"] .student-quick-action{animation:none!important;transition:none!important}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
