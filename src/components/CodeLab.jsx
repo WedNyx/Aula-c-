@@ -1,5 +1,4 @@
 import { useState, useEffect, lazy, Suspense } from "react";
-import { quickCheck } from "../lib/utils.js";
 import { askClaudeJson } from "../lib/ai.js";
 import { otherFilesCtx } from "../lib/languages.ts";
 import { CS_SYSTEM } from "../lib/ai-prompts.ts";
@@ -40,8 +39,6 @@ export function CodeLab({ accent = "#fbbf24", files = [{ name:"Program.cs", code
     const trimmed = activeCode.trim();
     if (trimmed.length < 12 || analyzing) return;
     setRobotState("thinking"); setAnalyzing(true);
-    const quick = quickCheck(activeCode);
-    if (quick) { setRobotState("error"); setRobotMsg(quick.message); setKeysToShow(quick.missing||[]); setAnalyzing(false); return; }
     try {
       const parsed = await askClaudeJson(
         `Revise este código C# como um compilador faria, linha por linha. Top-level statements e ausência de using System são válidos. Confira pares de chaves/parênteses/aspas no arquivo inteiro antes de acusar falta, e todas as linhas anteriores antes de acusar variável não declarada. Não invente erro em código correto.\n\n${otherFilesCtx(files, active)}Arquivo em edição (${files[active]?.name || "Program.cs"}):\n\`\`\`csharp\n${activeCode}\n\`\`\`\n\nResponda APENAS JSON puro com os campos NESTA ordem: {"analise":"verificação curta linha a linha (interno)","ok":true/false,"message":"elogio curto se ok; se houver erro, onde está e como corrigir em 1-3 frases","missingChars":["símbolos que faltam"]}`,
