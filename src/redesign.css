@@ -351,3 +351,19 @@
 @media (prefers-reduced-motion: reduce) {
   .dashboard-sidebar * { transition: none !important; }
 }
+
+/* Cabeçalhos organizados: ações secundárias ficam em um menu único. */
+.dashboard-action-menu{position:relative;z-index:40}
+.dashboard-action-menu-trigger,.teacher-command-primary,.teacher-command-mobile{min-height:38px;border:1px solid #624783;border-radius:11px;padding:7px 12px;background:#211631;color:#efe7fb;font:800 12px inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.dashboard-action-menu-trigger:hover{border-color:#c084fc;background:#2d1d42}
+.dashboard-action-menu-panel{position:absolute;top:calc(100% + 8px);width:min(280px,calc(100vw - 24px));padding:8px;border:1px solid #5a4078;border-radius:14px;background:linear-gradient(160deg,#241637,#140d22);box-shadow:0 18px 48px #000a;display:grid;gap:5px}
+.dashboard-action-menu-panel--right{right:0}.dashboard-action-menu-panel--left{left:0}
+.dashboard-action-menu-panel>button{min-height:40px;border:0;border-radius:9px;padding:9px 11px;background:transparent;color:#e6daF5;font:750 12.5px inherit;text-align:left;cursor:pointer}
+.dashboard-action-menu-panel>button:hover,.dashboard-action-menu-panel>button:focus-visible{background:#c084fc1c;outline:1px solid #c084fc}
+.dashboard-action-menu-panel>button.danger{color:#fca5a5}.dashboard-action-menu-panel>button.danger:hover{background:#f8717118;outline-color:#f87171}
+.dashboard-action-menu-info{padding:8px 10px 10px;border-bottom:1px solid #3b2a58;display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#a99ac9;font-size:11px}
+.dashboard-action-menu-info strong{width:100%;color:#d9cbea}.dashboard-action-menu-info span{display:flex;align-items:center;gap:4px}
+.dashboard-action-menu-info i{width:7px;height:7px;border-radius:50%;background:#5d679c}.dashboard-action-menu-info i.online{background:#34d399}.dashboard-action-menu-info i.offline{background:#f87171}
+.teacher-command-actions{display:flex;align-items:center;gap:8px}.teacher-command-primary{background:#166534;border-color:#34d399;color:#d1fae5}.teacher-command-mobile{background:#4c1d95;border-color:#a78bfa}
+.student-command-streak{background:#f8717122;border:1px solid #f87171;padding:4px 10px;border-radius:20px;font-size:12px;color:#fca5a5;font-weight:800}
+@media(max-width:700px){.student-command-actions{gap:7px!important}.student-command-actions>.battery-status,.student-command-actions>.student-ai-status{order:0}.student-command-actions>.dashboard-action-menu{order:1}.dashboard-action-menu-panel{position:fixed;top:auto;left:12px!important;right:12px!important;bottom:76px;width:auto}.teacher-command-actions{margin-left:auto}}

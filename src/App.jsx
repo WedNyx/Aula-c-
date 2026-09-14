@@ -53,6 +53,7 @@ import { CodeLab } from "./components/CodeLab.jsx";
 import { TeacherNotesModal } from "./components/TeacherNotesModal.jsx";
 import { ScheduledReminders, useDueReminder } from "./components/ScheduledReminders.jsx";
 import { DashboardMobileNav, DashboardSidebar } from "./components/DashboardSidebar.jsx";
+import { DashboardActionMenu } from "./components/DashboardActionMenu.jsx";
 import { TeacherSummaryEditor } from "./components/TeacherSummaryEditor.jsx";
 import { StudentNotificationsModal, StudentProfileModal, DailyMissionsModal } from "./components/StudentHubModals.jsx";
 import { ClassLinksModal, TeacherClassLinksPanel } from "./components/ClassLinks.jsx";
@@ -3590,36 +3591,25 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
             <span className="student-ai-light" aria-hidden="true" />
             {aiDown ? "Nyx reconectando" : connected===false ? "IA indisponível" : connected ? "IA funcionando" : "Verificando IA"}
           </span>
-          <span className="student-provider-health" style={{ display:"inline-flex", alignItems:"center", gap:8, fontSize:11 }}>
-            {[["gemini","💎 Gemini"],["nvidia","✨ Nemotron"],["laguna","🌊 Laguna"]].map(([key,label]) => {
-              const h = providerHealth[key];
-              const recent = h && Date.now() - h.at < 5 * 60 * 1000;
-              const color = !recent ? "#5d679c" : h.ok ? "#34d399" : "#f87171";
-              const title = !recent ? `${label}: sem dados recentes` : h.ok ? `${label}: respondendo normalmente` : `${label}: não respondeu na última tentativa`;
-              return (
-                <span key={key} title={title} style={{ display:"inline-flex", alignItems:"center", gap:4, color:"#a99ac9" }}>
-                  <span style={{ width:7, height:7, borderRadius:"50%", background:color, display:"inline-block", boxShadow: recent && h.ok ? `0 0 5px ${color}` : "none" }} />
-                  {label}
-                </span>
-              );
-            })}
-          </span>
           <span style={{ background:"#171026", border:"1px solid #3b2a58", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#a99ac9" }}>{shiftLabel(shift, myTurmas)}</span>
-          {streakCount >= 2 && <span title="Dias de aula seguidos que você participou" style={{ background:"#f8717122", border:"1px solid #f87171", padding:"4px 10px", borderRadius:20, fontSize:12, color:"#fca5a5", fontWeight:800 }}>🔥 {streakCount} dias seguidos</span>}
-          <button data-tour="tema" style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")} title="Mudar tema do fundo">{theme==="light"?"🌙 Escuro":"☀️ Claro"}</button>
-          <button style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={()=>setShowColorPicker(true)} title="Escolher a cor do fundo">🎨 Cores</button>
-          {isSpartan && (
-            <button style={{ ...styles.btn("#b45309"), padding:"6px 12px", fontSize:12 }}
-              onClick={()=>setThemeAndSave(theme==="spartan" ? (themeBeforeSpartan||"dark") : "spartan")}
-              title="Espada + escudo equipados: use o tema exclusivo do Espartano ou volte ao seu tema de sempre, é você quem escolhe">
-              {theme==="spartan" ? "🎨 Tema normal" : "🛡️ Tema Espartano"}
-            </button>
-          )}
-          <button style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={toggleMuted} title={muted?"Ativar sons":"Silenciar sons"}>{muted?"🔇":"🔊"}</button>
-          <button data-tour="acessibilidade" style={{ ...styles.btn(largeUiMode?"#06b6d4":"#3b2a58"), padding:"6px 12px", fontSize:12 }} onClick={()=>{ setLargeUiMode(!largeUiMode); try { localStorage.setItem("nyx_large_ui", !largeUiMode?"1":"0"); } catch {} }} title={largeUiMode?"Desativar modo acessível":"Ativar modo acessível (letras maiores)"}>♿</button>
-          {ttsAllowed && <button style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={()=>setShowVoicePicker(true)} title="Escolher a voz do Nyx (leitura em voz alta)">🗣️</button>}
-          <button style={{ ...styles.btnGhost, padding:"6px 12px", fontSize:12 }} onClick={tryFullscreen}>⛶ Tela cheia</button>
-          <button style={{ ...styles.btn("#f87171"), padding:"6px 12px", fontSize:12 }} onClick={onLogout}>Sair</button>
+          {streakCount >= 2 && <span title="Dias de aula seguidos que você participou" className="student-command-streak">🔥 {streakCount} dias</span>}
+          <DashboardActionMenu label="Ajustes" icon="⚙️" ariaLabel="Abrir ajustes do painel do aluno">
+            <div className="dashboard-action-menu-info" aria-label="Estado dos serviços de inteligência artificial">
+              <strong>Estado do Nyx</strong>
+              {[["gemini","Gemini"],["nvidia","Nemotron"],["laguna","Laguna"]].map(([key,label]) => {
+                const h=providerHealth[key],recent=h&&Date.now()-h.at<5*60*1000;
+                return <span key={key}><i className={recent&&h.ok?"online":recent?"offline":"waiting"}/>{label}</span>;
+              })}
+            </div>
+            <button type="button" onClick={()=>setThemeAndSave(theme==="light"?"dark":"light")}>{theme==="light"?"🌙 Usar tema escuro":"☀️ Usar tema claro"}</button>
+            <button type="button" onClick={()=>setShowColorPicker(true)}>🎨 Cores do painel</button>
+            {isSpartan && <button type="button" onClick={()=>setThemeAndSave(theme==="spartan"?(themeBeforeSpartan||"dark"):"spartan")}>{theme==="spartan"?"🎨 Tema normal":"🛡️ Tema Espartano"}</button>}
+            <button type="button" onClick={toggleMuted}>{muted?"🔊 Ativar sons":"🔇 Silenciar sons"}</button>
+            <button type="button" onClick={()=>{setLargeUiMode(!largeUiMode);try{localStorage.setItem("nyx_large_ui",!largeUiMode?"1":"0")}catch{}}}>♿ {largeUiMode?"Desativar letras maiores":"Ativar letras maiores"}</button>
+            {ttsAllowed&&<button type="button" onClick={()=>setShowVoicePicker(true)}>🗣️ Escolher voz do Nyx</button>}
+            <button type="button" onClick={tryFullscreen}>⛶ Tela cheia</button>
+            <button type="button" className="danger" onClick={onLogout}>↪ Sair da plataforma</button>
+          </DashboardActionMenu>
         </div>
       </div>
 
@@ -7050,14 +7040,16 @@ function TeacherView({ onLogout, teacherAuth }) {
             </span>
           )}
         </div>
-        <div style={{ display:"flex", gap: tab==="code" ? 5 : 8, flexWrap:"wrap" }}>
-          <button data-tour-prof="situacao" style={{ ...styles.btn(needHelp.length>0 ? "#f87171" : "#34d399"), ...(tab==="code"?{padding:"4px 10px",fontSize:12}:{}) }} onClick={()=>setShowQuickStatus(true)} title="Veja rapidinho quem está com dificuldade, sem sair desta tela">👀 Situação{needHelp.length>0 ? ` (${needHelp.length})` : ""}</button>
-          {tab!=="code" && <button className="btn-ghost" data-tour-prof="telao" style={styles.btnGhost} onClick={()=>setShowTelao(true)} title="Tela cheia pra projetar: ranking, meta da turma e combos">🖥️ Telão</button>}
-          {isMobileScreen && <button style={styles.btn("#c084fc")} onClick={()=>setForceFullMode(false)} title="Volta pra lista simples de acompanhamento, melhor pro celular">📱 Modo simples</button>}
-          {tab!=="code" && <button data-tour-prof="reset" style={styles.btn("#f87171")} onClick={()=>{ setResetScope(shiftFilter); setConfirmReset(true); }} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar"}</button>}
-          {tab!=="code" && <button data-tour-prof="apoio-professor" className="btn-ghost" style={{...styles.btnGhost,background:Object.values(teacherSupport).some(Boolean)?"#3b82f622":undefined,borderColor:Object.values(teacherSupport).some(Boolean)?"#3b82f6":undefined}} onClick={()=>setShowTeacherSupport(true)} title="Ajustar o painel para você">🧩 Meus apoios</button>}
-          {tab!=="code" && <button className="btn-ghost" style={styles.btnGhost} onClick={()=>{ const first = TEACHER_TOUR_STEPS[0]; if (first.tab) setTab(first.tab); setProfTourStep(0); }} title="Tour guiado por todas as funções do painel do professor, entrando em cada aba pra mostrar de verdade">🧭 Tour</button>}
-          <button data-tour-prof="sair" style={{ ...styles.btnGhost, fontSize: tab==="code" ? 12 : 13, ...(tab==="code"?{padding:"4px 10px"}:{}) }} onClick={onLogout}>Sair</button>
+        <div className="teacher-command-actions">
+          <button data-tour-prof="situacao" className="teacher-command-primary" onClick={()=>setShowQuickStatus(true)} title="Veja rapidamente quem precisa de atenção">👀 Situação{needHelp.length>0?` (${needHelp.length})`:""}</button>
+          {isMobileScreen&&<button className="teacher-command-mobile" onClick={()=>setForceFullMode(false)}>📱 Modo simples</button>}
+          <DashboardActionMenu label="Mais" icon="•••" ariaLabel="Abrir outras ações do professor" align="right">
+            {tab!=="code"&&<button type="button" data-tour-prof="telao" onClick={()=>setShowTelao(true)}>🖥️ Abrir Telão</button>}
+            {tab!=="code"&&<button type="button" data-tour-prof="apoio-professor" onClick={()=>setShowTeacherSupport(true)}>🧩 Meus apoios</button>}
+            {tab!=="code"&&<button type="button" onClick={()=>{const first=TEACHER_TOUR_STEPS[0];if(first.tab)setTab(first.tab);setProfTourStep(0);}}>🧭 Refazer tour</button>}
+            {tab!=="code"&&<button type="button" className="danger" data-tour-prof="reset" onClick={()=>{setResetScope(shiftFilter);setConfirmReset(true);}} disabled={resetting}>{resetting?"Resetando...":"🔄 Resetar turma"}</button>}
+            <button type="button" data-tour-prof="sair" onClick={onLogout}>↪ Sair da plataforma</button>
+          </DashboardActionMenu>
         </div>
       </div>
 
