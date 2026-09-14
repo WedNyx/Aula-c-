@@ -44,6 +44,6 @@
 .attendance-cell--manual { box-shadow:inset 0 0 0 2px #fbbf24; }
 .attendance-rate { color:#d8b4fe; font-weight:900; }
 .attendance-day-editor > h3 { margin-bottom:14px; }
-.platform-version { position:fixed; bottom:6px; left:8px; z-index:800; pointer-events:none; border:1px solid #594077; border-radius:12px; background:#150d25; color:#cbbce8; font-size:11px; padding:5px 10px; font-variant-numeric:tabular-nums; }
+.platform-version { position:fixed; top:8px; left:8px; z-index:5100; pointer-events:none; border:1px solid #594077; border-radius:12px; background:#150d25eF; color:#cbbce8; box-shadow:0 6px 18px #0005; backdrop-filter:blur(10px); font-size:11px; padding:5px 10px; font-variant-numeric:tabular-nums; }
 @media (prefers-reduced-motion:reduce) { .attendance-action { transition:none; } }
 @media (max-width:600px) { .teacher-control-label { align-items:stretch; } .teacher-select { flex:1; min-width:150px; } .attendance-panel { padding:14px !important; } .attendance-action { min-height:40px; padding:8px 11px; } .attendance-summary { grid-template-columns:1fr; }.attendance-chart-card,.attendance-sheet-block,.attendance-day-editor{padding:12px}.attendance-sheet th:first-child{min-width:145px} }

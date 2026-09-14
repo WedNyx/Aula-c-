@@ -1,6 +1,6 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
-  { version: '1.5.0', title: 'Código de Verdade', date: '2026-09-14', changes: [
+  { version: '1.4.5', title: 'Código de Verdade', date: '2026-09-14', changes: [
     'Terminal agora compila e executa C# de verdade pelo Judge0, sem depender da IA.',
     'Entrada para Console.ReadLine pode ser preparada antes da execução do programa.',
     'Erros do navegador e das funções da Vercel podem ser registrados com segurança no Sentry.',
