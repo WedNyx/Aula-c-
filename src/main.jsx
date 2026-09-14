@@ -3,9 +3,11 @@ import { createRoot } from 'react-dom/client'
 import './theme.css'
 import './redesign.css'
 import App from './App.jsx'
+import { PlatformStatusBar } from './components/PlatformStatusBar.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
+    <PlatformStatusBar />
     <App />
   </StrictMode>,
 )
