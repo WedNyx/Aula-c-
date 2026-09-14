@@ -19,6 +19,7 @@ export const publicApis = {
   trivia: (params = {}, options) => request('trivia', params, options),
   placeholder: (resource = 'posts', id, options) => request('placeholder', { resource, id }, options),
   sun: (lat, lon, options) => request('sun', { lat, lon }, options),
+  time: options => request('time', {}, options),
   randomDog: options => request('dog', {}, options),
 }
 
