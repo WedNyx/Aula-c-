@@ -26,10 +26,10 @@ export function isNetworkError(e) {
 }
 // uma tentativa crua contra /api/claude — separado do resto pra poder ser chamada de novo sozinha
 // em caso de resposta não-JSON (ver askClaude abaixo)
-async function fetchClaudeOnce(prompt, system, bodyOpts) {
+async function fetchClaudeOnce(prompt, system, bodyOpts, signal) {
   const resp = await fetch("/api/claude", {
     method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ prompt, system, ...bodyOpts })
+    body: JSON.stringify({ prompt, system, ...bodyOpts }), signal
   });
   let data;
   try { data = await resp.json(); }
@@ -54,21 +54,23 @@ async function fetchClaudeOnce(prompt, system, bodyOpts) {
 // (Gemini/Nemotron/Laguna) continua sendo atualizado normalmente mesmo com silentHealth — só a chave geral
 // fica de fora até quem chama decidir o resultado final da sequência.
 export async function askClaude(prompt, system, opts = {}){
-  const { silentHealth, ...bodyOpts } = opts;
+  const { silentHealth, signal, ...bodyOpts } = opts;
   try {
     let data;
     try {
-      data = await fetchClaudeOnce(prompt, system, bodyOpts);
+      data = await fetchClaudeOnce(prompt, system, bodyOpts, signal);
     } catch (e) {
+      if (e.name === 'AbortError') throw e;
       if (e.message !== 'NON_JSON_RESPONSE') throw e;
       // resposta não-JSON costuma ser um timeout passageiro da função no servidor — tenta mais 1x
       // sozinho (sem incomodar quem chamou) antes de virar de vez um "Nyx fora do ar" pra sala toda
-      try { data = await fetchClaudeOnce(prompt, system, bodyOpts); }
+      try { data = await fetchClaudeOnce(prompt, system, bodyOpts, signal); }
       catch { throw new Error('Não consegui falar com o Nyx agora (o servidor demorou demais pra responder). Tente de novo em instantes.'); }
     }
     reportAiHealth(true, opts.provider, !silentHealth); // avisa o painel do professor (em qualquer navegador) que o Nyx está respondendo
     return data.content?.map(b=>b.text||"").join("")||"";
   } catch (e) {
+    if (e.name === 'AbortError') throw e;
     // chave não configurada não é "fora do ar temporariamente" — é config pendente, não reporta como falha
     if (e.message !== 'ROBOTKEY_MISSING') reportAiHealth(false, opts.provider, !silentHealth);
     throw e;
@@ -90,6 +92,7 @@ export async function askClaudeJson(prompt, system, opts = {}) {
   try {
     return extractJson(await askClaude(prompt, system, opts));
   } catch (e) {
+    if (e.name === 'AbortError') throw e;
     if (e.message === "ROBOTKEY_MISSING") throw e;
     return extractJson(await askClaude(
       prompt + "\n\nATENÇÃO: responda SOMENTE o objeto JSON válido, sem nenhum texto antes ou depois.",
