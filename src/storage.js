@@ -713,6 +713,11 @@ export async function submitMusicSuggestion(turmaId, studentName, track) {
   catch { return false }
 }
 
+export async function addClassMusicTrack(turmaId, studentName, track) {
+  try { const response=await kvCall({action:'add_class_music_track',turmaId,studentName,track}); return response?.ok===true }
+  catch { return false }
+}
+
 export async function listMusicSuggestions(turmaId, auth) {
   try { const r=await kvCall({action:'list_music_suggestions',turmaId,auth}); return Array.isArray(r.items)?r.items:[] }
   catch { return [] }

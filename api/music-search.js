@@ -1,6 +1,6 @@
 import { isValidTeacherPassword } from './_teacherAuth.js'
 import { clientIp } from './_ip.js'
-import { rateLimitCheck } from './kv.js'
+import { canStudentUseMusic, rateLimitCheck } from './kv.js'
 
 const YOUTUBE_KEY = process.env.YOUTUBE_API_KEY || ''
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || ''
@@ -60,9 +60,11 @@ async function searchSpotify(query) {
 export default async function handler(req, res) {
   if (req.method === 'GET') return res.json({ youtube:!!YOUTUBE_KEY, spotify:!!(SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET) })
   if (req.method !== 'POST') return res.status(405).json({ error:'method_not_allowed' })
-  if (!isValidTeacherPassword(req.body?.auth)) return res.status(403).json({ error:'forbidden', message:'Pesquisa musical disponível somente no painel do professor.' })
+  const teacher = isValidTeacherPassword(req.body?.auth)
+  const student = teacher ? false : await canStudentUseMusic(req.body?.turmaId, req.body?.studentName)
+  if (!teacher && !student) return res.status(403).json({ error:'forbidden', message:'A pesquisa musical não está liberada para este perfil.' })
   const ip = clientIp(req)
-  if (!(await rateLimitCheck(`ratelimit:music-search:${ip}`, 30, 60))) return res.status(429).json({ error:'rate_limited', message:'Muitas pesquisas seguidas. Aguarde um minuto.' })
+  if (!(await rateLimitCheck(`ratelimit:music-search:${ip}`, teacher ? 30 : 15, 60))) return res.status(429).json({ error:'rate_limited', message:'Muitas pesquisas seguidas. Aguarde um minuto.' })
   const provider = req.body?.provider === 'spotify' ? 'spotify' : 'youtube'
   const query = cleanText(req.body?.query, 100)
   if (query.length < 2) return res.status(400).json({ error:'invalid_query', message:'Digite pelo menos dois caracteres.' })

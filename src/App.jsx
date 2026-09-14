@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, getTeacherNotes, saveTeacherNotes, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTeacherResumoSnapshot, saveTeacherResumoSnapshot, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas, getTeacherScheduledReminders, saveTeacherScheduledReminders, getClassScheduledReminders, saveClassScheduledReminders, submitMusicSuggestion } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, getTeacherNotes, saveTeacherNotes, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTeacherResumoSnapshot, saveTeacherResumoSnapshot, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas, getTeacherScheduledReminders, saveTeacherScheduledReminders, getClassScheduledReminders, saveClassScheduledReminders, addClassMusicTrack } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -59,7 +59,7 @@ import { MaterialDeliveryModal } from "./components/MaterialDeliveryModal.jsx";
 import { BatteryStatus } from "./components/BatteryStatus.jsx";
 import { LanguageRunPanel } from "./components/LanguageRunPanel.jsx";
 import { ClassMusicSettings } from "./components/ClassMusicSettings.jsx";
-import { ClassMusicPlayer, ClassMusicSuggestionForm } from "./components/ClassMusicPlayer.jsx";
+import { StudentMusicHub } from "./components/StudentMusicHub.jsx";
 import { classLinksFor } from "./lib/classLinks.js";
 import { musicForTurma } from "./lib/classMusic.js";
 import { GIFT_TIERS, rollGift } from "./lib/gifts.js";
@@ -257,6 +257,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [classLinks, setClassLinks] = useState([]);
   const [showClassLinks, setShowClassLinks] = useState(false);
   const [classMusic, setClassMusic] = useState(null);
+  const [personalMusicTracks, setPersonalMusicTracks] = useState([]);
   const [showClassMusic, setShowClassMusic] = useState(false);
   // aviso do professor + dica automática de "preste atenção"
   const [nudge, setNudge2] = useState(null);
@@ -543,7 +544,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   }, [activeCode, studyLang?.id]);
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxNewsSeen, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, personalNotes, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxNewsSeen, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, personalNotes, personalMusicTracks, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -753,6 +754,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       detailedSummary: s.detailedSummary || null,
       detailedSummaryHistory: s.detailedSummaryHistory || {},
       personalNotes: s.personalNotes || [],
+      personalMusicTracks: s.personalMusicTracks || [],
       guidedBlocks: s.guidedBlocks || [],
       guidedLessons: s.guidedLessons || [],
       programmingLanguage: s.programmingLanguage || null,
@@ -1355,6 +1357,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.detailedSummary) setDetailedSummary(prev.detailedSummary);
           if (prev.detailedSummaryHistory) setDetailedSummaryHistory(prev.detailedSummaryHistory);
           if (Array.isArray(prev.personalNotes)) setPersonalNotes(prev.personalNotes);
+          if (Array.isArray(prev.personalMusicTracks)) setPersonalMusicTracks(prev.personalMusicTracks);
           if (Array.isArray(prev.guidedBlocks)) setGuidedBlocks(prev.guidedBlocks);
           if (Array.isArray(prev.guidedLessons)) setGuidedLessons(prev.guidedLessons);
           if (prev.createdAt) createdAtRef.current = prev.createdAt; // preserva a data ORIGINAL de criação (não a da sessão atual)
@@ -3422,7 +3425,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       { id:"notifications", label:"Novidades", icon:"🔔", badge:(hasNyxNews||showNudge) ? "nova" : null, onClick:()=>setShowStudentNotifications(true), tour:"novidades" },
       { id:"feedback", label:"Feedback da aula", icon:"💬", badge:classSent ? "✓" : null, onClick:()=>setShowClassFeedback(true), tour:"feedback-aula" },
       { id:"sites", label:"Sites da turma", icon:"🔗", badge:classLinks.length || null, onClick:()=>setShowClassLinks(true), tour:"sites-turma" },
-      ...(classMusic?.enabled&&(classMusic.surface==="student"||classMusic.studentsCanAdd) ? [{ id:"music", label:classMusic.surface==="student"?"Música da turma":"Sugerir música", icon:"🎵", badge:classMusic.surface==="student"?(classMusic.tracks.length||null):null, onClick:()=>setShowClassMusic(true), tour:"musica-turma" }] : []),
+      ...(classMusic?.enabled ? [{ id:"music", label:"Central de músicas", icon:"🎵", badge:classMusic.tracks.length||null, onClick:()=>setShowClassMusic(true), tour:"musica-turma" }] : []),
       { id:"missions", label:"Missões de hoje", icon:"☀️", onClick:()=>setShowDailyMissions(true), tour:"missoes" },
     ]},
     { id:"explore", label:"Explorar", items:[
@@ -3450,7 +3453,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {renderHiddenEggs()}
       {classFeedbackModal}
       {showClassLinks && <ClassLinksModal links={classLinks} onClose={()=>setShowClassLinks(false)} styles={styles} />}
-      {showClassMusic&&classMusic?.enabled&&(classMusic.surface==="student"||classMusic.studentsCanAdd)&&<div style={{position:"fixed",inset:0,background:"rgba(11,6,20,.82)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1200,padding:16}} onClick={()=>setShowClassMusic(false)}><div role="dialog" aria-modal="true" aria-labelledby="class-music-title" style={{background:"linear-gradient(180deg,#231636,#1a1029)",border:"1px solid #c084fc66",borderRadius:20,padding:20,maxWidth:560,width:"100%",boxShadow:"0 24px 70px rgba(0,0,0,.6)"}} onClick={event=>event.stopPropagation()}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:12}}><h3 id="class-music-title" style={{color:"#c084fc",margin:0}}>🎵 {classMusic.surface==="student"?"Música da turma":"Sugerir música"}</h3><button type="button" aria-label="Fechar player de música" onClick={()=>setShowClassMusic(false)} style={{...styles.btnGhost,padding:"5px 10px"}}>✕</button></div>{classMusic.surface==="student"?<ClassMusicPlayer settings={classMusic} onSuggest={track=>submitMusicSuggestion(shift,studentName,track)}/>:<ClassMusicSuggestionForm onSuggest={track=>submitMusicSuggestion(shift,studentName,track)}/>}</div></div>}
+      {showClassMusic&&classMusic?.enabled&&<div style={{position:"fixed",inset:0,background:"rgba(11,6,20,.82)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1200,padding:16}} onClick={()=>setShowClassMusic(false)}><div role="dialog" aria-modal="true" aria-labelledby="class-music-title" style={{background:"linear-gradient(180deg,#231636,#1a1029)",border:"1px solid #c084fc66",borderRadius:20,padding:20,maxWidth:720,width:"100%",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 70px rgba(0,0,0,.6)"}} onClick={event=>event.stopPropagation()}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:12}}><h3 id="class-music-title" style={{color:"#c084fc",margin:0}}>🎵 Central de músicas</h3><button type="button" aria-label="Fechar player de música" onClick={()=>setShowClassMusic(false)} style={{...styles.btnGhost,padding:"5px 10px"}}>✕</button></div><StudentMusicHub classSettings={classMusic} personalTracks={personalMusicTracks} studentName={studentName} turmaId={shift} onSavePersonal={async tracks=>{setPersonalMusicTracks(tracks);stateRef.current={...stateRef.current,personalMusicTracks:tracks};return persist({personalMusicTracks:tracks})}} onAddClass={async track=>{const ok=await addClassMusicTrack(shift,studentName,track);if(ok){const fresh=await getTeacherMeta();setClassMusic(musicForTurma(fresh.musicSettings,shift))}return ok}}/></div></div>}
       {/* pergunta de preferência de interação do Nyx — perfil novo, antes até da apresentação e do tour */}
       {showNyxPrefs && (
         <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1001, padding:16 }}>

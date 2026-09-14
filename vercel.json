@@ -30,6 +30,9 @@
   "functions": {
     "api/claude.js": {
       "maxDuration": 30
+    },
+    "api/execute-code.js": {
+      "maxDuration": 30
     }
   }
 }

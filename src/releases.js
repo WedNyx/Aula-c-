@@ -1,5 +1,12 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
+  { version: '1.5.0', title: 'Código de Verdade', date: '2026-09-14', changes: [
+    'Terminal agora compila e executa C# de verdade pelo Judge0, sem depender da IA.',
+    'Entrada para Console.ReadLine pode ser preparada antes da execução do programa.',
+    'Erros do navegador e das funções da Vercel podem ser registrados com segurança no Sentry.',
+    'Visão da Viagem ganhou mapa real e interativo do Distrito Federal, com zoom, trajeto e cidades visitadas.',
+    'Central de músicas permite pesquisar, tocar na hora, criar playlist pessoal e colaborar na playlist da sala.',
+  ] },
   { version: '1.4.0', title: 'Nyx Conectado', date: '2026-09-11', changes: [
     'Gemini passa a ser a IA principal do Nyx, com os provedores anteriores mantidos como reservas automáticas.',
     'Professor pode pesquisar músicas pelo YouTube e Spotify sem expor as credenciais das APIs.',

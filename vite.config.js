@@ -1,8 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 
-export default defineConfig({
+export default defineConfig(() => {
+  const sentryConfigured = process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+  return {
   plugins: [
     react(),
     VitePWA({
@@ -37,8 +40,18 @@ export default defineConfig({
       },
       devOptions: { enabled: false },
     }),
-  ],
+    sentryConfigured && sentryVitePlugin({
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
+    }),
+  ].filter(Boolean),
+  define: {
+    'import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA': JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA || ''),
+  },
   build: {
+    sourcemap: sentryConfigured ? 'hidden' : false,
     rollupOptions: {
       output: {
         // separa o React e as bibliotecas de avatar (@dicebear) do resto do app: como elas
@@ -53,4 +66,5 @@ export default defineConfig({
       },
     },
   },
+  }
 })
