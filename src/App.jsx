@@ -6983,7 +6983,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         <div>
           <span className="shine" style={{ fontWeight:900, fontSize: tab==="code" ? 14 : 18, background:"linear-gradient(120deg,#fbbf24,#fb923c,#fbbf24)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>👨‍🏫 Painel do Professor</span>
           <span style={{ color:"#a99ac9", marginLeft:12, fontSize:12 }}>
-            ● ao vivo · {lastUpdate}{turmaCalendar(meta, codeShift).city?` · 📍 ${turmaCalendar(meta, codeShift).city}`:""}
+            ● ao vivo{turmaCalendar(meta, codeShift).city?` · 📍 ${turmaCalendar(meta, codeShift).city}`:""}
             {todayContentByTurma.length ? ` · 📖 ${todayContentByTurma.map(x=>`${x.turma.emoji} ${x.content}`).join(" · ")}` : ""}
           </span>
           {tab!=="code" && (

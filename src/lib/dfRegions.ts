@@ -64,3 +64,44 @@ export function matchDfRegion(cityName: string | null | undefined): string | nul
   }
   return null;
 }
+
+
+export interface RegionGeo { lat: number; lng: number; }
+
+// Coordenadas geográficas aproximadas dos centros das regiões administrativas.
+// Servem para posicionar os marcadores sobre o mapa real; não rastreiam o GPS da carreta.
+export const DF_REGION_GEO: Record<string, RegionGeo> = {
+  "Plano Piloto (Brasília)": { lat:-15.7939, lng:-47.8828 },
+  "Gama": { lat:-16.0186, lng:-48.0717 },
+  "Taguatinga": { lat:-15.8325, lng:-48.0563 },
+  "Brazlândia": { lat:-15.6700, lng:-48.2000 },
+  "Sobradinho": { lat:-15.6508, lng:-47.7939 },
+  "Planaltina": { lat:-15.6170, lng:-47.6500 },
+  "Paranoá": { lat:-15.7757, lng:-47.7796 },
+  "Núcleo Bandeirante": { lat:-15.8710, lng:-47.9676 },
+  "Ceilândia": { lat:-15.8171, lng:-48.1073 },
+  "Guará": { lat:-15.8244, lng:-47.9787 },
+  "Cruzeiro": { lat:-15.7894, lng:-47.9394 },
+  "Samambaia": { lat:-15.8775, lng:-48.0904 },
+  "Santa Maria": { lat:-16.0100, lng:-48.0133 },
+  "São Sebastião": { lat:-15.9007, lng:-47.7720 },
+  "Recanto das Emas": { lat:-15.9022, lng:-48.0617 },
+  "Lago Sul": { lat:-15.8403, lng:-47.8779 },
+  "Riacho Fundo": { lat:-15.8814, lng:-48.0176 },
+  "Lago Norte": { lat:-15.7375, lng:-47.8575 },
+  "Candangolândia": { lat:-15.8532, lng:-47.9502 },
+  "Águas Claras": { lat:-15.8396, lng:-48.0281 },
+  "Riacho Fundo II": { lat:-15.9148, lng:-48.0417 },
+  "Sudoeste/Octogonal": { lat:-15.7974, lng:-47.9256 },
+  "Varjão": { lat:-15.7108, lng:-47.8781 },
+  "Park Way": { lat:-15.9038, lng:-47.9915 },
+  "SCIA/Estrutural": { lat:-15.7794, lng:-47.9974 },
+  "Sobradinho II": { lat:-15.6481, lng:-47.8251 },
+  "Jardim Botânico": { lat:-15.8697, lng:-47.7988 },
+  "Itapoã": { lat:-15.7444, lng:-47.7681 },
+  "SIA": { lat:-15.8026, lng:-47.9577 },
+  "Vicente Pires": { lat:-15.8087, lng:-48.0309 },
+  "Fercal": { lat:-15.5984, lng:-47.8735 },
+  "Sol Nascente/Pôr do Sol": { lat:-15.8278, lng:-48.1408 },
+  "Arniqueira": { lat:-15.8567, lng:-48.0164 },
+};
