@@ -6,7 +6,8 @@ import { classGoalProgress } from "../lib/achievements.ts";
 import { goFullscreen } from "../lib/schedule.ts";
 import { gradeInfo } from "../lib/utils.js";
 import { shade } from "../lib/colors.ts";
-import { DF_CITIES, DF_REGION_COORDS, matchDfRegion } from "../lib/dfRegions.ts";
+import { matchDfRegion } from "../lib/dfRegions.ts";
+import { JourneyMap } from "./JourneyMap.jsx";
 import { difficultyOf } from "../lib/studentStatus.ts";
 import { Avatar } from "./Avatar.jsx";
 import { ConfettiParty } from "./ConfettiParty.jsx";
@@ -600,46 +601,13 @@ export function TripOverviewModal({ entries, currentCity, onClose }) {
           </div>
         </div>
 
-        {/* 🗺️ mapa da jornada: o caminho que a carreta já fez pelas regiões do DF */}
+        {/* Mapa geográfico real, com pontos persistidos na ordem em que a carreta visitou as cidades. */}
         <div className="cardfx" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:14, padding:14, marginBottom:16 }}>
-          <p style={{ color:"#c084fc", fontWeight:700, fontSize:13, margin:"0 0 4px" }}>🗺️ Mapa da jornada pelo DF</p>
-          <p style={{ color:"#776798", fontSize:11, margin:"0 0 10px", lineHeight:1.5 }}>Mapa esquemático (não é preciso por GPS) — só pra mostrar mais ou menos o caminho que a carreta já fez. Passe o mouse num ponto pra ver os detalhes.</p>
-          <div style={{ position:"relative", width:"100%", paddingTop:"78%", background:"radial-gradient(120% 100% at 50% 0%, #241839, #140d22)", border:"1px solid #3b2a58", borderRadius:12, overflow:"hidden" }}>
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%" }}>
-              {DF_CITIES.map(region => {
-                const c = DF_REGION_COORDS[region];
-                return <circle key={region} cx={c.x} cy={c.y} r={0.9} fill="#3b2a58" />;
-              })}
-              {mapped.length > 1 && (
-                <polyline
-                  points={mapped.map(e => `${DF_REGION_COORDS[e.region].x},${DF_REGION_COORDS[e.region].y}`).join(" ")}
-                  fill="none" stroke="#c084fc" strokeWidth={0.7} strokeDasharray="2.2,1.6" opacity={0.75}
-                />
-              )}
-            </svg>
-            {mapped.map(e => (
-              <div key={e.order}
-                title={`${e.order}. ${e.city} — ${e.totalStudents || 0} aluno(s), nota média ${e.avgScore || 0}, ${e.totalClasses || 0} aula(s)${e.closedAt ? ` · encerrada em ${new Date(e.closedAt).toLocaleDateString("pt-BR")}` : ""}`}
-                style={{ position:"absolute", left:`${DF_REGION_COORDS[e.region].x}%`, top:`${DF_REGION_COORDS[e.region].y}%`, transform:"translate(-50%,-50%)",
-                  width:20, height:20, borderRadius:"50%", background:"linear-gradient(135deg,#fbbf24,#fb923c)", border:"2px solid #1a1029",
-                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:900, color:"#1a1029",
-                  cursor:"default", boxShadow:"0 2px 8px rgba(0,0,0,.5)" }}>
-                {e.order}
-              </div>
-            ))}
-            {currentRegion && (
-              <div title={`🚌 Você está aqui agora: ${currentCity}`}
-                style={{ position:"absolute", left:`${DF_REGION_COORDS[currentRegion].x}%`, top:`${DF_REGION_COORDS[currentRegion].y}%`, transform:"translate(-50%,-50%)",
-                  width:16, height:16, borderRadius:"50%", background:"#34d399", border:"2px solid #1a1029",
-                  boxShadow:"0 0 0 6px #34d39933", animation:"pulse-dot 1.4s ease-in-out infinite" }} />
-            )}
-          </div>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginTop:10, fontSize:11.5 }}>
-            <span style={{ color:"#a99ac9", display:"flex", alignItems:"center", gap:5 }}><span style={{ width:12, height:12, borderRadius:"50%", background:"linear-gradient(135deg,#fbbf24,#fb923c)", display:"inline-block" }} /> cidade já encerrada (ordem da visita)</span>
-            {currentRegion && <span style={{ color:"#a99ac9", display:"flex", alignItems:"center", gap:5 }}><span style={{ width:10, height:10, borderRadius:"50%", background:"#34d399", display:"inline-block" }} /> você está aqui agora</span>}
-          </div>
+          <p style={{ color:"#c084fc", fontWeight:700, fontSize:13, margin:"0 0 4px" }}>🗺️ Mapa real da jornada pelo DF</p>
+          <p style={{ color:"#776798", fontSize:11, margin:"0 0 10px", lineHeight:1.5 }}>As cidades encerradas aparecem numeradas na ordem da visita. O ônibus mostra onde a carreta está agora.</p>
+          <JourneyMap mapped={mapped} currentRegion={currentRegion} currentCity={currentCity}/>
           {unmapped.length > 0 && (
-            <p style={{ color:"#776798", fontSize:11, marginTop:8 }}>Não reconheci a região de {unmapped.map(e=>`"${e.city||"?"}"`).join(", ")} pra colocar no mapa, mas conta na jornada mesmo assim.</p>
+            <p style={{ color:"#776798", fontSize:11, marginTop:8 }}>Não reconheci a região de {unmapped.map(e=>`"${e.city||"?"}"`).join(", ")} para colocar no mapa, mas ela continua contando na jornada.</p>
           )}
         </div>
 
