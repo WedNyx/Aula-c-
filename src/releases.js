@@ -10,6 +10,7 @@ export const RELEASES = [
     'O terminal agora executa C# de verdade e aceita entradas com Console.ReadLine.',
     'A Visão da Viagem ganhou um mapa real e interativo do Distrito Federal.',
     'A Central de Músicas ganhou pesquisa, reprodução imediata e playlists pessoais e da turma.',
+    'O histórico mostra os resumos enviados, cada atividade aceita uma tentativa e o Nyx reúne avisos acolhedores.',
   ] },
   { version: '1.4.0', title: 'Nyx Conectado', date: '2026-09-11', changes: [
     'Gemini passa a ser a IA principal do Nyx, com os provedores anteriores mantidos como reservas automáticas.',

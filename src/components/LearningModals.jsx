@@ -227,6 +227,13 @@ export function NotebookModal({ history, detailedHistory, notes = [], onSaveNote
                 <button onClick={()=>setView("detalhado")} style={{ background: view==="detalhado" ? "#c084fc" : "#171026", color: view==="detalhado" ? "#fff" : "#a99ac9", border:`1px solid ${view==="detalhado"?"#c084fc":"#3b2a58"}`, borderRadius:20, padding:"5px 12px", cursor:"pointer", fontWeight:800, fontSize:11.5 }}>📖 Detalhado</button>
               </div>
             )}
+            {sel && onDeleteSummary && (
+              <section aria-label="Histórico de envios" style={{margin:"0 0 14px",background:"#22d3ee0b",border:"1px solid #22d3ee44",borderRadius:12,padding:12}}>
+                <h3 style={{color:"#22d3ee",fontSize:13.5,margin:"0 0 8px"}}>📨 Histórico de envios</h3>
+                {(history[sel]?.deliveryHistory||[]).length===0 ? <p style={{color:"#a99ac9",fontSize:12,margin:0}}>Rascunho — este resumo ainda não foi enviado.</p> :
+                  <div style={{display:"grid",gap:7}}>{[...(history[sel].deliveryHistory||[])].sort((a,b)=>b.deliveredAt-a.deliveredAt).map(delivery=><div key={delivery.id} style={{color:"#d6c9ec",fontSize:12,lineHeight:1.5}}><strong style={{color:"#34d399"}}>✓ {delivery.kind==="turma"?"Turma":"Aluno"}: {delivery.targetLabel}</strong><br/><span>{delivery.studentCount||1} aluno{(delivery.studentCount||1)===1?"":"s"} · {new Date(delivery.deliveredAt).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</span></div>)}</div>}
+              </section>
+            )}
             {sel && <SummaryPretty sum={(view==="detalhado" && hasDetailed) ? detailedHistory[sel] : history[sel]} />}
             {sel && Array.isArray(history[sel]?.atividade) && history[sel].atividade.length > 0 && (
               <NotebookActivity key={sel} questions={history[sel].atividade} />
