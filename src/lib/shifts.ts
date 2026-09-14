@@ -97,7 +97,14 @@ const LEGACY_CALENDAR_TURMA_IDS = ["matutino", "vespertino"];
 export function turmaCalendar(m: TeacherMetaLike | null | undefined, turmaId: string): TurmaCalendar {
   const meta = m || {};
   const per = (meta.byTurma || {})[turmaId];
-  if (per) return { classDays: per.classDays || [], city: per.city || "", cityClosed: !!per.cityClosed, resumoCadence: per.resumoCadence || 0 };
+  if (per) {
+    // As turmas originais usavam meta.classDays antes de o calendário ser separado por turma.
+    // Ao salvar a primeira configuração em byTurma, não podemos esconder esse histórico legado:
+    // a Lista de chamada precisa continuar exibindo as aulas anteriores junto das novas.
+    const legacyDays = LEGACY_CALENDAR_TURMA_IDS.includes(turmaId) ? (meta.classDays || []) : [];
+    const classDays = [...new Set([...legacyDays, ...(per.classDays || [])])].sort();
+    return { classDays, city: per.city || "", cityClosed: !!per.cityClosed, resumoCadence: per.resumoCadence || 0 };
+  }
   if (LEGACY_CALENDAR_TURMA_IDS.includes(turmaId)) {
     return { classDays: meta.classDays || [], city: meta.city || "", cityClosed: !!meta.cityClosed, resumoCadence: 0 };
   }
