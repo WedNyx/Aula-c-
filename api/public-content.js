@@ -1,7 +1,7 @@
 import { clientIp } from './_ip.js'
 import { rateLimitCheck } from './kv.js'
 
-const PROVIDERS = new Set(['weather', 'country', 'wikipedia', 'pokemon', 'trivia', 'placeholder', 'sun', 'dog'])
+const PROVIDERS = new Set(['weather', 'country', 'wikipedia', 'pokemon', 'trivia', 'placeholder', 'sun', 'dog', 'time'])
 const PLACEHOLDER_RESOURCES = new Set(['posts', 'comments', 'albums', 'photos', 'todos', 'users'])
 
 function first(value) {
@@ -91,6 +91,10 @@ export function buildProviderRequest(provider, query = {}) {
       url: `https://jsonplaceholder.typicode.com/${resource}${id ? `/${id}` : '?_limit=20'}`,
       attribution: 'JSONPlaceholder',
     }
+  }
+
+  if (provider === 'time') {
+    return { url: 'https://timeapi.io/api/Time/current/zone?timeZone=America%2FSao_Paulo', attribution: 'TimeAPI.io' }
   }
 
   if (provider === 'sun') {
