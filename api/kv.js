@@ -473,6 +473,23 @@ export async function rateLimitCheck(bucketKey, max, windowSeconds) {
   }
 }
 
+function safeStudentName(name) {
+  return String(name || '').trim().replace(/\s+/g, '_').replace(/["'\/\\:]/g, '').slice(0, 80)
+}
+
+export async function canStudentUseMusic(turmaId, studentName) {
+  const turma = String(turmaId || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 80)
+  const student = safeStudentName(studentName)
+  if (!turma || !student) return false
+  const [profile, rawMeta] = await Promise.all([
+    store.get(`student:${turma}:${student}`),
+    store.get('teachermeta:main'),
+  ])
+  let meta = {}
+  try { meta = rawMeta ? JSON.parse(rawMeta) : {} } catch {}
+  return Boolean(profile && meta?.musicSettings?.[turma]?.enabled)
+}
+
 // ─── tentativas de login do professor — NÃO tranca de vez (a carreta inteira às vezes divide um
 // único IP/roteador com a turma toda, então um bloqueio duro podia deixar o professor de verdade
 // trancado fora por causa de criança curiosa chutando senha). Em vez disso, cada erro seguido
@@ -635,7 +652,7 @@ export default async function handler(req, res) {
         const turmaKey = String(turmaId || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 80)
         const title = String(track?.title || '').trim().slice(0, 100)
         const artist = String(track?.artist || '').trim().slice(0, 80)
-        const student = String(studentName || '').trim().slice(0, 80)
+        const student = safeStudentName(studentName)
         let parsedUrl
         try { parsedUrl = new URL(String(track?.url || '').trim()) } catch { return res.status(400).json({ error: 'invalid_track' }) }
         if (!turmaKey || !title || !student || parsedUrl.protocol !== 'https:') return res.status(400).json({ error: 'invalid_track' })
@@ -652,6 +669,38 @@ export default async function handler(req, res) {
         const suggestion = { id:`${Date.now()}-${Math.random().toString(36).slice(2,10)}`, turmaId:turmaKey, studentName:student, title, artist, url:parsedUrl.href, createdAt:Date.now() }
         await store.set(`musicsuggestion:${suggestion.turmaId}:${suggestion.id}`, JSON.stringify(suggestion))
         return res.json({ ok:true })
+      }
+      case 'add_class_music_track': {
+        const withinLimit = await rateLimitCheck(`ratelimit:classmusic:${ip}`, 12, 600)
+        if (!withinLimit) return res.status(429).json({ error:'rate_limited', message:'Muitas músicas adicionadas. Aguarde um pouco.' })
+        const { turmaId, studentName, track } = req.body || {}
+        const turma = String(turmaId || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 80)
+        const student = safeStudentName(studentName)
+        const title = String(track?.title || '').trim().slice(0, 100)
+        const artist = String(track?.artist || '').trim().slice(0, 80)
+        const provider = track?.provider === 'spotify' ? 'spotify' : track?.provider === 'youtube' ? 'youtube' : ''
+        const externalId = String(track?.externalId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40)
+        let parsedUrl
+        try { parsedUrl = new URL(String(track?.url || '')) } catch { return res.status(400).json({ error:'invalid_track' }) }
+        const validHost = provider === 'youtube'
+          ? /(^|\.)youtube\.com$|(^|\.)youtu\.be$/.test(parsedUrl.hostname)
+          : provider === 'spotify' && /(^|\.)spotify\.com$/.test(parsedUrl.hostname)
+        if (!turma || !student || !title || !externalId || parsedUrl.protocol !== 'https:' || !validHost) return res.status(400).json({ error:'invalid_track' })
+        if (!await store.get(`student:${turma}:${student}`)) return res.status(403).json({ error:'student_not_found' })
+        for (let attempt=0; attempt<8; attempt++) {
+          const rawMeta = await store.get('teachermeta:main')
+          let meta
+          try { meta = rawMeta ? JSON.parse(rawMeta) : {} } catch { return res.status(503).json({ error:'invalid_settings' }) }
+          const config = meta?.musicSettings?.[turma]
+          if (!config?.enabled || !config?.studentsCanAdd) return res.status(403).json({ error:'class_add_disabled', message:'O professor não liberou adições na playlist da sala.' })
+          const tracks = Array.isArray(config.tracks) ? config.tracks : []
+          if (tracks.length >= 30) return res.status(409).json({ error:'playlist_full', message:'A playlist da sala chegou ao limite de 30 músicas.' })
+          if (tracks.some(item => item.provider === provider && item.externalId === externalId)) return res.status(409).json({ error:'duplicate_track', message:'Essa música já está na playlist da sala.' })
+          const clean = { id:`${provider}:${externalId}`, provider, externalId, title, artist, url:parsedUrl.href, addedBy:student }
+          const next = { ...meta, musicSettings:{ ...(meta.musicSettings || {}), [turma]:{ ...config, tracks:[...tracks, clean] } } }
+          if (await store.compareAndSet('teachermeta:main', rawMeta, JSON.stringify(next))) return res.json({ ok:true, track:clean })
+        }
+        return res.status(409).json({ error:'concurrent_update', message:'Outra pessoa atualizou a playlist ao mesmo tempo. Tente novamente.' })
       }
       case 'list_music_suggestions': {
         const turmaId = String(req.body?.turmaId || 'sem-turno').slice(0, 80)

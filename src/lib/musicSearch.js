@@ -1,7 +1,7 @@
-export async function searchMusic(provider, query, auth) {
+export async function searchMusic(provider, query, auth, student = {}) {
   const response = await fetch('/api/music-search', {
     method:'POST', headers:{ 'Content-Type':'application/json' },
-    body:JSON.stringify({ provider, query, auth }),
+    body:JSON.stringify({ provider, query, auth, studentName:student.studentName, turmaId:student.turmaId }),
   })
   const data = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(data.message || 'Não foi possível pesquisar agora.')
