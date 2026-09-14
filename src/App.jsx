@@ -4750,6 +4750,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   // resumo, e o resumo aparece pra QUALQUER aluno conectado (na hora ou mais tarde no mesmo dia)
   const [resumoTriggerBusy, setResumoTriggerBusy] = useState(false);
   const [resumoTriggerMsg, setResumoTriggerMsg] = useState("");
+  const resumoAbortRef = useRef(null);
   const [resumoTriggeredToday, setResumoTriggeredToday] = useState({});
   // 📒 caderno de resumos DO PROFESSOR (por turma selecionada em "Meu código"): guarda os resumos
   // já gerados antes de decidir mandar pra turma — dá pra revisar antes de enviar
@@ -5500,6 +5501,9 @@ function TeacherView({ onLogout, teacherAuth }) {
   // no CADERNO DO PROFESSOR — não vai pra nenhum aluno ainda. Dá pra revisar antes de enviar (ver
   // enviarResumoParaTurma/enviarResumoParaAluno).
   const gerarResumoHoje = async (turmaId) => {
+    const controller = new AbortController();
+    resumoAbortRef.current?.abort();
+    resumoAbortRef.current = controller;
     setResumoTriggerBusy(true); setResumoTriggerMsg("📚 Gerando o resumo da aula...");
     try {
       const teacherCode = await getTeacherCode(turmaId);
@@ -5527,7 +5531,9 @@ function TeacherView({ onLogout, teacherAuth }) {
           // JSON de resposta podia cortar no meio (limite padrão de 2000) e o resumo salvo ficava
           // incompleto, sem erro nenhum aparecer
           let novoTrecho = null;
-          try { novoTrecho = await askClaudeJson(prompt, system, { max_tokens: 4000 }); } catch { novoTrecho = null; }
+          try { novoTrecho = await askClaudeJson(prompt, system, { max_tokens: 4000, signal:controller.signal }); }
+          catch (error) { if (error.name === 'AbortError') throw error; novoTrecho = null; }
+          if (controller.signal.aborted) throw new DOMException('Geração cancelada', 'AbortError');
           if (novoTrecho && Array.isArray(novoTrecho.secoes)) {
             // mesmo dia: soma no resumo de hoje que já existia. Dia diferente: o resumo antigo fica
             // intacto no próprio dia dele — hoje ganha uma entrada NOVA, só com o que é novo mesmo
@@ -5547,11 +5553,18 @@ function TeacherView({ onLogout, teacherAuth }) {
           }
         }
       }
-    } catch {
-      setResumoTriggerMsg("❌ Não consegui gerar o resumo agora. Tente de novo em instantes.");
+    } catch (error) {
+      setResumoTriggerMsg(error.name === 'AbortError'
+        ? "⏹️ Geração cancelada. Nada foi enviado e os alunos continuam no editor de código."
+        : "❌ Não consegui gerar o resumo agora. Tente de novo em instantes.");
     }
-    setResumoTriggerBusy(false);
+    if (resumoAbortRef.current === controller) { resumoAbortRef.current = null; setResumoTriggerBusy(false); }
     setTimeout(() => setResumoTriggerMsg(""), 8000);
+  };
+  const pararGeracaoResumo = () => {
+    if (!resumoAbortRef.current) return;
+    resumoAbortRef.current.abort();
+    setResumoTriggerMsg("⏹️ Cancelando a geração… Os alunos permanecem no editor de código.");
   };
   // 📤 manda o resumo de HOJE (já pronto no Caderno do professor) direto pro Caderno de resumos de
   // TODO aluno da turma — não importa a fase dele agora nem se está online: quem estiver conectado
@@ -8056,7 +8069,9 @@ function TeacherView({ onLogout, teacherAuth }) {
                 <div data-tour-prof="resumo-ritmo" className="teacher-materials-flow">
                   <article className="teacher-material-card teacher-material-card--primary"><span className="teacher-material-step">1 · CRIAR</span><h3>✍️ Preparar o conteúdo</h3><p>Escreva o resumo e a atividade manualmente. Se preferir, o Nyx pode preparar um rascunho opcional usando o código da aula.</p><div className="teacher-material-actions">
                     <button onClick={()=>setShowManualSummary(true)} style={{ ...styles.btn("#c084fc"), padding:"9px 14px", fontSize:12.5 }}>{resumoHoje ? "✍️ Revisar e editar" : "✍️ Escrever manualmente"}</button>
-                    <button onClick={()=>gerarResumoHoje(codeShift)} disabled={resumoTriggerBusy} style={{ ...styles.btnGhost, padding:"9px 14px", fontSize:12.5, opacity:resumoTriggerBusy?0.6:1 }}>{resumoTriggerBusy ? "Gerando rascunho..." : resumoHoje ? "✨ Gerar outro rascunho" : "✨ Gerar rascunho com Nyx"}</button>
+                    {resumoTriggerBusy
+                      ? <button onClick={pararGeracaoResumo} style={{ ...styles.btnGhost, color:"#fca5a5", borderColor:"#b45353", padding:"9px 14px", fontSize:12.5 }}>⏹️ Parar de gerar</button>
+                      : <button onClick={()=>gerarResumoHoje(codeShift)} style={{ ...styles.btnGhost, padding:"9px 14px", fontSize:12.5 }}>{resumoHoje ? "✨ Gerar outro rascunho" : "✨ Gerar rascunho com Nyx"}</button>}
                   </div>
                   </article>
                   <article className={`teacher-material-card${resumoHoje?' teacher-material-card--ready':''}`}><span className="teacher-material-step">2 · REVISAR</span><h3>{resumoHoje ? "✅ Material pronto para revisão" : "📄 Aguardando conteúdo"}</h3><p>{resumoHoje ? `${resumoHoje.secoes?.length || 0} conceito${resumoHoje.secoes?.length===1?"":"s"}: ${(resumoHoje.secoes||[]).map(s=>s.titulo).filter(Boolean).join(", ") || "sem títulos"}.` : "Crie um material na etapa anterior. Nada será enviado automaticamente."}</p><button onClick={()=>setShowTeacherNotebook(true)} style={{ ...styles.btnGhost, padding:"9px 14px", fontSize:12.5 }}>📖 Abrir histórico de resumos</button></article>
