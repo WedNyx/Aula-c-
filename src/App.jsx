@@ -54,6 +54,7 @@ import { TeacherNotesModal } from "./components/TeacherNotesModal.jsx";
 import { ScheduledReminders, useDueReminder } from "./components/ScheduledReminders.jsx";
 import { DashboardMobileNav, DashboardSidebar } from "./components/DashboardSidebar.jsx";
 import { DashboardActionMenu } from "./components/DashboardActionMenu.jsx";
+import { AdaptiveMotionLayer } from "./components/AdaptiveMotionLayer.jsx";
 import { TeacherSummaryEditor } from "./components/TeacherSummaryEditor.jsx";
 import { StudentNotificationsModal, StudentProfileModal, DailyMissionsModal } from "./components/StudentHubModals.jsx";
 import { ClassLinksModal, TeacherClassLinksPanel } from "./components/ClassLinks.jsx";
@@ -8793,7 +8794,7 @@ export default function App() {
     const parts = window.location.pathname.split("/").filter(Boolean);
     return <Suspense fallback={<PublicPageLoading/>}><PortfolioPage shift={decodeURIComponent(parts[1] || "")} name={decodeURIComponent(parts[2] || "")} /></Suspense>;
   }
-  if (!session) return <><ReleaseBadge/><Login turmas={loginTurmas} onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} /></>;
-  if (session.role==="teacher") return <><ReleaseBadge/><TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} /></>;
-  return <><ReleaseBadge/><StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} /></>;
+  if (!session) return <><AdaptiveMotionLayer/><ReleaseBadge/><Login turmas={loginTurmas} onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} /></>;
+  if (session.role==="teacher") return <><AdaptiveMotionLayer/><ReleaseBadge/><TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} /></>;
+  return <><AdaptiveMotionLayer/><ReleaseBadge/><StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} /></>;
 }
