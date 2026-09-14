@@ -10,13 +10,15 @@ const css = fs.readFileSync(path.join(root, "src/theme.css"), "utf8");
 const checks = [
   ["o Santuário Lunar aparece na área do aluno", app.includes("setShowLunarSanctuary(true)") && app.includes("<LunarSanctuary")],
   ["o jogo antigo saiu do menu Games", !app.includes("setShowNyxEclipseGame(true)")],
-  ["as três áreas estão disponíveis", ["Meu Santuário", "Sala de Desafios", "Jornada da Turma"].every(text => sanctuary.includes(text))],
+  ["as três áreas estão disponíveis", ["Meu Santuário", "Sala de Desafios", "Jornada da Turma", "Mundo Vivo"].every(text => sanctuary.includes(text))],
   ["há três desafios sem código", ["Sequência Lunar", "Estrela Intrusa", "Pares do Eclipse"].every(text => sanctuary.includes(text))],
   ["a recompensa diária é separada por aluno e desafio", sanctuary.includes("nyx_lunar_challenge_") && sanctuary.includes("studentName") && sanctuary.includes("id}`")],
   ["a jornada usa os pontos reais da turma", sanctuary.includes("listStudents") && sanctuary.includes("classPoints") && sanctuary.includes("student.nyxPoints")],
   ["o Santuário segue a identidade visual da plataforma", css.includes(".lunar-overlay") && css.includes("#c084fc") && css.includes("#171026")],
   ["o editor possui modo ampliado", editor.includes("data-expanded") && editor.includes("Ampliar editor de código")],
   ["o editor ampliado fecha com Esc", editor.includes('event.key === "Escape"') && editor.includes("setIsExpanded(false)")],
+  ["o Mundo Vivo usa o cliente seguro das APIs", sanctuary.includes("publicApis.weather") && sanctuary.includes("publicApis.country") && sanctuary.includes("publicApis.wikipedia") && sanctuary.includes("publicApis.pokemon") && sanctuary.includes("publicApis.trivia")],
+  ["a interface mostra atribuição das fontes", sanctuary.includes("attribution")],
 ];
 
 let failed = 0;
