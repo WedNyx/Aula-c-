@@ -10,6 +10,7 @@ import { AvatarStudio3D } from "./AvatarStudio3D.jsx";
 import { NyxDisplay as NyxRobot } from "./NyxDisplay.jsx";
 import { Sparkles } from "./Sparkles.jsx";
 import { CinematicIntro } from "./CinematicIntro.jsx";
+import { DesktopAppLauncher } from "./DesktopAppLauncher.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  LOGIN
@@ -155,6 +156,7 @@ export function Login({ onJoin, turmas }) {
                 <span style={{ display:"block", color:"#776798", fontSize:11.5, fontWeight:600, marginTop:2 }}>acompanhar a turma</span>
               </button>
             </div>
+            <DesktopAppLauncher />
           </>
         )}
 
