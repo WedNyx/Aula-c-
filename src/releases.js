@@ -4,8 +4,10 @@ export const RELEASES = [
     'A plataforma ganhou uma abertura cinematográfica própria antes da escolha entre aluno e professor.',
     'A animação pode ser pulada e não se repete durante a mesma sessão de acesso.',
     'Pessoas que preferem movimento reduzido seguem diretamente para a tela de entrada.',
+    'O relógio da plataforma permanece sincronizado e pontual com o horário de Brasília.',
   ], highlights: [
     'Uma nova abertura cinematográfica apresenta a Aula C# antes da escolha do perfil.',
+    'O horário de Brasília agora atualiza no segundo certo, sem carregar minutos atrasados.',
   ] },
   { version: '1.4.5', title: 'Código de Verdade', date: '2026-09-14', changes: [
     'Terminal agora compila e executa C# de verdade pelo Judge0, sem depender da IA.',

@@ -133,7 +133,11 @@ export default async function handler(req, res) {
   try {
     const request = buildProviderRequest(provider, req.query)
     const data = await fetchJson(request.url)
-    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=900')
+    // Horário nunca pode compartilhar o cache de clima/conteúdo: uma resposta
+    // guardada faria o relógio nascer vários minutos atrasado.
+    res.setHeader('Cache-Control', provider === 'time'
+      ? 'private, no-store, max-age=0'
+      : 'public, s-maxage=300, stale-while-revalidate=900')
     return res.json({ provider, attribution: request.attribution, data })
   } catch (error) {
     const status = Number(error?.status) || (error?.name === 'TimeoutError' ? 504 : 500)
