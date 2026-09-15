@@ -1652,6 +1652,18 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           setJustifications(nextJ);
           await clearScoreFix(shift, studentName);
           await persist({ justifications: nextJ });
+        } else if (fix && fix.kind === "achievement-restore" && Array.isArray(fix.achievements)) {
+          // Recuperação administrativa: recebe a lista final exata e não concede pontos outra vez.
+          const restored = [...new Set(fix.achievements)].filter(id => achievementInfo(id));
+          stateRef.current = { ...stateRef.current, achievements: restored };
+          setAchievements(restored);
+          await clearScoreFix(shift, studentName);
+          await persist({ achievements: restored });
+          const restoredInfo = achievementInfo(fix.restoredId);
+          if (restoredInfo) {
+            setRobotMsg(`🎖️ O professor recuperou sua conquista ${restoredInfo.emoji} ${restoredInfo.label}.`);
+            setRobotState("ok");
+          }
         } else if (fix && fix.kind === "portfolio-disabled") {
           // professor desativou o portfólio público por moderação — aplica no estado local antes
           // que o autosave periódico sobrescreva o registro com o "true" que ainda está aqui
@@ -4066,6 +4078,16 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
                 😔 Justificar falta ({pendingAbsences.length})
               </button>
             )}
+            {Object.keys(justifications||{}).length>0 && (
+              <div style={{marginTop:10,padding:"9px 10px",border:"1px solid #3b2a58",borderRadius:10,background:"#171026"}}>
+                <strong style={{display:"block",color:"#e9d5ff",fontSize:12.5,marginBottom:6}}>📅 Minhas justificativas</strong>
+                {Object.entries(justifications).sort(([a],[b])=>b.localeCompare(a)).slice(0,5).map(([date,item])=>{
+                  const status=item?.status==="approved"?"✅ Aprovada":item?.status==="rejected"?"❌ Não aprovada":"⏳ Aguardando professor";
+                  const color=item?.status==="approved"?"#34d399":item?.status==="rejected"?"#f87171":"#fbbf24";
+                  return <p key={date} style={{margin:"4px 0",fontSize:11.5,color:"#cfc2df"}}><b>{date.split("-").reverse().join("/")}</b> · <span style={{color}}>{status}</span><br/><span>{item?.text}</span></p>;
+                })}
+              </div>
+            )}
           </div>
           <div data-tour="turma" className="cardfx" style={styles.card}>
             <p style={{ color:"#fbbf24", fontWeight:700, marginBottom:8, fontSize:13 }}>🏆 Turma & Você</p>
@@ -4645,6 +4667,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [renameVal, setRenameVal] = useState("");
   const [scoreVal, setScoreVal] = useState("");
   const [nyxPointVal, setNyxPointVal] = useState("");
+  const [restoreAchievementId, setRestoreAchievementId] = useState("");
   const [struggleNotice, setStruggleNotice] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [selAccessMode, setSelAccessMode] = useState(false);
@@ -4657,7 +4680,7 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [selSupport, setSelSupport] = useState({});
   const [supportMap, setSupportMap] = useState({});
   const [checkinMap, setCheckinMap] = useState({}); // 😊 check-in emocional do dia: "turno:nome" → { mood, at }
-  useEffect(() => { setRenameVal(""); setScoreVal(""); setNyxPointVal(""); setConfirmDelete(false); setStudentCodeDraft(null); setStudentCodeConflict(false); }, [selected]);
+  useEffect(() => { setRenameVal(""); setScoreVal(""); setNyxPointVal(""); setRestoreAchievementId(""); setConfirmDelete(false); setStudentCodeDraft(null); setStudentCodeConflict(false); }, [selected]);
   const [resetting, setResetting] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetScope, setResetScope] = useState("all");
@@ -6316,6 +6339,17 @@ function TeacherView({ onLogout, teacherAuth }) {
     load();
   };
 
+  const doRestoreAchievement = async (s) => {
+    const info = achievementInfo(restoreAchievementId);
+    if (!s || !info || (s.achievements||[]).includes(info.id)) return;
+    const next = [...new Set([...(s.achievements||[]), info.id])];
+    const ok = await patchStudent(s.shift, s.name, { achievements:next }, teacherAuth);
+    if (ok) await setScoreFix(s.shift, s.name, { kind:"achievement-restore", achievements:next, restoredId:info.id }, teacherAuth);
+    setRestoreAchievementId("");
+    flashMgmt(ok ? `✅ Conquista ${info.label} devolvida para ${s.name}, sem repetir pontos.` : "❌ Não consegui recuperar a conquista agora. Tente novamente.");
+    load();
+  };
+
   const doDeleteStudent = async (s) => {
     if (!s) return;
     const deleted = await deleteStudentProfile(s.shift, s.name, teacherAuth);
@@ -7099,6 +7133,8 @@ function TeacherView({ onLogout, teacherAuth }) {
       {tab==="reminders" && <ScheduledReminders reminders={scheduledReminders} turmas={activeTurmas} onSave={saveReminders} />}
       {tab==="attendance" && <AttendancePanel students={students} shiftFilter={shiftFilter} shiftLabel={sh => shiftLabel(sh, turmas)} classDaysByShift={Object.fromEntries([...activeTurmas, TEST_SHIFT].map(sh => [sh.id, turmaCalendar(meta, sh.id).classDays]))} onSet={async (s, date, status) => {
         const ok = await setAttendance(s.shift, s.name, date, status, teacherAuth);
+        // Impede que o autosave de uma sessão aberta desfaça uma chamada manual antiga.
+        if (ok) await setScoreFix(s.shift, s.name, { kind:"attendance", dateKey:date, status:status==="auto"?null:status }, teacherAuth);
         if (ok) await load();
         return ok;
       }} />}
@@ -7869,6 +7905,15 @@ function TeacherView({ onLogout, teacherAuth }) {
                         style={{ width:110, background:"#171026", border:"1px solid #3b2a58", borderRadius:8, padding:"7px 10px", color:"#f0e9fb", fontSize:13, outline:"none" }} />
                       <button onClick={()=>doRestoreNyxPoints(sel)} disabled={!nyxPointVal || parseInt(nyxPointVal,10)<=0} style={{ ...styles.btn("#fbbf24"), padding:"6px 14px", fontSize:12.5, opacity:nyxPointVal && parseInt(nyxPointVal,10)>0?1:0.5 }}>Enviar pontos</button>
                       <span style={{ color:"#776798", fontSize:11.5, flex:"1 1 180px" }}>Total atual: <b style={{ color:"#fbbf24" }}>{sel.nyxPoints||0}</b> · use para recuperar progresso perdido.</span>
+                    </div>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                      <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>🎖️ Conquista:</span>
+                      <select value={restoreAchievementId} onChange={e=>setRestoreAchievementId(e.target.value)} style={{flex:"1 1 220px",maxWidth:360,background:"#171026",border:"1px solid #3b2a58",borderRadius:8,padding:"7px 10px",color:"#f0e9fb",fontSize:13}}>
+                        <option value="">Escolher conquista perdida</option>
+                        {ACHIEVEMENTS.filter(item=>!(sel.achievements||[]).includes(item.id) && (!item.langOnly || sel.shift===LANG_SHIFT.id)).map(item=><option key={item.id} value={item.id}>{item.emoji} {item.label}</option>)}
+                      </select>
+                      <button onClick={()=>doRestoreAchievement(sel)} disabled={!restoreAchievementId} style={{...styles.btn("#c084fc"),padding:"6px 14px",fontSize:12.5,opacity:restoreAchievementId?1:.5}}>Devolver conquista</button>
+                      <span style={{color:"#776798",fontSize:11.5,flex:"1 1 180px"}}>Restaura a medalha sem entregar os pontos da recompensa novamente.</span>
                     </div>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", borderTop:"1px solid #3b2a58", paddingTop:10 }}>
                       <span style={{ color:"#a99ac9", fontSize:13, minWidth:88 }}>💌 Boletim:</span>

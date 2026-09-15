@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { publicApis } from "../lib/publicApis.js";
+import { BRASILIA_TIME_ZONE, epochAtTick, makeSynchronizedTimeBase, millisecondsToNextSecond } from "../lib/platformClock.js";
 
 const WEATHER_LABELS = {
   0:"Céu limpo",1:"Predomínio de sol",2:"Parcialmente nublado",3:"Nublado",
@@ -28,22 +29,30 @@ export function PlatformStatusBar() {
   useEffect(()=>{
     let active=true;
     const loadWeather=()=>publicApis.weather(-15.7939,-47.8828,1).then(r=>{if(active)setWeather(r.data?.current||null);}).catch(()=>{});
-    const loadTime=()=>publicApis.time().then(r=>{
+    const loadTime=()=>{
+      const requestStartedAt=Date.now();
+      return publicApis.time().then(r=>{
       if(!active)return;
-      const data=r.data||{};
-      const parsed=Date.parse(data.dateTime||data.date_time||data.datetime||"");
-      setTimeBase({epoch:Number.isFinite(parsed)?parsed:Date.now(),receivedAt:Date.now(),source:"api"});
-    }).catch(()=>{if(active)setTimeBase(base=>base||{epoch:Date.now(),receivedAt:Date.now(),source:"local"});});
+      const receivedAt=Date.now();
+      setTimeBase(makeSynchronizedTimeBase(r.data,requestStartedAt,receivedAt));
+    }).catch(()=>{if(active)setTimeBase(null);});
+    };
     loadWeather(); loadTime();
     const weatherTimer=setInterval(loadWeather,15*60*1000);
     const timeTimer=setInterval(loadTime,10*60*1000);
-    const tickTimer=setInterval(()=>setTick(Date.now()),1000);
-    return()=>{active=false;clearInterval(weatherTimer);clearInterval(timeTimer);clearInterval(tickTimer);};
+    let tickTimer;
+    const scheduleTick=()=>{
+      tickTimer=setTimeout(()=>{setTick(Date.now());scheduleTick();},millisecondsToNextSecond());
+    };
+    const syncVisibleClock=()=>{if(document.visibilityState==="visible"){setTick(Date.now());loadTime();}};
+    scheduleTick();
+    document.addEventListener("visibilitychange",syncVisibleClock);
+    return()=>{active=false;clearInterval(weatherTimer);clearInterval(timeTimer);clearTimeout(tickTimer);document.removeEventListener("visibilitychange",syncVisibleClock);};
   },[]);
 
   const brasiliaTime=useMemo(()=>{
-    const date=timeBase?new Date(timeBase.epoch+(tick-timeBase.receivedAt)):new Date(tick);
-    return date.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit",timeZone:"America/Sao_Paulo"});
+    const date=new Date(epochAtTick(timeBase,tick));
+    return date.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit",timeZone:BRASILIA_TIME_ZONE});
   },[tick,timeBase]);
 
   const weatherText=weather?`${Math.round(weather.temperature_2m)}°C · ${WEATHER_LABELS[weather.weather_code]||"Clima atualizado"}`:"Clima carregando";
@@ -51,7 +60,7 @@ export function PlatformStatusBar() {
   const low=battery&&battery.level<=20&&!battery.charging;
 
   return <aside className="platform-status-bar" aria-label="Informações do notebook e de Brasília">
-    <span title="Horário de Brasília sincronizado pela TimeAPI.io"><i aria-hidden="true">🕒</i><b>{brasiliaTime}</b><small>Brasília</small></span>
+    <span title={timeBase?"Horário de Brasília sincronizado pela TimeAPI.io":"Horário de Brasília calculado pelo relógio do notebook"}><i aria-hidden="true">🕒</i><b>{brasiliaTime}</b><small>Brasília</small></span>
     <span title="Clima de Brasília fornecido pelo Open-Meteo"><i aria-hidden="true">{weather?.is_day===0?"🌙":"🌤️"}</i><b>{weatherText}</b><small>Clima de Brasília</small></span>
     <span className={low?"battery-low":""} title={battery?"Bateria informada pelo navegador":"Este navegador não permite consultar a bateria"}><i aria-hidden="true">{battery?.charging?"⚡":low?"🪫":"🔋"}</i><b>{batteryText}</b><small>Bateria do notebook</small></span>
   </aside>;

@@ -28,7 +28,10 @@ export function AttendancePanel({ students, shiftFilter, shiftLabel, classDaysBy
   const eligibleOn = (s, date) => {
     const enrolled = s.createdAt ? dateKeyOf(s.createdAt) : null;
     const scheduled = classDaysByShift[s.shift];
-    return (!enrolled || date >= enrolled) && (!scheduled?.length || scheduled.includes(date));
+    // Uma correção manual confirma que houve chamada nesse dia, mesmo quando o calendário
+    // automático falhou e não registrou a data como aula.
+    const manuallyRecorded = !!s.attendanceOverrides?.[date];
+    return (!enrolled || date >= enrolled) && (manuallyRecorded || !scheduled?.length || scheduled.includes(date));
   };
   const trend = days.map(date => {
     const eligible = shown.filter(s => eligibleOn(s, date));
@@ -73,7 +76,8 @@ export function AttendancePanel({ students, shiftFilter, shiftLabel, classDaysBy
       {!shown.length && <p className="attendance-empty">Nenhum aluno neste turno.</p>}
     </div>
 
-    <div className="attendance-day-editor"><h3>✏️ Ajustar um dia</h3>
+    <div className="attendance-day-editor"><h3>✏️ Chamada manual por data</h3>
+    <p>Escolha hoje ou qualquer dia anterior. A decisão manual fica salva e prevalece sobre o acesso automático do perfil.</p>
     <label className="teacher-control-label">Dia da chamada <input className="attendance-date" aria-label="Dia da chamada" type="date" value={day} max={todayKey()} onChange={e => e.target.value && setDay(e.target.value)} disabled={!!busy}/></label>
     <p role="status">{message || `${shown.filter(s => attendanceOnDay(s, day, dateKeyOf) === 'present').length} presentes de ${shown.length} alunos`}</p>
     <div style={{overflowX:'auto'}}><table style={{width:'100%', textAlign:'left', borderSpacing:'0 12px'}}>

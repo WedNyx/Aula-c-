@@ -4,8 +4,13 @@ export const RELEASES = [
     'A plataforma ganhou uma abertura cinematográfica própria antes da escolha entre aluno e professor.',
     'A animação pode ser pulada e não se repete durante a mesma sessão de acesso.',
     'Pessoas que preferem movimento reduzido seguem diretamente para a tela de entrada.',
+    'O relógio da plataforma permanece sincronizado e pontual com o horário de Brasília.',
+    'Professor pode recuperar conquistas perdidas e corrigir presenças de qualquer data com segurança.',
+    'Justificativas permanecem visíveis para o aluno e chegam aos avisos flutuantes do Nyx.',
   ], highlights: [
     'Uma nova abertura cinematográfica apresenta a Aula C# antes da escolha do perfil.',
+    'O horário de Brasília agora atualiza no segundo certo, sem carregar minutos atrasados.',
+    'Recuperação de conquistas, chamada manual por data e justificativas ficaram mais confiáveis.',
   ] },
   { version: '1.4.5', title: 'Código de Verdade', date: '2026-09-14', changes: [
     'Terminal agora compila e executa C# de verdade pelo Judge0, sem depender da IA.',
