@@ -1,0 +1,97 @@
+.cinematic-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  min-height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+  background: #090414;
+  animation: cinematic-intro-fade 4.8s ease both;
+}
+
+.cinematic-intro__scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  user-select: none;
+  pointer-events: none;
+  animation: cinematic-eclipse 4.8s cubic-bezier(.22, .72, .18, 1) both;
+}
+
+.cinematic-intro__skip {
+  position: fixed;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(22px, env(safe-area-inset-right));
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  color: rgba(255, 255, 255, .82);
+  background: rgba(16, 7, 29, .24);
+  border: 1px solid rgba(232, 214, 255, .2);
+  border-radius: 999px;
+  font: 700 13px/1 system-ui, sans-serif;
+  letter-spacing: .04em;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.cinematic-intro__skip:hover {
+  background: rgba(113, 45, 188, .34);
+  border-color: rgba(232, 214, 255, .5);
+  transform: translateY(-1px);
+}
+
+.cinematic-intro__skip:focus-visible {
+  outline: 3px solid #f3d98f;
+  outline-offset: 4px;
+}
+
+.cinematic-intro__announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes cinematic-eclipse {
+  0% {
+    opacity: 0;
+    transform: scale(1.28) translate3d(0, 2.2%, 0);
+    filter: brightness(.08) saturate(.48) blur(13px);
+  }
+  14% { opacity: .5; filter: brightness(.24) saturate(.7) blur(8px); }
+  38% { opacity: 1; transform: scale(1.13) translate3d(-.4%, .6%, 0); filter: brightness(.62) saturate(.98) blur(3px); }
+  62% { transform: scale(1.045) translate3d(.25%, 0, 0); filter: brightness(1.2) saturate(1.14) blur(0); }
+  78% { transform: scale(1) translate3d(0, 0, 0); filter: brightness(1.04) saturate(1.08) blur(0); }
+  91% { opacity: 1; transform: scale(1.035); filter: brightness(.82) saturate(.96) blur(1px); }
+  100% { opacity: 0; transform: scale(1.16); filter: brightness(1.45) saturate(.8) blur(10px); }
+}
+
+@keyframes cinematic-intro-fade {
+  0%, 91% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (max-width: 640px) {
+  .cinematic-intro__scene { object-position: center; }
+  .cinematic-intro__skip-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .cinematic-intro__skip { padding: 11px 15px; font-size: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinematic-intro,
+  .cinematic-intro__scene {
+    animation: none;
+  }
+}
