@@ -1,5 +1,12 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
+  { version: '1.5.1', title: 'Atalhos do Computador', date: '2026-09-15', changes: [
+    'A tela de entrada ganhou botões para tentar abrir o Roblox e o Unity Hub instalados no computador.',
+    'Os atalhos iniciam somente o aplicativo, sem abrir experiência, jogo ou projeto específico.',
+    'A plataforma orienta o usuário quando o navegador solicitar confirmação para abrir outro aplicativo.',
+  ], highlights: [
+    'Roblox e Unity Hub agora podem ser iniciados diretamente pela tela de entrada.',
+  ] },
   { version: '1.5.0', title: 'Eclipse de Entrada', date: '2026-09-15', changes: [
     'A plataforma ganhou uma abertura cinematográfica própria antes da escolha entre aluno e professor.',
     'A animação pode ser pulada e não se repete durante a mesma sessão de acesso.',
