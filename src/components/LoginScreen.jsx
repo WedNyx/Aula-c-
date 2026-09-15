@@ -9,6 +9,7 @@ import { DEFAULT_AVATAR, Avatar } from "./Avatar.jsx";
 import { AvatarStudio3D } from "./AvatarStudio3D.jsx";
 import { NyxDisplay as NyxRobot } from "./NyxDisplay.jsx";
 import { Sparkles } from "./Sparkles.jsx";
+import { CinematicIntro } from "./CinematicIntro.jsx";
 
 // ════════════════════════════════════════════════════════════════════════════
 //  LOGIN
@@ -119,6 +120,7 @@ export function Login({ onJoin, turmas }) {
 
   return (
     <div style={styles.container}>
+      <CinematicIntro />
       <Sparkles />
       <div className="pop login-card" style={styles.card}>
         <div className="login-access-title">

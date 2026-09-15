@@ -1,5 +1,12 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
+  { version: '1.5.0', title: 'Eclipse de Entrada', date: '2026-09-15', changes: [
+    'A plataforma ganhou uma abertura cinematográfica própria antes da escolha entre aluno e professor.',
+    'A animação pode ser pulada e não se repete durante a mesma sessão de acesso.',
+    'Pessoas que preferem movimento reduzido seguem diretamente para a tela de entrada.',
+  ], highlights: [
+    'Uma nova abertura cinematográfica apresenta a Aula C# antes da escolha do perfil.',
+  ] },
   { version: '1.4.5', title: 'Código de Verdade', date: '2026-09-14', changes: [
     'Terminal agora compila e executa C# de verdade pelo Judge0, sem depender da IA.',
     'Entrada para Console.ReadLine pode ser preparada antes da execução do programa.',
