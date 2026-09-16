@@ -1,7 +1,7 @@
 import { clientIp } from './_ip.js'
 import { rateLimitCheck } from './kv.js'
 
-const PROVIDERS = new Set(['weather', 'country', 'wikipedia', 'pokemon', 'trivia', 'placeholder', 'sun', 'dog', 'time'])
+const PROVIDERS = new Set(['weather', 'country', 'wikipedia', 'pokemon', 'trivia', 'placeholder', 'sun', 'dog', 'time', 'nasa', 'openlibrary'])
 const PLACEHOLDER_RESOURCES = new Set(['posts', 'comments', 'albums', 'photos', 'todos', 'users'])
 
 function first(value) {
@@ -63,6 +63,27 @@ export function buildProviderRequest(provider, query = {}) {
       inprop: 'url', redirects: '1', format: 'json', origin: '*',
     })
     return { url: `https://pt.wikipedia.org/w/api.php?${params}`, attribution: 'Wikipédia / Wikimedia' }
+  }
+
+  if (provider === 'nasa') {
+    const date = text(query.date, 10)
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw Object.assign(new Error('Data da NASA inválida. Use AAAA-MM-DD.'), { status: 400 })
+    }
+    const params = new URLSearchParams({ api_key: process.env.NASA_API_KEY || 'DEMO_KEY', thumbs: 'true' })
+    if (date) params.set('date', date)
+    return { url: `https://api.nasa.gov/planetary/apod?${params}`, attribution: 'NASA Astronomy Picture of the Day' }
+  }
+
+  if (provider === 'openlibrary') {
+    const search = text(query.q, 100)
+    if (search.length < 2) throw Object.assign(new Error('Informe um livro ou autor com pelo menos 2 caracteres.'), { status: 400 })
+    const params = new URLSearchParams({
+      q: search,
+      limit: String(Math.round(number(query.limit, 1, 12, 8))),
+      fields: 'key,title,author_name,first_publish_year,cover_i,edition_count',
+    })
+    return { url: `https://openlibrary.org/search.json?${params}`, attribution: 'Open Library' }
   }
 
   if (provider === 'pokemon') {
@@ -137,7 +158,9 @@ export default async function handler(req, res) {
     // guardada faria o relógio nascer vários minutos atrasado.
     res.setHeader('Cache-Control', provider === 'time'
       ? 'private, no-store, max-age=0'
-      : 'public, s-maxage=300, stale-while-revalidate=900')
+      : provider === 'nasa'
+        ? 'public, s-maxage=3600, stale-while-revalidate=86400'
+        : 'public, s-maxage=300, stale-while-revalidate=900')
     return res.json({ provider, attribution: request.attribution, data })
   } catch (error) {
     const status = Number(error?.status) || (error?.name === 'TimeoutError' ? 504 : 500)

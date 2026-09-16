@@ -8,6 +8,8 @@ requisições, sem colocar chaves privadas no navegador.
 | Open-Meteo | clima e cenário do Santuário Lunar | não |
 | REST Countries | países, bandeiras, idiomas e moedas | não |
 | Wikipédia | resumos e pesquisa educacional | não |
+| NASA APOD | imagem astronômica diária e conteúdo do Nyx | sim (DEMO_KEY serve para testes) |
+| Open Library | pesquisa de livros, autores e capas | não |
 | PokéAPI | exemplos de consumo de API | não |
 | Open Trivia DB | perguntas gerais para protótipos de quiz | não |
 | JSONPlaceholder | API simulada para exercícios | não |
@@ -22,6 +24,9 @@ Todas as consultas passam por `GET /api/public-content`. Exemplos:
 /api/public-content?provider=weather&lat=-23.55&lon=-46.63&days=3
 /api/public-content?provider=country&name=Brasil
 /api/public-content?provider=wikipedia&q=linguagem%20C%20sharp
+/api/public-content?provider=nasa
+/api/public-content?provider=nasa&date=2026-09-16
+/api/public-content?provider=openlibrary&q=programacao%20C%23&limit=8
 /api/public-content?provider=pokemon&id=pikachu
 /api/public-content?provider=trivia&amount=5&difficulty=easy
 /api/public-content?provider=placeholder&resource=posts&id=1
@@ -40,5 +45,4 @@ termos, disponibilidade e limites. Preserve a atribuição devolvida no campo
 `attribution`; o plano gratuito do Open-Meteo é destinado a uso não comercial e pede
 atribuição, e o conteúdo da Open Trivia DB usa CC BY-SA 4.0.
 
-APIs que exigem chave, cartão, plano pago ou aprovação (NASA, Giphy, Tenor, Mapbox,
-Freesound, Pixabay e Unsplash, entre outras) não foram ativadas nesta fase.
+A NASA usa `NASA_API_KEY` somente no servidor. Sem essa variável, a integração cai para `DEMO_KEY`, adequada apenas para testes e com limite menor. Giphy, Tenor, Mapbox, Freesound, Pixabay e Unsplash continuam desativadas por exigirem credenciais, aprovação ou condições adicionais.
