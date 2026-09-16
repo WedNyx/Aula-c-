@@ -11,6 +11,15 @@ assert.equal(new URL(country.url).hostname, 'restcountries.com')
 const wiki = buildProviderRequest('wikipedia', { q: 'linguagem C sharp' })
 assert.equal(new URL(wiki.url).hostname, 'pt.wikipedia.org')
 
+const nasa = buildProviderRequest('nasa', { date: '2026-09-16' })
+assert.equal(new URL(nasa.url).hostname, 'api.nasa.gov')
+assert.equal(new URL(nasa.url).searchParams.get('date'), '2026-09-16')
+assert.ok(new URL(nasa.url).searchParams.get('api_key'))
+
+const library = buildProviderRequest('openlibrary', { q: 'programação C#', limit: 50 })
+assert.equal(new URL(library.url).hostname, 'openlibrary.org')
+assert.equal(new URL(library.url).searchParams.get('limit'), '8')
+
 const pokemon = buildProviderRequest('pokemon', { id: 'pikachu' })
 assert.equal(new URL(pokemon.url).hostname, 'pokeapi.co')
 
@@ -31,5 +40,7 @@ assert.equal(new URL(time.url).searchParams.get('timeZone'), 'America/Sao_Paulo'
 assert.throws(() => buildProviderRequest('https://evil.example', {}), /não permitido/)
 assert.throws(() => buildProviderRequest('weather', { lat: 'x', lon: 0 }), /lat deve estar/)
 assert.throws(() => buildProviderRequest('pokemon', { id: '../admin' }), /inválido/)
+assert.throws(() => buildProviderRequest('nasa', { date: '16/09/2026' }), /Data da NASA inválida/)
+assert.throws(() => buildProviderRequest('openlibrary', { q: 'a' }), /pelo menos 2 caracteres/)
 
 console.log('✅ APIs públicas usam somente provedores permitidos e parâmetros validados')

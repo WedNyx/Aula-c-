@@ -15,6 +15,8 @@ export const publicApis = {
   weather: (lat, lon, days = 3, options) => request('weather', { lat, lon, days }, options),
   country: (name, options) => request('country', { name }, options),
   wikipedia: (q, options) => request('wikipedia', { q }, options),
+  nasa: (date, options) => request('nasa', { date }, options),
+  openLibrary: (q, limit = 8, options) => request('openlibrary', { q, limit }, options),
   pokemon: (id, options) => request('pokemon', { id }, options),
   trivia: (params = {}, options) => request('trivia', params, options),
   placeholder: (resource = 'posts', id, options) => request('placeholder', { resource, id }, options),
