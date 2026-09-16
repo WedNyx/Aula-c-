@@ -26,7 +26,11 @@ export async function mountNyxGame({ parent, width = 960, height = 540, scene, c
     scene,
     ...config,
   });
-  return () => game.destroy(true);
+  parent.__nyxGame = game;
+  return () => {
+    if (parent.__nyxGame === game) delete parent.__nyxGame;
+    game.destroy(true);
+  };
 }
 
 export async function phaserApi() {

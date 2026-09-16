@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { listStudents } from "../storage.js";
 import { NyxDisplay } from "./NyxDisplay.jsx";
 import { publicApis } from "../lib/publicApis.js";
+import { playSound } from "../lib/sound.ts";
+import { BugHuntGame } from "./BugHuntGame.jsx";
 
 const CHALLENGES = [
   { id:"sequence", icon:"🌙", title:"Sequência Lunar", desc:"Memorize e repita a ordem dos símbolos." },
   { id:"odd", icon:"🔭", title:"Estrela Intrusa", desc:"Encontre o símbolo diferente antes do tempo acabar." },
   { id:"memory", icon:"🪐", title:"Pares do Eclipse", desc:"Encontre os três pares escondidos." },
+  { id:"bugs", icon:"🐛", title:"Caça aos Bugs", desc:"Encontre erros de C# em um jogo Phaser com combo e cronômetro." },
 ];
 
 const SYMBOLS = ["🌙","⭐","☄️","🪐"];
@@ -25,7 +28,8 @@ function SequenceChallenge({ onWin, onBack }) {
   const choose = (symbol) => {
     if (!hidden) return;
     const next = [...answer, symbol]; setAnswer(next);
-    if (symbol !== sequence[next.length-1]) { setMessage("Quase! Tente novamente desde o começo."); setAnswer([]); return; }
+    if (symbol !== sequence[next.length-1]) { playSound("wrong"); setMessage("Quase! Tente novamente desde o começo."); setAnswer([]); return; }
+    playSound("correct");
     if (next.length === sequence.length) { setMessage("Sequência completa!"); onWin("sequence"); }
   };
   return <ChallengeFrame title="🌙 Sequência Lunar" message={message} onBack={onBack}>
@@ -37,14 +41,14 @@ function SequenceChallenge({ onWin, onBack }) {
 function OddChallenge({ onWin, onBack }) {
   const [round] = useState(() => { const base=SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)]; let odd=base; while(odd===base) odd=SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)]; return {base,odd,index:Math.floor(Math.random()*20)}; });
   const [message,setMessage]=useState("Encontre a estrela intrusa.");
-  const pick=(index)=>{ if(index===round.index){setMessage("Você encontrou!");onWin("odd");} else setMessage("Essa faz parte do padrão. Continue procurando!"); };
+  const pick=(index)=>{ if(index===round.index){playSound("correct");setMessage("Você encontrou!");onWin("odd");} else {playSound("wrong");setMessage("Essa faz parte do padrão. Continue procurando!");} };
   return <ChallengeFrame title="🔭 Estrela Intrusa" message={message} onBack={onBack}><div className="lunar-odd-grid">{Array.from({length:20},(_,i)=><button key={i} onClick={()=>pick(i)}>{i===round.index?round.odd:round.base}</button>)}</div></ChallengeFrame>;
 }
 
 function MemoryChallenge({ onWin, onBack }) {
   const [deck] = useState(() => [...SYMBOLS.slice(0,3),...SYMBOLS.slice(0,3)].sort(()=>Math.random()-.5));
   const [open,setOpen]=useState([]); const [matched,setMatched]=useState([]); const [message,setMessage]=useState("Encontre todos os pares.");
-  const flip=(index)=>{ if(open.length===2||open.includes(index)||matched.includes(index)) return; const next=[...open,index]; setOpen(next); if(next.length===2){ setTimeout(()=>{ if(deck[next[0]]===deck[next[1]]){ const done=[...matched,...next]; setMatched(done); setMessage("Par encontrado!"); if(done.length===deck.length){setMessage("Todos os pares foram encontrados!");onWin("memory");} } else setMessage("Não formou um par. Tente outra vez!"); setOpen([]); },500); } };
+  const flip=(index)=>{ if(open.length===2||open.includes(index)||matched.includes(index)) return; const next=[...open,index]; setOpen(next); if(next.length===2){ setTimeout(()=>{ if(deck[next[0]]===deck[next[1]]){ playSound("correct"); const done=[...matched,...next]; setMatched(done); setMessage("Par encontrado!"); if(done.length===deck.length){setMessage("Todos os pares foram encontrados!");onWin("memory");} } else { playSound("wrong"); setMessage("Não formou um par. Tente outra vez!"); } setOpen([]); },500); } };
   return <ChallengeFrame title="🪐 Pares do Eclipse" message={message} onBack={onBack}><div className="lunar-memory-grid">{deck.map((symbol,index)=><button key={index} onClick={()=>flip(index)}>{open.includes(index)||matched.includes(index)?symbol:"✦"}</button>)}</div></ChallengeFrame>;
 }
 
@@ -138,6 +142,7 @@ export function LunarSanctuary({ studentName, shift, nyxPoints=0, nyxSpent=0, ac
         {tab==="challenges"&&challenge==="sequence"&&<SequenceChallenge onWin={win} onBack={()=>setChallenge(null)}/>}
         {tab==="challenges"&&challenge==="odd"&&<OddChallenge onWin={win} onBack={()=>setChallenge(null)}/>}
         {tab==="challenges"&&challenge==="memory"&&<MemoryChallenge onWin={win} onBack={()=>setChallenge(null)}/>}
+        {tab==="challenges"&&challenge==="bugs"&&<BugHuntGame onWin={()=>win("bugs")} onBack={()=>setChallenge(null)}/>}
         {tab==="world"&&<LivingWorld/>}
         {tab==="journey"&&<section className="lunar-journey"><div className="lunar-section-title"><h2>🗺️ Jornada da Turma</h2><p>O progresso de todos ilumina um novo ponto do mapa.</p></div><div className="lunar-path">{["Santuário","Bosque","Observatório","Lago Lunar","Portal"].map((name,index)=><div className={index<=journeyLevel?"unlocked":""} key={name}><span>{["🌙","🌲","🔭","🌌","🚪"][index]}</span><b>{name}</b><small>{index<=journeyLevel?"Descoberto":`${index*250} pontos`}</small></div>)}</div><div className="lunar-class-progress"><div><b>{classPoints} pontos da turma</b><span>Próxima descoberta: {Math.min(1250,(journeyLevel+1)*250)} pontos</span></div><i><b style={{width:`${journeyProgress}%`}}/></i><small>{classStudents.length} participante{classStudents.length===1?"":"s"} contribuindo nesta jornada</small></div></section>}
       </div>{toast&&<div className="lunar-toast">{toast}</div>}
