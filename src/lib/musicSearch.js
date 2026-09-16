@@ -1,3 +1,9 @@
+export async function musicSearchStatus() {
+  const response = await fetch('/api/music-search')
+  const data = await response.json().catch(() => ({}))
+  return response.ok ? data : { youtube:false, spotify:false, fallback:true }
+}
+
 export async function searchMusic(provider, query, auth, student = {}) {
   const response = await fetch('/api/music-search', {
     method:'POST', headers:{ 'Content-Type':'application/json' },
