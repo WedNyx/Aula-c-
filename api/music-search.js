@@ -7,7 +7,7 @@ const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || ''
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || ''
 
 function cleanText(value, max = 120) {
-  return String(value || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, max)
+  return String(value || '').replace(/<[^>]*>/g, '').replace(/&amp;/gi, '&').replace(/&quot;/gi, '\"').replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\s+/g, ' ').trim().slice(0, max)
 }
 function durationLabel(ms) {
   const seconds = Math.max(0, Math.round(Number(ms || 0) / 1000))
