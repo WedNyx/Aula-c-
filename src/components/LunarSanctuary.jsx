@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { listStudents } from "../storage.js";
 import { NyxDisplay } from "./NyxDisplay.jsx";
 import { publicApis } from "../lib/publicApis.js";
+import { playSound } from "../lib/sound.ts";
 
 const CHALLENGES = [
-  { id:"sequence", icon:"🌙", title:"Sequência Lunar", desc:"Memorize e repita a ordem dos símbolos." },
-  { id:"odd", icon:"🔭", title:"Estrela Intrusa", desc:"Encontre o símbolo diferente antes do tempo acabar." },
-  { id:"memory", icon:"🪐", title:"Pares do Eclipse", desc:"Encontre os três pares escondidos." },
+  { id:"sequence", icon:"🌙", title:"Sequência Lunar", desc:"Três rodadas progressivas, com vidas e sequências maiores." },
+  { id:"odd", icon:"🔭", title:"Estrela Intrusa", desc:"Encontre o símbolo diferente em campos cada vez maiores." },
+  { id:"memory", icon:"🪐", title:"Pares do Eclipse", desc:"Encontre quatro pares e acompanhe jogadas e tempo." },
 ];
 
 const SYMBOLS = ["🌙","⭐","☄️","🪐"];
@@ -16,38 +17,73 @@ const dayKey = () => {
 };
 
 function SequenceChallenge({ onWin, onBack }) {
-  const [sequence] = useState(() => Array.from({length:4}, () => SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)]));
-  const [started, setStarted] = useState(false);
-  const [hidden, setHidden] = useState(false);
-  const [answer, setAnswer] = useState([]);
-  const [message, setMessage] = useState("Observe a sequência e clique em Começar.");
-  const begin = () => { setStarted(true); setMessage("Memorize..."); setTimeout(() => { setHidden(true); setMessage("Agora repita a sequência!"); }, 1800); };
-  const choose = (symbol) => {
-    if (!hidden) return;
-    const next = [...answer, symbol]; setAnswer(next);
-    if (symbol !== sequence[next.length-1]) { setMessage("Quase! Tente novamente desde o começo."); setAnswer([]); return; }
-    if (next.length === sequence.length) { setMessage("Sequência completa!"); onWin("sequence"); }
+  const makeSequence = (length) => Array.from({length}, () => SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)]);
+  const [round,setRound]=useState(1); const [lives,setLives]=useState(2);
+  const [sequence,setSequence]=useState(()=>makeSequence(4));
+  const [started,setStarted]=useState(false); const [hidden,setHidden]=useState(false);
+  const [answer,setAnswer]=useState([]); const [message,setMessage]=useState("São 3 rodadas. Observe a sequência e clique em Começar.");
+  const begin=()=>{setStarted(true);setMessage(`Rodada ${round}: memorize…`);setTimeout(()=>{setHidden(true);setMessage("Agora repita a sequência!");},Math.max(1100,1900-round*200));};
+  const reset=()=>{setRound(1);setLives(2);setSequence(makeSequence(4));setStarted(false);setHidden(false);setAnswer([]);setMessage("Nova partida: prepare a memória!");};
+  const choose=(symbol)=>{
+    if(!hidden)return;
+    const next=[...answer,symbol]; setAnswer(next);
+    if(symbol!==sequence[next.length-1]){
+      playSound("wrong"); const remaining=lives-1; setLives(remaining); setAnswer([]);
+      if(remaining<=0){setMessage("As vidas acabaram. A sequência voltou ao início.");setTimeout(reset,700);}
+      else setMessage(`Quase! Você ainda tem ${remaining} vida. Tente a rodada novamente.`);
+      return;
+    }
+    playSound("correct");
+    if(next.length===sequence.length){
+      if(round===3){setMessage("As 3 sequências foram concluídas!");onWin("sequence");return;}
+      const nextRound=round+1; setRound(nextRound);setSequence(makeSequence(3+nextRound));setAnswer([]);setHidden(false);setStarted(false);setMessage(`Rodada ${nextRound} liberada — agora são ${3+nextRound} símbolos.`);
+    }
   };
   return <ChallengeFrame title="🌙 Sequência Lunar" message={message} onBack={onBack}>
-    <div className="lunar-sequence">{(hidden ? answer : sequence).map((symbol,index)=><span key={index}>{symbol}</span>)}{hidden && answer.length < sequence.length && Array.from({length:sequence.length-answer.length},(_,i)=><span className="empty" key={`e${i}`}>?</span>)}</div>
-    {!started ? <button className="lunar-primary" onClick={begin}>Começar</button> : <div className="lunar-symbols">{SYMBOLS.map(symbol=><button key={symbol} onClick={()=>choose(symbol)} disabled={!hidden}>{symbol}</button>)}</div>}
+    <div style={{display:"flex",justifyContent:"center",gap:16,color:"#d6c9ec",fontWeight:800,marginBottom:10}}><span>Rodada {round}/3</span><span>Vidas {"❤".repeat(lives)}{"♡".repeat(2-lives)}</span></div>
+    <div className="lunar-sequence">{(hidden?answer:sequence).map((symbol,index)=><span key={index}>{symbol}</span>)}{hidden&&answer.length<sequence.length&&Array.from({length:sequence.length-answer.length},(_,i)=><span className="empty" key={`e${i}`}>?</span>)}</div>
+    {!started?<button className="lunar-primary" onClick={begin}>Começar rodada {round}</button>:<div className="lunar-symbols">{SYMBOLS.map(symbol=><button key={symbol} onClick={()=>choose(symbol)} disabled={!hidden}>{symbol}</button>)}</div>}
+    <button className="lunar-back" onClick={reset} style={{marginTop:10}}>↻ Reiniciar partida</button>
   </ChallengeFrame>;
 }
-
 function OddChallenge({ onWin, onBack }) {
-  const [round] = useState(() => { const base=SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)]; let odd=base; while(odd===base) odd=SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)]; return {base,odd,index:Math.floor(Math.random()*20)}; });
-  const [message,setMessage]=useState("Encontre a estrela intrusa.");
-  const pick=(index)=>{ if(index===round.index){setMessage("Você encontrou!");onWin("odd");} else setMessage("Essa faz parte do padrão. Continue procurando!"); };
-  return <ChallengeFrame title="🔭 Estrela Intrusa" message={message} onBack={onBack}><div className="lunar-odd-grid">{Array.from({length:20},(_,i)=><button key={i} onClick={()=>pick(i)}>{i===round.index?round.odd:round.base}</button>)}</div></ChallengeFrame>;
+  const makeRound=(level)=>{const base=SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)];let odd=base;while(odd===base)odd=SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)];const size=12+level*4;return{base,odd,index:Math.floor(Math.random()*size),size};};
+  const [level,setLevel]=useState(1); const [round,setRound]=useState(()=>makeRound(1)); const [mistakes,setMistakes]=useState(0); const [message,setMessage]=useState("Encontre o símbolo diferente em 3 rodadas.");
+  const reset=()=>{setLevel(1);setRound(makeRound(1));setMistakes(0);setMessage("Nova partida iniciada.");};
+  const pick=(index)=>{
+    if(index!==round.index){playSound("wrong");setMistakes(value=>value+1);setMessage("Esse faz parte do padrão. Observe com calma.");return;}
+    playSound("correct");
+    if(level===3){setMessage(`Três rodadas concluídas com ${mistakes} erro${mistakes===1?"":"s"}!`);onWin("odd");return;}
+    const next=level+1;setLevel(next);setRound(makeRound(next));setMessage(`Boa! Rodada ${next}: o campo ficou maior.`);
+  };
+  return <ChallengeFrame title="🔭 Estrela Intrusa" message={message} onBack={onBack}>
+    <div style={{display:"flex",justifyContent:"center",gap:16,color:"#d6c9ec",fontWeight:800,marginBottom:10}}><span>Rodada {level}/3</span><span>Erros {mistakes}</span></div>
+    <div className="lunar-odd-grid">{Array.from({length:round.size},(_,i)=><button key={i} onClick={()=>pick(i)}>{i===round.index?round.odd:round.base}</button>)}</div>
+    <button className="lunar-back" onClick={reset} style={{marginTop:10}}>↻ Reiniciar partida</button>
+  </ChallengeFrame>;
 }
-
 function MemoryChallenge({ onWin, onBack }) {
-  const [deck] = useState(() => [...SYMBOLS.slice(0,3),...SYMBOLS.slice(0,3)].sort(()=>Math.random()-.5));
-  const [open,setOpen]=useState([]); const [matched,setMatched]=useState([]); const [message,setMessage]=useState("Encontre todos os pares.");
-  const flip=(index)=>{ if(open.length===2||open.includes(index)||matched.includes(index)) return; const next=[...open,index]; setOpen(next); if(next.length===2){ setTimeout(()=>{ if(deck[next[0]]===deck[next[1]]){ const done=[...matched,...next]; setMatched(done); setMessage("Par encontrado!"); if(done.length===deck.length){setMessage("Todos os pares foram encontrados!");onWin("memory");} } else setMessage("Não formou um par. Tente outra vez!"); setOpen([]); },500); } };
-  return <ChallengeFrame title="🪐 Pares do Eclipse" message={message} onBack={onBack}><div className="lunar-memory-grid">{deck.map((symbol,index)=><button key={index} onClick={()=>flip(index)}>{open.includes(index)||matched.includes(index)?symbol:"✦"}</button>)}</div></ChallengeFrame>;
+  const makeDeck=()=>[...SYMBOLS,...SYMBOLS].sort(()=>Math.random()-.5);
+  const [deck,setDeck]=useState(makeDeck); const [open,setOpen]=useState([]); const [matched,setMatched]=useState([]); const [moves,setMoves]=useState(0); const [startedAt,setStartedAt]=useState(null); const [now,setNow]=useState(Date.now()); const [done,setDone]=useState(false); const [message,setMessage]=useState("Encontre os quatro pares com o menor número de jogadas.");
+  useEffect(()=>{if(!startedAt||done)return;const timer=setInterval(()=>setNow(Date.now()),250);return()=>clearInterval(timer);},[startedAt,done]);
+  const reset=()=>{setDeck(makeDeck());setOpen([]);setMatched([]);setMoves(0);setStartedAt(null);setNow(Date.now());setDone(false);setMessage("Cartas embaralhadas. Boa memória!");};
+  const flip=(index)=>{
+    if(open.length===2||open.includes(index)||matched.includes(index)||done)return;
+    if(!startedAt)setStartedAt(Date.now());
+    const next=[...open,index];setOpen(next);
+    if(next.length===2){setMoves(value=>value+1);setTimeout(()=>{
+      if(deck[next[0]]===deck[next[1]]){playSound("correct");const complete=[...matched,...next];setMatched(complete);setMessage("Par encontrado!");if(complete.length===deck.length){setDone(true);setMessage(`Todos os pares em ${moves+1} jogadas!`);onWin("memory");}}
+      else{playSound("wrong");setMessage("Não formou um par. Tente outra combinação.");}
+      setOpen([]);
+    },500);}
+  };
+  const seconds=startedAt?((done?now:Date.now())-startedAt)/1000:0;
+  return <ChallengeFrame title="🪐 Pares do Eclipse" message={message} onBack={onBack}>
+    <div style={{display:"flex",justifyContent:"center",gap:16,color:"#d6c9ec",fontWeight:800,marginBottom:10}}><span>Jogadas {moves}</span><span>Pares {matched.length/2}/4</span><span>Tempo {seconds.toFixed(1)}s</span></div>
+    <div className="lunar-memory-grid">{deck.map((symbol,index)=><button key={index} onClick={()=>flip(index)} disabled={done}>{open.includes(index)||matched.includes(index)?symbol:"✦"}</button>)}</div>
+    <button className="lunar-back" onClick={reset} style={{marginTop:10}}>↻ Embaralhar novamente</button>
+  </ChallengeFrame>;
 }
-
 function ChallengeFrame({ title, message, onBack, children }) {
   return <section className="lunar-challenge-play"><button className="lunar-back" onClick={onBack}>← Desafios</button><h2>{title}</h2><p>{message}</p>{children}</section>;
 }
