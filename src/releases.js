@@ -1,5 +1,16 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
+  { version: '1.5.2', title: 'Jogos em Evolução', date: '2026-09-16', changes: [
+    'Corrida de Digitação ganhou níveis iniciante, intermediário e avançado.',
+    'Precisão e caracteres por minuto agora aparecem durante e depois da corrida.',
+    'Sequência Lunar ganhou três rodadas progressivas, vidas e opção de reinício.',
+    'Estrela Intrusa ficou progressivamente maior e passou a contabilizar erros.',
+    'Pares do Eclipse ganhou quatro pares, cronômetro, contador de jogadas e novo embaralhamento.',
+    'Os desafios respondem aos acertos e erros com feedback sonoro consistente.',
+  ], highlights: [
+    'Os jogos existentes ficaram mais completos, progressivos e fáceis de repetir.',
+    'A Corrida de Digitação agora mede dificuldade, precisão e velocidade.',
+  ] },
   { version: '1.5.1', title: 'Atalhos do Computador', date: '2026-09-15', changes: [
     'A tela de entrada ganhou botões para tentar abrir o Roblox e o Unity Hub instalados no computador.',
     'Os atalhos iniciam somente o aplicativo, sem abrir experiência, jogo ou projeto específico.',
