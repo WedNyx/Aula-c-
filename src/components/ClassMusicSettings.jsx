@@ -8,9 +8,11 @@ export function ClassMusicSettings({ allSettings, turmaId, turmas, styles, onTur
   const [title,setTitle]=useState(""),[artist,setArtist]=useState(""),[url,setUrl]=useState("");
   const [message,setMessage]=useState(""),[saving,setSaving]=useState(false);
   const [suggestions,setSuggestions]=useState([]);
-  const [searchProvider,setSearchProvider]=useState("youtube"),[searchQuery,setSearchQuery]=useState(""),[searchResults,setSearchResults]=useState([]),[searching,setSearching]=useState(false);\n  const [providerStatus,setProviderStatus]=useState(null),[lastSearch,setLastSearch]=useState("");
+  const [searchProvider,setSearchProvider]=useState("youtube"),[searchQuery,setSearchQuery]=useState(""),[searchResults,setSearchResults]=useState([]),[searching,setSearching]=useState(false);
+  const [providerStatus,setProviderStatus]=useState(null),[lastSearch,setLastSearch]=useState("");
   const [nowPlaying,setNowPlaying]=useState(null);
-  const loadSuggestions=()=>listMusicSuggestions(turmaId,teacherAuth).then(setSuggestions);\n  useEffect(()=>{musicSearchStatus().then(setProviderStatus).catch(()=>setProviderStatus({youtube:false,spotify:false,fallback:true}));},[]);
+  const loadSuggestions=()=>listMusicSuggestions(turmaId,teacherAuth).then(setSuggestions);
+  useEffect(()=>{musicSearchStatus().then(setProviderStatus).catch(()=>setProviderStatus({youtube:false,spotify:false,fallback:true}));},[]);
   useEffect(()=>{let active=true;const load=()=>listMusicSuggestions(turmaId,teacherAuth).then(items=>{if(active)setSuggestions(items)});load();const timer=setInterval(load,10000);return()=>{active=false;clearInterval(timer)};},[turmaId,teacherAuth]);
   const settings=musicForTurma(allSettings,turmaId);
   const teacherPersonal=musicForTurma(allSettings,"__teacher_personal__");
