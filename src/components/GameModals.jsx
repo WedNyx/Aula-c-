@@ -17,8 +17,19 @@ const TYPING_SNIPPETS = [
   'string resposta = Console.ReadLine();\nConsole.WriteLine(resposta);',
 ];
 
+const TYPING_LEVELS = {
+  iniciante: TYPING_SNIPPETS.slice(0, 3),
+  intermediario: TYPING_SNIPPETS.slice(3, 6),
+  avancado: TYPING_SNIPPETS.slice(6),
+};
+const pickTypingSnippet = (level) => {
+  const pool = TYPING_LEVELS[level] || TYPING_LEVELS.iniciante;
+  return pool[Math.floor(Math.random() * pool.length)];
+};
+
 export function TypingRaceModal({ onClose, onFinish }) {
-  const [target] = useState(() => TYPING_SNIPPETS[Math.floor(Math.random() * TYPING_SNIPPETS.length)]);
+  const [difficulty, setDifficulty] = useState("iniciante");
+  const [target, setTarget] = useState(() => pickTypingSnippet("iniciante"));
   const [typed, setTyped] = useState("");
   const [startAt, setStartAt] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -46,9 +57,15 @@ export function TypingRaceModal({ onClose, onFinish }) {
       Promise.resolve(onFinish(ms)).then(r => setResult({ ms, ...(r || {}) }));
     }
   };
+  const restartRace = (level = difficulty) => {
+    setDifficulty(level); setTarget(pickTypingSnippet(level)); setTyped(""); setStartAt(null); setNow(Date.now()); setResult(null);
+  };
   const elapsed = startAt ? ((result ? result.ms : now - startAt) / 1000) : 0;
   const okLen = (() => { let i = 0; while (i < typed.length && typed[i] === target[i]) i++; return i; })();
   const hasError = typed.length > okLen;
+  const correctChars = typed.split("").reduce((sum, ch, index) => sum + (ch === target[index] ? 1 : 0), 0);
+  const accuracy = typed.length ? Math.round((correctChars / typed.length) * 100) : 100;
+  const cpm = elapsed > 0 ? Math.round(typed.length / (elapsed / 60)) : 0;
   const medals = ["🥇", "🥈", "🥉"];
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.85)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
@@ -58,10 +75,13 @@ export function TypingRaceModal({ onClose, onFinish }) {
           <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
         <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 12px" }}>Digite o código abaixo EXATAMENTE igual, o mais rápido que conseguir. O relógio começa na primeira tecla — e colar não vale! 😉</p>
+        <div aria-label="Dificuldade da corrida" style={{display:"flex",gap:7,marginBottom:12,flexWrap:"wrap"}}>
+          {["iniciante","intermediario","avancado"].map(level=><button key={level} disabled={!!startAt&&!result} onClick={()=>restartRace(level)} style={{background:difficulty===level?"#c084fc33":"#171026",border:`1px solid ${difficulty===level?"#c084fc":"#3b2a58"}`,borderRadius:9,color:difficulty===level?"#f0e9fb":"#a99ac9",padding:"7px 10px",fontWeight:800,cursor:startAt&&!result?"not-allowed":"pointer"}}>{({iniciante:"🌱 Iniciante",intermediario:"⚡ Intermediário",avancado:"🚀 Avançado"})[level]}</button>)}
+        </div>
 
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
           <span style={{ color:"#fbbf24", fontWeight:900, fontSize:22, fontVariantNumeric:"tabular-nums" }}>⏱ {elapsed.toFixed(1)}s</span>
-          <span style={{ color: hasError ? "#f87171" : "#34d399", fontSize:12.5, fontWeight:800 }}>{result ? "🏁 Chegada!" : hasError ? "✗ tem uma letra errada aí!" : `${okLen}/${target.length} caracteres`}</span>
+          <span style={{ color: hasError ? "#f87171" : "#34d399", fontSize:12.5, fontWeight:800 }}>{result ? "🏁 Chegada!" : hasError ? "✗ tem uma letra errada aí!" : `${okLen}/${target.length} caracteres · ${accuracy}% precisão · ${cpm} car/min`}</span>
         </div>
         <div className="bar-glow" style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:20, height:10, overflow:"hidden", marginBottom:12 }}>
           <div style={{ width:`${(okLen / target.length) * 100}%`, height:"100%", background: hasError ? "#f87171" : "linear-gradient(90deg,#f87171,#fbbf24,#34d399)", transition:"width .15s ease" }} />
@@ -86,7 +106,9 @@ export function TypingRaceModal({ onClose, onFinish }) {
             <div style={{ fontSize:38 }}>🏁</div>
             <p style={{ color:"#f0e9fb", fontWeight:900, fontSize:20, margin:"6px 0 2px" }}>{(result.ms / 1000).toFixed(1)} segundos!</p>
             {result.newRecord && <p style={{ color:"#fbbf24", fontWeight:800, fontSize:14, margin:"2px 0" }}>🌟 NOVO RECORDE PESSOAL!</p>}
+            <p style={{ color:"#a99ac9", fontSize:13, margin:"4px 0 0" }}>{accuracy}% de precisão · {cpm} caracteres por minuto</p>
             <p style={{ color:"#a99ac9", fontSize:13, margin:"4px 0 0" }}>{result.reward > 0 ? `+${result.reward} ponto${result.reward>1?"s":""} do Nyx pra você!` : "Pontos da corrida já garantidos hoje — mas o recorde continua valendo!"}</p>
+            <button onClick={()=>restartRace()} style={{ marginTop:12, marginRight:8, background:"linear-gradient(135deg,#c084fc,#7c3aed)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"9px 22px", cursor:"pointer", fontSize:14 }}>↻ Outra corrida</button>
             <button onClick={onClose} style={{ marginTop:12, background:"linear-gradient(135deg,#34d399,#059669)", border:"none", borderRadius:10, color:"#fff", fontWeight:800, padding:"9px 22px", cursor:"pointer", fontSize:14 }}>Fechar</button>
           </div>
         )}
