@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, getTeacherNotes, saveTeacherNotes, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTeacherResumoSnapshot, saveTeacherResumoSnapshot, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, getPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas, getTeacherScheduledReminders, saveTeacherScheduledReminders, getClassScheduledReminders, saveClassScheduledReminders, addClassMusicTrack } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, getTeacherNotes, saveTeacherNotes, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTeacherResumoSnapshot, saveTeacherResumoSnapshot, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas, getTeacherScheduledReminders, saveTeacherScheduledReminders, getClassScheduledReminders, saveClassScheduledReminders, addClassMusicTrack, submitMusicSuggestion } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -449,7 +449,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const [muted, setMuted] = useState(() => loadSoundsMuted());
   const [showDuel, setShowDuel] = useState(false);
   const [showTeamDuel, setShowTeamDuel] = useState(false);
-  const [duelDoc, setDuelDoc] = useState(null);
   // travas acionadas pelo professor (zek = tela bloqueada; zeker = duelos bloqueados)
   const [nyxLocks, setNyxLocksState] = useState({ zek: false, zeker: false });
   // quando a atividade de hoje foi concluída (mantém o status até as 9h do dia seguinte)
@@ -3489,7 +3488,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       {renderHiddenEggs()}
       {classFeedbackModal}
       {showClassLinks && <ClassLinksModal links={classLinks} onClose={()=>setShowClassLinks(false)} styles={styles} />}
-      {showClassMusic&&classMusic?.enabled&&<div style={{position:"fixed",inset:0,background:"rgba(11,6,20,.82)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1200,padding:16}} onClick={()=>setShowClassMusic(false)}><div role="dialog" aria-modal="true" aria-labelledby="class-music-title" style={{background:"linear-gradient(180deg,#231636,#1a1029)",border:"1px solid #c084fc66",borderRadius:20,padding:20,maxWidth:720,width:"100%",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 70px rgba(0,0,0,.6)"}} onClick={event=>event.stopPropagation()}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:12}}><h3 id="class-music-title" style={{color:"#c084fc",margin:0}}>🎵 Central de músicas</h3><button type="button" aria-label="Fechar player de música" onClick={()=>setShowClassMusic(false)} style={{...styles.btnGhost,padding:"5px 10px"}}>✕</button></div><StudentMusicHub classSettings={classMusic} personalTracks={personalMusicTracks} studentName={studentName} turmaId={shift} onSavePersonal={async tracks=>{setPersonalMusicTracks(tracks);stateRef.current={...stateRef.current,personalMusicTracks:tracks};return persist({personalMusicTracks:tracks})}} onAddClass={async track=>{const ok=await addClassMusicTrack(shift,studentName,track);if(ok){const fresh=await getTeacherMeta();setClassMusic(musicForTurma(fresh.musicSettings,shift))}return ok}}/></div></div>}
+      {showClassMusic&&classMusic?.enabled&&<div style={{position:"fixed",inset:0,background:"rgba(11,6,20,.82)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1200,padding:16}} onClick={()=>setShowClassMusic(false)}><div role="dialog" aria-modal="true" aria-labelledby="class-music-title" style={{background:"linear-gradient(180deg,#231636,#1a1029)",border:"1px solid #c084fc66",borderRadius:20,padding:20,maxWidth:720,width:"100%",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 70px rgba(0,0,0,.6)"}} onClick={event=>event.stopPropagation()}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:12}}><h3 id="class-music-title" style={{color:"#c084fc",margin:0}}>🎵 Central de músicas</h3><button type="button" aria-label="Fechar player de música" onClick={()=>setShowClassMusic(false)} style={{...styles.btnGhost,padding:"5px 10px"}}>✕</button></div><StudentMusicHub classSettings={classMusic} personalTracks={personalMusicTracks} studentName={studentName} turmaId={shift} onSavePersonal={async tracks=>{setPersonalMusicTracks(tracks);stateRef.current={...stateRef.current,personalMusicTracks:tracks};return persist({personalMusicTracks:tracks})}} onAddClass={async track=>{const ok=await addClassMusicTrack(shift,studentName,track);if(ok){const fresh=await getTeacherMeta();setClassMusic(musicForTurma(fresh.musicSettings,shift))}return ok}} onSuggest={track=>submitMusicSuggestion(shift,studentName,track)}/></div></div>}
       {/* pergunta de preferência de interação do Nyx — perfil novo, antes até da apresentação e do tour */}
       {showNyxPrefs && (
         <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.82)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1001, padding:16 }}>
@@ -4866,7 +4865,6 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [quizThemes, setQuizThemes] = useState([]);
   const [quizRoom, setQuizRoomState] = useState(null);
   const quizNow = useAccurateNow(quizRoom?.status === "question", 100);
-  const [quizNewTitle, setQuizNewTitle] = useState("");
   const [quizSecs, setQuizSecs] = useState(QUIZ_QUESTION_SECONDS); // tempo por pergunta escolhido pra próxima sala
   const [quizEditingTheme, setQuizEditingTheme] = useState(null); // { id?, title, questions } em edição
   const [quizQDraft, setQuizQDraft] = useState({ q:"", opts:["","","",""], correct:0, hard:false });
@@ -6431,20 +6429,37 @@ function TeacherView({ onLogout, teacherAuth }) {
         "Você cria questões de múltipla escolha sobre C# com alternativas erradas plausíveis (baseadas em erros comuns de iniciante), nunca óbvias ou absurdas. APENAS JSON puro sem markdown.",
         { max_tokens: 6000 }
       );
-      // ⏳ 30min de estudo antes da prova poder ser iniciada de verdade — mesmo espírito do
-      // chefão: dá tempo pra turma revisar o resumo com calma antes de valer a nota
-      const EXAM_STUDY_MS = 30 * 60 * 1000;
       const rawExamQuestions = Array.isArray(parsed.questions) ? parsed.questions : [];
       const validExamQuestions = filterValidQuestions(rawExamQuestions);
       if (!validExamQuestions.length) throw new Error('empty_exam');
       if (validExamQuestions.length < rawExamQuestions.length) {
         reportClientError({ message: `Prova da turma ${shiftFilter}: ${rawExamQuestions.length - validExamQuestions.length} questão(ões) geradas sem gabarito válido foram descartadas automaticamente, sem penalizar os alunos.`, url: window.location.pathname, role: "sistema" });
       }
-      const newConfig = { status: 'review', questions: shuffleQuestions(validExamQuestions), summary: summaryResult.trim(), shift: shiftFilter, startedAt: Date.now(), studyUntil: Date.now() + EXAM_STUDY_MS };
+      // 📥 igual o resumo: fica como RASCUNHO, só visível pro professor (getExamStateForStudent
+      // ignora status "draft") — a turma só vê/entra na revisão quando o professor mandar de verdade
+      // em enviarProvaParaTurma. Antes ia direto pra "review" (já valendo pra turma) assim que a IA
+      // terminava de gerar, sem chance de revisar as perguntas antes de qualquer aluno ver.
+      const newConfig = { status: 'draft', questions: shuffleQuestions(validExamQuestions), summary: summaryResult.trim(), shift: shiftFilter };
       if (!(await setExamState(newConfig, teacherAuth, shiftFilter))) throw new Error('exam_save_failed');
       setExamConfig(newConfig);
-      setExamMsg("✅ Prova criada! Os alunos têm 30min pra estudar. Quando todos estiverem prontos, clique em Iniciar Agora (ou espere o tempo passar).");
+      setExamMsg("✅ Rascunho da prova pronto! Revise as perguntas e envie pra turma quando quiser.");
     } catch(e) { setExamMsg("Erro ao gerar a prova. Tente de novo."); }
+    setExamGenerating(false);
+  };
+
+  // ⏳ 30min de estudo antes da prova poder ser iniciada de verdade — mesmo espírito do chefão:
+  // dá tempo pra turma revisar o resumo com calma antes de valer a nota
+  const EXAM_STUDY_MS = 30 * 60 * 1000;
+  // 📤 só aqui o rascunho (status "draft", guardado com o professor) realmente vira uma prova visível
+  // pra turma — mesma lógica de "salva no meu perfil, depois eu seleciono pra enviar" do resumo
+  const enviarProvaParaTurma = async () => {
+    if (examConfig.status !== 'draft') return;
+    setExamGenerating(true);
+    const now = Date.now();
+    const newConfig = { ...examConfig, status: 'review', startedAt: now, studyUntil: now + EXAM_STUDY_MS };
+    if (!(await setExamState(newConfig, teacherAuth, examConfig.shift || shiftFilter))) { setExamMsg("❌ Não consegui enviar a prova agora. Tente de novo."); setExamGenerating(false); return; }
+    setExamConfig(newConfig);
+    setExamMsg("✅ Prova enviada! Os alunos têm 30min pra estudar. Quando todos estiverem prontos, clique em Iniciar Agora (ou espere o tempo passar).");
     setExamGenerating(false);
   };
 
@@ -7372,6 +7387,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             <div className="cardfx" style={{ ...styles.card, textAlign:"center", borderColor: needHelp.length>0 ? "#f87171" : "#3a2a55" }}>
               <NyxRobot state={needHelp.length>0 ? "error" : shown.length>0 ? "ok" : "idle"} size={64} showName={false} />
               <div style={{ fontWeight:900, letterSpacing:2, fontSize:12, color:"#fbbf24", marginTop:2 }}>NYX DE OLHO</div>
+              {lastUpdate && <div style={{ color:"#776798", fontSize:11, marginTop:2 }}>Atualizado às {lastUpdate}</div>}
               <p style={{ color: needHelp.length>0 ? "#fca5a5" : "#a99ac9", fontSize:13, lineHeight:1.6, margin:"6px 0 0" }}>
                 {needHelp.length > 0
                   ? <>⚠ Atenção com: <b style={{color:"#f0e9fb"}}>{needHelp.slice(0,4).map(s=>String(s.name).split(" ")[0]).join(", ")}{needHelp.length>4 ? ` e mais ${needHelp.length-4}` : ""}</b> — clique no aluno para ver o que houve.</>
@@ -8594,7 +8610,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         const doneStudents  = examStudents.filter(s => s.examDone);
         const ranking = [...examStudents].filter(s=>s.examScore!=null).sort((a,b)=>(b.examScore||0)-(a.examScore||0));
         const qLen = (examConfig.questions||[]).length;
-        const examStageIndex = ({ idle:0, review:1, active:2, done:3 })[examConfig.status] ?? 0;
+        const examStageIndex = ({ idle:0, draft:0, review:1, active:2, done:3 })[examConfig.status] ?? 0;
         const medal = (i) => i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
         return (
           <div className="teacher-exam-shell">
@@ -8622,20 +8638,39 @@ function TeacherView({ onLogout, teacherAuth }) {
             {manualExamShift !== null && <TeacherSummaryEditor exam key={manualExamShift} onClose={()=>setManualExamShift(null)} onSave={async material => {
               const current = await getExamState(manualExamShift, teacherAuth, true);
               if (current.status !== 'idle') throw new Error('Já existe uma prova neste turno. Feche o editor e confira a prova antes de continuar.');
-              const now = Date.now();
-              const config = { status:'review', manual:true, shift:manualExamShift, startedAt:now, studyUntil:now+30*60*1000,
+              // 📥 rascunho: fica guardado com o professor (status "draft"), a turma só vê depois do
+              // envio explícito em enviarProvaParaTurma — igual o resumo escrito manualmente
+              const config = { status:'draft', manual:true, shift:manualExamShift,
                 questions:shuffleQuestions(material.atividade), summary:[material.intro, ...material.secoes.map(s=>`${s.titulo}\n${s.explicacao}\n${s.exemplo}`), material.dica].filter(Boolean).join('\n\n') };
               if (!(await setExamState(config, teacherAuth, manualExamShift))) return false;
               setExamConfig(config); setManualExamShift(null);
-              setExamMsg('✅ Prova manual criada! Revisão de 30 minutos; você também pode iniciar antes.');
+              setExamMsg('✅ Rascunho da prova manual pronto! Revise as perguntas e envie pra turma quando quiser.');
               return true;
             }} />}
             {examConfig.status === 'idle' && (
               <div className="teacher-exam-create" data-tour-prof="prova-manual">
-                <div className="teacher-exam-intro"><span>ETAPA 1 · PREPARAR</span><h3>🏆 Criar uma prova</h3><p>Escolha como preparar as perguntas. Nos dois caminhos, a turma entra primeiro na fase de revisão; nada começa imediatamente.</p></div>
+                <div className="teacher-exam-intro"><span>ETAPA 1 · PREPARAR</span><h3>🏆 Criar uma prova</h3><p>Escolha como preparar as perguntas. Nos dois caminhos, a prova fica guardada com você primeiro — só a turma vê depois que você mandar enviar.</p></div>
                 <article className="teacher-exam-choice teacher-exam-choice--manual"><span className="teacher-exam-choice-icon">✍️</span><div><h4>Criação manual</h4><p>Escreva as perguntas e defina o gabarito sem depender de IA. É o caminho mais controlado.</p></div><button disabled={examGenerating} onClick={()=>setManualExamShift(shiftFilter)} style={styles.btn("#22d3ee")}>Criar manualmente</button></article>
-                <article className="teacher-exam-choice"><span className="teacher-exam-choice-icon">✨</span><div><h4>Rascunho com o Nyx</h4><p>Gera questões usando primeiro o seu código da aula e, se ele estiver vazio, o código dos alunos. Revise antes de liberar.</p></div><button onClick={startExam} disabled={examGenerating} style={{ ...styles.btnGhost, opacity:examGenerating?0.6:1 }}>{examGenerating ? "Gerando rascunho..." : "Gerar prova com Nyx"}</button></article>
+                <article className="teacher-exam-choice"><span className="teacher-exam-choice-icon">✨</span><div><h4>Rascunho com o Nyx</h4><p>Gera questões usando primeiro o seu código da aula e, se ele estiver vazio, o código dos alunos. Revise antes de enviar.</p></div><button onClick={startExam} disabled={examGenerating} style={{ ...styles.btnGhost, opacity:examGenerating?0.6:1 }}>{examGenerating ? "Gerando rascunho..." : "Gerar prova com Nyx"}</button></article>
                 {examMsg && <p className={`teacher-exam-message${examMsg.startsWith("✅")?" success":""}`} role="status">{examMsg}</p>}
+              </div>
+            )}
+
+            {/* estado: draft — rascunho pronto, guardado só com o professor, ainda não visível pra turma */}
+            {examConfig.status === 'draft' && (
+              <div className="cardfx" style={styles.card}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:10 }}>
+                  <div>
+                    <h3 style={{ color:"#c084fc", margin:"0 0 4px" }}>📄 Rascunho pronto para revisão</h3>
+                    <p style={{ color:"#a99ac9", fontSize:13 }}>{qLen} questão{qLen===1?"":"ões"} preparada{qLen===1?"":"s"}{examConfig.manual?" (escritas manualmente)":" pelo Nyx"}. A turma <strong>ainda não vê nada</strong> — revise e envie quando estiver pronto.</p>
+                  </div>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={enviarProvaParaTurma} disabled={examGenerating} style={{ ...styles.btn("#22d3ee"), opacity:examGenerating?0.6:1 }}>{examGenerating ? "Enviando…" : `📤 Enviar para ${shiftMeta(examConfig.shift||shiftFilter, turmas).label}`}</button>
+                    <button onClick={resetExam} disabled={examGenerating} style={{ ...styles.btnGhost, fontSize:13 }}>🗑️ Descartar rascunho</button>
+                  </div>
+                </div>
+                {examMsg && <p style={{ color:"#34d399", fontSize:13, marginTop:10 }}>{examMsg}</p>}
+                <div style={{ color:"#d6c9ec", fontSize:13, lineHeight:1.8, whiteSpace:"pre-wrap", marginTop:14, background:"#171026", border:"1px solid #3b2a58", borderRadius:10, padding:12, maxHeight:220, overflowY:"auto" }}>{examConfig.summary || "Sem resumo de revisão."}</div>
               </div>
             )}
 

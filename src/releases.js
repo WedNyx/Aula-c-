@@ -1,5 +1,15 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
+  { version: '1.5.3', title: 'Enviar com Confiança', date: '2026-09-17', changes: [
+    'Resumo e atividade enviados para a turma agora podem ser cancelados: quem ainda não recebeu deixa de receber, e o botão de enviar volta a ficar disponível.',
+    'Provas (geradas pelo Nyx ou escritas manualmente) passam primeiro por um rascunho guardado só com o professor — a turma só vê a prova depois de um envio explícito, igual já acontecia com o resumo e com o código da aula.',
+    'Sugestão de música pelos alunos voltou a funcionar de ponta a ponta: o formulário de sugestão estava presente na interface, mas não aparecia por causa de uma conexão faltando, então nenhuma sugestão chegava até a fila de aprovação do professor.',
+    'Sugestão de música também passou a aparecer com a playlist da turma ainda vazia (antes só aparecia depois da primeira faixa adicionada).',
+    'Limpeza de código e de dependências não usadas por trás dos panos, sem mudanças visíveis para professores ou alunos.',
+  ], highlights: [
+    'Resumo/atividade e prova agora seguem o mesmo fluxo: preparar, revisar e só então enviar — com opção de cancelar o envio do resumo.',
+    'A sugestão de música dos alunos para o professor voltou a funcionar.',
+  ] },
   { version: '1.5.2', title: 'Jogos em Evolução', date: '2026-09-16', changes: [
     'Corrida de Digitação ganhou níveis iniciante, intermediário e avançado.',
     'Precisão e caracteres por minuto agora aparecem durante e depois da corrida.',

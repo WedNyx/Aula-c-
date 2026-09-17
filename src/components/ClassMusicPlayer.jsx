@@ -28,7 +28,12 @@ export function ClassMusicPlayer({ settings, compact=false, onSuggest }) {
   },[track?.url,embed?.src]);
 
   if(!music.enabled)return null;
-  if(!track)return <div role="status" style={{color:"#a99ac9",fontSize:13,padding:12}}>🎵 A música foi liberada, mas a playlist ainda está vazia.</div>;
+  // formulário de sugestão fica FORA do "if(!track)" de propósito: uma turma nova sem nenhuma faixa
+  // ainda é justamente o caso mais comum em que um aluno quer sugerir a primeira música — antes,
+  // esse retorno antecipado (playlist vazia) cortava o componente inteiro e escondia o formulário
+  // também, então ninguém conseguia sugerir nada até o professor adicionar a primeira faixa na mão
+  const suggestionForm=music.studentsCanAdd&&onSuggest&&<div style={{marginTop:14}}><ClassMusicSuggestionForm onSuggest={onSuggest}/></div>;
+  if(!track)return <div style={{background:"linear-gradient(145deg,#171026,#221536)",border:"1px solid #4c356d",borderRadius:14,padding:compact?12:16}}><div role="status" style={{color:"#a99ac9",fontSize:13}}>🎵 A música foi liberada, mas a playlist ainda está vazia.</div>{suggestionForm}</div>;
 
   const selectTrack=index=>{setTrackIndex(index);setError("");};
   const next=()=>selectTrack((trackIndex+1)%music.tracks.length);
@@ -37,6 +42,6 @@ export function ClassMusicPlayer({ settings, compact=false, onSuggest }) {
     {embed?<iframe title={embed.title} src={embed.src} loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" style={{width:"100%",height:embed.provider==="youtube"?(compact?190:260):152,border:0,borderRadius:12}}/>:<audio ref={audioRef} controls preload="metadata" src={track.url} onEnded={next} onError={()=>setError("Não foi possível reproduzir esta faixa. Verifique o link cadastrado.")} style={{width:"100%",height:40}} aria-label={`Reproduzir ${track.title}`} />}
     {error&&<p role="alert" style={{color:"#fbbf24",fontSize:12,margin:"8px 0 0"}}>⚠ {error}</p>}
     {music.tracks.length>1&&<div style={{display:"grid",gap:6,marginTop:12,maxHeight:compact?150:220,overflowY:"auto"}}>{music.tracks.map((item,index)=><button key={item.id} type="button" aria-current={index===trackIndex?"true":undefined} onClick={()=>selectTrack(index)} style={{background:index===trackIndex?"#c084fc22":"#120b20",border:`1px solid ${index===trackIndex?"#c084fc":"#3b2a58"}`,borderRadius:9,padding:"8px 10px",color:index===trackIndex?"#e9d5ff":"#d6c9ec",cursor:"pointer",textAlign:"left",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{index+1}. {item.title}{item.artist?` · ${item.artist}`:""}</button>)}</div>}
-    {music.studentsCanAdd&&onSuggest&&<div style={{marginTop:14}}><ClassMusicSuggestionForm onSuggest={onSuggest}/></div>}
+    {suggestionForm}
   </section>;
 }

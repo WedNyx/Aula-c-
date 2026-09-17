@@ -5,7 +5,7 @@ import { ClassMusicPlayer } from "./ClassMusicPlayer.jsx";
 
 const EMPTY_PERSONAL = { enabled:true, surface:"student", studentsCanAdd:false, tracks:[] };
 
-export function StudentMusicHub({ classSettings, personalTracks, studentName, turmaId, onSavePersonal, onAddClass }) {
+export function StudentMusicHub({ classSettings, personalTracks, studentName, turmaId, onSavePersonal, onAddClass, onSuggest }) {
   const [tab,setTab]=useState("search");
   const [provider,setProvider]=useState("youtube");
   const [query,setQuery]=useState("");
@@ -53,7 +53,7 @@ export function StudentMusicHub({ classSettings, personalTracks, studentName, tu
       {nowPlaying&&<div><p style={{color:"#22d3ee",fontWeight:800,fontSize:12}}>Tocando agora</p><ClassMusicPlayer settings={{enabled:true,tracks:[nowPlaying]}} compact/></div>}
       <div style={{display:"grid",gap:7,maxHeight:310,overflowY:"auto"}}>{results.map(track=><article key={track.id} style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8,alignItems:"center",padding:9,border:"1px solid #3b2a58",borderRadius:10,background:"#120b20"}}><span style={{minWidth:0}}><b style={{display:"block",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{track.title}</b><small style={{color:"#8f80ad"}}>{track.artist}</small></span><span style={{display:"flex",gap:5}}><button type="button" onClick={()=>setNowPlaying(track)} style={pill(false)}>▶</button><button type="button" title="Salvar na minha playlist" onClick={()=>savePersonal(track)} style={pill(false)}>💜</button>{room.studentsCanAdd&&<button type="button" title="Adicionar à playlist da sala" onClick={()=>addRoom(track)} style={pill(false)}>👥＋</button>}</span></article>)}</div>
     </>}
-    {tab==="room"&&<ClassMusicPlayer settings={room}/>}
+    {tab==="room"&&<ClassMusicPlayer settings={room} onSuggest={onSuggest}/>}
     {tab==="mine"&&(personal.tracks.length?<><ClassMusicPlayer settings={personal}/><div style={{display:"grid",gap:5}}>{personal.tracks.map(track=><button key={track.id} type="button" onClick={()=>removePersonal(track.id)} style={{...pill(false),textAlign:"left"}}>🗑️ Remover {track.title}</button>)}</div></>:<p style={{color:"#8f80ad",textAlign:"center",padding:22}}>Sua playlist ainda está vazia. Pesquise uma música e toque em 💜.</p>)}
     {message&&<p role="status" style={{color:message.startsWith("✅")?"#34d399":"#fbbf24",fontSize:12,margin:0}}>{message}</p>}
   </section>;

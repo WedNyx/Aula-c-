@@ -88,7 +88,7 @@ async function mockRoutes(page, kvStore) {
 
   await page.route('**/api/kv', async (route) => {
     const body = JSON.parse(route.request().postData() || '{}');
-    const { action, key, value, prefix, auth, shift, answers, exits, message, url: errUrl, role, tourneyId, round, picks, turmaId, from, to, myName, names } = body;
+    const { action, key, value, prefix, auth, shift, answers, exits, message, url: errUrl, role, tourneyId, round, picks, turmaId, from, to, myName, names, studentName, track } = body;
     let out;
     if (action === 'check') out = { configured: true };
     else if (action === 'log_error') {
@@ -196,6 +196,25 @@ async function mockRoutes(page, kvStore) {
           }
         }
       }
+    }
+    // sugestão de música do aluno (fila de moderação do professor, ver ClassMusicSettings/StudentMusicHub)
+    // — mesmo formato do servidor de verdade (api/kv.js), simplificado (sem rate limit/duplicata)
+    else if (action === 'submit_music_suggestion') {
+      const turma = String(turmaId || 'sem-turno').replace(/[^a-zA-Z0-9-]/g, '');
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const suggestion = { id, turmaId: turma, studentName: String(studentName || '').trim(), title: String(track?.title || '').trim(), artist: String(track?.artist || '').trim(), url: String(track?.url || ''), createdAt: Date.now() };
+      kvStore.set(`musicsuggestion:${turma}:${id}`, JSON.stringify(suggestion));
+      out = { ok: true };
+    }
+    else if (action === 'list_music_suggestions') {
+      const turma = String(turmaId || 'sem-turno').slice(0, 80);
+      const items = [...kvStore.entries()].filter(([k]) => k.startsWith(`musicsuggestion:${turma}:`)).map(([, v]) => { try { return JSON.parse(v); } catch { return null; } }).filter(Boolean).sort((a, b) => a.createdAt - b.createdAt);
+      out = { items };
+    }
+    else if (action === 'resolve_music_suggestion') {
+      const turma = String(turmaId || 'sem-turno').slice(0, 80);
+      kvStore.delete(`musicsuggestion:${turma}:${body.id}`);
+      out = { ok: true };
     }
     else if (action === 'delete') { kvStore.delete(key); out = { ok: true }; }
     else if (action === 'delete_by_prefix') { let n = 0; for (const k of [...kvStore.keys()]) if (k.startsWith(prefix || '')) { kvStore.delete(k); n++; } out = { ok: true, deleted: n }; }

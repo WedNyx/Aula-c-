@@ -847,12 +847,6 @@ export async function setPartner(shift, helpedName, data) {
     return r.ok === true
   } catch { return false }
 }
-export async function getPartner(shift, helpedName) {
-  try {
-    const r = await kvCall({ action: 'get', key: partnerKeyFor(shift, helpedName) })
-    return r.value ? JSON.parse(r.value) : null
-  } catch { return null }
-}
 export async function clearPartner(shift, helpedName) {
   try { await kvCall({ action: 'delete', key: partnerKeyFor(shift, helpedName) }) } catch {}
 }
@@ -886,11 +880,15 @@ export async function setExamState(state, auth, shift) {
 }
 
 // aluno: confere primeiro se tem uma prova só pro turno dele; se não tiver, cai pra prova
-// combinada ("Todos os turnos") — essa é a única forma de uma prova valer pra mais de um turno
+// combinada ("Todos os turnos") — essa é a única forma de uma prova valer pra mais de um turno.
+// status "draft" (prova preparada mas ainda NÃO enviada pelo professor — igual o resumo, que fica
+// guardado no Caderno antes de ir pra turma) nunca aparece pro aluno: conta como se não existisse
+// nenhuma prova ainda, tanto pro turno próprio quanto pro combinado.
 export async function getExamStateForStudent(shift) {
   const own = await getExamState(shift)
-  if (own && own.status && own.status !== 'idle') return own
-  return getExamState('all')
+  if (own && own.status && own.status !== 'idle' && own.status !== 'draft') return own
+  const all = await getExamState('all')
+  return (all && all.status === 'draft') ? { status: 'idle' } : all
 }
 
 // corrige a prova no SERVIDOR (o gabarito nunca sai de lá) — o aluno manda só as respostas que

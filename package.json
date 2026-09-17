@@ -1,7 +1,7 @@
 {
   "name": "aula-csharp",
   "private": true,
-  "version": "1.5.2",
+  "version": "1.5.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,6 @@
   "dependencies": {
     "@dicebear/collection": "^9.4.2",
     "@dicebear/core": "^9.4.3",
-    "@rive-app/react-canvas": "^4.34.2",
     "@sentry/node": "^10.74.0",
     "@sentry/react": "^10.74.0",
     "@supabase/supabase-js": "^2.108.2",
