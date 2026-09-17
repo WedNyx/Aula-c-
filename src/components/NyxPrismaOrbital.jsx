@@ -43,7 +43,14 @@ export function NyxPrismaOrbital({ state = "idle", size = 100, showName = true, 
     skinMare: { main:"#397cc5", dark:"#0b1a35", eye:"#d8fbff", cyan:"#59dfff", pink:"#2cb7dd", label:"Nyx Maré" },
     skinConstelacao: { main:"#5048a0", dark:"#0e0d23", eye:"#fff3bd", cyan:"#8f84e7", pink:"#ffe19a", label:"Nyx Constelação" },
   };
-  const P = { ...(MAP[st] || MAP.idle), ...(SKINS[selectedSkin] || {}) };
+  // skinLunar/skinEclipse são AVISOS temporários (novidade no Santuário / IA em pausa), não uma
+  // skin escolhida pelo aluno como as outras — por isso só assumem a cor própria quando o humor
+  // está "idle": um humor ativo (pensando/acertou/errou) é um feedback mais urgente e precisa
+  // continuar aparecendo, em vez de ficar preso na cor do aviso o tempo todo (isso travava a
+  // transição de cor: com o aviso ativo, o Nyx nunca mudava de tom, não importa o que acontecesse)
+  const isStatusOverlaySkin = selectedSkin === "skinLunar" || selectedSkin === "skinEclipse";
+  const skinOverride = (isStatusOverlaySkin && st !== "idle") ? {} : (SKINS[selectedSkin] || {});
+  const P = { ...(MAP[st] || MAP.idle), ...skinOverride };
   const keepsPrismaOrbit = !selectedSkin || ["skinPrismaOrbital", "skinModernizado", "skinLunar", "skinEclipse"].includes(selectedSkin);
   const keepsPrismaTail = !selectedSkin || ["skinPrismaOrbital", "skinModernizado", "skinLunar", "skinEclipse"].includes(selectedSkin);
 
