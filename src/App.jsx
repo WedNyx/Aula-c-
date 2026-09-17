@@ -565,15 +565,23 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   const classStatusNow = classStatus(mySchedule, myAllowWeekend || isSevenDayShift(shift));
   // O Santuário Lunar recebe o aluno na primeira entrada desta sessão. Ao fechar, ele segue
   // normalmente para o editor e o modal não reaparece a cada atualização de estado da aula.
+  // Espera o check-in de humor do dia sair da tela primeiro (quando ele estiver mesmo sendo
+  // mostrado agora): os dois modais são "aparece uma vez por sessão/dia" e SEM essa espera abriam
+  // ao mesmo tempo — o Santuário (por cima) bloqueava o clique no "Pular hoje" do check-in por
+  // baixo dele, deixando o aluno com dois modais empilhados até descobrir que precisa fechar o de
+  // cima primeiro. Replica a MESMA condição de visibilidade do <CheckinModal> logo abaixo — não
+  // basta esperar "checkinDismissed" sozinho, porque em fases fora de "coding" o check-in nunca
+  // chega a aparecer de qualquer forma, e o Santuário não pode ficar esperando pra sempre.
+  const checkinModalShowing = !checkinDismissed && phase === "coding" && !showJustify && !showNyxPrefs && !showIntro && tourStep < 0;
   useEffect(() => {
-    if (!loaded || !classStatusNow.open || studyMode) return;
+    if (!loaded || !classStatusNow.open || studyMode || checkinModalShowing) return;
     const key = `nyx_sanctuary_welcome_${shift}_${studentName}`;
     try {
       if (sessionStorage.getItem(key)) return;
       sessionStorage.setItem(key, "1");
     } catch {}
     setShowLunarSanctuary(true);
-  }, [loaded, classStatusNow.open, studyMode, shift, studentName]);
+  }, [loaded, classStatusNow.open, studyMode, checkinModalShowing, shift, studentName]);
 
   useEffect(() => {
     const bStart = mySchedule?.breakStart && mySchedule?.breakMin ? `${todayKey()}-${mySchedule.breakStart}-${mySchedule.breakMin}` : null;
