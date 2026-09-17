@@ -5676,6 +5676,38 @@ function TeacherView({ onLogout, teacherAuth }) {
       flashMgmt(`✅ Resumo enviado pro Caderno de ${s.name}!`);
     } else flashMgmt("❌ Não consegui enviar o resumo agora.");
   };
+  // ↩️ desfaz o envio de hoje pra turma inteira: apaga o gatilho (resumoTrigger) — então quem ainda
+  // está no editor de código não puxa mais essa entrega sozinho — e limpa o scoreFix pendente de
+  // cada aluno, mas SÓ quando ele ainda for exatamente esse resumo-broadcast de hoje (nunca um
+  // scoreFix de outro tipo que por acaso esteja pendente pro mesmo aluno, ex: nota corrigida —
+  // scoreFix é uma fila de 1 posição só por aluno, então limpar sem checar apagaria essa outra
+  // correção do professor por engano). Quem já tinha aberto o app e recebido o resumo no próprio
+  // Caderno (já consumiu o scoreFix, viu "jaTemConteudo") continua com ele — cancelar não arranca
+  // o material do caderno de quem já copiou, só impede que quem ainda não recebeu receba.
+  const cancelarEnvioResumo = async (turmaId) => {
+    setResumoSendBusy(true); setResumoTriggerMsg("");
+    try {
+      await setResumoTrigger(turmaId, "", teacherAuth, null);
+      const turmaStudents = students.filter(s => (s.shift || "sem-turno") === turmaId);
+      await Promise.all(turmaStudents.map(async s => {
+        const fix = await getScoreFix(s.shift, s.name);
+        if (fix && fix.kind === "resumo-broadcast" && fix.dateKey === todayKey()) await clearScoreFix(s.shift, s.name);
+      }));
+      const current = teacherResumoHistory[todayKey()];
+      if (current) {
+        const dh = (current.deliveryHistory || []).map((d, i, arr) =>
+          (i === arr.length - 1 && d.kind === "turma" && d.targetId === turmaId && !d.cancelledAt) ? { ...d, cancelledAt: Date.now() } : d);
+        const nextHistory = { ...teacherResumoHistory, [todayKey()]: { ...current, deliveryHistory: dh } };
+        if (await saveTeacherResumoHistory(turmaId, nextHistory, teacherAuth)) setTeacherResumoHistory(nextHistory);
+      }
+      setResumoTriggeredToday(t => ({ ...t, [turmaId]: false }));
+      setResumoTriggerMsg("↩️ Envio cancelado. Quem ainda não tinha recebido não vai mais receber; quem já copiou pro caderno continua com o material.");
+    } catch {
+      setResumoTriggerMsg("❌ Não consegui cancelar o envio agora. Tente de novo em instantes.");
+    }
+    setResumoSendBusy(false);
+    setTimeout(() => setResumoTriggerMsg(""), 8000);
+  };
 
   // envia um aviso para um aluno específico aparecer na tela dele
   const nudgeStudent = async (s) => {
@@ -8144,7 +8176,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                   </div>
                   </article>
                   <article className={`teacher-material-card${resumoHoje?' teacher-material-card--ready':''}`}><span className="teacher-material-step">2 · REVISAR</span><h3>{resumoHoje ? "✅ Material pronto para revisão" : "📄 Aguardando conteúdo"}</h3><p>{resumoHoje ? `${resumoHoje.secoes?.length || 0} conceito${resumoHoje.secoes?.length===1?"":"s"}: ${(resumoHoje.secoes||[]).map(s=>s.titulo).filter(Boolean).join(", ") || "sem títulos"}.` : "Crie um material na etapa anterior. Nada será enviado automaticamente."}</p><button onClick={()=>setShowTeacherNotebook(true)} style={{ ...styles.btnGhost, padding:"9px 14px", fontSize:12.5 }}>📖 Abrir histórico de resumos</button></article>
-                  <article className={`teacher-material-card${jaEnviado?' teacher-material-card--sent':''}`}><span className="teacher-material-step">3 · ENVIAR</span><h3>{jaEnviado ? "✅ Entregue hoje" : "📤 Entregar à turma"}</h3><p>{jaEnviado ? `O material de hoje já foi enviado para ${shiftMeta(codeShift, turmas).label}.` : resumoHoje ? "Escolha quais partes do resumo e da atividade serão copiadas para o caderno dos alunos." : "O envio será liberado quando houver um material preparado."}</p>{resumoHoje && !jaEnviado && <button onClick={()=>setMaterialDeliveryShift(codeShift)} disabled={resumoSendBusy} style={{ ...styles.btn("#22d3ee"), padding:"9px 14px", fontSize:12.5, opacity:resumoSendBusy?0.6:1 }}>📤 Escolher e enviar</button>}</article>
+                  <article className={`teacher-material-card${jaEnviado?' teacher-material-card--sent':''}`}><span className="teacher-material-step">3 · ENVIAR</span><h3>{jaEnviado ? "✅ Entregue hoje" : "📤 Entregar à turma"}</h3><p>{jaEnviado ? `O material de hoje já foi enviado para ${shiftMeta(codeShift, turmas).label}. Quem ainda não recebeu pode ser impedido de receber cancelando o envio.` : resumoHoje ? "Escolha quais partes do resumo e da atividade serão copiadas para o caderno dos alunos." : "O envio será liberado quando houver um material preparado."}</p>{resumoHoje && !jaEnviado && <button onClick={()=>setMaterialDeliveryShift(codeShift)} disabled={resumoSendBusy} style={{ ...styles.btn("#22d3ee"), padding:"9px 14px", fontSize:12.5, opacity:resumoSendBusy?0.6:1 }}>📤 Escolher e enviar</button>}{jaEnviado && <button onClick={()=>cancelarEnvioResumo(codeShift)} disabled={resumoSendBusy} style={{ ...styles.btnGhost, color:"#fca5a5", borderColor:"#b45353", padding:"9px 14px", fontSize:12.5, opacity:resumoSendBusy?0.6:1 }}>{resumoSendBusy ? "Cancelando…" : "↩️ Cancelar envio"}</button>}</article>
                   {resumoTriggerMsg && <p className={`teacher-material-message${resumoTriggerMsg.startsWith("✅")?" success":resumoTriggerMsg.startsWith("ℹ️")?"":" error"}`} role="status">{resumoTriggerMsg}</p>}
                 </div>
               );
