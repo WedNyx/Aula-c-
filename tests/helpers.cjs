@@ -80,6 +80,30 @@ function redactDuelCorrectMock(v) {
   } catch { return v; }
 }
 
+// mesma lógica de applyAttendanceOverrides (src/lib/classroomUpdates.js): uma correção manual do
+// professor tem prioridade sobre qualquer valor calculado automaticamente
+function applyAttendanceOverridesMock(attendance, overrides) {
+  const result = { ...(attendance || {}) };
+  for (const [day, correction] of Object.entries(overrides || {})) {
+    if (correction?.status === 'present' || correction?.status === 'absent') result[day] = correction.status;
+  }
+  return result;
+}
+// mesma proteção de saveStudentPrivate em api/kv.js: um "set" de student:... nunca pode apagar
+// attendanceOverrides (só a ação dedicada set_attendance pode criar/remover essas correções) nem
+// desfazer, via um autosave desatualizado, uma correção manual que o professor já tinha salvo —
+// sem replicar isso aqui, um teste podia "confirmar" uma proteção que só existe no servidor de
+// verdade, nunca sendo exercitada de fato contra o comportamento real do app
+function saveStudentPrivateMock(kvStore, key, value) {
+  const incoming = JSON.parse(value);
+  const current = kvStore.has(key) ? JSON.parse(kvStore.get(key)) : null;
+  const next = { ...incoming };
+  next.attendanceOverrides = current?.attendanceOverrides || {};
+  next.attendanceFirst = { ...incoming.attendanceFirst, ...current?.attendanceFirst };
+  next.attendance = applyAttendanceOverridesMock({ ...current?.attendance, ...incoming.attendance }, next.attendanceOverrides);
+  kvStore.set(key, JSON.stringify(next));
+}
+
 // cria um kvStore (Map) em memória compartilhável entre chamadas do mesmo teste, e liga as rotas
 // mockadas numa página do Playwright já criada
 async function mockRoutes(page, kvStore) {
@@ -102,7 +126,11 @@ async function mockRoutes(page, kvStore) {
         ? { errors: (kvStore.has('errorlog:recent') ? JSON.parse(kvStore.get('errorlog:recent')) : []).slice().reverse() }
         : { errors: [] };
     }
-    else if (action === 'set') { kvStore.set(key, value); out = { ok: true }; }
+    else if (action === 'set') {
+      if (String(key).startsWith('student:')) saveStudentPrivateMock(kvStore, key, value);
+      else kvStore.set(key, value);
+      out = { ok: true };
+    }
     else if (action === 'get') {
       let v = kvStore.has(key) ? kvStore.get(key) : null;
       // mesma redação do servidor de verdade: gabarito da prova some sem a senha do professor
@@ -281,7 +309,12 @@ async function loginNewStudent(page, name) {
   await page.fill('input[placeholder="Seu nome completo"]', name);
   await page.click('button:has-text("Avançar")'); // passo 1 (nome/nascimento/CPF) → passo 2 (personalizar o boneco)
   await page.waitForTimeout(400);
-  await page.click('button:has-text("Criar perfil e entrar")');
+  // passo 2 é o AvatarStudio3D, em duas etapas próprias: escolher avatar → "Escolher meu
+  // companheiro →" (avança pro pet, NÃO cria o perfil ainda) → escolher pet → "Salvar meu perfil →"
+  // (só aí dispara onDone/cria o perfil de verdade)
+  await page.click('button:has-text("Escolher meu companheiro")');
+  await page.waitForTimeout(300);
+  await page.click('button:has-text("Salvar meu perfil")');
   await page.waitForTimeout(1200);
   for (let i = 0; i < 25; i++) {
     const doneBtn = page.locator('button:has-text("Entendi! 🚀")');
@@ -289,7 +322,9 @@ async function loginNewStudent(page, name) {
     const introBtn = page.locator('button:has-text("Conhecer minha sala!")');
     const prefsBtn = page.locator('button:has-text("Continuar →")');
     const skipCheckin = page.locator('button:has-text("Pular hoje")');
-    if (await doneBtn.count()) { await doneBtn.click(); await page.waitForTimeout(300); }
+    const closeSanctuary = page.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await page.waitForTimeout(300); }
+    else if (await doneBtn.count()) { await doneBtn.click(); await page.waitForTimeout(300); }
     else if (await nextBtn.count()) { await nextBtn.click(); await page.waitForTimeout(120); }
     else if (await introBtn.count()) { await introBtn.click(); await page.waitForTimeout(300); }
     else if (await prefsBtn.count()) { await prefsBtn.click(); await page.waitForTimeout(300); }

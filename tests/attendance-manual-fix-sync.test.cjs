@@ -40,7 +40,10 @@ function todayKeyLocal() {
   await page.waitForTimeout(1500); // carrega o perfil e roda o primeiro tick — sem código, marca "idle"
 
   const before = JSON.parse(kvStore.get(studentKey));
-  check('O acesso ao perfil registra presença mesmo sem código escrito', before.attendance?.[tk] === 'present', JSON.stringify(before.attendance));
+  // presença automática exige ter feito algo de verdade (código, fase além de "coding", nota ou
+  // resposta) — só abrir o perfil sem fazer nada marca "idle" (entrou, mas parado), nunca "present"
+  // (ver comentário em App.jsx: "presença do dia: 'present' se já fez algo de verdade hoje")
+  check('O acesso ao perfil sozinho (sem fazer nada) fica "idle", não "present"', before.attendance?.[tk] === 'idle', JSON.stringify(before.attendance));
 
   // simula exatamente o que markPresentToday faz: corrige a presença no "servidor" E marca a flag
   // que o app usa pra avisar a aba aberta (mesmo mecanismo de doSetScore/doApproveJustification)

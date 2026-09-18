@@ -22,6 +22,20 @@ async function kvCall(body) {
   return resp.json()
 }
 
+// tenta de novo (com uma pequena espera crescente) antes de desistir de verdade — uma falha
+// passageira de rede (ex: wifi da sala oscilando bem na hora do envio) não pode derrubar a entrega
+// na primeira tentativa sem nenhuma segunda chance. Usado nos pontos mais sensíveis a essa falha
+// passageira: entrega de resumo pra turma/aluno (setScoreFix, setResumoTrigger) — os mesmos que já
+// tinham exatamente esse problema (sem retry nenhum e sem nem avisar quando falhava de verdade).
+async function kvCallWithRetry(body, attempts = 3, delayMs = 500) {
+  let lastError
+  for (let i = 0; i < attempts; i++) {
+    try { return await kvCall(body) }
+    catch (e) { lastError = e; if (i < attempts - 1) await new Promise(r => setTimeout(r, delayMs * (i + 1))) }
+  }
+  throw lastError
+}
+
 function safeName(name) {
   return String(name || '').trim().replace(/\s+/g, '_').replace(/["'\/\\:]/g, '')
 }
@@ -174,7 +188,7 @@ export async function getResumoTrigger(turmaId) {
 }
 export async function setResumoTrigger(turmaId, dateKey, auth, resumo) {
   try {
-    const r = await kvCall({ action: 'set', key: resumoTriggerKeyFor(turmaId), value: JSON.stringify({ date: dateKey || '', resumo: resumo || null }), auth })
+    const r = await kvCallWithRetry({ action: 'set', key: resumoTriggerKeyFor(turmaId), value: JSON.stringify({ date: dateKey || '', resumo: resumo || null }), auth })
     return r.ok === true
   } catch { return false }
 }
@@ -192,7 +206,7 @@ export async function getTeacherResumoHistory(turmaId, strict = false) {
 }
 export async function saveTeacherResumoHistory(turmaId, history, auth) {
   try {
-    const r = await kvCall({ action: 'set', key: teacherResumoKeyFor(turmaId), value: JSON.stringify(history || {}), auth })
+    const r = await kvCallWithRetry({ action: 'set', key: teacherResumoKeyFor(turmaId), value: JSON.stringify(history || {}), auth })
     return r.ok === true
   } catch { return false }
 }
@@ -488,8 +502,9 @@ function scoreFixKeyFor(shift, name) {
 export async function setScoreFix(shift, name, score, auth) {
   try {
     const payload = (score && typeof score === 'object') ? { ...score, at: Date.now() } : { score, at: Date.now() }
-    await kvCall({ action: 'set', key: scoreFixKeyFor(shift, name), value: JSON.stringify(payload), auth })
-  } catch {}
+    const r = await kvCallWithRetry({ action: 'set', key: scoreFixKeyFor(shift, name), value: JSON.stringify(payload), auth })
+    return r.ok === true
+  } catch { return false }
 }
 export async function getScoreFix(shift, name) {
   try {

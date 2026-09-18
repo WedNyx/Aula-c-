@@ -98,11 +98,15 @@ export function turmaCalendar(m: TeacherMetaLike | null | undefined, turmaId: st
   const meta = m || {};
   const per = (meta.byTurma || {})[turmaId];
   if (per) {
-    // As turmas originais usavam meta.classDays antes de o calendário ser separado por turma.
-    // Ao salvar a primeira configuração em byTurma, não podemos esconder esse histórico legado:
-    // a Lista de chamada precisa continuar exibindo as aulas anteriores junto das novas.
-    const legacyDays = LEGACY_CALENDAR_TURMA_IDS.includes(turmaId) ? (meta.classDays || []) : [];
-    const classDays = [...new Set([...legacyDays, ...(per.classDays || [])])].sort();
+    // As turmas originais usavam meta.classDays antes de o calendário ser separado por turma. Esse
+    // histórico legado já foi incorporado na PRIMEIRA vez que byTurma[turmaId] foi escrito (withTurmaCalendar
+    // sempre parte do resultado desta própria função) — então per.classDays já contém tudo. NÃO
+    // reunir com meta.classDays de novo aqui: esse campo legado nunca é atualizado depois que
+    // byTurma passa a existir (fica congelado no valor de antes da migração), então reunir a cada
+    // leitura fazia um dia que o professor removeu no Calendário "ressuscitar" na leitura seguinte —
+    // ele nunca conseguia de fato apagar um dia antigo (e a Lista de Chamada continuava cobrando
+    // presença/falta pra esse dia mesmo depois de removido).
+    const classDays = [...new Set(per.classDays || [])].sort();
     return { classDays, city: per.city || "", cityClosed: !!per.cityClosed, resumoCadence: per.resumoCadence || 0 };
   }
   if (LEGACY_CALENDAR_TURMA_IDS.includes(turmaId)) {

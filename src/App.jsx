@@ -676,7 +676,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     // cadastro dele já não contam como falta em nenhum lugar — ver dayCell/boletim/tendência —
     // então a partir do momento que ele entra, o dia de entrada em si também não pode virar falta)
     const isEnrollmentDay = !vistoriaOnly && tk === dateKeyOf(createdAtRef.current);
-    attendanceRef.current = applyAttendanceOverrides({ ...latest?.attendance, ...attendanceRef.current, [tk]: (!vistoriaOnly || didWork || isEnrollmentDay || attendanceRef.current[tk] === "present") ? "present" : "idle" }, latest?.attendanceOverrides);
+    // didWork e isEnrollmentDay já nascem "false" durante vistoria (ver definição logo acima —
+    // ambos começam com "!vistoriaOnly &&"), então um "!vistoriaOnly ||" solto aqui na frente
+    // tornava a condição inteira SEMPRE verdadeira fora de vistoria — todo aluno virava "present"
+    // no autosave, mesmo sem ter feito nada, e isso também desfazia sozinho (no próximo autosave,
+    // a cada 12s) uma falta que o professor tivesse acabado de marcar manualmente pra hoje.
+    attendanceRef.current = applyAttendanceOverrides({ ...latest?.attendance, ...attendanceRef.current, [tk]: (didWork || isEnrollmentDay || attendanceRef.current[tk] === "present") ? "present" : "idle" }, latest?.attendanceOverrides);
     // guarda o horário do PRIMEIRO acesso de hoje (uma vez só) — usado pra marcar "atrasado" na chamada
     if (!attendanceFirstRef.current[tk]) attendanceFirstRef.current = { ...attendanceFirstRef.current, [tk]: Date.now() };
     // 🔥 sequência de presença: paga só quando a presença de HOJE vira "present" pela primeira vez
@@ -5643,16 +5648,24 @@ function TeacherView({ onLogout, teacherAuth }) {
     try {
       const ok = await setResumoTrigger(turmaId, todayKey(), teacherAuth, resumo);
       const turmaStudents = students.filter(s => (s.shift || "sem-turno") === turmaId);
-      await Promise.all(turmaStudents.map(s => setScoreFix(s.shift, s.name, { kind: "resumo-broadcast", dateKey: todayKey(), resumo }, teacherAuth)));
+      // cada setScoreFix já tenta de novo sozinho (até 3x) antes de desistir — o que sobra aqui é
+      // uma falha persistente de verdade (ex: aluno com o cadastro corrompido). Antes, o resultado
+      // de cada envio nem era conferido: um punhado de alunos podia silenciosamente não receber
+      // nada, sem NINGUÉM notar — nem o professor (mensagem sempre dizia "enviado pra N alunos",
+      // mesmo quando não foi) nem o aluno (só ficava sem o resumo, sem erro nenhum aparecer).
+      const results = await Promise.all(turmaStudents.map(s => setScoreFix(s.shift, s.name, { kind: "resumo-broadcast", dateKey: todayKey(), resumo }, teacherAuth)));
+      const failedCount = results.filter(r => !r).length;
       if (ok) {
         const deliveredAt = Date.now();
         const current = teacherResumoHistory[todayKey()] || resumo;
-        const delivery = { id:`turma-${turmaId}-${deliveredAt}`, kind:"turma", targetId:turmaId, targetLabel:shiftMeta(turmaId, turmas).label, studentCount:turmaStudents.length, deliveredAt };
+        const delivery = { id:`turma-${turmaId}-${deliveredAt}`, kind:"turma", targetId:turmaId, targetLabel:shiftMeta(turmaId, turmas).label, studentCount:turmaStudents.length, failedCount, deliveredAt };
         const nextHistory = { ...teacherResumoHistory, [todayKey()]: { ...current, deliveryHistory:[...(current.deliveryHistory||[]), delivery] } };
         if (await saveTeacherResumoHistory(turmaId, nextHistory, teacherAuth)) setTeacherResumoHistory(nextHistory);
         setResumoTriggeredToday(t => ({ ...t, [turmaId]: true }));
         setMaterialDeliveryShift(null);
-        setResumoTriggerMsg(`✅ Resumo enviado pro Caderno de ${turmaStudents.length} aluno${turmaStudents.length===1?"":"s"} da turma ${shiftMeta(turmaId, turmas).label}!`);
+        setResumoTriggerMsg(failedCount === 0
+          ? `✅ Resumo enviado pro Caderno de ${turmaStudents.length} aluno${turmaStudents.length===1?"":"s"} da turma ${shiftMeta(turmaId, turmas).label}!`
+          : `⚠️ Resumo enviado, mas ${failedCount} de ${turmaStudents.length} aluno${turmaStudents.length===1?"":"s"} não confirmou o recebimento direto mesmo após tentar de novo — quem ainda estiver no editor de código recebe automaticamente; os outros podem precisar de um reenvio individual (⚙️ Gerenciar aluno → Enviar resumo de hoje).`);
       } else {
         setResumoTriggerMsg("❌ Não consegui enviar agora. Tente de novo em instantes.");
       }
