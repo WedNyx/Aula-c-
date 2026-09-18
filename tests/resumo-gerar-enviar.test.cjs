@@ -19,7 +19,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const pageT = await ctxT.newPage();
   const jsErrorsT = await mockRoutes(pageT, kvStore);
   await loginTeacher(pageT);
-  await pageT.click('text=👨‍💻 Meu código');
+  await pageT.click('text=Meu código');
   await pageT.waitForTimeout(500);
 
   const ritmoCard = pageT.locator('[data-tour-prof="resumo-ritmo"]');

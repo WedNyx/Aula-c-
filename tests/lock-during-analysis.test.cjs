@@ -105,7 +105,7 @@ async function mockClaudeWithDelay(page, kvStore) {
     const page = await ctx.newPage();
     const jsErrors = await mockRoutes(page, kvStore);
     await loginTeacher(page);
-    await page.click('text=👨‍💻 Meu código');
+    await page.click('text=Meu código');
     await page.waitForTimeout(500);
 
     const card = page.locator('[data-tour-prof="analise-nyx"]');

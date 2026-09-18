@@ -58,7 +58,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, lo
   const p = await ctxP.newPage();
   const errP = await mockRoutes(p, kvStore);
   await loginTeacher(p);
-  await p.click('text=👨‍💻 Meu código');
+  await p.click('text=Meu código');
   await p.waitForTimeout(500);
   const turmaLabel = studentShift === 'vespertino' ? '🌙 Vespertino' : '☀️ Matutino';
   const turmaBtn = p.locator(`button:has-text("${turmaLabel}")`).first();
@@ -100,7 +100,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, lo
 
   // ══════════════════ 3) PAINEL DO PROFESSOR, TODAS AS ABAS PRINCIPAIS ══════════════════
   // reaproveita o mesmo contexto/página do professor já aberto acima (pra liberar o resumo)
-  check('Painel do professor abriu (pós-login)', (await p.locator('text=👥 Monitoramento').count()) > 0);
+  check('Painel do professor abriu (pós-login)', (await p.locator('text=Monitoramento').count()) > 0);
 
   const tabs = ['👨‍💻 Meu código', '🏆 Prova', '👥 Monitoramento', '🗓️ Calendário', '💬 Feedback'];
   for (const tab of tabs) {

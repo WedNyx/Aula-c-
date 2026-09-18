@@ -27,7 +27,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   // celular abre no Modo simples — troca pro Modo completo, onde fica o card de Monitoramento
   await page.click('text=🖥️ Modo completo');
   await page.waitForTimeout(500);
-  check('Modo completo abriu', (await page.locator('text=👥 Monitoramento').count()) > 0);
+  check('Modo completo abriu', (await page.locator('text=Monitoramento').count()) > 0);
 
   check('Antes de tocar: grade de alunos ainda escondida', (await page.locator('text=AlunoCelular').count()) === 0);
   check('Aviso mostra a versão de TOQUE (não a de mouse) numa tela estreita', (await page.locator('text=👆 Toque aqui').count()) > 0);

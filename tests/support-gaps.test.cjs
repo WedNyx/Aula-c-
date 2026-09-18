@@ -66,7 +66,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const p = await ctxP.newPage();
   const errP = await mockRoutes(p, kvStore);
   await loginTeacher(p);
-  await p.click('text=👥 Monitoramento');
+  await p.click('text=Monitoramento');
   await p.waitForTimeout(500);
 
   check('Resumo mostra que alguém pediu parceiro', (await p.locator('text=/pediu um parceiro/').count()) > 0);

@@ -22,7 +22,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   });
 
   await loginTeacher(page);
-  await page.click('text=👥 Monitoramento');
+  await page.click('text=Monitoramento');
   await page.waitForTimeout(500);
 
   // escopado dentro do card de exportação (data-tour-prof="exportar") — o filtro de turma geral do

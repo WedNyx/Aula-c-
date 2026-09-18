@@ -38,7 +38,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const pageT = await ctxT.newPage();
   const jsErrorsT = await mockRoutes(pageT, kvStore);
   await loginTeacher(pageT);
-  await pageT.click('text=👥 Monitoramento');
+  await pageT.click('text=Monitoramento');
   await pageT.waitForTimeout(500);
   const monitorCard = pageT.locator('h3:has-text("Monitoramento")').locator('xpath=..');
   await monitorCard.hover();

@@ -91,7 +91,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const p = await ctxP.newPage();
   const errP = await mockRoutes(p, kvStore);
   await loginTeacher(p);
-  await p.click('text=👥 Monitoramento');
+  await p.click('text=Monitoramento');
   await p.waitForTimeout(500);
   const monitorCard = p.locator('h3:has-text("Monitoramento")').locator('xpath=..');
 

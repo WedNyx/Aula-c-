@@ -8,7 +8,7 @@ const { launchBrowser, mockRoutes, baseKvStore, loginNewStudent, check, summary 
   const jsErrors = await mockRoutes(page, kvStore);
   await loginNewStudent(page, 'Comprador Teste');
 
-  await page.locator('text=🎁 Loja do Nyx').first().click();
+  await page.locator('text=Loja do Nyx').first().click();
   await page.waitForTimeout(1200);
   const bodyText = await page.locator('body').innerText();
 

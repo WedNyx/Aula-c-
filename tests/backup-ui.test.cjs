@@ -38,7 +38,7 @@ const { check, summary, launchBrowser, baseKvStore, loginTeacher } = require('./
   page.setDefaultTimeout(15000);
 
   await loginTeacher(page);
-  await page.click('text=🗓️ Calendário');
+  await page.click('text=Calendário');
   await page.waitForTimeout(500);
 
   const backupCard = page.locator('[data-tour-prof="backup"]');

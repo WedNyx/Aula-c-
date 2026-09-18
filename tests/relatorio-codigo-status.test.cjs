@@ -42,7 +42,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const jsErrors = await mockRoutes(page, kvStore);
 
   await loginTeacher(page);
-  await page.click('text=🗓️ Calendário');
+  await page.click('text=Calendário');
   await page.waitForTimeout(600);
 
   const [download] = await Promise.all([

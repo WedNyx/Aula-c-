@@ -62,7 +62,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   check('Depois de fechar, a revelação não reaparece sozinha', (await page.locator('text=/Turma .* terminou!/').count()) === 0);
 
   // o badge 🏆 individual por tile CONTINUA existindo (coexiste com a revelação, não foi removido)
-  await page.click('text=👥 Monitoramento');
+  await page.click('text=Monitoramento');
   await page.waitForTimeout(500);
   const monitorCard = page.locator('h3:has-text("Monitoramento")').locator('xpath=..');
   await monitorCard.hover();

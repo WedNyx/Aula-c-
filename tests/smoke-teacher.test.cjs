@@ -14,11 +14,11 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await loginTeacher(page);
   check('Painel do professor abre', (await page.locator('text=Painel do Professor').count()) > 0);
 
-  await page.click('text=👨‍💻 Meu código');
+  await page.click('text=Meu código');
   await page.waitForTimeout(500);
   check('Aba Meu código abre', (await page.locator('text=Program.cs').count()) > 0);
 
-  await page.click('text=👥 Monitoramento');
+  await page.click('text=Monitoramento');
   await page.waitForTimeout(500);
   const monitorCard = page.locator('h3:has-text("Monitoramento")').locator('xpath=..');
   await monitorCard.hover();
@@ -29,7 +29,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await page.waitForTimeout(500);
   check('Aba Prova abre', (await page.locator('text=/[Pp]rova/').count()) > 0);
 
-  await page.click('text=👥 Monitoramento');
+  await page.click('text=Monitoramento');
   await page.waitForTimeout(400);
   const csvBtn = page.locator('button:has-text("CSV"), button:has-text("Exportar")').first();
   check('Botão de exportar CSV existe', (await csvBtn.count()) > 0);

@@ -20,7 +20,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await loginTeacher(page);
   await page.waitForTimeout(1500); // dá tempo do "Meu código" carregar dos dois turnos antes do reset
 
-  await page.click('text=👥 Monitoramento');
+  await page.click('text=Monitoramento');
   await page.waitForTimeout(500);
   await page.click('button:has-text("🔄 Resetar")');
   await page.waitForTimeout(400);

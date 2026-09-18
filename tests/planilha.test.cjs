@@ -22,7 +22,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const jsErrors = await mockRoutes(page, kvStore);
 
   await loginTeacher(page);
-  await page.click('text=👥 Monitoramento');
+  await page.click('text=Monitoramento');
   await page.waitForTimeout(400);
 
   const [download] = await Promise.all([

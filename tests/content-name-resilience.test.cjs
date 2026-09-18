@@ -39,7 +39,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, mo
 
     await loginTeacher(page);
     await page.waitForTimeout(500);
-    await page.click('text=👨‍💻 Meu código');
+    await page.click('text=Meu código');
     await page.waitForTimeout(500);
     await page.click('button:has-text("Gerar nome do conteúdo (Matutino)")');
     await page.waitForTimeout(1500);
@@ -74,7 +74,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, mo
 
     await loginTeacher(page);
     await page.waitForTimeout(500);
-    await page.click('text=👨‍💻 Meu código');
+    await page.click('text=Meu código');
     await page.waitForTimeout(500);
     await page.click('button:has-text("Gerar nome do conteúdo (Matutino)")');
     await page.waitForTimeout(1500);

@@ -31,7 +31,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const jsErrors = await mockRoutes(page, kvStore);
 
   await loginTeacher(page);
-  await page.click('text=👥 Monitoramento');
+  await page.click('text=Monitoramento');
   await page.waitForTimeout(800);
 
   check('Card "Evolução da turma" (nota) aparece', (await page.locator('text=📊 Evolução da turma nas últimas aulas').count()) > 0);

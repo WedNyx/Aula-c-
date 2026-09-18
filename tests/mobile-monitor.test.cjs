@@ -24,7 +24,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     await loginTeacher(page);
     await page.waitForTimeout(1200);
     check('SEM erro de JS (desktop)', jsErrors.length === 0, jsErrors.slice(0, 3).join(' | '));
-    check('Tela larga abre no modo completo (não no modo simples)', (await page.locator('text=👥 Monitoramento').count()) > 0 && (await page.locator('text=👥 Turma agora').count()) === 0);
+    check('Tela larga abre no modo completo (não no modo simples)', (await page.locator('text=Monitoramento').count()) > 0 && (await page.locator('text=👥 Turma agora').count()) === 0);
     await ctx.close();
   }
 
@@ -55,7 +55,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     // troca pro modo completo e confirma que dá pra voltar
     await page.click('text=🖥️ Modo completo');
     await page.waitForTimeout(500);
-    check('Botão "Modo completo" leva pro painel de sempre', (await page.locator('text=👥 Monitoramento').count()) > 0);
+    check('Botão "Modo completo" leva pro painel de sempre', (await page.locator('text=Monitoramento').count()) > 0);
     check('No modo completo (celular) aparece botão pra voltar ao modo simples', (await page.locator('text=📱 Modo simples').count()) > 0);
     await page.click('text=📱 Modo simples');
     await page.waitForTimeout(500);

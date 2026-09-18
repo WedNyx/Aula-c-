@@ -12,7 +12,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const jsErrors = await mockRoutes(page, kvStore);
 
   await loginTeacher(page);
-  await page.click('text=👥 Monitoramento');
+  await page.click('text=Monitoramento');
   await page.waitForTimeout(500);
 
   const boletimCard = page.locator('[data-tour-prof="boletim"]');

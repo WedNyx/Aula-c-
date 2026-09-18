@@ -92,7 +92,7 @@ const SHIFT = 'matutino';
     else break;
   }
 
-  await page.click('text=📊 Ranking da turma');
+  await page.click('text=Ranking da turma');
   await page.waitForTimeout(1500);
   const bodyText = await page.locator('body').innerText();
 

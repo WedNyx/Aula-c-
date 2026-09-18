@@ -17,7 +17,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     const jsErrors = await mockRoutes(page, kvStore);
 
     await loginTeacher(page);
-    await page.click('text=🗓️ Calendário');
+    await page.click('text=Calendário');
     await page.waitForTimeout(500);
 
     check('Botão de encerrar cidade aparece (cidade ainda ativa)', (await page.locator('button:has-text("🏆 Encerrar cidade")').count()) > 0);
@@ -62,7 +62,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     let meta2 = JSON.parse(kvStore.get('teachermeta:main'));
     check('Com a cidade encerrada, o dia de hoje NÃO é marcado sozinho', !(meta2.classDays || []).includes(todayKey), JSON.stringify(meta2.classDays));
 
-    await page.click('text=🗓️ Calendário');
+    await page.click('text=Calendário');
     await page.waitForTimeout(500);
     await page.fill('input[placeholder="Ex: Ceilândia"]', 'Planaltina');
     await page.click('button:has-text("Salvar cidade")');

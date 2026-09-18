@@ -53,7 +53,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await trackClaude(pageT);
   await loginTeacher(pageT);
   await pageT.waitForTimeout(1000);
-  await pageT.click('text=👨‍💻 Meu código');
+  await pageT.click('text=Meu código');
   await pageT.waitForTimeout(500);
 
   const callsBeforeContentName = allPrompts.length;

@@ -61,7 +61,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const jsErrors = await mockRoutes(page, kvStore);
 
   await loginTeacher(page);
-  await page.click('text=🗓️ Calendário');
+  await page.click('text=Calendário');
   await page.waitForTimeout(600);
 
   check('Botão "Gerar Relatório de Comprovação" aparece', (await page.locator('button:has-text("Gerar Relatório de Comprovação")').count()) > 0);

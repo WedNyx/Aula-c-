@@ -34,7 +34,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 
   await loginTeacher(page);
   await page.waitForTimeout(1000);
-  await page.click('text=👨‍💻 Meu código');
+  await page.click('text=Meu código');
   await page.waitForTimeout(500);
   await page.click('button:has-text("📚 Minhas aulas")');
   await page.waitForTimeout(500);

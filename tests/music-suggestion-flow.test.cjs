@@ -48,7 +48,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 
   await pageA.click('text=Central de músicas');
   await pageA.waitForTimeout(500);
-  check('Central de músicas do aluno abre', (await pageA.locator('text=🎵 Central de músicas').count()) > 0);
+  check('Central de músicas do aluno abre', (await pageA.locator('text=Central de músicas').count()) > 0);
   await pageA.click('button:has-text("👥 Playlist da sala")');
   await pageA.waitForTimeout(400);
   check('Playlist vazia NÃO esconde o formulário de sugestão', (await pageA.locator('text=Sugerir uma faixa ao professor').count()) > 0);

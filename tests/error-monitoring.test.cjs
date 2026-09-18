@@ -55,7 +55,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const pageT = await ctxT.newPage();
   const jsErrorsT = await mockRoutes(pageT, kvStore);
   await loginTeacher(pageT);
-  await pageT.click('text=👥 Monitoramento');
+  await pageT.click('text=Monitoramento');
   await pageT.waitForTimeout(500);
   check('Card "Erros recentes" aparece no painel do professor', (await pageT.locator('text=🚨 Erros recentes').count()) > 0);
   await pageT.click('text=🚨 Erros recentes');

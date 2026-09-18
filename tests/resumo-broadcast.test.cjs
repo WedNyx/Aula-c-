@@ -27,7 +27,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     }
   });
   await loginTeacher(pageT);
-  await pageT.click('text=👨‍💻 Meu código');
+  await pageT.click('text=Meu código');
   await pageT.waitForTimeout(500);
   const ritmoCardT = pageT.locator('[data-tour-prof="resumo-ritmo"]');
   await ritmoCardT.locator('button:has-text("Gerar resumo")').click();
