@@ -19,7 +19,7 @@ const fs=require('node:fs');
   assert.ok(app.includes('aria-label="Materiais da aula"'));
   const materials = app.slice(app.indexOf('{tab==="materials" && <section'), app.indexOf('{tab==="code" && (', app.indexOf('{tab==="materials" && <section')));
   assert.ok(materials.includes('{showManualSummary && <TeacherSummaryEditor'), 'Editor manual deve estar dentro da aba materiais');
-  assert.ok(materials.includes('{showTeacherNotebook && <NotebookModal'), 'Caderno deve estar dentro da aba materiais');
+  assert.ok(materials.includes('{showTeacherNotebook && <Suspense') && materials.includes('<NotebookModal'), 'Caderno deve estar dentro da aba materiais');
   assert.ok(app.includes('getExamState(manualExamShift, teacherAuth, true)'));
   assert.ok(app.includes('getTeacherResumoHistory(targetShift, true)'));
   assert.ok(notebook.includes('window.confirm(`Apagar o resumo'));
