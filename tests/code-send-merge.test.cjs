@@ -84,7 +84,7 @@ class Program
     else break;
   }
   await pageS.waitForSelector('textarea', { timeout: 10000 });
-  const before = await pageS.locator('textarea').inputValue();
+  const before = await pageS.locator('textarea').first().inputValue();
   check('Aluno abriu a sala já com o código próprio dele (não vazio)', before.includes('e tenho "+ peso +" kg'));
 
   // professor: seleciona o aluno e envia o código da turma
@@ -94,7 +94,11 @@ class Program
   const monitorCard = pageT.locator('h3:has-text("Monitoramento")').locator('xpath=..');
   await monitorCard.hover();
   await pageT.waitForTimeout(700);
-  await pageT.click('text=AlunoCodigo');
+  // clicar no nome do aluno não seleciona mais — precisa abrir o menu "•••" do aluno e escolher
+  // "⚙️ Ver detalhes" (mesmo padrão de palette-consistency.test.cjs)
+  await pageT.click('button[aria-label="Abrir opções de AlunoCodigo"]');
+  await pageT.waitForTimeout(200);
+  await pageT.click('button:has-text("⚙️ Ver detalhes")');
   await pageT.waitForTimeout(500);
   check('Botão "Enviar código da turma" aparece no painel do aluno selecionado', (await pageT.locator('button:has-text("Enviar código da turma")').count()) > 0);
   await pageT.click('button:has-text("Enviar código da turma")');
@@ -107,7 +111,7 @@ class Program
   check('Mesclagem por IA teve sucesso (não caiu no fallback de substituir tudo)', successMerge, successMerge ? '' : 'caiu no fallback — ver texto exibido');
 
   await pageS.waitForTimeout(500);
-  const after = await pageS.locator('textarea').inputValue();
+  const after = await pageS.locator('textarea').first().inputValue();
   check('Código do ALUNO (linha que só ele tinha escrito) continua no editor — nada foi apagado', after.includes('e tenho "+ peso +" kg'));
   check('Marcador da "IA" (o que foi completado) aparece no resultado final', after.includes('[MOCK] completado pelo Nyx'));
 

@@ -3,7 +3,7 @@ const path = require("path");
 
 const read = file => fs.readFileSync(path.resolve(__dirname, "..", file), "utf8");
 const avatar = read("src/components/Avatar.jsx");
-const moods = read("src/components/LearningModals.jsx");
+const moods = read("src/lib/checkinMoods.js");
 const tour = read("src/components/TourOverlay.jsx");
 const shop = read("src/components/NyxShop.jsx");
 const app = read("src/App.jsx");

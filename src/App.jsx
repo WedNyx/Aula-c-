@@ -8231,7 +8231,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
               );
             })()}
-            {showTeacherNotebook && <NotebookModal history={teacherResumoHistory} detailedHistory={null} onDeleteSummary={apagarResumoProfessor} onClose={()=>setShowTeacherNotebook(false)} />}
+            {showTeacherNotebook && <Suspense fallback={<ModalLoading/>}><NotebookModal history={teacherResumoHistory} detailedHistory={null} onDeleteSummary={apagarResumoProfessor} onClose={()=>setShowTeacherNotebook(false)} /></Suspense>}
             {showManualSummary && <TeacherSummaryEditor initial={teacherResumoHistory[todayKey()]} onSave={salvarResumoManual} onClose={()=>setShowManualSummary(false)} />}
             {materialDeliveryShift && teacherResumoHistory[todayKey()] && <MaterialDeliveryModal material={teacherResumoHistory[todayKey()]} turmaLabel={shiftMeta(materialDeliveryShift,turmas).label} busy={resumoSendBusy} onClose={()=>setMaterialDeliveryShift(null)} onConfirm={selected=>enviarResumoParaTurma(materialDeliveryShift,selected)} />}
       </section>}

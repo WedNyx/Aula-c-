@@ -10,6 +10,10 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     title: 'Aula de Variáveis',
     files: lessonFiles,
     at: Date.now(),
+    // aulas agora são filtradas por turno (lessonsForShift) tanto na biblioteca quanto no
+    // reaproveitamento automático (findMatchingLesson) — sem "shift", uma aula "sem turno" não bate
+    // com o código "de hoje" de um turno específico como matutino
+    shift: 'matutino',
     contentName: 'Variáveis e Saída de Texto',
     explain: { intro: 'Explicação pronta.', secoes: [{ titulo: 'Variáveis', explicacao: 'Guardam valores.' }], dica: 'Pratique!' },
     resumo: { intro: 'Resumo pronto da aula de variáveis!', secoes: [{ emoji: '💡', titulo: 'Variáveis prontas', explicacao: 'Conteúdo reaproveitado.', exemplo: 'int x = 1;' }], dica: 'Dica pronta!' },
@@ -63,10 +67,14 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   check('O nome pronto da aula aparece na tela', (await pageT.locator('text=Variáveis e Saída de Texto').count()) > 0);
   check('SEM erro de JS (professor)', jsErrorsT.length === 0, jsErrorsT.slice(0, 3).join(' | '));
 
-  // ── professor libera o resumo pra turma hoje ──
-  await pageT.click('[data-tour-prof="resumo-ritmo"] button:has-text("Gerar resumo")');
-  await pageT.waitForTimeout(1200);
-  await pageT.click('[data-tour-prof="resumo-ritmo"] button:has-text("Enviar pra turma toda")');
+  // ── professor libera o resumo pra turma hoje (painel de materiais atual) ──
+  await pageT.click('text=Resumos, atividades e provas');
+  await pageT.waitForTimeout(500);
+  await pageT.click('[data-tour-prof="resumo-ritmo"] button:has-text("✨ Gerar rascunho com Nyx")');
+  await pageT.waitForSelector('text=✅ Material pronto para revisão', { timeout: 20000 });
+  await pageT.click('[data-tour-prof="resumo-ritmo"] button:has-text("📤 Escolher e enviar")');
+  await pageT.waitForTimeout(500);
+  await pageT.click('button:has-text("Confirmar envio")');
   await pageT.waitForTimeout(600);
 
   // ── aluno: finaliza a aula sozinho e recebe o resumo/atividade PRONTOS, sem chamar o Nyx ──
@@ -86,6 +94,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await pageA.click('text=AlunoReaproveita');
   await pageA.waitForTimeout(1200);
   for (let i = 0; i < 5; i++) {
+    const closeSanctuary = pageA.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await pageA.waitForTimeout(300); continue; }
     const skipCheckin = pageA.locator('button:has-text("Pular hoje")');
     if (await skipCheckin.count()) { await skipCheckin.click(); await pageA.waitForTimeout(300); }
     else break;

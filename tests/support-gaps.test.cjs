@@ -83,7 +83,11 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const tileTravado = p.locator('.tilefx', { hasText: 'AlunoTravado' });
   check('Tile de AlunoTravado mostra o rótulo neutro "Começando", não "Com dificuldade"',
     (await tileTravado.locator('text=Começando').count()) > 0 && (await tileTravado.locator('text=Com dificuldade').count()) === 0);
-  await p.click('text=AlunoApoio');
+  // clicar no nome do aluno não seleciona mais — precisa abrir o menu "•••" do aluno e escolher
+  // "⚙️ Ver detalhes" (mesmo padrão de palette-consistency.test.cjs)
+  await p.click('button[aria-label="Abrir opções de AlunoApoio"]');
+  await p.waitForTimeout(200);
+  await p.click('button:has-text("⚙️ Ver detalhes")');
   await p.waitForTimeout(500);
   check('Professor vê o badge de pedido de parceiro do aluno', (await p.locator('text=/pediu um parceiro/').count()) > 0);
   check('Botão "Foco" NÃO aparece marcado como pedido pelo aluno (ele desligou antes)', (await p.locator('button:has-text("🙋 🎯 Foco")').count()) === 0);

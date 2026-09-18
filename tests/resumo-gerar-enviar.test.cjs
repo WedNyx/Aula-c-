@@ -19,37 +19,39 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const pageT = await ctxT.newPage();
   const jsErrorsT = await mockRoutes(pageT, kvStore);
   await loginTeacher(pageT);
-  await pageT.click('text=Meu código');
+  await pageT.click('text=Resumos, atividades e provas');
   await pageT.waitForTimeout(500);
 
   const ritmoCard = pageT.locator('[data-tour-prof="resumo-ritmo"]');
   check('Card não tem mais o campo de ritmo/cadência', (await ritmoCard.locator('input[type="number"]').count()) === 0);
-  check('Botão "Enviar pra turma toda" NÃO existe antes de gerar', (await ritmoCard.locator('button:has-text("Enviar pra turma toda")').count()) === 0);
+  check('Botão "Escolher e enviar" NÃO existe antes de gerar', (await ritmoCard.locator('button:has-text("📤 Escolher e enviar")').count()) === 0);
 
   // 1) gerar (só vai pro caderno do professor)
-  await ritmoCard.locator('button:has-text("Gerar resumo")').click();
-  await pageT.waitForTimeout(1200);
+  await ritmoCard.locator('button:has-text("✨ Gerar rascunho com Nyx")').click();
+  await pageT.waitForSelector('text=✅ Material pronto para revisão', { timeout: 20000 });
   check('Mensagem confirma que foi pro Caderno do professor', (await ritmoCard.locator('text=/guardado no seu Caderno/').count()) > 0);
   check('Ainda NÃO tem gatilho de turma liberado (resumotrigger)', !kvStore.get('resumotrigger:matutino'));
   check('Caderno do professor foi salvo no servidor', !!kvStore.get('teacherresumo:matutino'));
   const teacherHist = JSON.parse(kvStore.get('teacherresumo:matutino'));
   check('Resumo de hoje está no caderno do professor', Array.isArray(teacherHist[tk]?.secoes) && teacherHist[tk].secoes.length > 0, JSON.stringify(teacherHist));
 
-  // aluno ainda NÃO deve ter recebido nada (só gerou, não enviou)
+  // aluno ainda NÃO deve ter recebido nada (só gerar não envia)
   const beforeSend = JSON.parse(kvStore.get('student:matutino:AlunoTeste'));
   check('Aluno AINDA não recebeu nada (só gerar não envia)', !beforeSend.summaryHistory || Object.keys(beforeSend.summaryHistory).length === 0, JSON.stringify(beforeSend.summaryHistory));
 
   // 2) abrir o caderno do professor e conferir que aparece lá
-  await ritmoCard.locator('button:has-text("Meu Caderno de resumos")').click();
+  await ritmoCard.locator('button:has-text("📖 Abrir histórico de resumos")').click();
   await pageT.waitForTimeout(600);
-  check('Modal do Caderno do professor abre e mostra o resumo', (await pageT.locator('text=📒 Caderno de resumos').count()) > 0);
+  check('Modal do Caderno do professor abre e mostra o resumo', (await pageT.locator('text=📒 Meu caderno').count()) > 0);
   await pageT.click('text=✕');
   await pageT.waitForTimeout(300);
 
   // 3) enviar pra turma toda
-  await ritmoCard.locator('button:has-text("Enviar pra turma toda")').click();
+  await ritmoCard.locator('button:has-text("📤 Escolher e enviar")').click();
+  await pageT.waitForTimeout(500);
+  await pageT.click('button:has-text("Confirmar envio")');
   await pageT.waitForTimeout(1200);
-  check('Mensagem confirma envio pra turma', (await ritmoCard.locator('text=/Resumo enviado pro Caderno de 1 aluno/').count()) > 0);
+  check('Mensagem confirma envio pra turma', (await pageT.locator('text=/Resumo enviado pro Caderno de 1 aluno/').count()) > 0);
   check('Gatilho de turma foi liberado ao ENVIAR (não ao gerar)', !!kvStore.get('resumotrigger:matutino'));
   check('SEM erro de JS (professor)', jsErrorsT.length === 0, jsErrorsT.slice(0, 3).join(' | '));
 

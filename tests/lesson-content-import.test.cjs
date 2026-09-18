@@ -7,8 +7,10 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 (async () => {
   const kvStore = baseKvStore({ city: 'Sobradinho', classDays: ['2026-07-20'] });
   const lessonFiles = [{ name: 'Program.cs', code: 'int x = 1;\nConsole.WriteLine(x);' }];
+  // aulas agora são filtradas por turno na biblioteca ("Mostrar aulas de") — sem "shift", só
+  // aparece no filtro "Sem turno (anteriores)"/"Todos os turnos", nunca no turno padrão (matutino)
   kvStore.set('teachercode:lessons', JSON.stringify([
-    { title: 'Aula de Variáveis', files: lessonFiles, at: Date.now() },
+    { title: 'Aula de Variáveis', files: lessonFiles, at: Date.now(), shift: 'matutino' },
   ]));
 
   const browser = await launchBrowser();
@@ -33,9 +35,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 
   await loginTeacher(page);
   await page.waitForTimeout(1000);
-  await page.click('text=Meu código');
-  await page.waitForTimeout(500);
-  await page.click('button:has-text("📚 Minhas aulas")');
+  // "Minhas aulas" virou um item próprio do menu lateral (não precisa mais passar por "Meu código")
+  await page.click('text=Minhas aulas');
   await page.waitForTimeout(500);
 
   check('Aula ainda sem conteúdo pronto', (await page.locator('text=Sem conteúdo pronto ainda').count()) > 0);
