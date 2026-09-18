@@ -1,4 +1,5 @@
-// O troféu de nota no Monitoramento só pode aparecer no dia da atividade, some no dia seguinte.
+// A nota exibida no tile do aluno no Monitoramento só pode aparecer no dia da atividade, some no
+// dia seguinte.
 const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } = require('./helpers.cjs');
 
 (async () => {
@@ -13,12 +14,14 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const jsErrors = await mockRoutes(page, kvStore);
 
   await loginTeacher(page);
+  await page.click('text=Monitoramento');
+  await page.waitForTimeout(500);
   const monitorCard = page.locator('h3:has-text("Monitoramento")').locator('xpath=..');
   await monitorCard.hover();
   await page.waitForTimeout(900);
 
-  check('Aluno com nota de HOJE mostra o troféu (🏆 77)', (await page.locator('text=🏆 77').count()) > 0);
-  check('Aluno com nota de ONTEM NÃO mostra mais o troféu (🏆 88 sumiu)', (await page.locator('text=🏆 88').count()) === 0);
+  check('Aluno com nota de HOJE mostra a nota no tile (· Nota 77)', (await page.locator('text=/Nota 77/').count()) > 0);
+  check('Aluno com nota de ONTEM NÃO mostra mais a nota no tile (Nota 88 sumiu)', (await page.locator('text=/Nota 88/').count()) === 0);
   check('SEM erro JS', jsErrors.length === 0, jsErrors.join(' | '));
 
   await ctx.close();

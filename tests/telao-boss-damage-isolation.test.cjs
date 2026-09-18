@@ -31,7 +31,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const page = await ctx.newPage();
   const jsErrors = await mockRoutes(page, kvStore);
   await loginTeacher(page);
-  await page.click('button:has-text("🖥️ Telão")');
+  await page.click('button:has-text("🖥️ Abrir Telão")');
   await page.waitForTimeout(500);
   const telao = page.locator('[data-testid="telao-modal"]');
   await telao.locator('button:has-text("🌙 Vespertino"):not(:has-text("Vespertino B"))').click();

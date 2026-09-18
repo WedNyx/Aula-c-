@@ -12,7 +12,12 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
   }));
   kvStore.set('student:matutino:ComChapeu', JSON.stringify({
     name: 'ComChapeu', shift: 'matutino', avatar: {}, files: [{ name: 'Program.cs', code: 'int x = 1;' }],
-    phase: 'coding', lastSeen: Date.now(), nyxPoints: 100, nyxOwned: ['chapeuPirata'], treasureFound: false,
+    phase: 'coding', lastSeen: Date.now(), nyxPoints: 100,
+    // pirateSet() olha pro que está EQUIPADO (nyxGear), não só pro que o aluno possui (nyxOwned) —
+    // o conjunto completo (cabeça + rosto + mão) precisa estar equipado ao mesmo tempo
+    nyxOwned: ['chapeuPirata', 'vendaPirata', 'espada'],
+    nyxGear: { head: 'chapeuPirata', face: 'vendaPirata', hand: 'espada' },
+    treasureFound: false,
   }));
 
   const browser = await launchBrowser();

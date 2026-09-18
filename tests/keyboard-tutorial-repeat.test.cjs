@@ -24,6 +24,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
   await page.waitForTimeout(1200);
   for (let i = 0; i < 5; i++) {
     const skip = page.locator('button:has-text("Pular hoje")');
+    const closeSanctuary = page.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await page.waitForTimeout(300); continue; }
     if (await skip.count()) { await skip.click(); await page.waitForTimeout(300); }
     else break;
   }
@@ -46,18 +48,14 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
   await page.waitForTimeout(300);
   check('Depois de errar DUAS vezes, ainda não avançou', (await page.locator('text=/0\\/36 teclas/').count()) > 0);
 
-  // agora acerta a tecla certa — isso abre a etapa de praticar uma frase (Fase 6) ANTES de avançar
-  // o alvo de verdade; completar a frase é o que efetivamente faz avançar
+  // agora acerta a tecla certa — nível 1 (letras/números) avança direto ao acertar, sem etapa de
+  // frase extra (a prática de frase só existe no nível 3, do Shift/maiúsculas — ver comentário em
+  // KeyboardTutorial.jsx: "Letras, números, teclas especiais, atalhos, símbolos e acentos avançam
+  // ao acertar a tecla, sem uma frase extra a cada clique")
   await page.keyboard.press('KeyA');
   await page.waitForTimeout(600);
   check('Depois de acertar, a mensagem de repetição some', (await page.locator('text=Sem pressa').count()) === 0);
-  check('Depois de acertar, entra na etapa de praticar uma frase', (await page.locator('text=Agora pratique digitando').count()) > 0);
-  // digita de volta a MESMA frase mostrada (banco fixo, sem IA) — garante que bate a estrutura
-  const frase = await page.locator('[data-testid="kb-phrase-text"]').innerText();
-  const textarea = page.locator('[data-testid="kb-phrase-input"]');
-  await textarea.fill(frase);
-  await page.waitForTimeout(400);
-  check('Depois de completar a frase, avança pro próximo alvo (1/36)', (await page.locator('text=/1\\/36 teclas/').count()) > 0);
+  check('Depois de acertar, avança direto pro próximo alvo (1/36), sem etapa de frase no nível 1', (await page.locator('text=/1\\/36 teclas/').count()) > 0);
 
   check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 3).join(' | '));
 

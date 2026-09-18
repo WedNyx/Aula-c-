@@ -78,6 +78,8 @@ async function openTutorialFor(page, kvStore, name) {
   await p.waitForTimeout(1200);
   for (let i = 0; i < 5; i++) {
     const skip = p.locator('button:has-text("Pular hoje")');
+    const closeSanctuary = p.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await p.waitForTimeout(300); continue; }
     if (await skip.count()) { await skip.click(); await p.waitForTimeout(300); }
     else break;
   }

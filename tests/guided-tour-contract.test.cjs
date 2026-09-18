@@ -9,7 +9,7 @@ for (const target of ['guided-blocks', 'guided-lessons', 'guided-program', 'guid
   assert.ok(tour.includes(`[data-tour=\\"${target}\\"]`) || tour.includes(`[data-tour="${target}"]`), `tour guiado inclui ${target}`);
   assert.ok(app.includes(`data-tour="${target}"`) || target === 'terminal', `a tela inclui o alvo ${target}`);
 }
-assert.match(app, /accessMode \? GUIDED_TOUR_STEPS : TOUR_STEPS/);
+assert.match(app, /accessMode \? GUIDED_TOUR_STEPS : studyMode \? TOUR_STEPS\.filter/);
 assert.match(app, /steps=\{studentTourSteps\}/);
 assert.match(app, /monta seu programa com blocos/);
 assert.match(app, /canSpeak=\{ttsSupported && \(accessMode \|\| ttsAllowed\)\}/);

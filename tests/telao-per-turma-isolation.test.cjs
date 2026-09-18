@@ -29,7 +29,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     const page = await ctx.newPage();
     const jsErrors = await mockRoutes(page, kvStore);
     await loginTeacher(page);
-    await page.click('button:has-text("🖥️ Telão")');
+    await page.click('button:has-text("🖥️ Abrir Telão")');
     await page.waitForTimeout(500);
     // escopado dentro do próprio telão (data-testid="telao-modal") — por baixo dele a aba de
     // Monitoramento continua montada, com um filtro de turma que tem os mesmos textos de botão

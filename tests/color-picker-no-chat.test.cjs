@@ -23,10 +23,18 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginNewStudent,
 
     await loginNewStudent(page, 'AlunoCores');
     await page.waitForTimeout(500);
+    // o Santuário Lunar pode abrir sozinho um instante DEPOIS do loginNewStudent já ter saído do
+    // próprio loop de fechamento (só abre depois que o check-in do dia é dispensado) — fecha de
+    // novo aqui, defensivamente, antes de interagir com o resto da tela
+    const closeSanctuaryAgain = page.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuaryAgain.count()) { await closeSanctuaryAgain.click({ force: true }); await page.waitForTimeout(400); }
 
     check('O botão de chat do Nyx NÃO existe mais na tela do aluno', (await page.locator('button[title="Conversar com o Nyx"]').count()) === 0);
 
-    await page.click('button[title="Escolher a cor do fundo"]');
+    // o seletor de cor agora fica dentro do menu "⚙️ Ajustes" do cabeçalho, não é mais um botão solto
+    await page.click('button[aria-label="Abrir ajustes do painel do aluno"]');
+    await page.waitForTimeout(300);
+    await page.click('button:has-text("🎨 Cores do painel")');
     await page.waitForTimeout(400);
     check('O seletor de cor abre', (await page.locator('text=🎨 Cor do fundo').count()) > 0);
 

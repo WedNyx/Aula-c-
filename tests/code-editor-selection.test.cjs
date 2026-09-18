@@ -33,7 +33,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
   }
 
   await page.waitForSelector('textarea', { timeout: 10000 });
-  check('Editor de código carregou com o código salvo', (await page.locator('textarea').inputValue()) === 'int nome = 1;');
+  check('Editor de código carregou com o código salvo', (await page.locator('textarea').first().inputValue()) === 'int nome = 1;');
 
   // ── 1) aspas com seleção: selecionar "nome" e digitar " precisa virar "nome" (envolvendo),
   // não apagar "nome" e deixar só um par de aspas vazio no lugar ──
@@ -47,7 +47,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
     ta.dispatchEvent(ev);
   });
   await page.waitForTimeout(300);
-  const afterQuote = await page.locator('textarea').inputValue();
+  const afterQuote = await page.locator('textarea').first().inputValue();
   check('Aspas com seleção ENVOLVE o texto selecionado (não apaga)', afterQuote === 'int "nome" = 1;', `valor: ${JSON.stringify(afterQuote)}`);
 
   // ── 2) parênteses com seleção: mesma lógica, envolvendo em vez de apagar ──
@@ -62,7 +62,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
     ta.dispatchEvent(ev);
   });
   await page.waitForTimeout(300);
-  const afterParen = await page.locator('textarea').inputValue();
+  const afterParen = await page.locator('textarea').first().inputValue();
   check('Parêntese com seleção ENVOLVE o texto selecionado (não apaga)', afterParen === 'int ("nome") = 1;', `valor: ${JSON.stringify(afterParen)}`);
 
   // ── 3) Tab com seleção de VÁRIAS linhas: indenta cada linha, não apaga o bloco selecionado ──
@@ -84,7 +84,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
     ta.dispatchEvent(ev);
   });
   await page.waitForTimeout(300);
-  const afterTab = await page.locator('textarea').inputValue();
+  const afterTab = await page.locator('textarea').first().inputValue();
   check('Tab com seleção de várias linhas INDENTA cada linha (não apaga o bloco)', afterTab === '    linha1\n    linha2\n    linha3', `valor: ${JSON.stringify(afterTab)}`);
 
   check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 3).join(' | '));

@@ -20,7 +20,7 @@ const checks = [
   ["a interface adapta avatar e pets para celular", css.includes("@media(max-width:820px)") && css.includes("@media(max-width:520px)")],
   ["cada personagem possui arquivo 2.5D próprio e válido", ["masculino","feminino"].every(group=>Array.from({length:8},(_,i)=>`public/avatar25d/presets/${group}-${String(i+1).padStart(2,"0")}.webp`).every(file=>fs.existsSync(file) && fs.statSync(file).size>0)) && studio.includes('avatarPresetSrc(id)')],
   ["perfis com presets anteriores continuam compatíveis", avatar.includes('isAvatar25D(id) ? "avatar25d" : "avatar3d"') && studio.includes("avatarPresetSrc")],
-  ["a edição usa rascunho e salva exatamente o avatar confirmado", app.includes("avatarDraft || avatar") && app.includes("onChange={setAvatarDraft}") && app.includes("stateRef.current={...stateRef.current,avatar:nextAvatar}") && app.includes("persist({ avatar:nextAvatar })")],
+  ["a edição usa rascunho e salva exatamente o avatar confirmado", app.includes("avatarDraft || avatar") && app.includes("onChange={setAvatarDraft}") && /stateRef\.current\s*=\s*\{\s*\.\.\.stateRef\.current,\s*avatar:\s*nextAvatar\s*\}/.test(app) && /persist\(\{\s*avatar:\s*nextAvatar\s*\}\)/.test(app)],
 ];
 let failed=0;
 for(const [label,ok] of checks){ console.log(`${ok?"✓":"✗"} ${label}`); if(!ok) failed++; }

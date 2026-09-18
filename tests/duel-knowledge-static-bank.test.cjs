@@ -38,6 +38,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
   await page.click('text=AlunoBanco');
   await page.waitForTimeout(1200);
   for (let i = 0; i < 5; i++) {
+    const closeSanctuary = page.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await page.waitForTimeout(300); continue; }
     const skipCheckin = page.locator('button:has-text("Pular hoje")');
     if (await skipCheckin.count()) { await skipCheckin.click(); await page.waitForTimeout(300); }
     else break;
@@ -59,7 +61,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
   // perguntas só acontece ao clicar "Desafiar", coberta indiretamente pelo mesmo generateDuelQuestions) ──
   // Duelo/Duelo em Dupla/Corrida saíram de "Turma & Você" e agora vivem só no menu "🎮 Games".
   const callsBeforeDuel = claudePrompts.length;
-  await page.click('button:has-text("🎮 Games")');
+  await page.click('text=Sala de desafios');
   await page.waitForTimeout(300);
   // .first() pq "⚔️ Duelo" é substring de "🤝⚔️ Duelo em Dupla" também
   await page.locator('button:has-text("⚔️ Duelo")').first().click();

@@ -16,6 +16,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const jsErrors = await mockRoutes(page, kvStore);
 
   await loginTeacher(page);
+  await page.click('text=Monitoramento');
   await page.waitForTimeout(1000);
 
   const bgOf = async (locator) => locator.evaluate(el => getComputedStyle(el).background || getComputedStyle(el).backgroundColor);
@@ -24,7 +25,9 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const monitorCard = page.locator('h3:has-text("Monitoramento")').locator('xpath=..');
   await monitorCard.hover();
   await page.waitForTimeout(700);
-  await page.click('text=AlunoPaleta');
+  await page.click('button[aria-label="Abrir opções de AlunoPaleta"]');
+  await page.waitForTimeout(300);
+  await page.click('button:has-text("⚙️ Ver detalhes")');
   await page.waitForTimeout(500);
 
   const boletimBtn = page.locator('button:has-text("Gerar boletim de AlunoPaleta")');
@@ -46,7 +49,9 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   check('Renomear ainda funciona depois da mudança de cor', JSON.parse(kvStore.get('student:matutino:AlunoPaleta') || kvStore.get('student:matutino:AlunoRenomeado') || '{}').name === 'AlunoRenomeado' || !!kvStore.get('student:matutino:AlunoRenomeado'));
 
   // aba Prova: botões neutros de cancelar/nova prova usam o mesmo estilo "ghost" do resto do app
-  await page.click('text=🏆 Prova');
+  await page.click('text=Resumos, atividades e provas');
+  await page.waitForTimeout(400);
+  await page.click('text=📋 Provas');
   await page.waitForTimeout(500);
 
   check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 5).join(' | '));

@@ -316,7 +316,7 @@ async function loginNewStudent(page, name) {
   await page.waitForTimeout(300);
   await page.click('button:has-text("Salvar meu perfil")');
   await page.waitForTimeout(1200);
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < 45; i++) {
     const doneBtn = page.locator('button:has-text("Entendi! 🚀")');
     const nextBtn = page.locator('button:has-text("Próximo →")');
     const introBtn = page.locator('button:has-text("Conhecer minha sala!")');

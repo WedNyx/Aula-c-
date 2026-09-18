@@ -66,6 +66,8 @@ async function skipToEditorLevel(page) {
   await page.waitForTimeout(1200);
   for (let i = 0; i < 5; i++) {
     const skip = page.locator('button:has-text("Pular hoje")');
+    const closeSanctuary = page.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await page.waitForTimeout(300); continue; }
     if (await skip.count()) { await skip.click(); await page.waitForTimeout(300); }
     else break;
   }
