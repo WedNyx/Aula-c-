@@ -34,29 +34,42 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await pageA.click('text=AlunoSemCodigoAinda');
   await pageA.waitForTimeout(1200);
   for (let i = 0; i < 5; i++) {
+    const closeSanctuary = pageA.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await pageA.waitForTimeout(300); continue; }
     const skipCheckin = pageA.locator('button:has-text("Pular hoje")');
     if (await skipCheckin.count()) { await skipCheckin.click(); await pageA.waitForTimeout(300); }
     else break;
   }
   check('Aluno começa na tela de código, sem nada escrito ainda', (await pageA.locator('textarea').count()) > 0);
 
-  // ── professor: gera e libera o resumo ──
+  // ── professor: gera e libera o resumo (painel de materiais atual) ──
   const ctxT = await browser.newContext({ viewport: { width: 1400, height: 950 } });
   const pageT = await ctxT.newPage();
   const jsErrorsT = await mockRoutes(pageT, kvStore);
+  // captura o scoreFix gravado no MOMENTO do envio — o aluno da outra aba já está de olho e pode
+  // consumir e limpar essa chave antes de conseguirmos lê-la de volta do kvStore depois do clique
+  let scoreFixSetBody = null;
+  pageT.on('request', req => {
+    if (!req.url().includes('/api/kv')) return;
+    const body = req.postData() || '';
+    if (body.includes('"action":"set"') && body.includes('"key":"scorefix:matutino:AlunoSemCodigoAinda"')) {
+      try { scoreFixSetBody = JSON.parse(JSON.parse(body).value); } catch {}
+    }
+  });
   await loginTeacher(pageT);
-  await pageT.click('text=Meu código');
+  await pageT.click('text=Resumos, atividades e provas');
   await pageT.waitForTimeout(800);
   const ritmoCardT = pageT.locator('[data-tour-prof="resumo-ritmo"]');
-  await ritmoCardT.locator('button:has-text("Gerar resumo")').click();
-  await pageT.waitForTimeout(1200);
-  await ritmoCardT.locator('button:has-text("Enviar pra turma toda")').click();
+  await ritmoCardT.locator('button:has-text("✨ Gerar rascunho com Nyx")').click();
+  await pageT.waitForSelector('text=✅ Material pronto para revisão', { timeout: 20000 });
+  await ritmoCardT.locator('button:has-text("📤 Escolher e enviar")').click();
+  await pageT.waitForTimeout(500);
+  await pageT.click('button:has-text("Confirmar envio")');
   await pageT.waitForTimeout(1200);
   check('Mensagem confirma envio direto pro Caderno', (await pageT.locator('text=/Resumo enviado pro Caderno de 1 aluno/').count()) > 0);
   check('SEM erro de JS (professor)', jsErrorsT.length === 0, jsErrorsT.slice(0, 3).join(' | '));
 
-  const fixSaved = JSON.parse(kvStore.get('scorefix:matutino:AlunoSemCodigoAinda') || 'null');
-  check('scoreFix "resumo-broadcast" foi gravado pro aluno', fixSaved?.kind === 'resumo-broadcast' && fixSaved?.dateKey === tk && Array.isArray(fixSaved?.resumo?.secoes), JSON.stringify(fixSaved));
+  check('scoreFix "resumo-broadcast" foi gravado pro aluno', scoreFixSetBody?.kind === 'resumo-broadcast' && scoreFixSetBody?.dateKey === tk && Array.isArray(scoreFixSetBody?.resumo?.secoes), JSON.stringify(scoreFixSetBody));
 
   // ── aluno (aba já aberta, sem recarregar) recebe o resumo sozinho, sem sair da tela de código ──
   await pageA.waitForTimeout(14000); // dá tempo do tick (12s) rodar pelo menos 1 vez

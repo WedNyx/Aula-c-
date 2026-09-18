@@ -27,16 +27,19 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     }
   });
   await loginTeacher(pageT);
-  await pageT.click('text=Meu código');
+  // painel de materiais atual: "Resumos, atividades e provas" (codeShift já começa em "matutino")
+  await pageT.click('text=Resumos, atividades e provas');
   await pageT.waitForTimeout(500);
   const ritmoCardT = pageT.locator('[data-tour-prof="resumo-ritmo"]');
-  await ritmoCardT.locator('button:has-text("Gerar resumo")').click();
-  await pageT.waitForTimeout(1200);
+  await ritmoCardT.locator('button:has-text("✨ Gerar rascunho com Nyx")').click();
+  await pageT.waitForSelector('text=✅ Material pronto para revisão', { timeout: 20000 });
   check('Professor: exatamente 1 chamada ao Nyx pra gerar o resumo (uma vez só, não por aluno)', teacherClaudeCalls === 1, `calls=${teacherClaudeCalls}`);
   check('Mensagem confirma que o resumo foi guardado no Caderno do professor', (await ritmoCardT.locator('text=/guardado no seu Caderno/').count()) > 0);
-  await ritmoCardT.locator('button:has-text("Enviar pra turma toda")').click();
+  await ritmoCardT.locator('button:has-text("📤 Escolher e enviar")').click();
+  await pageT.waitForTimeout(500);
+  await pageT.click('button:has-text("Confirmar envio")');
   await pageT.waitForTimeout(800);
-  check('Mensagem confirma envio pro Caderno dos alunos', (await ritmoCardT.locator('text=/Resumo enviado pro Caderno/').count()) > 0);
+  check('Mensagem confirma envio pro Caderno dos alunos', (await pageT.locator('text=/Resumo enviado pro Caderno/').count()) > 0);
   check('SEM erro de JS (professor)', jsErrorsT.length === 0, jsErrorsT.slice(0, 3).join(' | '));
 
   const trig = JSON.parse(kvStore.get('resumotrigger:matutino'));
@@ -63,6 +66,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await pageA.click('text=AlunoQueCopiou');
   await pageA.waitForTimeout(1200);
   for (let i = 0; i < 5; i++) {
+    const closeSanctuary = pageA.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await pageA.waitForTimeout(300); continue; }
     const skipCheckin = pageA.locator('button:has-text("Pular hoje")');
     if (await skipCheckin.count()) { await skipCheckin.click(); await pageA.waitForTimeout(300); }
     else break;

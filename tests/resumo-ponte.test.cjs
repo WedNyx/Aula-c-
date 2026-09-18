@@ -25,12 +25,14 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const pageT = await ctxT.newPage();
   const jsErrorsT = await mockRoutes(pageT, kvStore);
   await loginTeacher(pageT);
-  await pageT.click('text=Meu código');
+  await pageT.click('text=Resumos, atividades e provas');
   await pageT.waitForTimeout(500);
   const ritmoCardT = pageT.locator('[data-tour-prof="resumo-ritmo"]');
-  await ritmoCardT.locator('button:has-text("Gerar resumo")').click();
-  await pageT.waitForTimeout(1200);
-  await ritmoCardT.locator('button:has-text("Enviar pra turma toda")').click();
+  await ritmoCardT.locator('button:has-text("✨ Gerar rascunho com Nyx")').click();
+  await pageT.waitForSelector('text=✅ Material pronto para revisão', { timeout: 20000 });
+  await ritmoCardT.locator('button:has-text("📤 Escolher e enviar")').click();
+  await pageT.waitForTimeout(500);
+  await pageT.click('button:has-text("Confirmar envio")');
   await pageT.waitForTimeout(600);
   check('SEM erro de JS (professor)', jsErrorsT.length === 0, jsErrorsT.slice(0, 3).join(' | '));
 
@@ -48,6 +50,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await pageA.click('text=AlunoFaltou');
   await pageA.waitForTimeout(1200);
   for (let i = 0; i < 5; i++) {
+    const closeSanctuary = pageA.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await pageA.waitForTimeout(300); continue; }
     const skipCheckin = pageA.locator('button:has-text("Pular hoje")');
     if (await skipCheckin.count()) { await skipCheckin.click(); await pageA.waitForTimeout(300); }
     else break;

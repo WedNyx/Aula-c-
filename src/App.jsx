@@ -1699,15 +1699,28 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           // dias anteriores NÃO bloqueiam a entrega: eles são justamente o histórico normal do
           // caderno e antes eram confundidos com uma ponte pendente, fazendo alunos antigos não
           // receberem o novo material do professor.
-          const cur = stateRef.current.summaryHistory || {};
-          const already = cur[fix.dateKey];
-          const jaTemConteudo = already && typeof already === "object" && Array.isArray(already.secoes) && already.secoes.length > 0;
-          if (!jaTemConteudo) {
-            const nextHistory = { ...cur, [fix.dateKey]: fix.resumo };
-            setSummaryHistory(nextHistory);
-            await persist({ summaryHistory: nextHistory });
+          // Se o aluno ainda está codando E já tem código suficiente pra "terminar a aula" (mesmo
+          // critério do gatilho de 5s logo abaixo, getResumoTrigger), é ESSE outro gatilho quem
+          // entrega o resumo pra ele — ele não só grava no Caderno como também finaliza a aula de
+          // verdade (fase vira "generating"→"summary"). Se este aviso aqui escrevesse o resumo no
+          // Caderno primeiro, o outro gatilho via o conteúdo já igual ao dele e desistia de
+          // finalizar a aula (pra não empurrar de volta pro resumo quem tinha voltado pro código de
+          // propósito) — o aluno ficava PRA SEMPRE preso "codando", com o resumo já no Caderno mas
+          // sem nunca ver a tela dele nem a atividade. Já quem NÃO tem código nenhum escrito ainda
+          // (ou já saiu de "coding") não tem esse outro gatilho pra contar com — a entrega direta
+          // continua sendo o único jeito de esse aluno receber o resumo, sem forçar fase nenhuma.
+          const temCodigoSuficiente = ((stateRef.current.files || []).filter(f => (f.code||"").trim()).map(f => f.code || "").join("\n")).trim().length >= 10;
+          if (!(stateRef.current.phase === "coding" && temCodigoSuficiente)) {
+            const cur = stateRef.current.summaryHistory || {};
+            const already = cur[fix.dateKey];
+            const jaTemConteudo = already && typeof already === "object" && Array.isArray(already.secoes) && already.secoes.length > 0;
+            if (!jaTemConteudo) {
+              const nextHistory = { ...cur, [fix.dateKey]: fix.resumo };
+              setSummaryHistory(nextHistory);
+              await persist({ summaryHistory: nextHistory });
+            }
+            await clearScoreFix(shift, studentName);
           }
-          await clearScoreFix(shift, studentName);
         } else if (fix && fix.kind === "nyx-points-restore" && typeof fix.points === "number") {
           // recuperação feita pelo professor: usa o total exato já salvo no servidor para não
           // duplicar os pontos se a sessão do aluno estiver aberta durante a correção.
