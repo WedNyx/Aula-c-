@@ -18,6 +18,8 @@ async function loginSeededStudent(page, name) {
   await page.click(`text=${name}`);
   await page.waitForTimeout(1200);
   for (let i = 0; i < 5; i++) {
+    const closeSanctuary = page.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await page.waitForTimeout(300); continue; }
     const skipCheckin = page.locator('button:has-text("Pular hoje")');
     if (await skipCheckin.count()) { await skipCheckin.click(); await page.waitForTimeout(300); }
     else break;

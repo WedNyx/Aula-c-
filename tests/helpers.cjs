@@ -112,7 +112,7 @@ async function mockRoutes(page, kvStore) {
 
   await page.route('**/api/kv', async (route) => {
     const body = JSON.parse(route.request().postData() || '{}');
-    const { action, key, value, prefix, auth, shift, answers, exits, message, url: errUrl, role, tourneyId, round, picks, turmaId, from, to, myName, names, studentName, track } = body;
+    const { action, key, value, prefix, auth, shift, answers, exits, message, url: errUrl, role, tourneyId, round, picks, turmaId, from, to, myName, names, studentName, track, date, status } = body;
     let out;
     if (action === 'check') out = { configured: true };
     else if (action === 'log_error') {
@@ -130,6 +130,26 @@ async function mockRoutes(page, kvStore) {
       if (String(key).startsWith('student:')) saveStudentPrivateMock(kvStore, key, value);
       else kvStore.set(key, value);
       out = { ok: true };
+    }
+    // mesma lógica de set_attendance em api/kv.js: correção manual do professor vira uma
+    // "attendanceOverrides[date]" que tem prioridade sobre o cálculo automático, e é reaplicada
+    // em cima da presença atual (nunca sobrescreve o objeto attendance inteiro do zero)
+    else if (action === 'set_attendance') {
+      const student = kvStore.has(key) ? JSON.parse(kvStore.get(key)) : null;
+      if (!student) { out = { error: 'student_not_found' }; }
+      else {
+        const overrides = { ...student.attendanceOverrides };
+        const attendance = { ...student.attendance };
+        if (status === 'auto') {
+          delete overrides[date];
+          if (student.attendanceFirst?.[date]) attendance[date] = 'present';
+          else delete attendance[date];
+        } else overrides[date] = { status, at: Date.now() };
+        student.attendanceOverrides = overrides;
+        student.attendance = applyAttendanceOverridesMock(attendance, overrides);
+        kvStore.set(key, JSON.stringify(student));
+        out = { ok: true };
+      }
     }
     else if (action === 'get') {
       let v = kvStore.has(key) ? kvStore.get(key) : null;

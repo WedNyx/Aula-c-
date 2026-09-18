@@ -42,6 +42,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await a.click('text=AlunoLinguagens');
   await a.waitForTimeout(1200);
   for (let i = 0; i < 5; i++) {
+    const closeSanctuary = a.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await a.waitForTimeout(300); continue; }
     const skipCheckin = a.locator('button:has-text("Pular hoje")');
     if (await skipCheckin.count()) { await skipCheckin.click(); await a.waitForTimeout(300); }
     else break;

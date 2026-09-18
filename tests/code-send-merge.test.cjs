@@ -77,6 +77,8 @@ class Program
   await pageS.click('text=AlunoCodigo');
   await pageS.waitForTimeout(1200);
   for (let i = 0; i < 5; i++) {
+    const closeSanctuary = pageS.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await pageS.waitForTimeout(300); continue; }
     const skipCheckin = pageS.locator('button:has-text("Pular hoje")');
     if (await skipCheckin.count()) { await skipCheckin.click(); await pageS.waitForTimeout(300); }
     else break;

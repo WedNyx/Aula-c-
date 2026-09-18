@@ -29,6 +29,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     const page = await ctx.newPage();
     const jsErrors = await mockRoutes(page, kvStore);
     await loginTeacher(page);
+    await page.click('button[aria-label="Abrir outras ações do professor"]');
+    await page.waitForTimeout(200);
     await page.click('button:has-text("🖥️ Abrir Telão")');
     await page.waitForTimeout(500);
     // escopado dentro do próprio telão (data-testid="telao-modal") — por baixo dele a aba de

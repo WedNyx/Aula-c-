@@ -45,13 +45,16 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
     else break;
   }
 
-  // ── Teste de Conhecimento: 6 questões, sem chamar o Nyx ──
+  // ── Teste de Conhecimento: até 6 questões (só as elegíveis pro que o aluno já escreveu), sem
+  // chamar o Nyx — pickFromBank(6, context) pode devolver MENOS de 6 se o código do aluno ainda
+  // não tocou em conceito suficiente pra preencher todas (questionWasStudied filtra por evidência
+  // real no código/resumo), então o teste confere um intervalo, não um número exato ──
   const callsBeforeTest = claudePrompts.length;
   await page.click('button:has-text("🧠 Testar Conhecimento")');
   await page.waitForTimeout(800);
   await page.waitForSelector('div[data-q]', { timeout: 10000 });
   const testQCount = await page.locator('div[data-q]').count();
-  check('Teste de Conhecimento tem as 6 questões do banco fixo', testQCount === 6, `qCount=${testQCount}`);
+  check('Teste de Conhecimento tem até 6 questões do banco fixo (pelo menos 1)', testQCount >= 1 && testQCount <= 6, `qCount=${testQCount}`);
   check('Gerar o Teste de Conhecimento NÃO chamou o Nyx', claudePrompts.length === callsBeforeTest, JSON.stringify(claudePrompts.slice(callsBeforeTest)));
   await page.click('button:has-text("✕")').catch(() => {});
   await page.keyboard.press('Escape').catch(() => {});

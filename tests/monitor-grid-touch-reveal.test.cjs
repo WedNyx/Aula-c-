@@ -1,8 +1,9 @@
-// A grade de alunos do card "👥 Monitoramento" (Modo completo) só aparecia com o MOUSE em cima
-// (onMouseEnter/onMouseLeave) — pensado pra deixar a tela mais limpa no computador. Em celular/tablet
-// não existe "hover": a grade ficava permanentemente escondida atrás do aviso "Passe o mouse aqui",
-// mesmo pra quem entrasse no Modo completo de propósito numa tela estreita. O mesmo valia pro
-// aviso "⚠ N duplicado(s)". Este teste confirma que agora dá pra TOCAR pra revelar os dois.
+// A grade de alunos do card "👥 Monitoramento" já teve uma fase em que só aparecia com o MOUSE em
+// cima (onMouseEnter/onMouseLeave), o que deixava ela permanentemente escondida em celular/tablet
+// (não existe "hover" no toque). Isso foi substituído por um design mais simples: a grade fica
+// VISÍVEL por padrão pra todo mundo (mouse ou toque), com um botão comum "▴ Recolher alunos" /
+// "👥 Mostrar alunos" pra quem quiser esconder. O aviso "⚠ N duplicado(s)" já é por clique em
+// qualquer tela. Este teste confirma que os dois funcionam por toque, sem precisar de hover.
 const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } = require('./helpers.cjs');
 
 (async () => {
@@ -29,17 +30,17 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await page.waitForTimeout(500);
   check('Modo completo abriu', (await page.locator('text=Monitoramento').count()) > 0);
 
-  check('Antes de tocar: grade de alunos ainda escondida', (await page.locator('text=AlunoCelular').count()) === 0);
-  check('Aviso mostra a versão de TOQUE (não a de mouse) numa tela estreita', (await page.locator('text=👆 Toque aqui').count()) > 0);
+  check('Grade de alunos já aparece visível por padrão, sem precisar tocar em nada', (await page.locator('text=AlunoCelular').count()) > 0);
+  check('Botão "Recolher alunos" aparece pra quem quiser esconder', (await page.locator('text=▴ Recolher alunos').count()) > 0);
 
-  await page.click('text=👆 Toque aqui');
+  await page.click('text=▴ Recolher alunos');
   await page.waitForTimeout(300);
-  check('Depois de tocar: grade de alunos aparece', (await page.locator('text=AlunoCelular').count()) > 0);
-  check('Botão "🙈 Ocultar" aparece pra fechar de novo (não tem "mouse leave" no toque)', (await page.locator('text=🙈 Ocultar').count()) > 0);
+  check('Tocar em "Recolher alunos" esconde a grade', (await page.locator('text=AlunoCelular').count()) === 0);
+  check('Botão vira "Mostrar alunos"', (await page.locator('text=👥 Mostrar alunos').count()) > 0);
 
-  await page.click('text=🙈 Ocultar');
+  await page.click('text=👥 Mostrar alunos');
   await page.waitForTimeout(300);
-  check('Tocar em "Ocultar" esconde a grade de novo', (await page.locator('text=AlunoCelular').count()) === 0);
+  check('Tocar em "Mostrar alunos" revela a grade de novo', (await page.locator('text=AlunoCelular').count()) > 0);
 
   // aviso de duplicado: também precisa funcionar por toque
   check('Antes de tocar: popup de duplicado escondido', (await page.locator('text=Esse nome aparece em mais de um turno').count()) === 0);
@@ -51,5 +52,5 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 
   await ctx.close();
   await browser.close();
-  process.exit(summary('MODO COMPLETO NO CELULAR: GRADE E AVISO DE DUPLICADO REVELADOS POR TOQUE') ? 0 : 1);
+  process.exit(summary('MODO COMPLETO NO CELULAR: GRADE VISÍVEL POR PADRÃO E AVISO DE DUPLICADO POR TOQUE') ? 0 : 1);
 })().catch(e => { console.log('FATAL', e.message, e.stack); process.exit(1); });

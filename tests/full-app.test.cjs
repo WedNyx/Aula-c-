@@ -58,16 +58,20 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, lo
   const p = await ctxP.newPage();
   const errP = await mockRoutes(p, kvStore);
   await loginTeacher(p);
-  await p.click('text=Meu código');
+  // painel de materiais atual: "Resumos, atividades e provas" → escolher a turma no seletor →
+  // "✨ Gerar rascunho com Nyx" (usa o código que o professor passou, seedado acima) → "📤 Escolher
+  // e enviar" → confirmar no modal de entrega (mesmo fluxo de resumo-cancelar-envio.test.cjs)
+  await p.click('text=Resumos, atividades e provas');
   await p.waitForTimeout(500);
-  const turmaLabel = studentShift === 'vespertino' ? '🌙 Vespertino' : '☀️ Matutino';
-  const turmaBtn = p.locator(`button:has-text("${turmaLabel}")`).first();
-  if (await turmaBtn.count()) { await turmaBtn.click(); await p.waitForTimeout(300); }
-  const ritmoCardP = p.locator('[data-tour-prof="resumo-ritmo"]');
-  await ritmoCardP.locator('button:has-text("Gerar resumo")').click();
-  await p.waitForTimeout(1200);
-  await ritmoCardP.locator('button:has-text("Enviar pra turma toda")').click();
-  await p.waitForTimeout(600);
+  const turmaSelect = p.locator('select[aria-label="Turno do material"]');
+  if (await turmaSelect.count()) await turmaSelect.selectOption(studentShift);
+  await p.waitForTimeout(300);
+  await p.click('button:has-text("✨ Gerar rascunho com Nyx")');
+  await p.waitForSelector('text=✅ Material pronto para revisão', { timeout: 20000 });
+  await p.click('button:has-text("📤 Escolher e enviar")');
+  await p.waitForTimeout(500);
+  await p.click('button:has-text("Confirmar envio")');
+  await p.waitForTimeout(800);
   check('Professor liberou o resumo sem erro de JS', errP.length === 0, errP.slice(0, 3).join(' | '));
 
   // seletor PRECISO (não um regex genérico de "resumo") — o próprio aviso da tela de código já
@@ -102,7 +106,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, lo
   // reaproveita o mesmo contexto/página do professor já aberto acima (pra liberar o resumo)
   check('Painel do professor abriu (pós-login)', (await p.locator('text=Monitoramento').count()) > 0);
 
-  const tabs = ['👨‍💻 Meu código', '🏆 Prova', '👥 Monitoramento', '🗓️ Calendário', '💬 Feedback'];
+  const tabs = ['Meu código', 'Resumos, atividades e provas', 'Monitoramento', 'Calendário', 'Feedback'];
   for (const tab of tabs) {
     const tabBtn = p.locator(`text=${tab}`).first();
     if (await tabBtn.count()) {

@@ -1,5 +1,6 @@
-// Avatar Big Smile: renderização, todas as opções de personalização, posição do pet (sem
-// sobrepor o rosto), e compatibilidade com os 3 formatos de perfil salvos de migrações anteriores.
+// Avatar 2.5D (AvatarStudio3D, substituiu o antigo builder SVG "Big Smile"): renderização dos
+// presets masculino/feminino, escolha de companheiro (pet), e compatibilidade com os 3 formatos
+// de perfil salvos de migrações anteriores (Avatar.jsx cai pro SVG antigo quando render3d é nulo).
 const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } = require('./helpers.cjs');
 
 (async () => {
@@ -13,7 +14,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 
   const browser = await launchBrowser();
 
-  // 1) tela de criação de perfil do aluno — checa se o AvatarBuilder (Big Smile) renderiza sem erro
+  // 1) tela de criação de perfil do aluno — checa se o AvatarStudio3D (presets 2.5D + pet) renderiza sem erro
   const ctx1 = await browser.newContext({ viewport: { width: 1400, height: 950 } });
   const page1 = await ctx1.newPage();
   const jsErrors1 = await mockRoutes(page1, kvStore);
@@ -24,61 +25,35 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await page1.waitForTimeout(500);
   const nameInput = page1.locator('input[placeholder*="nome" i], input[placeholder*="Nome" i]').first();
   if (await nameInput.count()) await nameInput.fill('AlunoTesteNovo');
-  await page1.click('button:has-text("Avançar")'); // passo 1 (nome/nascimento/CPF) → passo 2 (personalizar o boneco)
+  await page1.click('button:has-text("Avançar")'); // passo 1 (nome/nascimento/CPF) → passo 2 (AvatarStudio3D)
   await page1.waitForTimeout(500);
 
-  const avatarImgs = page1.locator('img[src^="data:image/svg+xml"]');
-  check('Avatar SVG (data URI) renderizado na tela', (await avatarImgs.count()) > 0);
+  const avatarImg = page1.locator('.avatar-studio-stage img.avatar-3d-render');
+  check('Avatar 2.5D (preset) renderizado na tela', (await avatarImg.count()) > 0);
 
-  // layout do passo 2: o boneco fica à ESQUERDA e as opções de personalização à DIREITA
-  const avatarBox = await avatarImgs.first().boundingBox();
-  const bgSwatchBox = await page1.locator('p:has-text("Cor de fundo")').boundingBox();
-  if (avatarBox && bgSwatchBox) {
-    check('As opções de personalização ficam à DIREITA do boneco', bgSwatchBox.x > avatarBox.x + avatarBox.width, `avatarX=${avatarBox.x.toFixed(0)} opcoesX=${bgSwatchBox.x.toFixed(0)}`);
-  } else {
-    check('Consegui medir a posição do boneco vs opções', false, 'boundingBox nulo');
-  }
+  const masculinoThumbs = page1.locator('.avatar-preset-grid button');
+  check('8 presets masculinos aparecem por padrão', await masculinoThumbs.count() === 8, `count=${await masculinoThumbs.count()}`);
 
-  const surpresaBtn = page1.locator('button:has-text("Surpresa")');
-  if (await surpresaBtn.count()) { for (let i = 0; i < 8; i++) { await surpresaBtn.click(); await page1.waitForTimeout(150); } }
-  check('Sem erro de JS depois de várias sorteadas de avatar', jsErrors1.length === 0, jsErrors1.slice(0, 3).join(' | '));
-
-  const hairThumbs = page1.locator('p:has-text("Estilo do cabelo")').locator('xpath=following-sibling::div[1]').locator('button');
-  const hairCount = await hairThumbs.count();
-  check('Lista de estilos de cabelo tem 13 itens', hairCount === 13, `count=${hairCount}`);
-  for (let i = 0; i < hairCount; i++) { await hairThumbs.nth(i).click(); await page1.waitForTimeout(50); }
-  check('Sem erro de JS depois de clicar em todos os estilos de cabelo', jsErrors1.length === 0, jsErrors1.slice(0, 3).join(' | '));
-
-  const acessorioThumbs = page1.locator('p:has-text("Acessório")').locator('xpath=following-sibling::div[1]').locator('button');
-  for (let i = 0; i < await acessorioThumbs.count(); i++) { await acessorioThumbs.nth(i).click(); await page1.waitForTimeout(50); }
-  check('Sem erro de JS depois de testar todos os acessórios', jsErrors1.length === 0, jsErrors1.slice(0, 3).join(' | '));
-
-  check('"Tom de pele" existe (cor voltou)', (await page1.locator('p:has-text("Tom de pele")').count()) > 0);
-  check('"Cor do cabelo" existe (cor voltou)', (await page1.locator('p:has-text("Cor do cabelo")').count()) > 0);
-
-  // pega uma roupa e um pet, testa o badge do pet não sobrepor feio o rosto (checa geometria via bounding box)
-  const roupaThumbs = page1.locator('p:has-text("Roupa")').locator('xpath=following-sibling::div[1]').locator('button');
-  if (await roupaThumbs.count() > 1) await roupaThumbs.nth(1).click();
+  await page1.click('button[role="tab"]:has-text("Femininos")');
   await page1.waitForTimeout(200);
-  await page1.locator('button:has-text("Dragão")').click();
-  await page1.waitForTimeout(300);
+  const femininoThumbs = page1.locator('.avatar-preset-grid button');
+  check('8 presets femininos aparecem na aba Femininos', await femininoThumbs.count() === 8, `count=${await femininoThumbs.count()}`);
 
-  const petBadge = page1.locator('img.avatar-pet[src*="/pets/dragao"]');
-  check('Badge do pet (dragão) aparece', (await petBadge.count()) > 0);
-  const previewBox = petBadge.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " avatar-pop ")]').first();
-  const avatarCircleBox = await previewBox.locator('div').first().boundingBox();
-  const petBox = await petBadge.boundingBox();
-  if (avatarCircleBox && petBox) {
-    const circleCenterX = avatarCircleBox.x + avatarCircleBox.width / 2;
-    const circleCenterY = avatarCircleBox.y + avatarCircleBox.height / 2;
-    const petCenterX = petBox.x + petBox.width / 2;
-    const petCenterY = petBox.y + petBox.height / 2;
-    const r = avatarCircleBox.width / 2;
-    const dist = Math.hypot(petCenterX - circleCenterX, petCenterY - circleCenterY);
-    check('Centro do badge do pet fica fora/na borda do círculo (não em cima da boca)', dist >= r * 0.75, `dist=${dist.toFixed(1)} raio=${r.toFixed(1)}`);
-  } else {
-    check('Consegui medir a posição do pet vs avatar', false, 'boundingBox nulo');
-  }
+  for (let i = 0; i < await femininoThumbs.count(); i++) { await femininoThumbs.nth(i).click(); await page1.waitForTimeout(50); }
+  check('Sem erro de JS depois de clicar em todos os presets femininos', jsErrors1.length === 0, jsErrors1.slice(0, 3).join(' | '));
+  check('Último preset clicado fica marcado como selecionado', (await page1.locator('.avatar-preset-grid button[aria-pressed="true"]').count()) > 0);
+
+  // avança pra etapa de companheiro (pet) — ainda não cria o perfil
+  await page1.click('button:has-text("Escolher meu companheiro")');
+  await page1.waitForTimeout(300);
+  check('Etapa de companheiro (pet) abriu', (await page1.locator('.avatar-pet-grid').count()) > 0);
+
+  await page1.click('.avatar-pet-grid button:has-text("Dragão")');
+  await page1.waitForTimeout(300);
+  check('Companheiro escolhido aparece na prévia', (await page1.locator('.avatar-studio-pet, .avatar-studio-pet-emoji').count()) > 0);
+  check('Campo de nome do pet aparece depois de escolher um companheiro', (await page1.locator('input[aria-label="Nome do pet"]').count()) > 0);
+
+  check('Sem erro de JS depois de escolher avatar e companheiro', jsErrors1.length === 0, jsErrors1.slice(0, 3).join(' | '));
 
   await ctx1.close();
 
@@ -100,5 +75,5 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
 
   await ctx2.close();
   await browser.close();
-  process.exit(summary('AVATAR BIG SMILE MIGRATION') ? 0 : 1);
+  process.exit(summary('AVATAR 2.5D E COMPATIBILIDADE COM FORMATOS ANTIGOS') ? 0 : 1);
 })().catch(e => { console.log('FATAL', e.message, e.stack); process.exit(1); });

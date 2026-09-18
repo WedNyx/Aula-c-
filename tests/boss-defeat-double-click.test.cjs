@@ -30,7 +30,9 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   });
 
   await loginTeacher(page);
-  await page.click('button:has-text("🖥️ Telão")');
+  await page.click('button[aria-label="Abrir outras ações do professor"]');
+  await page.waitForTimeout(200);
+  await page.click('button:has-text("🖥️ Abrir Telão")');
   await page.waitForTimeout(1000); // dá tempo do estado do chefão carregar
 
   check('Chefão aparece derrotado assim que o telão abre', (await page.locator('text=FOI DERROTADO').count()) > 0);

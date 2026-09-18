@@ -55,7 +55,11 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await page2.fill('input[placeholder="Seu nome completo"]', 'AlunoNovaTurma');
   await page2.click('button:has-text("Avançar")');
   await page2.waitForTimeout(400);
-  await page2.click('button:has-text("Criar perfil e entrar")');
+  // passo 2 é o AvatarStudio3D, em duas etapas próprias: escolher avatar → "Escolher meu
+  // companheiro" (avança pro pet, ainda não cria o perfil) → "Salvar meu perfil" (cria de verdade)
+  await page2.click('button:has-text("Escolher meu companheiro")');
+  await page2.waitForTimeout(300);
+  await page2.click('button:has-text("Salvar meu perfil")');
   await page2.waitForTimeout(1200);
 
   check('SEM erro de JS (aluno)', jsErrors2.length === 0, jsErrors2.slice(0, 3).join(' | '));

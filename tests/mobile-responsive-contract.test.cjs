@@ -7,6 +7,10 @@ const root = path.join(__dirname, "..");
 const app = fs.readFileSync(path.join(root, "src/App.jsx"), "utf8");
 const css = fs.readFileSync(path.join(root, "src/theme.css"), "utf8");
 const codeLab = fs.readFileSync(path.join(root, "src/components/CodeLab.jsx"), "utf8");
+// a navegação móvel do professor foi extraída pro componente compartilhado DashboardMobileNav
+// (usado tanto pelo professor quanto pelo aluno) — a classe "teacher-mobile-tabs" continua
+// existindo, só que agora é renderizada lá, não mais direto em App.jsx
+const dashboardSidebar = fs.readFileSync(path.join(root, "src/components/DashboardSidebar.jsx"), "utf8");
 
 let pass = 0, fail = 0;
 const check = (name, condition) => {
@@ -14,7 +18,7 @@ const check = (name, condition) => {
   else { fail++; console.log(`❌ ${name}`); }
 };
 
-check("painel completo do professor tem navegação própria no celular", app.includes('className="teacher-mobile-tabs"'));
+check("painel completo do professor tem navegação própria no celular", dashboardSidebar.includes("teacher-mobile-tabs") && app.includes("DashboardMobileNav"));
 for (const area of ["Monitoramento", "Meu código", "Calendário", "Feedback", "Prova", "Quiz"]) {
   check(`menu móvel mantém acesso a ${area}`, app.includes(`>${area}`) || app.includes(` ${area}`));
 }

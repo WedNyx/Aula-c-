@@ -36,7 +36,11 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const monitorCard = page.locator('h3:has-text("Monitoramento")').locator('xpath=..');
   await monitorCard.hover();
   await page.waitForTimeout(900);
-  await monitorCard.locator('text=AlunoM').click();
+  // clicar no nome do aluno não seleciona mais — precisa abrir o menu "•••" do aluno e escolher
+  // "⚙️ Ver detalhes" (mesmo padrão de palette-consistency.test.cjs)
+  await page.click('button[aria-label="Abrir opções de AlunoM"]');
+  await page.waitForTimeout(200);
+  await page.click('button:has-text("⚙️ Ver detalhes")');
   await page.waitForTimeout(400);
   check('Painel Gerenciar aluno mostra botão de boletim individual', (await page.locator('button:has-text("Gerar boletim de AlunoM")').count()) > 0);
 

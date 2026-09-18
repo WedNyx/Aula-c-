@@ -25,7 +25,10 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await page.waitForTimeout(900);
   check('Grade de alunos aparece com hover', (await page.locator('text=AlunoA').count()) > 0);
 
-  await page.click('text=/🏆 Prova/');
+  // Prova virou uma sub-aba dentro de "📚 Resumos, atividades e provas" (não é mais item solto do menu)
+  await page.click('text=Resumos, atividades e provas');
+  await page.waitForTimeout(300);
+  await page.click('button:has-text("📋 Provas")');
   await page.waitForTimeout(500);
   check('Aba Prova abre', (await page.locator('text=/[Pp]rova/').count()) > 0);
 

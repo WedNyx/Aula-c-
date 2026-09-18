@@ -67,7 +67,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const monitorCard = page.locator('h3:has-text("Monitoramento")').locator('xpath=..');
   await monitorCard.hover();
   await page.waitForTimeout(700);
-  check('O badge 🏆 individual por tile continua aparecendo (coexiste com a revelação)', (await page.locator('text=/🏆 100/').count()) > 0);
+  check('O badge 🏆 individual por tile continua aparecendo (coexiste com a revelação)', (await page.locator('text=/· Nota 100/').count()) > 0);
 
   check('SEM erro de JS', jsErrors.length === 0, jsErrors.slice(0, 5).join(' | '));
 

@@ -36,6 +36,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
 
   // dispensa check-in de humor se aparecer (aluno já existente não passa por onboarding/tour)
   for (let i = 0; i < 5; i++) {
+    const closeSanctuary = page.locator('[aria-label="Fechar Santuário Lunar"]');
+    if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await page.waitForTimeout(300); continue; }
     const skipCheckin = page.locator('button:has-text("Pular hoje")');
     if (await skipCheckin.count()) { await skipCheckin.click(); await page.waitForTimeout(300); }
     else break;

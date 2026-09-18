@@ -49,6 +49,8 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, TE
     await page.click('text=AlunoPortfolio');
     await page.waitForTimeout(1200);
     for (let i = 0; i < 5; i++) {
+      const closeSanctuary = page.locator('[aria-label="Fechar Santuário Lunar"]');
+      if (await closeSanctuary.count()) { await closeSanctuary.click({ force: true }); await page.waitForTimeout(300); continue; }
       const skipCheckin = page.locator('button:has-text("Pular hoje")');
       if (await skipCheckin.count()) { await skipCheckin.click(); await page.waitForTimeout(300); }
       else break;
@@ -93,7 +95,11 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, TE
     const monitorCard = page.locator('h3:has-text("Monitoramento")').locator('xpath=..');
     await monitorCard.hover();
     await page.waitForTimeout(900);
-    await page.click('text=AlunoPortfolio');
+    // clicar no nome do aluno não seleciona mais — precisa abrir o menu "•••" do aluno e escolher
+    // "⚙️ Ver detalhes" (mesmo padrão de palette-consistency.test.cjs)
+    await page.click('button[aria-label="Abrir opções de AlunoPortfolio"]');
+    await page.waitForTimeout(200);
+    await page.click('button:has-text("⚙️ Ver detalhes")');
     await page.waitForTimeout(500);
     check('Professor vê o badge de "Link público ativo"', (await page.locator('text=/Link público ativo/').count()) > 0);
     await page.click('button:has-text("Desativar")');
