@@ -226,8 +226,13 @@ function isDuelScoreForgery(key, rawValue) {
 // escrita, encolhendo ao máximo a janela em que outra escrita pode se intrometer — sem precisar de
 // um mecanismo de trava no banco (que os 3 backends suportados aqui — Supabase, Postgres direto,
 // Redis via Upstash — não expõem de forma unificada).
-async function writeMergedWithRetry(key, buildMerge, verifyMerge, maxAttempts = 6) {
+async function writeMergedWithRetry(key, buildMerge, verifyMerge, maxAttempts = 16) {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // a partir da 2ª tentativa, espera um tempinho ALEATÓRIO antes de tentar de novo — sem isso,
+    // 3+ escritas perdendo a corrida ao mesmo tempo tendem a colidir de novo umas com as outras
+    // na tentativa seguinte, na mesma hora, esgotando as tentativas sem nenhuma conseguir passar
+    // (mais visível em duelos EM DUPLA/EQUIPE, com 4+ jogadores respondendo quase juntos)
+    if (attempt > 0) await new Promise(resolve => setTimeout(resolve, 15 + Math.random() * 35 * attempt))
     const raw = await store.get(key)
     if (!raw) return { merged: null, ok: false }
     let config
