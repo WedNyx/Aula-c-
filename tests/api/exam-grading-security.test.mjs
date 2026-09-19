@@ -125,11 +125,13 @@ const examConfig = { status: 'active', questions, shift: 'matutino', activatedAt
 }
 
 // 9) limite de tentativas: a nota devolvida entrega "quantas" acertou — sem um limite, dava pra
-// tentar dezenas de combinações e descobrir o gabarito só olhando a nota subir/descer
+// tentar dezenas de combinações e descobrir o gabarito só olhando a nota subir/descer. O limite é
+// bem mais alto que o de outras ações (300, não 15) porque é POR IP e uma sala de aula inteira no
+// wifi da escola compartilha o mesmo IP — ver o comentário de "ratelimit:gradeexam" em api/kv.js.
 {
   const ip = '10.0.0.77';
   let lastStatus = 200;
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 301; i++) {
     const req = mockReq({ action: 'grade_exam', shift: 'matutino', answers: { 0: 0 }, exits: 0 }, ip);
     const res = mockRes();
     await kvHandler(req, res);

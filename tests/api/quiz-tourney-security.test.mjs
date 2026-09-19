@@ -188,12 +188,13 @@ async function seedTourney(round, status, turmaId = TURMA) {
   check('grade_tourney_round: turma DIFERENTE (sem torneio próprio) é rejeitada (404, não acerta o torneio da outra turma)', res._status === 404 || res._body?.error === 'tourney_not_found', JSON.stringify(res._body));
 }
 
-// limite de tentativas por IP (mesmo risco de "descobrir o gabarito testando" do grade_exam)
+// limite de tentativas por IP (mesmo risco de "descobrir o gabarito testando" do grade_exam) — 300,
+// não 15, porque uma turma inteira no wifi da escola compartilha o mesmo IP (ver api/kv.js)
 {
   await seedTourney(1, 'active');
   const ip = '10.0.0.88';
   let sawRateLimited = false;
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 301; i++) {
     const res = mockRes();
     await kvHandler(mockReq({ action: 'grade_tourney_round', tourneyId: 999, round: 1, picks: { 0: 0 }, turmaId: TURMA }, ip), res);
     if (res._status === 429) sawRateLimited = true;

@@ -99,11 +99,12 @@ const QUESTIONS = Array.from({ length: 5 }, (_, i) => ({ q: `Pergunta ${i + 1}?`
     check('Duelo 1x1: scoreFrom/scoreTo gravados corretamente (2 e 5)', saved.scoreFrom === 2 && saved.scoreTo === 5, `scoreFrom=${saved.scoreFrom} scoreTo=${saved.scoreTo}`);
     check('Duelo 1x1: o gabarito ORIGINAL continua intacto no banco depois do merge', saved.questions.every(q => typeof q.correct === 'number'), JSON.stringify(saved.questions));
   }
-  // 9) rate limit: muitas tentativas seguidas do mesmo IP caem no 429
+  // 9) rate limit: muitas tentativas seguidas do mesmo IP caem no 429 — 300, não 15, porque vários
+  // pares podem estar duelando ao mesmo tempo na mesma sala, compartilhando o wifi da escola
   {
     const ip = '10.0.0.51';
     let sawRateLimited = false;
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 301; i++) {
       const res = mockRes();
       await kvHandler(mockReq({ action: 'grade_duel', shift: 'matutino', from: 'AlunoA', to: 'AlunoB', myName: 'AlunoA', answers: {} }, ip), res);
       if (res._status === 429) sawRateLimited = true;

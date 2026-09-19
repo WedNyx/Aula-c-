@@ -778,8 +778,13 @@ export default async function handler(req, res) {
         // por acerto, descontando 10 por saída de aba registrada (anti-cola).
         // limite de tentativas: a nota devolvida diz QUANTAS respostas acertou (não QUAIS) — sem
         // um limite aqui, alguém poderia enviar respostas repetidas vezes mudando uma de cada vez
-        // pra descobrir o gabarito inteiro só olhando a nota subir ou descer.
-        const withinLimit = await rateLimitCheck(`ratelimit:gradeexam:${ip}`, 15, 600)
+        // pra descobrir o gabarito inteiro só olhando a nota subir ou descer. O limite é POR IP, e
+        // toda uma sala de aula no mesmo wifi da escola compartilha o mesmo IP (como o comentário
+        // de KV_RATE_LIMITS já explica) — com 15 por 10min pra turma INTEIRA, bastava metade da
+        // turma enviar a prova quase junto (ex: quando o professor encerra e cada aluno pendente
+        // tenta 2x, mais o heartbeat de 12s tentando de novo sozinho pra quem falhar) pra travar o
+        // resto da turma sem nota nenhuma, presos em 429 até o resto dos 10 minutos passar.
+        const withinLimit = await rateLimitCheck(`ratelimit:gradeexam:${ip}`, 300, 600)
         if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas tentativas seguidas de enviar a prova. Aguarde um pouco e tente de novo.' })
         const { shift, answers, exits } = req.body || {}
         const raw = await store.get(`exam:config:${shift || 'all'}`)
@@ -805,7 +810,9 @@ export default async function handler(req, res) {
         // (o embaralhamento é só cosmético no cliente, feito sem precisar saber qual é a certa) —
         // o servidor lê a rodada de verdade direto do banco (sem passar pelo redactTourneyConfig,
         // que é só pra "get") e devolve só a pontuação, nunca "correta".
-        const withinLimit = await rateLimitCheck(`ratelimit:gradetourney:${ip}`, 15, 600)
+        // torneio é evento de turma INTEIRA respondendo junto — mesmo risco de IP compartilhado
+        // do wifi da escola explicado no grade_exam logo acima, com o mesmo ajuste de limite
+        const withinLimit = await rateLimitCheck(`ratelimit:gradetourney:${ip}`, 300, 600)
         if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas tentativas seguidas de enviar o torneio. Aguarde um pouco e tente de novo.' })
         const { tourneyId, round, picks, turmaId } = req.body || {}
         const raw = await store.get(`tourney:config:${turmaId || 'sem-turno'}`)
@@ -831,7 +838,9 @@ export default async function handler(req, res) {
         // merge fosse feito no cliente (ler com "get", já sem "correct", e regravar o documento
         // inteiro por cima), a segunda pessoa a responder perderia o gabarito de vez, porque a
         // primeira já teria regravado o duelo sem os "correct" nas perguntas.
-        const withinLimit = await rateLimitCheck(`ratelimit:gradeduel:${ip}`, 15, 600)
+        // vários pares duelando ao mesmo tempo na mesma sala compartilham o mesmo IP do wifi da
+        // escola — mesmo ajuste do grade_exam, pra não travar a turma toda por causa de um só IP
+        const withinLimit = await rateLimitCheck(`ratelimit:gradeduel:${ip}`, 300, 600)
         if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas tentativas seguidas de enviar o duelo. Aguarde um pouco e tente de novo.' })
         const { shift, from, to, myName, answers } = req.body || {}
         const dKey = duelKeyFor(shift, from, to)
@@ -878,7 +887,9 @@ export default async function handler(req, res) {
         return res.json({ score: merged[scoreField], total: questions.length })
       }
       case 'grade_team_duel': {
-        const withinLimit = await rateLimitCheck(`ratelimit:gradeteamduel:${ip}`, 15, 600)
+        // vários times duelando ao mesmo tempo na mesma sala compartilham o mesmo IP do wifi da
+        // escola — mesmo ajuste do grade_exam, pra não travar a turma toda por causa de um só IP
+        const withinLimit = await rateLimitCheck(`ratelimit:gradeteamduel:${ip}`, 300, 600)
         if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas tentativas seguidas de enviar o duelo em dupla. Aguarde um pouco e tente de novo.' })
         const { shift, names, myName, answers } = req.body || {}
         const tKey = teamDuelKeyFor(shift, names)
