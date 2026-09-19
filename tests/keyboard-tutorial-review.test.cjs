@@ -57,10 +57,11 @@ async function completeAllLevels(page) {
   await editor.press('x');
   await page.waitForTimeout(300);
 
-  // "Teste final": digita a linha inteira
+  // "Teste final" (nível 9, KEYBOARD_LEVELS em src/KeyboardTutorial.jsx): compara o texto digitado
+  // com level.line EXATAMENTE ("Oi, Nyx! Eu gosto de C#.") — qualquer outro texto nunca dispara a revisão
   const finalTextarea = page.locator('textarea').last();
   await finalTextarea.click();
-  await finalTextarea.type('int x = 10;\nif (x > 5) { Console.WriteLine("Oi!"); }');
+  await finalTextarea.type('Oi, Nyx! Eu gosto de C#.');
   await page.waitForTimeout(400);
 }
 
