@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { setCheckin } from "../storage.js";
 import { todayKey } from "../lib/schedule.ts";
 import { PerformanceChart } from "./PerformanceChart.jsx";
@@ -276,6 +277,43 @@ export function NotebookModal({ history, detailedHistory, notes = [], onSaveNote
   );
 }
 
+// mensagem de feedback por faixa de nota, sem IA (fixo, rápido, nunca falha) — mesmo espírito do
+// motivationalMessage() de "Meu Desempenho" mais abaixo, só que pro momento de terminar UMA
+// atividade específica (tom mais imediato/comemorativo, não uma média geral)
+function activityTier(pct) {
+  if (pct >= 100) return { emoji:"🏆", color:"#fbbf24", title:"Perfeito!", message:"Você acertou tudo! Mandou muito bem." };
+  if (pct >= 80) return { emoji:"⭐", color:"#34d399", title:"Muito bem!", message:"Você mandou muito bem nessa atividade." };
+  if (pct >= 60) return { emoji:"👍", color:"#22d3ee", title:"Bom trabalho!", message:"Você está no caminho certo — continue assim." };
+  if (pct >= 40) return { emoji:"💪", color:"#c084fc", title:"Continue praticando!", message:"Você já pegou o jeito de boa parte disso." };
+  return { emoji:"🌱", color:"#a99ac9", title:"Toda prática ajuda!", message:"Dá uma olhada de novo no resumo e tenta quando quiser." };
+}
+
+// popup que aparece na hora em que o aluno TERMINA de responder — nota grande, confete já disparou
+// em quem chamou (App.jsx), mensagem por faixa de nota. Só aparece nesse momento (justResult); ao
+// reabrir o Caderno depois, o resultado já fica só na lista de perguntas, sem o popup de novo.
+function ActivityResultPopup({ result, total, onClose }) {
+  const pct = Math.round((result.correct / (total || 1)) * 100);
+  const tier = activityTier(pct);
+  // via portal, direto no <body>: o Caderno (ancestral) usa backdrop-filter, que cria um "containing
+  // block" novo pra qualquer descendente position:fixed — sem o portal, este popup ficava "fixo"
+  // relativo ao Caderno (não à tela), e rolava junto com o conteúdo em vez de ficar centralizado
+  return createPortal(
+    <div style={{ position:"fixed", inset:0, background:"rgba(11,6,20,.88)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100, padding:16 }} onClick={onClose}>
+      <div className="pop" onClick={e=>e.stopPropagation()} style={{ background:"linear-gradient(180deg,#231636,#1a1029)", border:`1px solid ${tier.color}66`, borderRadius:24, padding:"30px 26px", maxWidth:380, width:"100%", textAlign:"center", boxShadow:`0 24px 70px rgba(0,0,0,.55), 0 0 50px ${tier.color}22` }}>
+        <div style={{ fontSize:56, lineHeight:1, marginBottom:6 }}>{tier.emoji}</div>
+        <h2 style={{ margin:"0 0 4px", fontSize:22, fontWeight:900, color:tier.color }}>{tier.title}</h2>
+        <p style={{ color:"#d6c9ec", fontSize:13.5, lineHeight:1.6, margin:"0 0 18px" }}>{tier.message}</p>
+        <div style={{ display:"inline-flex", alignItems:"baseline", gap:6, background:`${tier.color}14`, border:`1px solid ${tier.color}55`, borderRadius:16, padding:"10px 22px", marginBottom:20 }}>
+          <span style={{ fontSize:30, fontWeight:900, color:tier.color }}>{result.correct}</span>
+          <span style={{ fontSize:15, color:"#a99ac9" }}>/ {total ?? result.correct} certas · {pct}%</span>
+        </div>
+        <button onClick={onClose} style={{ width:"100%", padding:12, border:0, borderRadius:12, background:tier.color, color:"#0b0614", fontWeight:900, fontSize:14.5, cursor:"pointer" }}>Continuar →</button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // dateKey + onSubmit vêm SÓ da chamada do aluno (não do Caderno do professor, que só revisa o que
 // ele criou) — com os dois presentes, a atividade vale nota de verdade (nyxPoints, scoreHistory,
 // conquistas), gravada uma única vez em activityResults[dateKey]; "result" é o que já foi
@@ -283,6 +321,7 @@ export function NotebookModal({ history, detailedHistory, notes = [], onSaveNote
 function NotebookActivity({ questions, dateKey, result, onSubmit }) {
   const [answers, setAnswers] = useState({});
   const [sending, setSending] = useState(false);
+  const [justResult, setJustResult] = useState(null); // popup só aparece na hora que termina agora
   const graded = !!result;
   const gradedAnswers = result?.answers || answers;
   const allAnswered = questions.every((_,i)=>answers[i] != null);
@@ -291,14 +330,25 @@ function NotebookActivity({ questions, dateKey, result, onSubmit }) {
   const submit = async () => {
     if (!canSubmit || sending) return;
     setSending(true);
-    try { await onSubmit(dateKey, answers); } finally { setSending(false); }
+    try {
+      const r = await onSubmit(dateKey, answers);
+      if (r) setJustResult(r);
+    } finally { setSending(false); }
   };
+  const tier = graded ? activityTier(Math.round((score / ((result.total ?? questions.length) || 1)) * 100)) : null;
   return (
     <section style={{ marginTop:18, paddingTop:16, borderTop:"1px solid #3b2a58" }}>
+      {justResult && <ActivityResultPopup result={justResult} total={justResult.total ?? questions.length} onClose={()=>setJustResult(null)} />}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginBottom:10 }}>
         <div><h3 style={{ color:"#22d3ee", fontSize:14.5, margin:0 }}>🎯 Atividade enviada pelo professor</h3><p style={{ color:"#776798", fontSize:11.5, margin:"3px 0 0" }}>{canSubmit ? "Responda usando o resumo acima como apoio — vale nota." : "Responda usando o resumo acima como apoio."}</p></div>
-        {graded && <span style={{ background:"#34d39918", border:"1px solid #34d399", color:"#34d399", borderRadius:999, padding:"4px 9px", fontSize:11.5, fontWeight:850 }}>{score}/{result.total ?? questions.length}</span>}
+        {graded && <span style={{ background:`${tier.color}18`, border:`1px solid ${tier.color}`, color:tier.color, borderRadius:999, padding:"4px 9px", fontSize:11.5, fontWeight:850 }}>{tier.emoji} {score}/{result.total ?? questions.length}</span>}
       </div>
+      {graded && (
+        <div style={{ background:`${tier.color}10`, border:`1px solid ${tier.color}44`, borderRadius:12, padding:"10px 13px", marginBottom:12, display:"flex", alignItems:"center", gap:10 }}>
+          <span style={{ fontSize:22 }}>{tier.emoji}</span>
+          <div><strong style={{ color:tier.color, fontSize:13 }}>{tier.title}</strong><p style={{ color:"#d6c9ec", fontSize:12, margin:"2px 0 0" }}>{tier.message}</p></div>
+        </div>
+      )}
       {questions.map((q,qi)=><div key={qi} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:12, marginBottom:9 }}>
         <p style={{ color:"#f0e9fb", fontSize:13, fontWeight:800, margin:"0 0 8px" }}>{qi+1}. {q.q}</p>
         {(q.opts||[]).map((option,oi)=>{
