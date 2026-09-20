@@ -1,11 +1,16 @@
 const { launchBrowser, mockRoutes, baseKvStore, check, summary } = require("./helpers.cjs");
 
 function dstr(d) { return d.toISOString().slice(0, 10); }
-// pega uma quarta-feira desta semana e uma da semana passada, pra cair certinho nos buckets do weekKey()
+// pega uma quarta-feira desta semana e uma da semana passada, pra cair certinho nos buckets do
+// weekKey() (semana ISO, segunda a domingo). d.getDay() do JS usa domingo=0 — sem converter pra
+// numeração ISO (segunda=1...domingo=7, o mesmo "|| 7" que weekKey() já usa em src/lib/schedule.ts),
+// rodar o teste NUM DOMINGO calculava "diff = 3 - 0 = 3" e pulava pra quarta da semana QUE VEM, em
+// vez da quarta da semana atual (domingo é o ÚLTIMO dia da semana ISO, não o primeiro) — corrompia
+// nowWed/lastWed silenciosamente, sem nenhum teste acusar num dia de semana comum.
 function thisWeekDay() {
   const d = new Date();
-  const day = d.getDay();
-  const diff = 3 - day; // quarta
+  const isoDay = d.getDay() || 7; // domingo (0) vira 7, como no weekKey() de verdade
+  const diff = 3 - isoDay; // quarta
   d.setDate(d.getDate() + diff);
   return d;
 }
