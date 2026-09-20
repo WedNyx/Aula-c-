@@ -1,5 +1,21 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
+  { version: '1.6.0', title: 'Direto no Caderno', date: '2026-09-20', changes: [
+    'Resumo e atividade enviados pelo professor agora chegam quietos no Caderno do aluno — sem ocupar a tela inteira, cada um na sua parte, sem tirar ninguém do que estava fazendo (igual já acontecia com o código da turma).',
+    'Responder a atividade dentro do Caderno continua valendo nota, pontos do Nyx e conquistas, exatamente como antes — só muda onde é respondida.',
+    'Terminar a atividade agora mostra um resultado com mais destaque: nota em evidência e uma mensagem de acordo com o desempenho.',
+    'Corrigido: em alguns casos, o aluno ficava preso na tela de código depois do professor enviar o resumo, sem nunca chegar a ver o material — mesmo já estando salvo no perfil dele.',
+    'Corrigido: a tela do professor podia travar ao abrir "Abrir histórico de resumos", dentro de Resumos, atividades e provas.',
+    'Corrigido: em turmas com muitos alunos no mesmo wifi da escola, enviar prova, torneio ou resumo podia travar parte da turma sem conseguir registrar a nota de ninguém — ajustado o limite de tentativas.',
+    'Corrigido: a nota de um duelo em dupla podia se perder quando vários alunos respondiam bem no mesmo instante.',
+    'Corrigido: dias removidos do calendário da turma podiam voltar sozinhos depois de um tempo.',
+    'Corrigido: a presença de alguns alunos podia ser calculada errada (marcada como presente sem necessidade) em certos casos.',
+    'Corrigido: a barra de status (relógio, clima, bateria) podia bloquear cliques em modais e no tour guiado.',
+    'Envio de resumo para a turma agora tenta de novo sozinho se a primeira tentativa falhar, e avisa com honestidade quando algum aluno realmente não recebeu.',
+  ], highlights: [
+    'Resumo e atividade enviados pelo professor chegam quietos no Caderno do aluno, sem tela cheia — e o resultado da atividade ganhou um visual novo.',
+    'Vários bugs corrigidos: aluno preso na tela de código, tela do professor travando, e provas/duelos que podiam falhar em turmas grandes no mesmo wifi.',
+  ] },
   { version: '1.5.3', title: 'Enviar com Confiança', date: '2026-09-17', changes: [
     'Resumo e atividade enviados para a turma agora podem ser cancelados: quem ainda não recebeu deixa de receber, e o botão de enviar volta a ficar disponível.',
     'Provas (geradas pelo Nyx ou escritas manualmente) passam primeiro por um rascunho guardado só com o professor — a turma só vê a prova depois de um envio explícito, igual já acontecia com o resumo e com o código da aula.',
