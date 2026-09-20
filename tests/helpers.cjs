@@ -101,6 +101,19 @@ function saveStudentPrivateMock(kvStore, key, value) {
   next.attendanceOverrides = current?.attendanceOverrides || {};
   next.attendanceFirst = { ...incoming.attendanceFirst, ...current?.attendanceFirst };
   next.attendance = applyAttendanceOverridesMock({ ...current?.attendance, ...incoming.attendance }, next.attendanceOverrides);
+  // mesma proteção de saveStudentPrivate em api/kv.js: uma atividade por data aceita uma única
+  // tentativa (fase "activity" de tela cheia OU respondida direto do Caderno) — o que já chegou
+  // ao banco vence autosave velho/envio concorrente, preservando nota e pontos já concedidos
+  next.activityAttempts = { ...(incoming.activityAttempts || {}), ...(current?.activityAttempts || {}) };
+  next.activityResults = { ...(incoming.activityResults || {}), ...(current?.activityResults || {}) };
+  const hasNewAttempt = current?.activityAttempts && Object.keys(incoming.activityAttempts || {}).some(date => current.activityAttempts[date]);
+  const hasNewResult = current?.activityResults && Object.keys(incoming.activityResults || {}).some(date => current.activityResults[date]);
+  if (hasNewAttempt || hasNewResult) {
+    next.nyxPoints = current.nyxPoints;
+    next.scoreHistory = { ...(incoming.scoreHistory || {}), ...(current.scoreHistory || {}) };
+    next.score = current.score;
+    next.doneAt = current.doneAt;
+  }
   kvStore.set(key, JSON.stringify(next));
 }
 

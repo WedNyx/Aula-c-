@@ -158,7 +158,7 @@ export function NextStepsModal({ onClose }) {
   );
 }
 
-export function NotebookModal({ history, detailedHistory, notes = [], onSaveNotes, onClose, onDeleteSummary }) {
+export function NotebookModal({ history, detailedHistory, notes = [], onSaveNotes, onClose, onDeleteSummary, activityResults, onSubmitActivity }) {
   const dates = Object.keys(history || {}).sort((a,b)=>b.localeCompare(a));
   const [sel, setSel] = useState(dates[0] || null);
   const [view, setView] = useState("simples");
@@ -236,7 +236,7 @@ export function NotebookModal({ history, detailedHistory, notes = [], onSaveNote
             )}
             {sel && <SummaryPretty sum={(view==="detalhado" && hasDetailed) ? detailedHistory[sel] : history[sel]} />}
             {sel && Array.isArray(history[sel]?.atividade) && history[sel].atividade.length > 0 && (
-              <NotebookActivity key={sel} questions={history[sel].atividade} />
+              <NotebookActivity key={sel} questions={history[sel].atividade} dateKey={sel} result={activityResults?.[sel]} onSubmit={onSubmitActivity} />
             )}
           </>
         ))}
@@ -276,31 +276,44 @@ export function NotebookModal({ history, detailedHistory, notes = [], onSaveNote
   );
 }
 
-function NotebookActivity({ questions }) {
+// dateKey + onSubmit vêm SÓ da chamada do aluno (não do Caderno do professor, que só revisa o que
+// ele criou) — com os dois presentes, a atividade vale nota de verdade (nyxPoints, scoreHistory,
+// conquistas), gravada uma única vez em activityResults[dateKey]; "result" é o que já foi
+// respondido (se já respondeu, mostra o resultado travado — sem "tentar de novo", é a nota real).
+function NotebookActivity({ questions, dateKey, result, onSubmit }) {
   const [answers, setAnswers] = useState({});
-  const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const graded = !!result;
+  const gradedAnswers = result?.answers || answers;
   const allAnswered = questions.every((_,i)=>answers[i] != null);
-  const score = submitted ? questions.reduce((n,q,i)=>n+(answers[i]===Number(q.correct)?1:0),0) : 0;
+  const score = graded ? result.correct : 0;
+  const canSubmit = !!onSubmit && dateKey;
+  const submit = async () => {
+    if (!canSubmit || sending) return;
+    setSending(true);
+    try { await onSubmit(dateKey, answers); } finally { setSending(false); }
+  };
   return (
     <section style={{ marginTop:18, paddingTop:16, borderTop:"1px solid #3b2a58" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginBottom:10 }}>
-        <div><h3 style={{ color:"#22d3ee", fontSize:14.5, margin:0 }}>🎯 Atividade enviada pelo professor</h3><p style={{ color:"#776798", fontSize:11.5, margin:"3px 0 0" }}>Responda usando o resumo acima como apoio.</p></div>
-        {submitted && <span style={{ background:"#34d39918", border:"1px solid #34d399", color:"#34d399", borderRadius:999, padding:"4px 9px", fontSize:11.5, fontWeight:850 }}>{score}/{questions.length}</span>}
+        <div><h3 style={{ color:"#22d3ee", fontSize:14.5, margin:0 }}>🎯 Atividade enviada pelo professor</h3><p style={{ color:"#776798", fontSize:11.5, margin:"3px 0 0" }}>{canSubmit ? "Responda usando o resumo acima como apoio — vale nota." : "Responda usando o resumo acima como apoio."}</p></div>
+        {graded && <span style={{ background:"#34d39918", border:"1px solid #34d399", color:"#34d399", borderRadius:999, padding:"4px 9px", fontSize:11.5, fontWeight:850 }}>{score}/{result.total ?? questions.length}</span>}
       </div>
       {questions.map((q,qi)=><div key={qi} style={{ background:"#171026", border:"1px solid #3b2a58", borderRadius:12, padding:12, marginBottom:9 }}>
         <p style={{ color:"#f0e9fb", fontSize:13, fontWeight:800, margin:"0 0 8px" }}>{qi+1}. {q.q}</p>
         {(q.opts||[]).map((option,oi)=>{
-          const chosen=answers[qi]===oi;
+          const chosen=gradedAnswers[qi]===oi;
           const correct=Number(q.correct)===oi;
-          const color=submitted?(correct?"#34d399":chosen?"#f87171":"#3b2a58"):(chosen?"#22d3ee":"#3b2a58");
-          return <button key={oi} onClick={()=>!submitted&&setAnswers(a=>({...a,[qi]:oi}))} disabled={submitted}
-            style={{ display:"block", width:"100%", marginBottom:6, padding:"8px 10px", background:submitted&&correct?"#34d39914":chosen?"#22d3ee12":"transparent", border:`1px solid ${color}`, borderRadius:9, color:"#d6c9ec", textAlign:"left", cursor:submitted?"default":"pointer" }}>
-            <b style={{ color, marginRight:6 }}>{"ABCD"[oi]}.</b>{option}{submitted&&correct?" ✓":""}
+          const color=graded?(correct?"#34d399":chosen?"#f87171":"#3b2a58"):(chosen?"#22d3ee":"#3b2a58");
+          return <button key={oi} onClick={()=>!graded&&setAnswers(a=>({...a,[qi]:oi}))} disabled={graded}
+            style={{ display:"block", width:"100%", marginBottom:6, padding:"8px 10px", background:graded&&correct?"#34d39914":chosen?"#22d3ee12":"transparent", border:`1px solid ${color}`, borderRadius:9, color:"#d6c9ec", textAlign:"left", cursor:graded?"default":"pointer" }}>
+            <b style={{ color, marginRight:6 }}>{"ABCD"[oi]}.</b>{option}{graded&&correct?" ✓":""}
           </button>;
         })}
       </div>)}
-      {!submitted ? <button onClick={()=>setSubmitted(true)} disabled={!allAnswered} style={{ width:"100%", padding:10, border:0, borderRadius:10, background:"#22d3ee", color:"#082f49", fontWeight:900, cursor:allAnswered?"pointer":"not-allowed", opacity:allAnswered?1:.5 }}>{allAnswered?"Corrigir minhas respostas":"Responda todas as perguntas"}</button>
-        : <button onClick={()=>{setAnswers({});setSubmitted(false);}} style={{ width:"100%", padding:9, border:"1px solid #3b2a58", borderRadius:10, background:"transparent", color:"#a99ac9", fontWeight:800, cursor:"pointer" }}>Tentar novamente</button>}
+      {!graded && (canSubmit
+        ? <button onClick={submit} disabled={!allAnswered || sending} style={{ width:"100%", padding:10, border:0, borderRadius:10, background:"#22d3ee", color:"#082f49", fontWeight:900, cursor:(allAnswered&&!sending)?"pointer":"not-allowed", opacity:(allAnswered&&!sending)?1:.5 }}>{sending?"Enviando...":allAnswered?"Enviar respostas (vale nota)":"Responda todas as perguntas"}</button>
+        : <p style={{ color:"#776798", fontSize:11.5, margin:0 }}>Prévia do Caderno do professor — não é respondida aqui.</p>)}
     </section>
   );
 }

@@ -72,8 +72,11 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     if (await skipCheckin.count()) { await skipCheckin.click(); await pageA.waitForTimeout(300); }
     else break;
   }
-  await pageA.waitForSelector('text=Resumo da sua aula', { timeout: 20000 });
-  check('Aluno foi pro resumo sozinho', (await pageA.locator('text=Resumo da sua aula').count()) > 0);
+  // resumo chega QUIETO no Caderno — sem tela cheia, sem tirar o aluno do editor
+  await pageA.waitForTimeout(1500);
+  check('Aluno CONTINUA no editor de código (sem tela cheia forçada)', (await pageA.locator('[data-tour="editor"]').count()) > 0);
+  check('Tela de "Resumo da sua aula" NÃO aparece mais (entrega é silenciosa)', (await pageA.locator('text=Resumo da sua aula').count()) === 0);
+  check('Bolinha "novo" aparece no Caderno, avisando que chegou material', (await pageA.locator('button[data-tour="caderno"]').innerText()).includes('novo'));
   check('Aluno: ZERO chamadas novas ao Nyx pra gerar resumo (reaproveitou o do professor)', studentResumoClaudeCalls === 0, `calls=${studentResumoClaudeCalls}`);
   check('SEM erro de JS (aluno)', jsErrorsA.length === 0, jsErrorsA.slice(0, 3).join(' | '));
 
@@ -81,7 +84,15 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   const savedSummary = after.summaryHistory?.[Object.keys(after.summaryHistory || {})[0]];
   check('Resumo salvo no caderno do aluno é EXATAMENTE o que o professor gerou',
     JSON.stringify(savedSummary) === JSON.stringify(trig.resumo), JSON.stringify(savedSummary));
-  check('phase virou "summary"', after.phase === 'summary', after.phase);
+  check('phase continua "coding" (entrega não força fase nenhuma)', after.phase === 'coding', after.phase);
+
+  // abre o Caderno e confirma que o resumo aparece lá (este rascunho via IA não tem atividade —
+  // só "Escrever manualmente" ou "Minhas aulas" geram atividade junto; ver resumo-direct-push e
+  // lesson-content-cache-generate para a atividade aparecendo separada, dentro do Caderno)
+  await pageA.click('button[data-tour="caderno"]');
+  await pageA.waitForTimeout(600);
+  check('Modal do Caderno abre com o resumo', (await pageA.locator('text=📒 Meu caderno').count()) > 0);
+  check('Resumo aparece no Caderno', (await pageA.locator('text=Variáveis').count()) > 0);
 
   await ctxT.close();
   await ctxA.close();

@@ -77,8 +77,13 @@ async function saveStudentPrivate(key, value, authorized) {
     next.attendance = applyAttendanceOverrides({ ...current?.attendance, ...incoming.attendance }, next.attendanceOverrides)
     // Uma atividade por data aceita uma única tentativa. O registro que já chegou ao banco vence
     // autosaves antigos e envios concorrentes, inclusive preservando nota e pontos já concedidos.
+    // activityResults é a mesma ideia pra atividade respondida direto do Caderno (resumo enviado
+    // pelo professor, sem passar pela fase "activity" de tela cheia).
     next.activityAttempts = { ...(incoming.activityAttempts || {}), ...(current?.activityAttempts || {}) }
-    if (current?.activityAttempts && Object.keys(incoming.activityAttempts || {}).some(date => current.activityAttempts[date])) {
+    next.activityResults = { ...(incoming.activityResults || {}), ...(current?.activityResults || {}) }
+    const hasNewAttempt = current?.activityAttempts && Object.keys(incoming.activityAttempts || {}).some(date => current.activityAttempts[date])
+    const hasNewResult = current?.activityResults && Object.keys(incoming.activityResults || {}).some(date => current.activityResults[date])
+    if (hasNewAttempt || hasNewResult) {
       next.nyxPoints = current.nyxPoints
       next.scoreHistory = { ...(incoming.scoreHistory || {}), ...(current.scoreHistory || {}) }
       next.score = current.score

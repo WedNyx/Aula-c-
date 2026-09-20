@@ -459,6 +459,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // Fama valorizar quem escreve certo, não só quem tira nota alta)
   const [errorHistory, setErrorHistory] = useState({});
   const [summaryHistory, setSummaryHistory] = useState({});
+  // 📝 resultado da atividade enviada junto com o resumo (resumo-broadcast, dentro de
+  // summaryHistory[data].atividade), respondida direto do Caderno — por data, pra não misturar
+  // com a nota de dias diferentes.
+  const [activityResults, setActivityResults] = useState({});
+  // aviso discreto (toast + bolinha no Caderno) de que chegou resumo/atividade novos
+  const [notebookUnseen, setNotebookUnseen] = useState(false);
   // versão detalhada do resumo (pedida sob demanda — alguns alunos preferem o resumo mais completo)
   const [detailedSummary, setDetailedSummary] = useState("");
   const [detailedSummaryHistory, setDetailedSummaryHistory] = useState({});
@@ -554,7 +560,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   }, [activeCode, studyLang?.id]);
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxNewsSeen, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, detailedSummary, detailedSummaryHistory, personalNotes, personalMusicTracks, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxNewsSeen, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, activityResults, notebookUnseen, detailedSummary, detailedSummaryHistory, personalNotes, personalMusicTracks, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -774,6 +780,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       scoreHistory: s.scoreHistory || {},
       errorHistory: s.errorHistory || {},
       summaryHistory: s.summaryHistory || {},
+      notebookUnseen: s.notebookUnseen || false,
       detailedSummary: s.detailedSummary || null,
       detailedSummaryHistory: s.detailedSummaryHistory || {},
       personalNotes: s.personalNotes || [],
@@ -873,20 +880,21 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // caderno de resumos) e volta pra tela de escolha, começando do zero na próxima linguagem
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const switchLanguage = async () => {
-    const archived = { language: programmingLanguage, files: files.map(f => ({ ...f })), summaryHistory, detailedSummaryHistory, endedAt: Date.now() };
+    const archived = { language: programmingLanguage, files: files.map(f => ({ ...f })), summaryHistory, detailedSummaryHistory, activityResults, endedAt: Date.now() };
     const newHistory = [...languageHistory, archived];
     setLanguageHistory(newHistory);
     setProgrammingLanguage(null);
     setFiles([{ name:"Program.cs", code:"" }]);
     setSummaryHistory({});
     setDetailedSummaryHistory({});
+    setActivityResults({});
     setDynamicSummary(""); setDynamicActivity(null); setAnswers({}); setRevealedHints({}); setScore(null); setDoneAt(null);
     setPhase("coding");
     setShowSwitchConfirm(false);
     setShowLangPicker(true);
     await persist({
       languageHistory: newHistory, programmingLanguage: null, files: [{ name:"Program.cs", code:"" }], code: "",
-      summaryHistory: {}, detailedSummaryHistory: {}, dynamicSummary: null, dynamicActivity: null, answers: {},
+      summaryHistory: {}, detailedSummaryHistory: {}, activityResults: {}, dynamicSummary: null, dynamicActivity: null, answers: {},
       score: null, doneAt: null, phase: "coding",
     });
   };
@@ -1377,6 +1385,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.scoreHistory) setScoreHistory(prev.scoreHistory);
           if (prev.errorHistory) setErrorHistory(prev.errorHistory);
           if (prev.summaryHistory) setSummaryHistory(prev.summaryHistory);
+          if (prev.activityResults) setActivityResults(prev.activityResults);
+          if (prev.notebookUnseen) setNotebookUnseen(true);
           if (prev.detailedSummary) setDetailedSummary(prev.detailedSummary);
           if (prev.detailedSummaryHistory) setDetailedSummaryHistory(prev.detailedSummaryHistory);
           if (Array.isArray(prev.personalNotes)) setPersonalNotes(prev.personalNotes);
@@ -1692,35 +1702,28 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           await clearScoreFix(shift, studentName);
           await persist({});
         } else if (fix && fix.kind === "resumo-broadcast" && fix.dateKey && fix.resumo) {
-          // professor gerou o resumo da aula no próprio painel e mandou pronto — entra direto no
-          // Caderno de resumos, não importa em que fase o aluno está agora (aplica no estado local
-          // antes que o autosave periódico regrave o registro sem esse resumo). SÓ escreve se: (1)
-          // ainda não existir nada pra esse dia (não sobrescreve trabalho já feito). Resumos de
-          // dias anteriores NÃO bloqueiam a entrega: eles são justamente o histórico normal do
-          // caderno e antes eram confundidos com uma ponte pendente, fazendo alunos antigos não
-          // receberem o novo material do professor.
-          // Se o aluno ainda está codando E já tem código suficiente pra "terminar a aula" (mesmo
-          // critério do gatilho de 5s logo abaixo, getResumoTrigger), é ESSE outro gatilho quem
-          // entrega o resumo pra ele — ele não só grava no Caderno como também finaliza a aula de
-          // verdade (fase vira "generating"→"summary"). Se este aviso aqui escrevesse o resumo no
-          // Caderno primeiro, o outro gatilho via o conteúdo já igual ao dele e desistia de
-          // finalizar a aula (pra não empurrar de volta pro resumo quem tinha voltado pro código de
-          // propósito) — o aluno ficava PRA SEMPRE preso "codando", com o resumo já no Caderno mas
-          // sem nunca ver a tela dele nem a atividade. Já quem NÃO tem código nenhum escrito ainda
-          // (ou já saiu de "coding") não tem esse outro gatilho pra contar com — a entrega direta
-          // continua sendo o único jeito de esse aluno receber o resumo, sem forçar fase nenhuma.
-          const temCodigoSuficiente = ((stateRef.current.files || []).filter(f => (f.code||"").trim()).map(f => f.code || "").join("\n")).trim().length >= 10;
-          if (!(stateRef.current.phase === "coding" && temCodigoSuficiente)) {
-            const cur = stateRef.current.summaryHistory || {};
-            const already = cur[fix.dateKey];
-            const jaTemConteudo = already && typeof already === "object" && Array.isArray(already.secoes) && already.secoes.length > 0;
-            if (!jaTemConteudo) {
-              const nextHistory = { ...cur, [fix.dateKey]: fix.resumo };
-              setSummaryHistory(nextHistory);
-              await persist({ summaryHistory: nextHistory });
-            }
-            await clearScoreFix(shift, studentName);
+          // professor gerou o resumo (e a atividade, se tiver — fix.resumo.atividade viaja junto
+          // dentro do próprio resumo) e mandou pronto — os dois entram QUIETOS no Caderno, cada um
+          // na sua parte (NotebookActivity mostra a atividade separada, logo abaixo do resumo), sem
+          // tirar o aluno do que ele está fazendo — nada de tela cheia nem trocar de fase, igual ao
+          // código da turma, que só atualiza por trás. Aplica no estado local antes que o autosave
+          // periódico regrave o registro sem esse conteúdo. SÓ escreve se ainda não existir nada pra
+          // esse dia (não sobrescreve trabalho já feito). Resumos de dias anteriores NÃO bloqueiam a
+          // entrega: eles são o histórico normal do caderno, não uma ponte pendente.
+          const curSum = stateRef.current.summaryHistory || {};
+          const jaTemResumo = curSum[fix.dateKey] && typeof curSum[fix.dateKey] === "object" && Array.isArray(curSum[fix.dateKey].secoes) && curSum[fix.dateKey].secoes.length > 0;
+          if (!jaTemResumo) {
+            const nextSummaryHistory = { ...curSum, [fix.dateKey]: fix.resumo };
+            setSummaryHistory(nextSummaryHistory);
+            setNotebookUnseen(true);
+            stateRef.current = { ...stateRef.current, summaryHistory: nextSummaryHistory, notebookUnseen: true };
+            await persist({ summaryHistory: nextSummaryHistory, notebookUnseen: true });
+            const temAtividade = Array.isArray(fix.resumo.atividade) && fix.resumo.atividade.length > 0;
+            setRobotMsg(temAtividade ? "📖 Novo resumo e atividade chegaram no seu Caderno!" : "📖 Novo resumo chegou no seu Caderno!");
+            setRobotState("ok");
+            setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000);
           }
+          await clearScoreFix(shift, studentName);
         } else if (fix && fix.kind === "nyx-points-restore" && typeof fix.points === "number") {
           // recuperação feita pelo professor: usa o total exato já salvo no servidor para não
           // duplicar os pontos se a sessão do aluno estiver aberta durante a correção.
@@ -2587,28 +2590,34 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     return () => window.removeEventListener("online", onBackOnline);
   }, [analyzeCode, handleSave]);
 
-  // 📚 resumo liberado pelo professor (aba "Meu código"): assim que detecta o aviso de hoje,
-  // finaliza a aula sozinho — mesmo fluxo de "Salvar e Finalizar Aula", só sem precisar clicar. Usa
-  // stateRef (sempre atualizado) em vez de "phase"/"files" direto, pra não precisar recriar o
-  // intervalo a cada tecla digitada (senão, um aluno digitando sem parar nunca seria pego).
-  const handleSaveRef = useRef(handleSave);
-  handleSaveRef.current = handleSave;
-  const resumoAutoSaveRef = useRef(false);
+  // 📚 resumo liberado pelo professor: chega pra quem já estava logado na hora via scoreFix (ver
+  // "resumo-broadcast" acima). Este intervalo é só a REDE DE SEGURANÇA pra quem entrou DEPOIS do
+  // envio (não estava na lista de alunos "online" quando o professor mandou) — confere o gatilho de
+  // turma a cada 5s e, se ainda não tiver esse resumo/atividade no Caderno, entrega do mesmo jeito
+  // quieto: sem trocar de fase, sem tela cheia, só atualiza o Caderno por trás.
+  const resumoCatchUpRef = useRef(false);
   useEffect(() => {
     if (!loaded) return;
     let active = true;
     const iv = setInterval(async () => {
-      if (resumoAutoSaveRef.current || stateRef.current.phase !== "coding") return;
-      const fullCode = (stateRef.current.files || []).filter(f => (f.code||"").trim()).map(f => f.code || "").join("\n");
-      if (fullCode.trim().length < 10) return;
+      if (resumoCatchUpRef.current) return;
       const triggered = await getResumoTrigger(shift);
-      if (!active || triggered?.date !== todayKey() || stateRef.current.phase !== "coding") return;
-      // Se este mesmo resumo já foi entregue hoje, voltar ao código não deve dispará-lo outra vez.
-      const todaySummary = stateRef.current.summaryHistory?.[todayKey()];
-      const alreadyHasThisBroadcast = triggered?.resumo && todaySummary && JSON.stringify(todaySummary) === JSON.stringify(triggered.resumo);
-      if (alreadyHasThisBroadcast) return;
-      resumoAutoSaveRef.current = true;
-      try { await handleSaveRef.current(); } finally { resumoAutoSaveRef.current = false; }
+      if (!active || triggered?.date !== todayKey() || !triggered.resumo) return;
+      const curSum = stateRef.current.summaryHistory || {};
+      const jaTemResumo = curSum[todayKey()] && typeof curSum[todayKey()] === "object" && Array.isArray(curSum[todayKey()].secoes) && curSum[todayKey()].secoes.length > 0;
+      if (jaTemResumo) return;
+      resumoCatchUpRef.current = true;
+      try {
+        const nextSummaryHistory = { ...curSum, [todayKey()]: triggered.resumo };
+        setSummaryHistory(nextSummaryHistory);
+        setNotebookUnseen(true);
+        stateRef.current = { ...stateRef.current, summaryHistory: nextSummaryHistory, notebookUnseen: true };
+        await persist({ summaryHistory: nextSummaryHistory, notebookUnseen: true });
+        const temAtividade = Array.isArray(triggered.resumo.atividade) && triggered.resumo.atividade.length > 0;
+        setRobotMsg(temAtividade ? "📖 Novo resumo e atividade chegaram no seu Caderno!" : "📖 Novo resumo chegou no seu Caderno!");
+        setRobotState("ok");
+        setTimeout(() => { setRobotMsg(""); setRobotState("idle"); }, 6000);
+      } finally { resumoCatchUpRef.current = false; }
     }, 5000);
     return () => { active = false; clearInterval(iv); };
   }, [loaded, shift]);
@@ -2679,6 +2688,50 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       else cur = 0;
     });
     return max;
+  };
+
+  // 📝 responde a atividade que o professor mandou junto com o resumo, de DENTRO do Caderno — sem
+  // tela cheia, sem trocar de fase. Mesma pontuação/conquistas de sempre (handleSubmitActivity), só
+  // que lendo de summaryHistory[data].atividade (o que o professor mandou, já embutido no resumo
+  // daquele dia) e gravando em activityResults (por data), não em dynamicActivity/phase. Só
+  // atualiza "score"/"doneAt" (usados pro badge de hoje, ranking do dia etc.) quando a atividade
+  // respondida é a de HOJE — uma atividade antiga respondida depois não deve fingir "terminou hoje".
+  const handleSubmitActivityFromNotebook = async (dateKey, providedAnswers) => {
+    if (stateRef.current.activityResults?.[dateKey]) return null;
+    const activity = stateRef.current.summaryHistory?.[dateKey]?.atividade || [];
+    if (!activity.length) return null;
+    const required = activity.filter(q=>!q.bonus);
+    let pts = 0;
+    required.forEach((q,i)=>{ if(providedAnswers[activity.indexOf(q)]===q.correct) pts++; });
+    const bonusIdx = activity.findIndex(q=>q.bonus);
+    const bonusHit = bonusIdx >= 0 && providedAnswers[bonusIdx] === activity[bonusIdx].correct;
+    const finalScore = Math.round((pts/required.length)*100);
+    const submittedAt = Date.now();
+    const result = { score: finalScore, correct: pts, total: required.length, answers: providedAnswers, submittedAt };
+    const nextResults = { ...(stateRef.current.activityResults || {}), [dateKey]: result };
+    const newNyxPoints = (stateRef.current.nyxPoints||0) + pts + (bonusHit ? 1 : 0);
+    const newScoreHistory = { ...stateRef.current.scoreHistory, [dateKey]: finalScore };
+    const isToday = dateKey === todayKey();
+    setActivityResults(nextResults);
+    setNyxPoints(newNyxPoints);
+    setScoreHistory(newScoreHistory);
+    if (isToday) { setScore(finalScore); setDoneAt(submittedAt); }
+    stateRef.current = { ...stateRef.current, activityResults: nextResults, nyxPoints: newNyxPoints, scoreHistory: newScoreHistory, ...(isToday ? { score: finalScore, doneAt: submittedAt } : {}) };
+    fireConfetti("activity");
+    await persist({ activityResults: nextResults, nyxPoints: newNyxPoints, scoreHistory: newScoreHistory, ...(isToday ? { score: finalScore, doneAt: submittedAt } : {}) });
+    checkPointsAchievements(newNyxPoints);
+    unlockAchievement("primeira-atividade");
+    if (finalScore >= 100) unlockAchievement("nota-cem");
+    const doneCount = Object.keys(newScoreHistory).length;
+    if (doneCount >= 5) unlockAchievement("atividades-5");
+    if (doneCount >= 15) unlockAchievement("atividades-15");
+    const hundredCount = Object.values(newScoreHistory).filter(v => v === 100).length;
+    if (hundredCount >= 3) unlockAchievement("tres-100");
+    const requiredAnswers = Object.fromEntries(required.map((q,ri)=>[ri, providedAnswers[activity.indexOf(q)]]));
+    const streak = maxCorrectStreak(required, requiredAnswers);
+    if (streak >= 5) unlockAchievement("combo-5");
+    if (streak >= 8) unlockAchievement("combo-8");
+    return result;
   };
 
   const handleSubmitActivity = async () => {
@@ -3482,7 +3535,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
   const studentSidebarGroups = [
     { id:"learn", label:"Aprender", items:[
-      { id:"notebook", label:"Caderno", icon:"📒", onClick:()=>setShowNotebook(true), tour:"caderno" },
+      { id:"notebook", label:"Caderno", icon:"📒", badge:notebookUnseen ? "novo" : null, onClick:()=>setShowNotebook(true), tour:"caderno" },
       { id:"notifications", label:"Novidades", icon:"🔔", badge:(hasNyxNews||showNudge) ? "nova" : null, onClick:()=>setShowStudentNotifications(true), tour:"novidades" },
       { id:"feedback", label:"Feedback da aula", icon:"💬", badge:classSent ? "✓" : null, onClick:()=>setShowClassFeedback(true), tour:"feedback-aula" },
       { id:"sites", label:"Sites da turma", icon:"🔗", badge:classLinks.length || null, onClick:()=>setShowClassLinks(true), tour:"sites-turma" },
@@ -4550,7 +4603,9 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         detailedHistory={detailedSummaryHistory}
         notes={personalNotes}
         onSaveNotes={async next => { setPersonalNotes(next); await persist({ personalNotes: next }); }}
-        onClose={()=>setShowNotebook(false)}
+        activityResults={activityResults}
+        onSubmitActivity={handleSubmitActivityFromNotebook}
+        onClose={()=>{ setShowNotebook(false); if (notebookUnseen) { setNotebookUnseen(false); persist({ notebookUnseen: false }); } }}
       />}
       {showTrail && <LearningTrailModal history={summaryHistory} onClose={()=>setShowTrail(false)} />}
       {/* menu "🎮 Games" — junta num só lugar tudo que é jogo de verdade (contra o relógio ou
@@ -5060,8 +5115,9 @@ function TeacherView({ onLogout, teacherAuth }) {
     return () => { active = false; clearInterval(iv); };
   }, [teacherAuth]);
   // ✨ nome do conteúdo automático: quando TODOS os alunos de um turno (que apareceram hoje) já
-  // passaram da fase de codar (estão no resumo, na atividade ou concluíram), gera o nome sozinho —
-  // sem o professor precisar lembrar de clicar. Só tenta 1x por turno por dia.
+  // terminaram a atividade do dia, gera o nome sozinho — sem o professor precisar lembrar de
+  // clicar. Só tenta 1x por turno por dia. Mesmo sinal do ranking/badge de hoje (doneAt de hoje +
+  // nota), não mais a fase — o resumo/atividade agora chega quieto pelo Caderno, sem trocar fase.
   useEffect(() => {
     const tk = todayKey();
     activeTurmas.forEach(sh => {
@@ -5070,7 +5126,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       if (contentNameFor((meta.contentNames||{})[tk], sh.id)) { autoNameTriedRef.current[key] = true; return; }
       const todayList = students.filter(s => (s.shift||"sem-turno")===sh.id && (s.shift||"")!==TEST_SHIFT.id && isSameDayTs(s.lastSeen));
       if (todayList.length === 0) return;
-      const allPastCoding = todayList.every(s => ["summary","activity","done"].includes(s.phase));
+      const allPastCoding = todayList.every(s => isDoneActive(s.doneAt));
       if (!allPastCoding) return;
       autoNameTriedRef.current[key] = true;
       computeContentName(sh.id)
@@ -7493,8 +7549,11 @@ function TeacherView({ onLogout, teacherAuth }) {
 
             <div data-tour-prof="exportar" className="cardfx" style={styles.card}>
               <h4 style={{ color:"#fbbf24", marginBottom:10, fontSize:14 }}>📊 Turma hoje</h4>
-              {/* conta só quem entrou HOJE — no dia seguinte, antes de alguém entrar, fica tudo no 0 */}
-              {["coding","summary","activity","done"].map(p=>(
+              {/* conta só quem entrou HOJE — no dia seguinte, antes de alguém entrar, fica tudo no 0.
+                  "No Resumo"/"Na Atividade" saíram: o resumo/atividade agora chegam quietos pelo
+                  Caderno, sem tirar ninguém da fase "Codando" — só "Concluído" (doneAt de hoje)
+                  ainda muda, quando o aluno termina a atividade enviada. */}
+              {["coding","done"].map(p=>(
                 <div key={p} style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
                   <span style={{ color:phaseColor(p), fontSize:13 }}>{phaseLabel(p)}</span>
                   <span style={styles.badge(phaseColor(p))}>{todayStudents.filter(s=>dayPhase(s)===p).length}</span>

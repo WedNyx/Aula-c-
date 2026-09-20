@@ -74,30 +74,15 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher, lo
   await p.waitForTimeout(800);
   check('Professor liberou o resumo sem erro de JS', errP.length === 0, errP.slice(0, 3).join(' | '));
 
-  // seletor PRECISO (não um regex genérico de "resumo") — o próprio aviso da tela de código já
-  // menciona "resumo" ("seu professor libera o resumo..."), então um regex solto casava com esse
-  // aviso ainda na fase "coding" e o teste seguia cedo demais, antes da geração de verdade terminar
-  await a.waitForSelector('text=Resumo da sua aula', { timeout: 20000 });
-  check('Tela de resumo apareceu no aluno depois do professor liberar', (await a.locator('text=Resumo da sua aula').count()) > 0);
-
-  const startActivityBtn = a.locator('button:has-text("Fazer Atividade")');
-  if (await startActivityBtn.count()) { await startActivityBtn.click(); await a.waitForTimeout(500); }
-  const questionCards = a.locator('[data-q]');
-  const qCount = await questionCards.count();
-  if (qCount > 0) {
-    for (let i = 0; i < qCount; i++) {
-      await questionCards.nth(i).locator('[data-opt="0"]').click();
-      await a.waitForTimeout(80);
-    }
-    const enviarBtn = a.locator('button:has-text("Enviar Atividade")');
-    if (await enviarBtn.count()) {
-      await enviarBtn.click();
-      await a.waitForTimeout(2500);
-      check('Tela de conclusão (nota) aparece depois de enviar a atividade', (await a.locator('text=/nota|parabéns|conclu/i').count()) > 0);
-    }
-  } else {
-    check('Perguntas da atividade renderizaram', false, 'nenhum [data-q] encontrado — fluxo pode ter ficado em outra fase');
-  }
+  // resumo chega QUIETO no Caderno — sem tela cheia, sem tirar o aluno do editor (ver
+  // resumo-broadcast.test.cjs pro fluxo de entrega completo, e resumo-direct-push.test.cjs +
+  // lesson-content-cache-generate.test.cjs pra atividade respondida direto do Caderno, com nota)
+  await a.waitForTimeout(6000); // dá tempo do scoreFix/tick aplicar
+  check('Aluno CONTINUA no editor de código (sem tela cheia forçada)', (await a.locator('[data-tour="editor"]').count()) > 0);
+  check('Tela de "Resumo da sua aula" NÃO aparece mais (entrega é silenciosa)', (await a.locator('text=Resumo da sua aula').count()) === 0);
+  await a.click('button[data-tour="caderno"]');
+  await a.waitForTimeout(600);
+  check('Resumo apareceu no Caderno do aluno depois do professor liberar', (await a.locator('text=📒 Meu caderno').count()) > 0);
 
   check('Sem erro de JS no fluxo completo do aluno', errA.length === 0, errA.slice(0, 3).join(' | '));
   await ctxA.close();
