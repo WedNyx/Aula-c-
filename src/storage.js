@@ -1,6 +1,7 @@
 import { DEFAULT_TURMAS } from './lib/shifts.ts'
 
 const PREFIX = 'student:'
+const STUDENT_SUMMARY_PREFIX = 'student-summary:'
 const TEACHER_META_KEY = 'teachermeta:main'
 const TEACHER_NOTES_KEY = 'teachernotes:main'
 const TEACHER_REMINDERS_KEY = 'teacherreminders:main'
@@ -618,6 +619,29 @@ export async function listStudents(auth) {
       .map(item => { try { return JSON.parse(item.value) } catch { return null } })
       .filter(Boolean)
   } catch { return [] }
+}
+
+// Atualização leve do monitoramento: o perfil completo é carregado só na abertura; durante a aula
+// trafegam apenas os campos pequenos que mudam ao vivo.
+let studentSummariesCache = { at: 0, data: [], pending: null }
+export async function listStudentSummaries(auth) {
+  const now = Date.now()
+  if (now - studentSummariesCache.at < 1500) return studentSummariesCache.data
+  if (studentSummariesCache.pending) return studentSummariesCache.pending
+  studentSummariesCache.pending = (async () => {
+    try {
+      const r = await kvCall({ action: 'list_with_values', prefix: STUDENT_SUMMARY_PREFIX, auth })
+      const data = (r.items || [])
+        .map(item => { try { return JSON.parse(item.value) } catch { return null } })
+        .filter(Boolean)
+      studentSummariesCache = { at: Date.now(), data, pending: null }
+      return data
+    } catch {
+      studentSummariesCache.pending = null
+      return []
+    }
+  })()
+  return studentSummariesCache.pending
 }
 
 export async function checkReset(shift, joinedAt) {
