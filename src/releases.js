@@ -1,5 +1,13 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
+  { version: '1.6.1', title: 'Mais leve na sala', date: '2026-09-22', changes: [
+    'O monitoramento do professor ficou muito mais econômico: depois da abertura, atualiza somente presença online, fase, nota e avisos, sem baixar novamente códigos e históricos completos de toda a turma.',
+    'Consultas automáticas são pausadas quando a aba fica em segundo plano e retomadas quando o professor volta.',
+    'A busca de colegas online nos duelos também passou a usar atualizações leves.',
+    'Chamadas simultâneas da atualização leve são reaproveitadas, evitando pedidos duplicados ao banco.',
+  ], highlights: [
+    'A plataforma agora economiza bastante a saída de dados do Supabase sem perder o monitoramento ao vivo.',
+  ] },
   { version: '1.6.0', title: 'Direto no Caderno', date: '2026-09-20', changes: [
     'Resumo e atividade enviados pelo professor agora chegam quietos no Caderno do aluno — sem ocupar a tela inteira, cada um na sua parte, sem tirar ninguém do que estava fazendo (igual já acontecia com o código da turma).',
     'Responder a atividade dentro do Caderno continua valendo nota, pontos do Nyx e conquistas, exatamente como antes — só muda onde é respondida.',

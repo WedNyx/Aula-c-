@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { listStudents, listDuels, setDuel, clearDuel, getDuel, gradeDuel, listTeamDuels, getTeamDuel, setTeamDuel, clearTeamDuel, gradeTeamDuel } from "../storage.js";
+import { listStudents, listStudentSummaries, listDuels, setDuel, clearDuel, getDuel, gradeDuel, listTeamDuels, getTeamDuel, setTeamDuel, clearTeamDuel, gradeTeamDuel } from "../storage.js";
 import { playSound } from "../lib/sound.ts";
 import { weekKey } from "../lib/schedule.ts";
 import { generateDuelQuestions, generateKnowledgeTestQuestions, generateFreeBuildPlan } from "../lib/aiChallenges.js";
@@ -210,7 +210,7 @@ export function DuelModal({ shift, myName, myAvatar, questionContext, onAward, o
 
   const refresh = async () => {
     try {
-      const all = await listStudents();
+      const all = await listStudentSummaries();
       const online = all.filter(s => (s.shift||"sem-turno")===(shift||"sem-turno") && s.name!==myName && s.lastSeen && (Date.now()-s.lastSeen)<30000);
       setOpponents(online);
     } catch {}
@@ -427,7 +427,7 @@ export function TeamDuelModal({ shift, myName, myAvatar, questionContext, onAwar
 
   const refresh = async () => {
     try {
-      const all = await listStudents();
+      const all = await listStudentSummaries();
       const online = all.filter(s => (s.shift||"sem-turno")===(shift||"sem-turno") && s.name!==myName && s.lastSeen && (Date.now()-s.lastSeen)<30000);
       setOpponents(online);
     } catch {}

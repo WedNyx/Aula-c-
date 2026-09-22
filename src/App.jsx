@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
+import { listStudentSummaries } from "./storage.js";
 import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, getTeacherNotes, saveTeacherNotes, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTeacherResumoSnapshot, saveTeacherResumoSnapshot, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas, getTeacherScheduledReminders, saveTeacherScheduledReminders, getClassScheduledReminders, saveClassScheduledReminders, addClassMusicTrack, submitMusicSuggestion } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
@@ -5078,13 +5079,35 @@ function TeacherView({ onLogout, teacherAuth }) {
     }
   }, []);
 
+  const refreshStudentSummaries = useCallback(async () => {
+    const summaries = await listStudentSummaries(teacherAuth);
+    if (!summaries.length) return;
+    setStudents(current => {
+      const byKey = new Map(current.map(student => [`${student.shift || "sem-turno"}::${student.name}`, student]));
+      for (const summary of summaries) {
+        if (!summary?.name) continue;
+        const key = `${summary.shift || "sem-turno"}::${summary.name}`;
+        byKey.set(key, { ...(byKey.get(key) || {}), ...summary });
+      }
+      return [...byKey.values()];
+    });
+    setLastUpdate(new Date().toLocaleTimeString("pt-BR"));
+  }, [teacherAuth]);
+
   useEffect(() => {
     let active = true;
-    const run = async () => { if (active) await load(); };
-    run();
-    const iv = setInterval(run, 10000);
-    return () => { active = false; clearInterval(iv); };
-  }, [load]);
+    const refreshWhenVisible = async () => {
+      if (active && document.visibilityState !== "hidden") await refreshStudentSummaries();
+    };
+    load(); // uma carga completa por abertura do painel; depois, somente projeções pequenas
+    const iv = setInterval(refreshWhenVisible, 10000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      active = false;
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [load, refreshStudentSummaries]);
 
   useEffect(() => { diagnose().then(setDiag); }, []);
 

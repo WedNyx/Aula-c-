@@ -22,7 +22,7 @@ const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'teachernotes:', 
 // (seletor de perfil na tela de login, /impacto, portfólio público, estado de duelo/parceiro
 // que os alunos usam pra jogar). "student:" ainda passa pela redação de campo sensível
 // (redactStudentValue) quando não autorizado — as outras três nunca guardam dado sensível.
-const PUBLIC_LIST_PREFIXES = ['student:', 'duel:', 'teamduel:', 'partner:']
+const PUBLIC_LIST_PREFIXES = ['student:', 'student-summary:', 'duel:', 'teamduel:', 'partner:']
 
 // Chaves privadas exigem autenticação. Cadastros públicos têm CPF/nascimento
 // removidos tanto na leitura individual quanto nas listagens.
@@ -65,6 +65,32 @@ function studentObject(raw) {
   return obj
 }
 
+const STUDENT_SUMMARY_PREFIX = 'student-summary:'
+function studentSummaryKey(key) {
+  return `${STUDENT_SUMMARY_PREFIX}${String(key).slice('student:'.length)}`
+}
+
+// Projeção pequena para o monitoramento periódico. Código, resumos, atividades, presenças e
+// históricos continuam no perfil completo, mas deixam de viajar a cada atualização da tela.
+function studentSummary(student) {
+  const fields = [
+    'name', 'shift', 'avatar', 'joinedAt', 'createdAt', 'lastSeen', 'phase', 'score', 'doneAt',
+    'nyxPoints', 'hasError', 'feedback', 'helpAt', 'wantsPartner', 'selfSupport', 'errorAt',
+    'errorMsg', 'examReady', 'examScore', 'examDone', 'examAppeal', 'typingBest', 'duelWins',
+    'tourneyAnswer', 'portfolioPublic', 'portfolioActivatedAt',
+  ]
+  return Object.fromEntries(fields.filter(field => Object.hasOwn(student, field)).map(field => [field, student[field]]))
+}
+
+async function syncStudentSummary(key, student) {
+  try {
+    await store.set(studentSummaryKey(key), JSON.stringify(studentSummary(student)))
+  } catch (error) {
+    // Não perde o progresso do aluno se a projeção falhar; o próximo autosave tenta outra vez.
+    console.warn('student_summary_sync_failed', error?.message || error)
+  }
+}
+
 async function saveStudentPrivate(key, value, authorized) {
   const incoming = studentObject(value)
   for (let attempt = 0; attempt < 8; attempt++) {
@@ -96,7 +122,10 @@ async function saveStudentPrivate(key, value, authorized) {
         if (Object.hasOwn(current, field)) next[field] = current[field]
       }
     }
-    if (await store.compareAndSet(key, raw, JSON.stringify(next))) return true
+    if (await store.compareAndSet(key, raw, JSON.stringify(next))) {
+      await syncStudentSummary(key, next)
+      return true
+    }
   }
   return false
 }
@@ -545,7 +574,7 @@ export async function clearLoginFailures(bucketKey) {
 // mais antigos além do limite. Não é backup "fora do banco" (se o banco inteiro sumir, o backup
 // some junto), mas já protege contra bug/ação errada apagando ou corrompendo chaves específicas ──
 const BACKUP_PREFIX = 'backup:'
-const BACKUP_EXCLUDE = /^(ratelimit:|ai:health|loginfail:|backup:|errorlog:|adminlog:)/
+const BACKUP_EXCLUDE = /^(ratelimit:|ai:health|loginfail:|backup:|errorlog:|adminlog:|student-summary:)/
 
 // ─── log de erros de JS não tratados, mandado sozinho por qualquer sessão (aluno ou professor) —
 // ver reportClientError em storage.js / o listener global em App.jsx. Uma lista só, capada nas
@@ -752,7 +781,10 @@ export default async function handler(req, res) {
           } else overrides[date] = { status, at: Date.now() }
           student.attendanceOverrides = overrides
           student.attendance = applyAttendanceOverrides(attendance, overrides)
-          if (await store.compareAndSet(key, raw, JSON.stringify(student))) return res.json({ ok: true })
+          if (await store.compareAndSet(key, raw, JSON.stringify(student))) {
+            await syncStudentSummary(key, student)
+            return res.json({ ok: true })
+          }
         }
         return res.status(409).json({ error: 'student_write_conflict' })
       }
@@ -977,11 +1009,15 @@ export default async function handler(req, res) {
       case 'delete': {
         if (!(await checkKvRateLimit(res, 'kvdelete', ip))) return
         await store.delete(key)
+        if (String(key).startsWith('student:')) await store.delete(studentSummaryKey(key))
         return res.json({ ok: true })
       }
       case 'delete_by_prefix': {
         if (!(await checkKvRateLimit(res, 'kvdelete', ip))) return
         await store.deleteByPrefix(prefix)
+        if (String(prefix).startsWith('student:')) {
+          await store.deleteByPrefix(`${STUDENT_SUMMARY_PREFIX}${String(prefix).slice('student:'.length)}`)
+        }
         return res.json({ ok: true })
       }
       default: return res.status(400).json({ error: `Unknown action: ${action}` })
