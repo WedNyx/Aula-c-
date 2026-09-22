@@ -282,6 +282,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // alunos do Modo Guiado escolhem se querem fazer a prova ou continuar no Modo Guiado —
   // null = ainda não escolheu, true = vai fazer, false = prefere não fazer
   const [examOptIn, setExamOptIn] = useState(null);
+  // a prova chega quieta (igual resumo/atividade): só quando o aluno clica em "Abrir prova" no
+  // Caderno é que a tela cheia (com o anti-cola) toma conta — local, não fica salvo no servidor
+  // nem sobrevive a um recarregamento (mesmo espírito de reabrir a aba: conta como saída se já
+  // tinha resposta em andamento)
+  const [examEntered, setExamEntered] = useState(false);
   // quem é do Modo Guiado e topou participar faz uma versão bem mais simples, sobre os próprios
   // blocos do Modo Guiado — é só participação, NÃO vira nota oficial (não entra no boletim/ranking)
   const [examGuidedMode, setExamGuidedMode] = useState(false);
@@ -1552,6 +1557,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           setExamReady(false); setExamScore(null); setExamAnswers({}); setExamDone(false); setExamCurrentQ(0);
           setExamExits(0); setExamScoreRaw(null); setExamAppeal(null); setExamScoreSeen(false); setExamOptIn(null);
           setExamGuidedMode(false); setExamGuidedQuestions(null); setExamGuidedAnswers({}); setExamGuidedCurrentQ(0); setExamGuidedCorrect(0);
+          setExamEntered(false);
           try { sessionStorage.removeItem("nyx_exam_open"); } catch {}
           await persist({ examReady: false, examScore: null, examAnswers: {}, examDone: false, examExits: 0, examScoreRaw: null, examAppeal: null, examScoreSeen: false, examOptIn: null, examGuidedMode: false, examGuidedQuestions: null, examGuidedAnswers: {}, examGuidedCorrect: 0 });
         }
@@ -3072,9 +3078,12 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   );
 
   const examHappening = examInfo.status === 'review' || examInfo.status === 'active';
+  // a prova chega quieta no Caderno (badge "prova"); só vira tela cheia depois que o aluno clica
+  // em "Abrir prova" por lá — enquanto isso, ele continua no que estava fazendo
+  const examNoticeVisible = examHappening && !examEntered && !examDone && !(accessMode && examOptIn === false);
   // alunos do Modo Guiado escolhem se querem entrar na prova junto com a turma, ou continuar no
   // Modo Guiado normalmente — só perguntamos uma vez por prova (examOptIn começa null a cada nova)
-  if (accessMode && examHappening && examOptIn == null) return (
+  if (accessMode && examHappening && examOptIn == null && examEntered) return (
     <div className={supportClass} style={styles.container}>
       <div style={styles.header}><span>📝 Prova da Turma — {studentName}</span></div>
       <div style={{ maxWidth:520, margin:"60px auto", textAlign:"center", padding:"0 16px" }}>
@@ -3098,7 +3107,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     </div>
   );
 
-  if (examInfo.status === 'review' && !(accessMode && examOptIn === false)) return (
+  if (examInfo.status === 'review' && !(accessMode && examOptIn === false) && examEntered) return (
     <div className={supportClass} style={styles.container}>
       <div style={styles.header}><span>📝 Revisão — {studentName}</span></div>
       <div style={{ maxWidth:700, margin:"0 auto", padding:"22px 16px 36px" }}>
@@ -3142,7 +3151,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     </div>
   );
 
-  if (examInfo.status === 'active' && accessMode && examOptIn === true) {
+  if (examInfo.status === 'active' && accessMode && examOptIn === true && examEntered) {
     const gq = examGuidedQuestions || GUIDED_PARTICIPATION_QUIZ;
     const gQuestion = gq[examGuidedCurrentQ];
     return (
@@ -3177,7 +3186,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
     );
   }
 
-  if (examInfo.status === 'active' && !(accessMode && examOptIn === false)) {
+  if (examInfo.status === 'active' && !(accessMode && examOptIn === false) && examEntered) {
     const qs = examInfo.questions || [];
     const q = qs[examCurrentQ];
     return (
@@ -3535,7 +3544,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 
   const studentSidebarGroups = [
     { id:"learn", label:"Aprender", items:[
-      { id:"notebook", label:"Caderno", icon:"📒", badge:notebookUnseen ? "novo" : null, onClick:()=>setShowNotebook(true), tour:"caderno" },
+      { id:"notebook", label:"Caderno", icon:"📒", badge:examNoticeVisible ? "prova" : (notebookUnseen ? "novo" : null), onClick:()=>setShowNotebook(true), tour:"caderno" },
       { id:"notifications", label:"Novidades", icon:"🔔", badge:(hasNyxNews||showNudge) ? "nova" : null, onClick:()=>setShowStudentNotifications(true), tour:"novidades" },
       { id:"feedback", label:"Feedback da aula", icon:"💬", badge:classSent ? "✓" : null, onClick:()=>setShowClassFeedback(true), tour:"feedback-aula" },
       { id:"sites", label:"Sites da turma", icon:"🔗", badge:classLinks.length || null, onClick:()=>setShowClassLinks(true), tour:"sites-turma" },
@@ -4605,6 +4614,8 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
         onSaveNotes={async next => { setPersonalNotes(next); await persist({ personalNotes: next }); }}
         activityResults={activityResults}
         onSubmitActivity={handleSubmitActivityFromNotebook}
+        examNotice={examNoticeVisible ? { status: examInfo.status, summary: examInfo.summary } : null}
+        onOpenExam={()=>{ setExamEntered(true); setShowNotebook(false); if (notebookUnseen) { setNotebookUnseen(false); persist({ notebookUnseen: false }); } }}
         onClose={()=>{ setShowNotebook(false); if (notebookUnseen) { setNotebookUnseen(false); persist({ notebookUnseen: false }); } }}
       />}
       {showTrail && <LearningTrailModal history={summaryHistory} onClose={()=>setShowTrail(false)} />}

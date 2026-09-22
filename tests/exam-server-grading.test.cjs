@@ -56,7 +56,16 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore } = require('./he
     else break;
   }
 
-  check('Tela da prova abre automaticamente (prova ativa pro turno do aluno)', (await page.locator('text=🏆 Prova —').count()) > 0);
+  // prova agora chega quieta no Caderno (igual resumo/atividade) — só vira tela cheia depois que
+  // o aluno abre por lá, não mais automaticamente
+  check('Aluno CONTINUA no editor (prova não força tela cheia sozinha)', (await page.locator('[data-tour="editor"]').count()) > 0);
+  check('Bolinha "prova" aparece no Caderno, avisando que a prova está disponível', (await page.locator('button[data-tour="caderno"]').innerText()).includes('prova'));
+  await page.click('button[data-tour="caderno"]');
+  await page.waitForTimeout(500);
+  check('Aba "Prova" do Caderno mostra o convite pra entrar', (await page.locator('text=Prova em andamento').count()) > 0);
+  await page.click('button:has-text("🏆 Continuar prova")');
+  await page.waitForTimeout(600);
+  check('Tela da prova abre depois que o aluno abre pelo Caderno', (await page.locator('text=🏆 Prova —').count()) > 0);
 
   // responde as 5 perguntas, sempre acertando — acha o <p> com o texto EXATO da pergunta atual e
   // clica no botão certo dentro do mesmo cartão (por posição, não por texto da opção, já que

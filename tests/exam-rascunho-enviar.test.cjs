@@ -68,9 +68,17 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   check('exam:config virou "review" só depois do envio explícito', sentConfig.status === 'review', JSON.stringify(sentConfig));
   check('startedAt/studyUntil só foram definidos no envio', !!sentConfig.startedAt && !!sentConfig.studyUntil, JSON.stringify(sentConfig));
 
-  // 4) SÓ agora o aluno vê a fase de revisão (o heartbeat do aluno roda a cada 12s)
-  await pageA.waitForSelector('text=Hora da Prova!', { timeout: 30000 });
-  check('Aluno agora vê a fase de revisão da prova (depois do envio)', (await pageA.locator('text=Hora da Prova!').count()) > 0);
+  // 4) prova chega quieta no Caderno (igual resumo/atividade) — o aluno NÃO é jogado pra tela
+  // cheia sozinho; só depois de abrir por lá é que vê a fase de revisão
+  await pageA.waitForFunction(() => document.querySelector('button[data-tour="caderno"]')?.innerText.includes('prova'), { timeout: 30000 });
+  check('Aluno CONTINUA no editor (prova não força tela cheia sozinha)', (await pageA.locator('[data-tour="editor"]').count()) > 0);
+  check('Bolinha "prova" aparece no Caderno, avisando que a prova está disponível', (await pageA.locator('button[data-tour="caderno"]').innerText()).includes('prova'));
+  await pageA.click('button[data-tour="caderno"]');
+  await pageA.waitForTimeout(500);
+  check('Aba "Prova" do Caderno mostra o convite pra entrar na revisão', (await pageA.locator('text=Hora da prova!').count()) > 0);
+  await pageA.click('button:has-text("📝 Abrir prova")');
+  await pageA.waitForTimeout(600);
+  check('Aluno agora vê a fase de revisão da prova (depois de abrir pelo Caderno)', (await pageA.locator('text=Hora da Prova!').count()) > 0);
   check('SEM erro de JS (aluno, depois do envio)', jsErrorsA.length === 0, jsErrorsA.slice(0, 3).join(' | '));
 
   await ctxT.close();

@@ -159,11 +159,11 @@ export function NextStepsModal({ onClose }) {
   );
 }
 
-export function NotebookModal({ history, detailedHistory, notes = [], onSaveNotes, onClose, onDeleteSummary, activityResults, onSubmitActivity }) {
+export function NotebookModal({ history, detailedHistory, notes = [], onSaveNotes, onClose, onDeleteSummary, activityResults, onSubmitActivity, examNotice = null, onOpenExam }) {
   const dates = Object.keys(history || {}).sort((a,b)=>b.localeCompare(a));
   const [sel, setSel] = useState(dates[0] || null);
   const [view, setView] = useState("simples");
-  const [tab, setTab] = useState("resumos");
+  const [tab, setTab] = useState(examNotice ? "prova" : "resumos");
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState({ title:"", text:"" });
   const [saving, setSaving] = useState(false);
@@ -204,10 +204,25 @@ export function NotebookModal({ history, detailedHistory, notes = [], onSaveNote
           <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#a99ac9", fontSize:22, cursor:"pointer", lineHeight:1 }}>✕</button>
         </div>
         <p style={{ color:"#a99ac9", fontSize:13, margin:"0 0 14px" }}>Resumos enviados pelo professor e suas próprias anotações, organizados no mesmo lugar.</p>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:16 }}>
+        <div style={{ display:"grid", gridTemplateColumns: examNotice ? "1fr 1fr 1fr" : "1fr 1fr", gap:8, marginBottom:16 }}>
           <button onClick={()=>setTab("resumos")} style={{ background:tab==="resumos"?"#34d399":"#171026", color:tab==="resumos"?"#052e22":"#a99ac9", border:`1px solid ${tab==="resumos"?"#34d399":"#3b2a58"}`, borderRadius:11, padding:"9px 12px", fontWeight:850, cursor:"pointer" }}>📚 Resumos do professor</button>
+          {examNotice && <button onClick={()=>setTab("prova")} style={{ background:tab==="prova"?"#fbbf24":"#171026", color:tab==="prova"?"#3b1d00":"#a99ac9", border:`1px solid ${tab==="prova"?"#fbbf24":"#3b2a58"}`, borderRadius:11, padding:"9px 12px", fontWeight:850, cursor:"pointer" }}>🏆 Prova</button>}
           <button onClick={()=>setTab("anotacoes")} style={{ background:tab==="anotacoes"?"#c084fc":"#171026", color:tab==="anotacoes"?"#fff":"#a99ac9", border:`1px solid ${tab==="anotacoes"?"#c084fc":"#3b2a58"}`, borderRadius:11, padding:"9px 12px", fontWeight:850, cursor:"pointer" }}>✏️ Minhas anotações · {notes.length}</button>
         </div>
+        {tab === "prova" && examNotice && (
+          <div style={{ background:"linear-gradient(135deg,#c084fc,#8b5cf6)", borderRadius:16, padding:22, textAlign:"center" }}>
+            <div style={{ fontSize:42 }}>🏆</div>
+            <h3 style={{ color:"#fff", margin:"8px 0 4px", fontSize:18 }}>{examNotice.status === "review" ? "Hora da prova!" : "Prova em andamento"}</h3>
+            <p style={{ color:"#e0e7ff", fontSize:13, lineHeight:1.6, margin:"0 0 4px" }}>
+              {examNotice.status === "review"
+                ? "O professor liberou a prova. Reveja o conteúdo e entre na sala quando estiver pronto."
+                : "A prova já começou — entre para responder às questões quando quiser."}
+            </p>
+            <button onClick={onOpenExam} style={{ width:"100%", marginTop:14, padding:"13px 0", border:0, borderRadius:11, background:"#fff", color:"#6d28d9", fontWeight:900, fontSize:14.5, cursor:"pointer" }}>
+              {examNotice.status === "review" ? "📝 Abrir prova" : "🏆 Continuar prova"}
+            </button>
+          </div>
+        )}
         {tab === "resumos" && (dates.length === 0 ? (
           <p style={{ color:"#776798", fontSize:13 }}>Nenhum resumo guardado ainda — eles aparecem aqui quando você salva e finaliza uma aula.</p>
         ) : (
