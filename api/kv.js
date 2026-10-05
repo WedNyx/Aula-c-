@@ -29,6 +29,7 @@ const PUBLIC_LIST_PREFIXES = ['student:', 'student-summary:', 'duel:', 'teamduel
 const GET_PROTECTED_PREFIXES = ['backup:', 'errorlog:', 'teachernotes:', 'teacherreminders:']
 function needsTeacherAuth(action, key) {
   if (action === 'set_attendance') return true
+  if (action === 'sync_replica') return true
   if (action === 'list_music_suggestions' || action === 'resolve_music_suggestion') return true
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
   if (action === 'get_recent_errors') return true // lista os erros de todo mundo — sempre só-do-professor
@@ -372,15 +373,27 @@ async function withPg(fn) {
 }
 
 // ─── Upstash / Vercel KV ─────────────────────────────────────────────────────
-const REDIS_URL = (
-  process.env.KV_REST_API_URL ||
-  process.env.UPSTASH_REDIS_REST_URL ||
-  ''
+function redisEnv(directNames, suffixes) {
+  for (const name of directNames) {
+    if (process.env[name]) return process.env[name]
+  }
+  // Integrações Marketplace podem exigir um prefixo personalizado e gerar, por
+  // exemplo, KV_REST_API1_KV_REST_API_URL. Aceita apenas sufixos exatos para
+  // não confundir o token de escrita com o token read-only.
+  const match = Object.entries(process.env).find(([name, value]) =>
+    value && suffixes.some(suffix => name.endsWith(suffix))
+  )
+  return match?.[1] || ''
+}
+
+const REDIS_URL = redisEnv(
+  ['KV_REST_API_URL', 'UPSTASH_REDIS_REST_URL'],
+  ['_KV_REST_API_URL', '_UPSTASH_REDIS_REST_URL'],
 ).replace(/\/$/, '')
-const REDIS_TOKEN =
-  process.env.KV_REST_API_TOKEN ||
-  process.env.UPSTASH_REDIS_REST_TOKEN ||
-  ''
+const REDIS_TOKEN = redisEnv(
+  ['KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_TOKEN'],
+  ['_KV_REST_API_TOKEN', '_UPSTASH_REDIS_REST_TOKEN'],
+)
 
 async function redis(...cmd) {
   const r = await fetch(`${REDIS_URL}/pipeline`, {
@@ -394,17 +407,33 @@ async function redis(...cmd) {
   return res.result
 }
 
-// ─── Detecta qual backend usar ───────────────────────────────────────────────
-const BACKEND =
-  supabase                   ? 'supabase' :
-  getPgUrl()                 ? 'pg'       :
-  (REDIS_URL && REDIS_TOKEN) ? 'redis'    :
-  null
+// ─── Backends e contingência ─────────────────────────────────────────────────
+// Supabase continua sendo a fonte principal. Quando Upstash também está
+// configurado, cada alteração é espelhada nele. Se o Supabase ficar indisponível,
+// as leituras e gravações continuam no Upstash; as chaves alteradas ficam marcadas
+// e são devolvidas ao Supabase automaticamente quando ele responder novamente.
+//
+// DATABASE_URL derivada do próprio projeto Supabase NÃO é reserva: ela aponta para
+// o mesmo banco. Por isso o único standby independente aqui é o Redis/Upstash.
+const HAS_REDIS = !!(REDIS_URL && REDIS_TOKEN)
+const PRIMARY_BACKEND = supabase ? 'supabase' : getPgUrl() ? 'pg' : HAS_REDIS ? 'redis' : null
+const REPLICA_BACKEND = PRIMARY_BACKEND !== 'redis' && HAS_REDIS ? 'redis' : null
+const BACKEND = REPLICA_BACKEND ? `${PRIMARY_BACKEND}+redis` : PRIMARY_BACKEND
+const FAILOVER_DIRTY_SET = '__aula_csharp_failover_dirty__'
+const FAILOVER_TOMBSTONE_PREFIX = '__aula_csharp_failover_deleted__:'
+const FAILOVER_SEEDED_KEY = '__aula_csharp_failover_seeded__'
+const FAILOVER_SEED_LOCK = '__aula_csharp_failover_seed_lock__'
+let lastPrimaryFailureAt = null
+let lastReplicaFailureAt = null
+let syncInFlight = null
 
-// ─── Operações unificadas ────────────────────────────────────────────────────
-const store = {
+function tombstoneKey(key) {
+  return `${FAILOVER_TOMBSTONE_PREFIX}${encodeURIComponent(key)}`
+}
+
+const primaryStore = {
   async compareAndSet(key, expected, value) {
-    if (BACKEND === 'supabase') {
+    if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
       if (expected == null) {
         const { error } = await supabase.from(TABLE).insert({ key, value, updated_at: new Date().toISOString() })
@@ -416,7 +445,7 @@ const store = {
       if (error) throw new Error('student_write_failed')
       return data.length > 0
     }
-    if (BACKEND === 'pg') {
+    if (PRIMARY_BACKEND === 'pg') {
       const r = expected == null
         ? await withPg(c => c.query(`INSERT INTO ${TABLE}(key,value,updated_at) VALUES($1,$2,NOW()) ON CONFLICT DO NOTHING RETURNING key`, [key,value]))
         : await withPg(c => c.query(`UPDATE ${TABLE} SET value=$3,updated_at=NOW() WHERE key=$1 AND value=$2 RETURNING key`, [key,expected,value]))
@@ -430,13 +459,13 @@ const store = {
       return 0`, 1, key, expected == null ? 'missing' : 'present', expected ?? '', value)) === 1
   },
   async set(key, value) {
-    if (BACKEND === 'supabase') {
+    if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
       const { error } = await supabase
         .from(TABLE)
         .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
       if (error) throw new Error(`Supabase set: ${error.message}`)
-    } else if (BACKEND === 'pg') {
+    } else if (PRIMARY_BACKEND === 'pg') {
       await withPg(c => c.query(
         `INSERT INTO ${TABLE}(key,value,updated_at) VALUES($1,$2,NOW()) ON CONFLICT(key) DO UPDATE SET value=$2,updated_at=NOW()`,
         [key, value]
@@ -447,13 +476,13 @@ const store = {
   },
 
   async get(key) {
-    if (BACKEND === 'supabase') {
+    if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
       const { data, error } = await supabase.from(TABLE).select('value').eq('key', key).maybeSingle()
       if (error) throw new Error(`Supabase get: ${error.message}`)
       return data?.value ?? null
     }
-    if (BACKEND === 'pg') {
+    if (PRIMARY_BACKEND === 'pg') {
       const r = await withPg(c => c.query(`SELECT value FROM ${TABLE} WHERE key=$1`, [key]))
       return r.rows[0]?.value ?? null
     }
@@ -461,13 +490,13 @@ const store = {
   },
 
   async listWithValues(prefix) {
-    if (BACKEND === 'supabase') {
+    if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
       const { data, error } = await supabase.from(TABLE).select('key, value').like('key', `${prefix}%`)
       if (error) throw new Error(`Supabase list: ${error.message}`)
       return (data || []).map(r => ({ key: r.key, value: r.value }))
     }
-    if (BACKEND === 'pg') {
+    if (PRIMARY_BACKEND === 'pg') {
       const r = await withPg(c => c.query(`SELECT key,value FROM ${TABLE} WHERE key LIKE $1`, [`${prefix}%`]))
       return r.rows.map(row => ({ key: row.key, value: row.value }))
     }
@@ -478,11 +507,11 @@ const store = {
   },
 
   async delete(key) {
-    if (BACKEND === 'supabase') {
+    if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
       const { error } = await supabase.from(TABLE).delete().eq('key', key)
       if (error) throw new Error(`Supabase delete: ${error.message}`)
-    } else if (BACKEND === 'pg') {
+    } else if (PRIMARY_BACKEND === 'pg') {
       await withPg(c => c.query(`DELETE FROM ${TABLE} WHERE key=$1`, [key]))
     } else {
       await redis('DEL', key)
@@ -490,17 +519,268 @@ const store = {
   },
 
   async deleteByPrefix(prefix) {
-    if (BACKEND === 'supabase') {
+    if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
       const { error } = await supabase.from(TABLE).delete().like('key', `${prefix}%`)
       if (error) throw new Error(`Supabase deleteByPrefix: ${error.message}`)
-    } else if (BACKEND === 'pg') {
+    } else if (PRIMARY_BACKEND === 'pg') {
       await withPg(c => c.query(`DELETE FROM ${TABLE} WHERE key LIKE $1`, [`${prefix}%`]))
     } else {
       const ks = await redis('KEYS', `${prefix}*`)
       if (ks?.length) await redis('DEL', ...ks)
     }
   },
+}
+
+const replicaStore = {
+  compareAndSet: async (key, expected, value) => Number(await redis('EVAL', `-- replica-cas
+    local current = redis.call('GET', KEYS[1])
+    if (ARGV[1] == 'missing' and not current) or (ARGV[1] == 'present' and current == ARGV[2]) then
+      redis.call('SET', KEYS[1], ARGV[3]); return 1
+    end
+    return 0`, 1, key, expected == null ? 'missing' : 'present', expected ?? '', value)) === 1,
+  set: async (key, value) => { await redis('SET', key, value) },
+  get: async key => redis('GET', key),
+  async listWithValues(prefix) {
+    const ks = (await redis('KEYS', `${prefix}*`)) || []
+    const dataKeys = ks.filter(k => ![FAILOVER_DIRTY_SET, FAILOVER_SEEDED_KEY, FAILOVER_SEED_LOCK].includes(k) && !k.startsWith(FAILOVER_TOMBSTONE_PREFIX))
+    if (!dataKeys.length) return []
+    const vals = await redis('MGET', ...dataKeys)
+    return dataKeys.map((key, i) => ({ key, value: vals[i] }))
+  },
+  delete: async key => { await redis('DEL', key) },
+  async deleteByPrefix(prefix) {
+    const items = await this.listWithValues(prefix)
+    if (items.length) await redis('DEL', ...items.map(item => item.key))
+    return items.map(item => item.key)
+  },
+}
+
+async function markReplicaDirty(key, deleted = false) {
+  if (!REPLICA_BACKEND) return
+  if (deleted) await redis('SET', tombstoneKey(key), '1')
+  else await redis('DEL', tombstoneKey(key))
+  await redis('SADD', FAILOVER_DIRTY_SET, key)
+}
+
+async function clearReplicaDirty(key) {
+  await redis('SREM', FAILOVER_DIRTY_SET, key)
+  await redis('DEL', tombstoneKey(key))
+}
+
+async function mirrorValue(key, value) {
+  if (!REPLICA_BACKEND) return
+  try {
+    if (value == null) await replicaStore.delete(key)
+    else await replicaStore.set(key, value)
+    await clearReplicaDirty(key)
+  } catch {
+    lastReplicaFailureAt = new Date().toISOString()
+  }
+}
+
+async function syncDirtyKeys(limit = 50) {
+  if (!REPLICA_BACKEND) return { synced: 0, pending: 0 }
+  if (syncInFlight) return syncInFlight
+  syncInFlight = (async () => {
+    const dirty = ((await redis('SMEMBERS', FAILOVER_DIRTY_SET)) || []).slice(0, limit)
+    let synced = 0
+    for (const key of dirty) {
+      const deleted = !!(await redis('GET', tombstoneKey(key)))
+      const value = deleted ? null : await replicaStore.get(key)
+      if (deleted) await primaryStore.delete(key)
+      else if (value != null) await primaryStore.set(key, value)
+      await clearReplicaDirty(key)
+      synced++
+    }
+    const pending = Number(await redis('SCARD', FAILOVER_DIRTY_SET)) || 0
+    if (synced) lastPrimaryFailureAt = null
+    return { synced, pending }
+  })().catch(() => {
+    lastPrimaryFailureAt = new Date().toISOString()
+    return { synced: 0, pending: null }
+  }).finally(() => { syncInFlight = null })
+  return syncInFlight
+}
+
+async function syncAllDirtyKeys() {
+  let total = 0
+  for (let batch = 0; batch < 50; batch++) {
+    const result = await syncDirtyKeys(500)
+    total += result.synced || 0
+    if (!result.pending) return { synced: total, pending: result.pending }
+  }
+  return { synced: total, pending: Number(await redis('SCARD', FAILOVER_DIRTY_SET)) || 0 }
+}
+
+async function trySyncInBackground() {
+  if (!REPLICA_BACKEND || syncInFlight) return
+  void syncDirtyKeys(20)
+}
+
+async function replicaKeyIsDirty(key) {
+  if (!REPLICA_BACKEND) return false
+  return Number(await redis('SISMEMBER', FAILOVER_DIRTY_SET, key)) === 1
+}
+
+async function ensureReplicaSeeded() {
+  if (!REPLICA_BACKEND) return false
+  try {
+    if (await redis('GET', FAILOVER_SEEDED_KEY)) return true
+    const locked = await redis('SET', FAILOVER_SEED_LOCK, String(Date.now()), 'NX', 'EX', 60)
+    if (!locked) {
+      // Outra instância da função está copiando. Espera pouco; se ainda não terminou,
+      // usa apenas o primário nesta chamada em vez de tratar uma réplica vazia como válida.
+      for (let i = 0; i < 5; i++) {
+        await new Promise(resolve => setTimeout(resolve, 150))
+        if (await redis('GET', FAILOVER_SEEDED_KEY)) return true
+      }
+      return false
+    }
+    try {
+      // Alterações feitas numa queda anterior são mais novas e precisam voltar antes
+      // da cópia geral, para não serem substituídas pela versão antiga do primário.
+      const dirty = await syncAllDirtyKeys()
+      if (dirty.pending) return false
+      const items = await primaryStore.listWithValues('')
+      for (const item of items) await replicaStore.set(item.key, item.value)
+      await redis('SET', FAILOVER_SEEDED_KEY, new Date().toISOString())
+      return true
+    } finally {
+      await redis('DEL', FAILOVER_SEED_LOCK).catch(() => {})
+    }
+  } catch {
+    lastReplicaFailureAt = new Date().toISOString()
+    return false
+  }
+}
+
+// ─── Operações resilientes ───────────────────────────────────────────────────
+const store = {
+  async compareAndSet(key, expected, value) {
+    if (!REPLICA_BACKEND) return primaryStore.compareAndSet(key, expected, value)
+    const replicaReady = await ensureReplicaSeeded()
+    if (replicaReady && await replicaKeyIsDirty(key)) await syncDirtyKeys(50)
+    else if (replicaReady) await trySyncInBackground()
+    try {
+      const changed = await primaryStore.compareAndSet(key, expected, value)
+      if (changed) await mirrorValue(key, value)
+      return changed
+    } catch (error) {
+      lastPrimaryFailureAt = new Date().toISOString()
+      if (!replicaReady) throw error
+      const changed = await replicaStore.compareAndSet(key, expected, value)
+      if (changed) await markReplicaDirty(key)
+      return changed
+    }
+  },
+  async set(key, value) {
+    if (!REPLICA_BACKEND) return primaryStore.set(key, value)
+    const replicaReady = await ensureReplicaSeeded()
+    if (replicaReady) await trySyncInBackground()
+    try {
+      await primaryStore.set(key, value)
+      await mirrorValue(key, value)
+    } catch (error) {
+      lastPrimaryFailureAt = new Date().toISOString()
+      if (!replicaReady) throw error
+      await replicaStore.set(key, value)
+      await markReplicaDirty(key)
+    }
+  },
+  async get(key) {
+    if (!REPLICA_BACKEND) return primaryStore.get(key)
+    const replicaReady = await ensureReplicaSeeded()
+    // Uma gravação feita durante a queda ainda é a versão mais nova, mesmo se o
+    // Supabase acabou de voltar. Tenta sincronizá-la antes de ler o primário.
+    if (replicaReady && await replicaKeyIsDirty(key)) await syncDirtyKeys(50)
+    else if (replicaReady) await trySyncInBackground()
+    try {
+      const value = await primaryStore.get(key)
+      // Não cai para uma cópia possivelmente antiga quando o primário respondeu
+      // legitimamente "não existe".
+      if (value != null) await mirrorValue(key, value)
+      return value
+    } catch (error) {
+      lastPrimaryFailureAt = new Date().toISOString()
+      if (!replicaReady) throw error
+      return replicaStore.get(key)
+    }
+  },
+  async listWithValues(prefix) {
+    if (!REPLICA_BACKEND) return primaryStore.listWithValues(prefix)
+    const replicaReady = await ensureReplicaSeeded()
+    // Listagens (perfis, turmas, placares) não podem omitir itens criados durante
+    // a indisponibilidade. Aguarda um lote de reconciliação antes de consultar.
+    if (replicaReady) await syncDirtyKeys(100)
+    try {
+      const items = await primaryStore.listWithValues(prefix)
+      await Promise.all(items.map(item => mirrorValue(item.key, item.value)))
+      return items
+    } catch (error) {
+      lastPrimaryFailureAt = new Date().toISOString()
+      if (!replicaReady) throw error
+      return replicaStore.listWithValues(prefix)
+    }
+  },
+  async delete(key) {
+    if (!REPLICA_BACKEND) return primaryStore.delete(key)
+    const replicaReady = await ensureReplicaSeeded()
+    if (replicaReady) await trySyncInBackground()
+    try {
+      await primaryStore.delete(key)
+      await mirrorValue(key, null)
+    } catch (error) {
+      lastPrimaryFailureAt = new Date().toISOString()
+      if (!replicaReady) throw error
+      await replicaStore.delete(key)
+      await markReplicaDirty(key, true)
+    }
+  },
+  async deleteByPrefix(prefix) {
+    if (!REPLICA_BACKEND) return primaryStore.deleteByPrefix(prefix)
+    const replicaReady = await ensureReplicaSeeded()
+    if (replicaReady) await trySyncInBackground()
+    let replicaKeys = []
+    if (replicaReady) {
+      try {
+        replicaKeys = (await replicaStore.listWithValues(prefix)).map(item => item.key)
+      } catch {
+        lastReplicaFailureAt = new Date().toISOString()
+      }
+    }
+    try {
+      await primaryStore.deleteByPrefix(prefix)
+    } catch (error) {
+      lastPrimaryFailureAt = new Date().toISOString()
+      if (!replicaReady) throw error
+      const deletedKeys = replicaKeys.length
+        ? (await replicaStore.deleteByPrefix(prefix), replicaKeys)
+        : await replicaStore.deleteByPrefix(prefix)
+      await Promise.all(deletedKeys.map(key => markReplicaDirty(key, true)))
+      return
+    }
+    if (replicaReady) {
+      try {
+        await replicaStore.deleteByPrefix(prefix)
+        await Promise.all(replicaKeys.map(clearReplicaDirty))
+      } catch {
+        // O primário já confirmou a exclusão. Uma falha só da réplica não pode
+        // transformar a operação em erro nem marcar o Supabase como indisponível.
+        lastReplicaFailureAt = new Date().toISOString()
+      }
+    }
+  },
+}
+
+export async function syncReplicaFromPrimary() {
+  if (!REPLICA_BACKEND) return { ok: false, reason: 'replica_not_configured' }
+  const dirtyResult = await syncAllDirtyKeys()
+  if (dirtyResult.pending) return { ok: false, reason: 'pending_sync', ...dirtyResult }
+  const items = await primaryStore.listWithValues('')
+  for (const item of items) await replicaStore.set(item.key, item.value)
+  await redis('SET', FAILOVER_SEEDED_KEY, new Date().toISOString())
+  return { ok: true, copied: items.length, ...dirtyResult }
 }
 
 // ─── limite de uso (rate limit) — usado pelo api/claude.js pra não deixar um bug em loop ou um
@@ -672,12 +952,22 @@ export default async function handler(req, res) {
   }
 
   if (action === 'check') {
+    let pendingSync = null
+    if (REPLICA_BACKEND) {
+      try { pendingSync = Number(await redis('SCARD', FAILOVER_DIRTY_SET)) || 0 } catch {}
+    }
     return res.json({
       configured: !!BACKEND,
       backend: BACKEND,
+      primary: PRIMARY_BACKEND,
+      replica: REPLICA_BACKEND,
+      failoverReady: !!REPLICA_BACKEND,
+      pendingSync,
+      lastPrimaryFailureAt,
+      lastReplicaFailureAt,
       hasSupabase: !!supabase,
       hasPg: !!getPgUrl(),
-      hasRedis: !!(REDIS_URL && REDIS_TOKEN),
+      hasRedis: HAS_REDIS,
     })
   }
 
@@ -693,6 +983,11 @@ export default async function handler(req, res) {
 
   try {
     switch (action) {
+      case 'sync_replica': {
+        const result = await syncReplicaFromPrimary()
+        if (!result.ok) return res.status(409).json(result)
+        return res.json(result)
+      }
       case 'submit_music_suggestion': {
         const withinLimit = await rateLimitCheck(`ratelimit:musicsuggestion:${ip}`, 10, 600)
         if (!withinLimit) return res.status(429).json({ error: 'rate_limited', message: 'Muitas sugestões seguidas. Aguarde um pouco.' })
