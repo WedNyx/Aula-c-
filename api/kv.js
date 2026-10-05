@@ -729,16 +729,34 @@ const store = {
     if (!REPLICA_BACKEND) return primaryStore.deleteByPrefix(prefix)
     const replicaReady = await ensureReplicaSeeded()
     if (replicaReady) await trySyncInBackground()
+    let replicaKeys = []
+    if (replicaReady) {
+      try {
+        replicaKeys = (await replicaStore.listWithValues(prefix)).map(item => item.key)
+      } catch {
+        lastReplicaFailureAt = new Date().toISOString()
+      }
+    }
     try {
-      const replicaKeys = (await replicaStore.listWithValues(prefix)).map(item => item.key)
       await primaryStore.deleteByPrefix(prefix)
-      await replicaStore.deleteByPrefix(prefix)
-      await Promise.all(replicaKeys.map(clearReplicaDirty))
     } catch (error) {
       lastPrimaryFailureAt = new Date().toISOString()
       if (!replicaReady) throw error
-      const deletedKeys = await replicaStore.deleteByPrefix(prefix)
+      const deletedKeys = replicaKeys.length
+        ? (await replicaStore.deleteByPrefix(prefix), replicaKeys)
+        : await replicaStore.deleteByPrefix(prefix)
       await Promise.all(deletedKeys.map(key => markReplicaDirty(key, true)))
+      return
+    }
+    if (replicaReady) {
+      try {
+        await replicaStore.deleteByPrefix(prefix)
+        await Promise.all(replicaKeys.map(clearReplicaDirty))
+      } catch {
+        // O primário já confirmou a exclusão. Uma falha só da réplica não pode
+        // transformar a operação em erro nem marcar o Supabase como indisponível.
+        lastReplicaFailureAt = new Date().toISOString()
+      }
     }
   },
 }
