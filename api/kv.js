@@ -373,15 +373,27 @@ async function withPg(fn) {
 }
 
 // ─── Upstash / Vercel KV ─────────────────────────────────────────────────────
-const REDIS_URL = (
-  process.env.KV_REST_API_URL ||
-  process.env.UPSTASH_REDIS_REST_URL ||
-  ''
+function redisEnv(directNames, suffixes) {
+  for (const name of directNames) {
+    if (process.env[name]) return process.env[name]
+  }
+  // Integrações Marketplace podem exigir um prefixo personalizado e gerar, por
+  // exemplo, KV_REST_API1_KV_REST_API_URL. Aceita apenas sufixos exatos para
+  // não confundir o token de escrita com o token read-only.
+  const match = Object.entries(process.env).find(([name, value]) =>
+    value && suffixes.some(suffix => name.endsWith(suffix))
+  )
+  return match?.[1] || ''
+}
+
+const REDIS_URL = redisEnv(
+  ['KV_REST_API_URL', 'UPSTASH_REDIS_REST_URL'],
+  ['_KV_REST_API_URL', '_UPSTASH_REDIS_REST_URL'],
 ).replace(/\/$/, '')
-const REDIS_TOKEN =
-  process.env.KV_REST_API_TOKEN ||
-  process.env.UPSTASH_REDIS_REST_TOKEN ||
-  ''
+const REDIS_TOKEN = redisEnv(
+  ['KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_TOKEN'],
+  ['_KV_REST_API_TOKEN', '_UPSTASH_REDIS_REST_TOKEN'],
+)
 
 async function redis(...cmd) {
   const r = await fetch(`${REDIS_URL}/pipeline`, {
