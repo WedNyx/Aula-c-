@@ -976,11 +976,15 @@ function looksLikeQuotaIssue(errText) {
 }
 
 export async function diagnose() {
-  const out = { hasStorage: true, configured: true, writeRead: '—', listOk: false, keys: [], err: '', hasAI: null, quotaSuspect: false }
+  const out = { hasStorage: true, configured: true, writeRead: '—', listOk: false, keys: [], err: '', hasAI: null, quotaSuspect: false, backend: null, failoverReady: false, pendingSync: null, lastPrimaryFailureAt: null }
 
   // Verifica variáveis de ambiente (ação rápida, sem gastar nada)
   try {
     const ck = await kvCall({ action: 'check' })
+    out.backend = ck.backend || null
+    out.failoverReady = ck.failoverReady === true
+    out.pendingSync = ck.pendingSync ?? null
+    out.lastPrimaryFailureAt = ck.lastPrimaryFailureAt || null
     if (!ck.configured) {
       out.hasStorage = false
       out.configured = false
