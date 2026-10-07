@@ -30,6 +30,7 @@ const GET_PROTECTED_PREFIXES = ['backup:', 'errorlog:', 'teachernotes:', 'teache
 function needsTeacherAuth(action, key) {
   if (action === 'set_attendance') return true
   if (action === 'sync_replica') return true
+  if (action === 'storage_health') return true
   if (action === 'list_music_suggestions' || action === 'resolve_music_suggestion') return true
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
   if (action === 'get_recent_errors') return true // lista os erros de todo mundo — sempre só-do-professor
@@ -426,6 +427,75 @@ const FAILOVER_SEED_LOCK = '__aula_csharp_failover_seed_lock__'
 let lastPrimaryFailureAt = null
 let lastReplicaFailureAt = null
 let syncInFlight = null
+let storageHealthCache = null
+const STORAGE_HEALTH_CACHE_MS = 5 * 60 * 1000
+
+function positiveNumber(value, fallback) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+async function loadStorageHealth() {
+  if (storageHealthCache && Date.now() - storageHealthCache.at < STORAGE_HEALTH_CACHE_MS) {
+    return storageHealthCache.value
+  }
+
+  const configuredLimitMb = positiveNumber(process.env.SUPABASE_DATABASE_LIMIT_MB, 500)
+  const supabaseHealth = {
+    configured: !!(supabase || getPgUrl()),
+    available: false,
+    usedBytes: null,
+    limitBytes: Math.round(configuredLimitMb * 1024 * 1024),
+    percent: null,
+    limitSource: process.env.SUPABASE_DATABASE_LIMIT_MB ? 'environment' : 'free-plan-default',
+    error: null,
+  }
+
+  if (supabaseHealth.configured && getPgUrl()) {
+    try {
+      const result = await withPg(client => client.query(
+        'SELECT SUM(pg_database_size(datname))::bigint AS bytes FROM pg_database'
+      ))
+      const usedBytes = Number(result.rows[0]?.bytes)
+      if (Number.isFinite(usedBytes)) {
+        supabaseHealth.available = true
+        supabaseHealth.usedBytes = usedBytes
+        supabaseHealth.percent = Math.min(100, Math.max(0, usedBytes / supabaseHealth.limitBytes * 100))
+      }
+    } catch (error) {
+      supabaseHealth.error = String(error?.message || error)
+    }
+  } else if (supabaseHealth.configured) {
+    supabaseHealth.error = 'Adicione DATABASE_PASSWORD para medir o tamanho do banco.'
+  }
+
+  const reserveHealth = {
+    configured: HAS_REDIS,
+    available: false,
+    keyCount: null,
+    pendingSync: null,
+    error: null,
+  }
+  if (HAS_REDIS) {
+    try {
+      reserveHealth.keyCount = Number(await redis('DBSIZE')) || 0
+      reserveHealth.pendingSync = REPLICA_BACKEND
+        ? Number(await redis('SCARD', FAILOVER_DIRTY_SET)) || 0
+        : 0
+      reserveHealth.available = true
+    } catch (error) {
+      reserveHealth.error = String(error?.message || error)
+    }
+  }
+
+  const value = {
+    checkedAt: new Date().toISOString(),
+    supabase: supabaseHealth,
+    reserve: reserveHealth,
+  }
+  storageHealthCache = { at: Date.now(), value }
+  return value
+}
 
 function tombstoneKey(key) {
   return `${FAILOVER_TOMBSTONE_PREFIX}${encodeURIComponent(key)}`
@@ -983,6 +1053,9 @@ export default async function handler(req, res) {
 
   try {
     switch (action) {
+      case 'storage_health': {
+        return res.json(await loadStorageHealth())
+      }
       case 'sync_replica': {
         const result = await syncReplicaFromPrimary()
         if (!result.ok) return res.status(409).json(result)
