@@ -975,8 +975,8 @@ function looksLikeQuotaIssue(errText) {
   return QUOTA_HINTS.some(re => re.test(s))
 }
 
-export async function diagnose() {
-  const out = { hasStorage: true, configured: true, writeRead: '—', listOk: false, keys: [], err: '', hasAI: null, quotaSuspect: false, backend: null, failoverReady: false, pendingSync: null, lastPrimaryFailureAt: null }
+export async function diagnose(auth = '') {
+  const out = { hasStorage: true, configured: true, writeRead: '—', listOk: false, keys: [], err: '', hasAI: null, quotaSuspect: false, backend: null, failoverReady: false, pendingSync: null, lastPrimaryFailureAt: null, storageHealth: null }
 
   // Verifica variáveis de ambiente (ação rápida, sem gastar nada)
   try {
@@ -1010,6 +1010,16 @@ export async function diagnose() {
       out.hasStorage = false
       out.err = String(e?.message || e)
       out.quotaSuspect = looksLikeQuotaIssue(out.err)
+    }
+  }
+
+  // Métricas de capacidade são privilegiadas: somente o painel autenticado do professor
+  // pede esses dados. As credenciais e a consulta ao PostgreSQL continuam no servidor.
+  if (auth) {
+    try {
+      out.storageHealth = await kvCall({ action: 'storage_health', auth })
+    } catch (e) {
+      out.storageHealth = { error: String(e?.message || e) }
     }
   }
 
