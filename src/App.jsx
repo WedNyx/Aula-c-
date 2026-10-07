@@ -5109,7 +5109,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     };
   }, [load, refreshStudentSummaries]);
 
-  useEffect(() => { diagnose().then(setDiag); }, []);
+  useEffect(() => { diagnose(teacherAuth).then(setDiag); }, []);
 
   // 🍎 intervalo: status de cada turno (recalcula a cada carregamento da turma, ~2s) + sininho no fim
   const shiftBreakStatuses = activeTurmas.map(sh => ({ ...sh, status: classStatus(schedule[sh.id] || {}, meta.allowWeekend) }));
@@ -6627,7 +6627,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       const d = await r.json();
       if (d.ok) {
         setDbSetupMsg("✅ " + (d.message || "Banco configurado!"));
-        diagnose().then(setDiag);
+        diagnose(teacherAuth).then(setDiag);
         load();
       } else if (d.needsSQL) {
         setDbSetupSQL({ sql: d.sql, sqlEditorUrl: d.sqlEditorUrl });
@@ -7619,7 +7619,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               </button>
             </div>
 
-            <CollapsibleCard title="🔧 Conexão" alertOpen={!!diag && (diag.hasStorage === false || diag.hasAI === false)}>
+            <CollapsibleCard title="🔧 Conexão" alertOpen={!!diag && (diag.hasStorage === false || diag.hasAI === false || Number(diag.storageHealth?.supabase?.percent) >= 85)}>
               {diag ? (
                 <div style={{ color:"#d6c9ec", lineHeight:1.7 }}>
                   <div>
@@ -7627,6 +7627,55 @@ function TeacherView({ onLogout, teacherAuth }) {
                     {diag.writeRead!=="—" && <> · <b style={{ color:diag.writeRead==="ok"?"#34d399":"#f87171" }}>{diag.writeRead}</b></>}
                   </div>
                   <div>Nyx (IA): <b style={{ color:diag.hasAI===true?"#34d399":diag.hasAI===false?"#f87171":"#a99ac9" }}>{diag.hasAI===true?"OK":diag.hasAI===false?"NÃO":"—"}</b></div>
+
+                  {(() => {
+                    const health = diag.storageHealth?.supabase;
+                    if (!health) return null;
+                    if (diag.storageHealth?.error) {
+                      return <p style={{ color:"#fbbf24", fontSize:11.5, margin:"8px 0 0" }}>⚠ Não foi possível carregar a capacidade agora.</p>;
+                    }
+                    const percent = typeof health.percent === "number" ? Math.min(100, Math.max(0, health.percent)) : null;
+                    const color = percent == null ? "#776798" : percent >= 85 ? "#f87171" : percent >= 70 ? "#fbbf24" : "#34d399";
+                    const formatBytes = bytes => {
+                      if (!Number.isFinite(bytes)) return "—";
+                      const units = ["B","KB","MB","GB","TB"];
+                      let value = bytes;
+                      let unit = 0;
+                      while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++; }
+                      return `${value >= 10 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
+                    };
+                    return (
+                      <div style={{ background:"#171026", border:`1px solid ${color}66`, borderRadius:10, padding:"10px 12px", marginTop:10 }} data-testid="storage-capacity-monitor">
+                        <div style={{ display:"flex", justifyContent:"space-between", gap:10, alignItems:"baseline" }}>
+                          <b style={{ color:"#f0e9fb", fontSize:12.5 }}>🗄️ Capacidade do Supabase</b>
+                          <b style={{ color, fontSize:12.5 }}>{percent == null ? "medição indisponível" : `${percent.toFixed(1)}%`}</b>
+                        </div>
+                        <div role="progressbar" aria-label="Uso do banco Supabase" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent == null ? undefined : Math.round(percent)}
+                          style={{ height:10, background:"#2a1d3e", borderRadius:999, overflow:"hidden", marginTop:7 }}>
+                          <div style={{ width:`${percent == null ? 0 : percent}%`, height:"100%", background:color, borderRadius:999, transition:"width .4s ease" }}/>
+                        </div>
+                        <div style={{ display:"flex", justifyContent:"space-between", gap:10, marginTop:5, color:"#a99ac9", fontSize:11 }}>
+                          <span>{formatBytes(health.usedBytes)} usados</span>
+                          <span>limite: {formatBytes(health.limitBytes)}</span>
+                        </div>
+                        {percent != null && percent >= 85 && <p role="alert" style={{ color:"#fca5a5", fontSize:11.5, margin:"7px 0 0" }}>🚨 Banco quase cheio. Faça um backup e libere espaço ou aumente o plano.</p>}
+                        {percent != null && percent >= 70 && percent < 85 && <p style={{ color:"#fde68a", fontSize:11.5, margin:"7px 0 0" }}>⚠ O uso está aumentando. Vale revisar arquivos e dados antigos.</p>}
+                        {!health.available && health.error && <p style={{ color:"#fbbf24", fontSize:11, margin:"7px 0 0" }}>{health.error}</p>}
+                        {health.limitSource === "free-plan-default" && <p style={{ color:"#776798", fontSize:10.5, margin:"6px 0 0" }}>Referência atual do plano grátis: 500 MB. Em outro plano, configure SUPABASE_DATABASE_LIMIT_MB na Vercel.</p>}
+                      </div>
+                    );
+                  })()}
+
+                  {diag.storageHealth?.reserve && (
+                    <div style={{ display:"flex", justifyContent:"space-between", gap:10, marginTop:8, padding:"8px 10px", background:"#171026", border:"1px solid #3b2a58", borderRadius:9, fontSize:11.5 }}>
+                      <span style={{ color:"#a99ac9" }}>🛟 Banco reserva (Upstash)</span>
+                      <b style={{ color:diag.storageHealth.reserve.available?"#34d399":"#f87171" }}>
+                        {diag.storageHealth.reserve.available
+                          ? `pronto · ${diag.storageHealth.reserve.keyCount ?? 0} registros${diag.storageHealth.reserve.pendingSync ? ` · ${diag.storageHealth.reserve.pendingSync} aguardando sincronização` : ""}`
+                          : diag.storageHealth.reserve.configured ? "indisponível" : "não configurado"}
+                      </b>
+                    </div>
+                  )}
 
                   {!diag.hasStorage && diag.writeRead === "erro" && diag.quotaSuspect && (
                     <div style={{ background:"#fbbf2415", border:"1px solid #fbbf24", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.9 }}>
@@ -7691,7 +7740,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                 </div>
               ) : <span style={{ color:"#776798" }}>verificando...</span>}
               <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap",alignItems:"center"}}>
-                <button style={{ ...styles.btnGhost, padding:"4px 10px", fontSize:12 }} onClick={()=>{ setDbSetupSQL(null); setDbSetupMsg(""); diagnose().then(setDiag); load(); }}>↻ Verificar agora</button>
+                <button style={{ ...styles.btnGhost, padding:"4px 10px", fontSize:12 }} onClick={()=>{ setDbSetupSQL(null); setDbSetupMsg(""); diagnose(teacherAuth).then(setDiag); load(); }}>↻ Verificar agora</button>
                 <button style={{...styles.btn("#34d399"),padding:"4px 10px",fontSize:12,opacity:dbSetupLoading?0.6:1}} onClick={setupDb} disabled={dbSetupLoading}>{dbSetupLoading?"...":"🔧 Inicializar banco"}</button>
               </div>
               {dbSetupMsg && (
