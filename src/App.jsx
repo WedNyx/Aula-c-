@@ -64,6 +64,8 @@ import { BatteryStatus } from "./components/BatteryStatus.jsx";
 import { LanguageRunPanel } from "./components/LanguageRunPanel.jsx";
 import { ClassMusicSettings } from "./components/ClassMusicSettings.jsx";
 import { StudentMusicHub } from "./components/StudentMusicHub.jsx";
+import { ClassroomLobby } from "./components/ClassroomLobby.jsx";
+import { TeacherClassroomLobby } from "./components/TeacherClassroomLobby.jsx";
 import { classLinksFor } from "./lib/classLinks.js";
 import { musicForTurma } from "./lib/classMusic.js";
 import { GIFT_TIERS, rollGift } from "./lib/gifts.js";
@@ -7159,7 +7161,7 @@ function TeacherView({ onLogout, teacherAuth }) {
 
   if (isMobileScreen && !forceFullMode) {
     return (
-      <MobileMonitorView
+      <><TeacherClassroomLobby teacherAuth={teacherAuth} turmas={activeTurmas} shiftFilter={shiftFilter} compact/><MobileMonitorView
         students={students}
         turmas={activeTurmas}
         shiftFilter={shiftFilter}
@@ -7169,7 +7171,7 @@ function TeacherView({ onLogout, teacherAuth }) {
         unmarkPresentToday={unmarkPresentToday}
         onEditCode={(student) => { setSelected(studentKey(student)); setForceFullMode(true); }}
         onOpenFull={() => setForceFullMode(true)}
-      />
+      /></>
     );
   }
 
@@ -7302,6 +7304,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       )}
 
       {tab==="reminders" && <ScheduledReminders reminders={scheduledReminders} turmas={activeTurmas} onSave={saveReminders} />}
+      {tab==="monitor" && <TeacherClassroomLobby teacherAuth={teacherAuth} turmas={activeTurmas} shiftFilter={shiftFilter} />}
       {tab==="attendance" && <AttendancePanel students={students} shiftFilter={shiftFilter} shiftLabel={sh => shiftLabel(sh, turmas)} classDaysByShift={Object.fromEntries([...activeTurmas, TEST_SHIFT].map(sh => [sh.id, turmaCalendar(meta, sh.id).classDays]))} onSet={async (s, date, status) => {
         const ok = await setAttendance(s.shift, s.name, date, status, teacherAuth);
         // Impede que o autosave de uma sessão aberta desfaça uma chamada manual antiga.
@@ -9049,6 +9052,9 @@ function TeacherView({ onLogout, teacherAuth }) {
 // ════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [session, setSession] = useState(null);
+  const [lobbyGranted, setLobbyGranted] = useState(false);
+  const enterStudentPanel = useCallback(() => setLobbyGranted(true), []);
+  const logout = useCallback(() => { setLobbyGranted(false); setSession(null); }, []);
   // lista de turmas (pode ter mais de uma no mesmo turno) pra tela de login — o painel do professor
   // carrega a sua própria cópia (ver TeacherView) porque precisa atualizar na hora ao criar/arquivar
   const [loginTurmas, setLoginTurmas] = useState(DEFAULT_TURMAS);
@@ -9082,7 +9088,8 @@ export default function App() {
     const parts = window.location.pathname.split("/").filter(Boolean);
     return <Suspense fallback={<PublicPageLoading/>}><PortfolioPage shift={decodeURIComponent(parts[1] || "")} name={decodeURIComponent(parts[2] || "")} /></Suspense>;
   }
-  if (!session) return <><AdaptiveMotionLayer/><ReleaseBadge/><Login turmas={loginTurmas} onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>setSession({role,name,avatar,shift,isNew,teacherAuth,regData})} /></>;
-  if (session.role==="teacher") return <><AdaptiveMotionLayer/><ReleaseBadge/><TeacherView onLogout={()=>setSession(null)} teacherAuth={session.teacherAuth} /></>;
-  return <><AdaptiveMotionLayer/><ReleaseBadge/><StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={()=>setSession(null)} /></>;
+  if (!session) return <><AdaptiveMotionLayer/><ReleaseBadge/><Login turmas={loginTurmas} onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>{setLobbyGranted(role==="teacher");setSession({role,name,avatar,shift,isNew,teacherAuth,regData});}} /></>;
+  if (session.role==="teacher") return <><AdaptiveMotionLayer/><ReleaseBadge/><TeacherView onLogout={logout} teacherAuth={session.teacherAuth} /></>;
+  if (!lobbyGranted) return <><AdaptiveMotionLayer/><ReleaseBadge/><ClassroomLobby session={session} turmas={loginTurmas} onGranted={enterStudentPanel} onLogout={logout}/></>;
+  return <><AdaptiveMotionLayer/><ReleaseBadge/><StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={logout} /></>;
 }

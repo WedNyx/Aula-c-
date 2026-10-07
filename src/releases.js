@@ -1,5 +1,12 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
+  { version: '1.6.2', title: 'Sala de Embarque', date: '2026-10-07', changes: [
+    'Antes de entrar no painel, o aluno agora chega a uma sala de espera acolhedora e personalizada.',
+    'O professor acompanha quem chegou, o horário de entrada e pode liberar cada aluno ou abrir os portões para a turma inteira.',
+    'Atualizar a página não pula a espera, e alunos já liberados continuam autorizados até o professor fechar os portões.',
+  ], highlights: [
+    'A nova Sala de Embarque dá ao professor controle sobre o início da aula e recebe cada aluno com o Nyx.',
+  ] },
   { version: '1.6.1', title: 'Mais leve na sala', date: '2026-09-22', changes: [
     'O monitoramento do professor ficou muito mais econômico: depois da abertura, atualiza somente presença online, fase, nota e avisos, sem baixar novamente códigos e históricos completos de toda a turma.',
     'Consultas automáticas são pausadas quando a aba fica em segundo plano e retomadas quando o professor volta.',

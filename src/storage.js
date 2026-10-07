@@ -7,6 +7,29 @@ const TEACHER_NOTES_KEY = 'teachernotes:main'
 const TEACHER_REMINDERS_KEY = 'teacherreminders:main'
 const CLASS_REMINDERS_KEY = 'classreminders:main'
 
+// Sala de Embarque: o aluno só recebe acesso ao painel depois que o professor
+// abre a turma ou libera seu perfil individualmente.
+export async function joinClassroomLobby(turmaId, studentName, avatar) {
+  return kvCall({ action: 'lobby_join', turmaId, studentName, avatar })
+}
+
+export async function leaveClassroomLobby(turmaId, studentName) {
+  try { return await kvCall({ action: 'lobby_leave', turmaId, studentName }) }
+  catch { return { ok: false } }
+}
+
+export async function getClassroomLobby(auth) {
+  return kvCall({ action: 'lobby_list', auth })
+}
+
+export async function setClassroomLobbyGate(turmaId, open, auth) {
+  return kvCall({ action: 'lobby_set_gate', turmaId, open: !!open, auth })
+}
+
+export async function grantClassroomLobbyStudent(turmaId, studentName, auth) {
+  return kvCall({ action: 'lobby_grant', turmaId, studentName, auth })
+}
+
 async function kvCall(body) {
   const resp = await fetch('/api/kv', {
     method: 'POST',
