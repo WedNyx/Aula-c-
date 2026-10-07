@@ -1114,8 +1114,26 @@ export default async function handler(req, res) {
           await syncStudentSummary(item.key, student)
           removed++
         }
+        // Backups antigos também podem conter perfis completos. Regrava somente os valores de
+        // aluno removendo CPF, sem alterar presenças, notas, códigos ou outras chaves do snapshot.
+        const backups = await store.listWithValues('backup:')
+        let cleanedBackups = 0
+        for (const item of backups) {
+          const snapshot = parseStoredObject(item.value)
+          if (!snapshot) continue
+          let changed = false
+          for (const [snapshotKey, rawValue] of Object.entries(snapshot)) {
+            if (!snapshotKey.startsWith('student:')) continue
+            const student = parseStoredObject(rawValue)
+            if (!student || !Object.hasOwn(student, 'cpf')) continue
+            delete student.cpf
+            snapshot[snapshotKey] = JSON.stringify(student)
+            changed = true
+          }
+          if (changed) { await store.set(item.key, JSON.stringify(snapshot)); cleanedBackups++ }
+        }
         await store.set('privacy:cpf-purged:v1', new Date().toISOString())
-        return res.json({ ok: true, removed })
+        return res.json({ ok: true, removed, cleanedBackups })
       }
       case 'lobby_leave': {
         const turma = safeLobbyTurma(req.body?.turmaId)

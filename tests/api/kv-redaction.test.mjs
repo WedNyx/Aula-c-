@@ -225,7 +225,10 @@ async function writeStudent(value, auth, key = studentKey) {
   const legacyKey = 'student:matutino:CadastroAntigo';
   await fetch(`${process.env.KV_REST_API_URL}/pipeline`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify([['SET', legacyKey, JSON.stringify({ name:'CadastroAntigo', birthDate:'2011-04-03', cpf:'cpf-legado' })]]),
+    body: JSON.stringify([
+      ['SET', legacyKey, JSON.stringify({ name:'CadastroAntigo', birthDate:'2011-04-03', cpf:'cpf-legado' })],
+      ['SET', 'backup:antigo', JSON.stringify({ [legacyKey]:JSON.stringify({ name:'CadastroAntigo', birthDate:'2011-04-03', cpf:'cpf-no-backup' }), 'teachermeta:main':'{}' })],
+    ]),
   });
   const denied = await call({ action:'purge_student_cpfs' });
   check('Limpeza de CPFs antigos exige senha do professor', denied._status === 403);
@@ -233,6 +236,12 @@ async function writeStudent(value, auth, key = studentKey) {
   check('Limpeza autenticada encontra e remove CPF antigo', purged._body.ok === true && purged._body.removed >= 1);
   const legacy = await readStudent(legacyKey);
   check('CPF antigo foi apagado e nascimento preservado', legacy.cpf === undefined && legacy.birthDate === '2011-04-03');
+  const backupResponse = await fetch(`${process.env.KV_REST_API_URL}/pipeline`, {
+    method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify([['GET','backup:antigo']]),
+  });
+  const backupRaw = (await backupResponse.json())[0].result;
+  const backupStudent = JSON.parse(JSON.parse(backupRaw)[legacyKey]);
+  check('CPF também foi removido dos backups antigos', backupStudent.cpf === undefined && backupStudent.birthDate === '2011-04-03');
 }
 
 console.log(`\n=== REDAÇÃO DE DADOS SENSÍVEIS EM /api/kv TEST: ${pass}/${pass + fail} passed ===`);

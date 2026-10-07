@@ -4,7 +4,7 @@ export const RELEASES = [
     'Antes de entrar no painel, o aluno agora chega a uma sala de espera acolhedora e personalizada.',
     'O professor acompanha quem chegou, o horário de entrada e pode liberar cada aluno ou abrir os portões para a turma inteira.',
     'Atualizar a página não pula a espera, e alunos já liberados continuam autorizados até o professor fechar os portões.',
-    'O CPF foi removido do cadastro, das planilhas e dos relatórios; registros antigos são apagados automaticamente e não podem ser gravados novamente.',
+    'O CPF foi removido do cadastro, das planilhas e dos relatórios; registros e backups antigos são limpos automaticamente e o dado não pode ser gravado novamente.',
   ], highlights: [
     'A nova Sala de Embarque dá ao professor controle sobre o início da aula e recebe cada aluno com o Nyx.',
     'A plataforma deixou de solicitar e armazenar CPF dos alunos.',
