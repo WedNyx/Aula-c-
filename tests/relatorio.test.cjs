@@ -1,6 +1,6 @@
 // Relatório de Comprovação de Aproveitamento de Aprendizado: reaproveita o modelo oficial
 // (public/relatorio-modelo.docx) e gera um .docx de verdade com todos os alunos de Matutino e
-// Vespertino (nome, CPF, nota, e 3 fotos por aluno: código/notas/prova). Turma de teste e sala de
+// Vespertino (nome, nota e 3 fotos por aluno: código/notas/prova). Turma de teste e sala de
 // linguagens ficam de fora (mesmo recorte do /impacto).
 const fs = require('fs');
 const path = require('path');
@@ -95,7 +95,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
     check('Zeca (nota 50, só 2 presenças) sai Insatisfatório mesmo com nota acima de 30', trecho.includes('NOTA: Insatisfatório'), trecho.slice(0, 200));
   }
   check('Aluno do vespertino aparece', documentXml.includes('ALUNO: AlunoVesp'));
-  check('CPF do aluno bom aparece', documentXml.includes('111.111.111-11'));
+  check('CPF antigo do aluno não aparece', !documentXml.includes('111.111.111-11') && !documentXml.includes('CPF:'));
 
   // nome com "$&"/"$$" precisa aparecer LITERALMENTE (sem sofrer substituição especial do JS) e
   // não pode ter corrompido o resto do documento (cidade continua aparecendo só as vezes esperadas)

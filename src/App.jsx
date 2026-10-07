@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } fro
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
 import { listStudentSummaries } from "./storage.js";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, getTeacherNotes, saveTeacherNotes, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTeacherResumoSnapshot, saveTeacherResumoSnapshot, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas, getTeacherScheduledReminders, saveTeacherScheduledReminders, getClassScheduledReminders, saveClassScheduledReminders, addClassMusicTrack, submitMusicSuggestion } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, getTeacherNotes, saveTeacherNotes, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTeacherResumoSnapshot, saveTeacherResumoSnapshot, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas, getTeacherScheduledReminders, saveTeacherScheduledReminders, getClassScheduledReminders, saveClassScheduledReminders, addClassMusicTrack, submitMusicSuggestion, purgeStudentCpfs } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -128,7 +128,7 @@ function useAccurateNow(active = true, resolution = 200) {
   return now;
 }
 
-function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initialBirthDate, initialCpf }) {
+function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initialBirthDate }) {
   const vw = useViewportWidth();
   // nome/emoji da própria turma (pode ser uma turma extra criada pelo professor, além das 2 padrão)
   const [myTurmas, setMyTurmas] = useState(DEFAULT_TURMAS);
@@ -137,12 +137,11 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   // apresentação do Nyx e do tour, porque cada aluno (mais novo ou mais velho) prefere de um jeito
   const [showNyxPrefs, setShowNyxPrefs] = useState(!!isNew);
   const [nyxPrefs, setNyxPrefs] = useState({ tom:"divertido", estilo:"detalhada" });
-  // 🎓 dado sensível pro certificado (data de nascimento/CPF) — só pego uma vez, na criação do perfil,
+  // 🎓 dado sensível pro certificado (data de nascimento) — só pego uma vez, na criação do perfil,
   // NUNCA exibido em nenhuma tela do aluno depois disso; só o professor vê isso, e só na planilha.
   // Pra quem já tinha perfil (isNew=false), é recarregado do servidor (ver profile-load effect) —
   // sem isso, salvar de novo apagaria o dado já cadastrado.
   const [birthDate, setBirthDate] = useState(isNew ? (initialBirthDate || "") : "");
-  const [cpf, setCpf] = useState(isNew ? (initialCpf || "") : "");
   const [showIntro, setShowIntro] = useState(!!isNew);
   // 🌐 sala de linguagens (extra, fora da turma de C#): qual linguagem este aluno escolheu estudar
   // (HTML/CSS/PHP/JS) — null pra qualquer aluno da turma normal, que continua sendo sempre C#
@@ -568,7 +567,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
   }, [activeCode, studyLang?.id]);
 
   useEffect(() => {
-    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxNewsSeen, nyxPrefs, birthDate, cpf, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, activityResults, notebookUnseen, detailedSummary, detailedSummaryHistory, personalNotes, personalMusicTracks, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
+    stateRef.current = { files, code:activeCode, avatar, phase, score, answers, feedback, dynamicActivity, dynamicSummary, finalFeedback, classFeedback: classFb, examReady, examScore, examAnswers, examDone, examExits, examScoreRaw, examAppeal, examScoreSeen, examOptIn, examGuidedMode, examGuidedQuestions, examGuidedAnswers, examGuidedCorrect, helpAt, wantsPartner, selfSupport, typingBest, typingRewardDay, knowledgeTestRewardDay, streakRewardDay, giftLastClaim, theme, themeBeforeSpartan, treasureFound, spartanIntroShown, warmupDay, retroSeen, tourneyAnswer, tourneyClaimed, nyxPoints, nyxSpent, nyxOwned, nyxGear, nyxNewsSeen, nyxPrefs, birthDate, achievements, doneAt, scoreHistory, errorHistory, summaryHistory, activityResults, notebookUnseen, detailedSummary, detailedSummaryHistory, personalNotes, personalMusicTracks, duelWins, pastedLines, weeklyChallenge, guidedBlocks, guidedLessons, justifications, keyboardDone, portfolioPublic, portfolioActivatedAt, errorAt, errorMsg, programmingLanguage, languageHistory, quizJoin, quizAnswers };
   });
 
   // se o professor bloquear os duelos com o modal aberto, fecha na hora
@@ -777,7 +776,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
       nyxNewsSeen: s.nyxNewsSeen || "",
       nyxPrefs: s.nyxPrefs || { tom:"divertido", estilo:"detalhada" },
       birthDate: s.birthDate || "",
-      cpf: s.cpf || "",
       achievements: s.achievements || [],
       duelWins: s.duelWins || 0,
       pastedLines: s.pastedLines || 0,
@@ -1381,7 +1379,6 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
           if (prev.nyxNewsSeen) setNyxNewsSeen(prev.nyxNewsSeen);
           if (prev.nyxPrefs) setNyxPrefs(prev.nyxPrefs);
           if (prev.birthDate) setBirthDate(prev.birthDate);
-          if (prev.cpf) setCpf(prev.cpf);
           // inventário: migra quem já usava itens antes da loja cobrar — o que está equipado vira comprado (de graça)
           {
             const equipped = Object.values(prev.nyxGear || {}).filter(Boolean);
@@ -4747,6 +4744,7 @@ function StudentView({ studentName, initialAvatar, shift, onLogout, isNew, initi
 //  PROFESSOR
 // ════════════════════════════════════════════════════════════════════════════
 function TeacherView({ onLogout, teacherAuth }) {
+  useEffect(() => { purgeStudentCpfs(teacherAuth).catch(() => {}); }, [teacherAuth]);
   // 📱 modo simples no celular: o painel completo foi feito pra tela grande (várias abas, tabelas
   // largas) — numa tela estreita entra sozinho uma lista direta de "como cada aluno está agora"
   // (ver MobileMonitorView). "🖥️ Modo completo"/"📱 Modo simples" sempre disponíveis pra trocar na mão.
@@ -5461,9 +5459,9 @@ function TeacherView({ onLogout, teacherAuth }) {
     // e mostrar o pino "você está aqui" numa cidade que já foi encerrada — só nesta turma
     { const nm = withTurmaCalendar(metaRef.current, codeShift, { cityClosed: true }); metaRef.current = nm; setMeta(nm); await saveTeacherMeta(nm, teacherAuth); }
     // 🔒 fim da turma nesta cidade: os responsáveis já sabiam que isso aconteceria — apaga data de
-    // nascimento e CPF de todo mundo (dado sensível só existia pra gerar certificado enquanto durou
+    // nascimento de todo mundo (dado sensível só existia pra gerar certificado enquanto durou
     // a turma). Depois disso ninguém mais tem acesso, nem o professor — some da planilha também.
-    await Promise.all(active.filter(s => s.birthDate || s.cpf).map(s => patchStudent(s.shift, s.name, { birthDate:"", cpf:"" }, teacherAuth)));
+    await Promise.all(active.filter(s => s.birthDate).map(s => patchStudent(s.shift, s.name, { birthDate:"" }, teacherAuth)));
     setHallMsg(`✅ ${cal.city} entrou pro Hall da Fama! Gerando o relatório de despedida em PDF...`);
     setFarewellBusy(true);
     try {
@@ -5472,16 +5470,16 @@ function TeacherView({ onLogout, teacherAuth }) {
       const periodStart = daysThisCity.length ? fmt(daysThisCity[0]) : fmt(todayKey());
       const periodEnd = daysThisCity.length ? fmt(daysThisCity[daysThisCity.length-1]) : fmt(todayKey());
       await generateFarewellPDF({ city: cal.city, active, podio, totalClasses, avgScore, periodStart, periodEnd });
-      setHallMsg(`✅ ${cal.city} entrou pro Hall da Fama, o relatório de despedida foi baixado, e a data de nascimento/CPF da turma foi apagada.`);
+      setHallMsg(`✅ ${cal.city} entrou pro Hall da Fama, o relatório de despedida foi baixado, e a data de nascimento da turma foi apagada.`);
     } catch {
-      setHallMsg(`✅ ${cal.city} entrou pro Hall da Fama e a data de nascimento/CPF da turma foi apagada! (Não consegui gerar o PDF de despedida agora — tente de novo se quiser.)`);
+      setHallMsg(`✅ ${cal.city} entrou pro Hall da Fama e a data de nascimento da turma foi apagada! (Não consegui gerar o PDF de despedida agora — tente de novo se quiser.)`);
     }
     setFarewellBusy(false);
     setTimeout(()=>setHallMsg(""), 9000);
   };
   // 📄 Relatório de Comprovação de Aproveitamento de Aprendizado: reaproveita o modelo oficial
   // (cabeçalho/rodapé/assinaturas intactos), preenchendo cidade/mês e um bloco por TURMA ATIVA
-  // (todas, não só matutino/vespertino) com ALUNO/CPF/NOTA/ANEXO de cada aluno — turma de teste e
+  // (todas, não só matutino/vespertino) com ALUNO/NOTA/ANEXO de cada aluno — turma de teste e
   // sala de linguagens continuam de fora (nunca entram na lista de turmas de verdade)
   const [relatorioBusy, setRelatorioBusy] = useState(false);
   const [relatorioMsg, setRelatorioMsg] = useState("");
@@ -5880,10 +5878,9 @@ function TeacherView({ onLogout, teacherAuth }) {
       return { v:"✗", st:"absent" };
     };
 
-    // NASCIMENTO e CPF só entram na planilha (nunca no perfil do aluno) — dados sensíveis pro professor
-    // usar no certificado; a formatação de data e o "não sei" do CPF acontecem no cadastro do aluno
+    // NASCIMENTO entra na planilha para os documentos da turma.
     const fmtBirth = (b) => { if (!b) return "—"; const [y,m,d] = String(b).split("-"); return (y&&m&&d) ? `${d}/${m}/${y}` : "—"; };
-    const totalCols = 8 + classDays.length; // ALUNO + dias + DIAS PRESENTES + MAIOR NOTA + NOTA DA PROVA + SITUAÇÃO + DESTAQUE + NASCIMENTO + CPF
+    const totalCols = 7 + classDays.length; // ALUNO + dias + DIAS PRESENTES + MAIOR NOTA + NOTA DA PROVA + SITUAÇÃO + DESTAQUE + NASCIMENTO
     const xlsRows = [];
     const merges = [];
     const wide = (st) => Array.from({ length: totalCols }, () => ({ v: "", st })); // linha inteira com o mesmo estilo (pra faixa colorida cobrir a planilha toda)
@@ -5905,7 +5902,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       xlsRows.push({ cells, ht: 22 }); mergeRow();
 
       const dayHeaders = classDays.map(d => { const [, m, dd] = d.split("-"); return `${dd}/${m}`; });
-      xlsRows.push({ cells: ["ALUNO", ...dayHeaders, "DIAS PRESENTES","MAIOR NOTA","NOTA DA PROVA","SITUAÇÃO","DESTAQUE","NASCIMENTO","CPF"].map((h,i)=>({
+      xlsRows.push({ cells: ["ALUNO", ...dayHeaders, "DIAS PRESENTES","MAIOR NOTA","NOTA DA PROVA","SITUAÇÃO","DESTAQUE","NASCIMENTO"].map((h,i)=>({
         v: h, st: { b:1, sz: i>0&&i<=classDays.length?9:11, color:"FFFFFF", fill:"303869", border:1, align: i>0 ? "center" : "left" },
       })) });
 
@@ -5933,7 +5930,6 @@ function TeacherView({ onLogout, teacherAuth }) {
           situacao,
           { v: isDestaque ? "🌟 Aluno destaque (Manhã + Tarde)" : "", st:{ color:"8A6D1A", fill, border:1, align:"center" } },
           { v: fmtBirth(s.birthDate), st:{ color:"5A6183", fill, border:1, align:"center" } },
-          { v: s.cpf || "—", st:{ color:"5A6183", fill, border:1, align:"center" } },
         ] });
       });
 
@@ -5945,7 +5941,7 @@ function TeacherView({ onLogout, teacherAuth }) {
       xlsRows.push({ cells: [] });
     });
 
-    const colWidths = [34, ...classDays.map(()=>6), 16, 12, 14, 18, 28, 14, 18];
+    const colWidths = [34, ...classDays.map(()=>6), 16, 12, 14, 18, 28, 14];
     const blob = xlsxBlob({ sheetName:"Turma", colWidths, rows:xlsRows, merges });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -8450,7 +8446,7 @@ function TeacherView({ onLogout, teacherAuth }) {
             <p style={{ color:"#a99ac9", fontSize:13 }}>Total de dias de aula registrados: <b style={{ color:"#f0e9fb" }}>{cal.classDays.length}</b></p>
             <hr style={{ borderColor:"#3b2a58", margin:"14px 0" }}/>
             <p style={{ color:"#fbbf24", fontWeight:700, fontSize:13, marginBottom:6 }}>🏆 Hall da Fama</p>
-            <p style={{ color:"#a99ac9", fontSize:12.5, lineHeight:1.6, margin:"0 0 10px" }}>Quando a carreta for mudar de cidade, encerre aqui: guarda uma placa com quem mais se destacou, pros alunos da próxima cidade verem, e baixa um relatório de despedida em PDF pra você guardar. Não apaga nada da turma atual — exceto a data de nascimento e o CPF de todos, que somem pra sempre (nem você mais tem acesso).</p>
+            <p style={{ color:"#a99ac9", fontSize:12.5, lineHeight:1.6, margin:"0 0 10px" }}>Quando a carreta for mudar de cidade, encerre aqui: guarda uma placa com quem mais se destacou, pros alunos da próxima cidade verem, e baixa um relatório de despedida em PDF pra você guardar. Não apaga nada da turma atual — exceto a data de nascimento de todos, que some pra sempre.</p>
             {cal.cityClosed ? (
               <p style={{ color:"#776798", fontSize:12.5, lineHeight:1.6 }}>🏆 {cal.city} já foi encerrada — defina a próxima cidade acima antes de encerrar de novo.</p>
             ) : confirmCloseCity ? (
@@ -8486,7 +8482,7 @@ function TeacherView({ onLogout, teacherAuth }) {
           </div>
           <div data-tour-prof="relatorio" className="cardfx" style={{ ...styles.card, flex:"1 1 260px" }}>
             <h3 style={{ color:"#fbbf24", marginBottom:4 }}>📄 Relatório de Comprovação</h3>
-            <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 12px", lineHeight:1.6 }}>Gera o relatório oficial (mesmo modelo, só preenchido) com todos os alunos de Matutino e Vespertino: nome, CPF, nota e fotos do código/notas/prova de cada um. Baixa como .docx — dá pra editar depois. Clique no fim do mês.</p>
+            <p style={{ color:"#a99ac9", fontSize:12.5, margin:"0 0 12px", lineHeight:1.6 }}>Gera o relatório oficial com todos os alunos: nome, nota e fotos do código/notas/prova de cada um. Baixa como .docx — dá pra editar depois. Clique no fim do mês.</p>
             <button style={{ ...styles.btn("#fbbf24"), width:"100%", opacity:relatorioBusy?0.6:1 }} onClick={doGerarRelatorio} disabled={relatorioBusy}>{relatorioBusy ? "Gerando relatório..." : "📄 Gerar Relatório de Comprovação"}</button>
             {relatorioMsg && <p style={{ color: relatorioMsg.startsWith("✅") ? "#34d399" : "#f87171", fontSize:12.5, marginTop:8 }}>{relatorioMsg}</p>}
           </div>
@@ -9091,5 +9087,5 @@ export default function App() {
   if (!session) return <><AdaptiveMotionLayer/><ReleaseBadge/><Login turmas={loginTurmas} onJoin={(role,name,avatar,shift,isNew,teacherAuth,regData)=>{setLobbyGranted(role==="teacher");setSession({role,name,avatar,shift,isNew,teacherAuth,regData});}} /></>;
   if (session.role==="teacher") return <><AdaptiveMotionLayer/><ReleaseBadge/><TeacherView onLogout={logout} teacherAuth={session.teacherAuth} /></>;
   if (!lobbyGranted) return <><AdaptiveMotionLayer/><ReleaseBadge/><ClassroomLobby session={session} turmas={loginTurmas} onGranted={enterStudentPanel} onLogout={logout}/></>;
-  return <><AdaptiveMotionLayer/><ReleaseBadge/><StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} initialCpf={session.regData?.cpf||""} onLogout={logout} /></>;
+  return <><AdaptiveMotionLayer/><ReleaseBadge/><StudentView studentName={session.name} initialAvatar={session.avatar} shift={session.shift||"matutino"} isNew={session.isNew} initialBirthDate={session.regData?.birthDate||""} onLogout={logout} /></>;
 }

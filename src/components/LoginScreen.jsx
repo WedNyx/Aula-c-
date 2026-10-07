@@ -22,18 +22,15 @@ export function Login({ onJoin, turmas }) {
   // sem a prop (ou ainda carregando), cai nas 2 turmas padrão pra nunca mostrar a tela vazia
   const activeTurmas = (Array.isArray(turmas) && turmas.length ? turmas : DEFAULT_TURMAS).filter(t => !t.archived);
   const [name, setName] = useState("");
-  // 🎓 data de nascimento + CPF — só pedidos na CRIAÇÃO do perfil, nunca aparecem de novo pro aluno depois
-  // (ficam escondidos do próprio perfil; o professor só vê isso ao gerar a planilha, pra usar no certificado)
+  // 🎓 data de nascimento — pedida só na criação do perfil para os certificados.
   const [birthDate, setBirthDate] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [cpfUnknown, setCpfUnknown] = useState(false);
   const [role, setRole] = useState(null);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [profiles, setProfiles] = useState([]);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
-  // criação de perfil novo em 2 passos: 1) nome/nascimento/CPF, 2) personalizar o boneco
+  // criação de perfil novo em 2 passos: 1) nome/nascimento, 2) personalizar o boneco
   const [newStudentStep, setNewStudentStep] = useState(1);
   // chute inicial pelo horário do dia: pega a primeira turma do período provável (manhã/tarde) —
   // se o professor tiver mais de uma turma nesse período, o aluno escolhe a certa na lista mesmo assim
@@ -92,7 +89,7 @@ export function Login({ onJoin, turmas }) {
   const enterStudent = (studentName, avatarCfg, shiftId, isNew, regData) => { goFullscreen(); onJoin("student", studentName, avatarCfg, shiftId || "matutino", isNew, null, regData); };
   const handleNewStudent = () => {
     if(!name.trim()){ setError("Digite seu nome!"); return; }
-    enterStudent(name.trim(), avatar, shift, true, { birthDate: birthDate || "", cpf: cpfUnknown ? "" : (cpf || "") });
+    enterStudent(name.trim(), avatar, shift, true, { birthDate: birthDate || "" });
   };
   const openProfile = (p) => enterStudent(p.name, p.avatar, p.shift, false);
   // a senha do professor é validada no SERVIDOR (variável TEACHER_PASSWORD no Vercel) — nunca fica no código do site
@@ -235,25 +232,15 @@ export function Login({ onJoin, turmas }) {
             <input style={styles.input} placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} />
             {shift !== LANG_SHIFT.id && (
               <>
-                <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
-                  <div style={{ flex:"1 1 150px" }}>
+                <div style={{ marginTop:8 }}>
+                  <div>
                     <label style={{ fontSize:11, color:"#a99ac9" }}>Data de nascimento
                       <input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)}
                         style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box" }} />
                     </label>
                   </div>
-                  <div style={{ flex:"1 1 150px" }}>
-                    <label style={{ fontSize:11, color:"#a99ac9" }}>CPF (opcional)
-                      <input value={cpf} disabled={cpfUnknown} placeholder="000.000.000-00" onChange={e=>setCpf(e.target.value)}
-                        style={{ width:"100%", background:"#171026", border:"2px solid #3b2a58", borderRadius:8, padding:"8px 10px", color:"#f0e9fb", fontSize:13, marginTop:3, boxSizing:"border-box", opacity:cpfUnknown?0.5:1 }} />
-                    </label>
-                  </div>
                 </div>
-                <label style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, fontSize:11.5, color:"#a99ac9", cursor:"pointer" }}>
-                  <input type="checkbox" checked={cpfUnknown} onChange={e=>{ setCpfUnknown(e.target.checked); if (e.target.checked) setCpf(""); }} />
-                  Não sei o CPF
-                </label>
-                <p style={{ color:"#776798", fontSize:10.5, margin:"4px 0 0", lineHeight:1.5 }}>Só o professor vê isso, e só na hora de gerar a planilha pra fazer certificado — nunca aparece no seu perfil.</p>
+                <p style={{ color:"#776798", fontSize:10.5, margin:"4px 0 0", lineHeight:1.5 }}>Usada somente nos documentos da turma e protegida no servidor.</p>
               </>
             )}
             {error&&<p style={{ color:"#f87171", fontSize:13, marginTop:8 }}>{error}</p>}

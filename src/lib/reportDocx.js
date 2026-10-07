@@ -1,7 +1,7 @@
 // ── Relatório de Comprovação de Aproveitamento de Aprendizado ──
 // Reaproveita o modelo oficial (public/relatorio-modelo.docx, com o cabeçalho/rodapé/assinaturas
 // exatamente como o professor mandou) e só preenche: cidade, mês/ano, e um bloco por turma
-// (Matutino/Vespertino) com ALUNO/CPF/NOTA/ANEXO de cada aluno, mais 3 fotos por aluno (código,
+// (Matutino/Vespertino) com ALUNO/NOTA/ANEXO de cada aluno, mais 3 fotos por aluno (código,
 // o próprio gráfico de "Meu Desempenho" que o aluno já vê na plataforma, e nota da prova)
 // anexadas logo abaixo do registro dele.
 // Gera um .docx de verdade (editável no Word depois), nunca um PDF travado.
@@ -227,7 +227,6 @@ async function buildTurmaXml(turma, students, { cursoTexto, tipoAvaliacao }, img
   for (const s of students) {
     const nota = computeNota(s);
     xml += fieldPara(`ALUNO: ${s.name}`);
-    xml += fieldPara(`CPF: ${s.cpf || "—"}`);
     xml += fieldPara(`NOTA: ${nota}`);
     xml += fieldPara("ANEXO: Anexo I – Código; Anexo II – Notas das atividades (gráfico de Meu Desempenho); Anexo III – Nota da prova");
     xml += fieldPara(codeStatusText(s));

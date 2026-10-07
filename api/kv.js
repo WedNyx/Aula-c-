@@ -24,11 +24,11 @@ const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'teachernotes:', 
 // (redactStudentValue) quando não autorizado — as outras três nunca guardam dado sensível.
 const PUBLIC_LIST_PREFIXES = ['student:', 'student-summary:', 'duel:', 'teamduel:', 'partner:']
 
-// Chaves privadas exigem autenticação. Cadastros públicos têm CPF/nascimento
+// Chaves privadas exigem autenticação. Cadastros públicos têm nascimento
 // removidos tanto na leitura individual quanto nas listagens.
 const GET_PROTECTED_PREFIXES = ['backup:', 'errorlog:', 'teachernotes:', 'teacherreminders:']
 function needsTeacherAuth(action, key) {
-  if (['lobby_list', 'lobby_set_gate', 'lobby_grant'].includes(action)) return true
+  if (['lobby_list', 'lobby_set_gate', 'lobby_grant', 'purge_student_cpfs'].includes(action)) return true
   if (action === 'set_attendance') return true
   if (action === 'sync_replica') return true
   if (action === 'storage_health') return true
@@ -44,17 +44,17 @@ function needsTeacherAuth(action, key) {
   return false
 }
 
-// O servidor preserva CPF/nascimento em atualizações públicas. O cliente não
-// precisa receber esses campos para salvar progresso. Apenas o professor pode
-// alterar campos privados de um cadastro existente; o cadastro inicial continua permitido.
-const SENSITIVE_STUDENT_FIELDS = ['birthDate', 'cpf']
+// O nascimento continua privado. CPF não faz mais parte da plataforma: leituras o
+// removem inclusive para o professor e escritas antigas não conseguem reintroduzi-lo.
+const SENSITIVE_STUDENT_FIELDS = ['birthDate']
 function redactStudentValue(key, value, authorized) {
-  if (authorized || value == null || !String(key).startsWith('student:')) return value
+  if (value == null || !String(key).startsWith('student:')) return value
   try {
     const obj = studentObject(value)
     let changed = false
+    if (Object.hasOwn(obj, 'cpf')) { delete obj.cpf; changed = true }
     for (const f of SENSITIVE_STUDENT_FIELDS) {
-      if (Object.hasOwn(obj, f)) { delete obj[f]; changed = true }
+      if (!authorized && Object.hasOwn(obj, f)) { delete obj[f]; changed = true }
     }
     return changed ? JSON.stringify(obj) : value
   } catch {
@@ -100,6 +100,7 @@ async function saveStudentPrivate(key, value, authorized) {
     const raw = await store.get(key)
     const current = raw == null ? null : studentObject(raw)
     const next = { ...incoming }
+    delete next.cpf
     // Só a ação autenticada set_attendance pode criar ou remover decisões de chamada.
     next.attendanceOverrides = current?.attendanceOverrides || {}
     next.attendanceFirst = { ...incoming.attendanceFirst, ...current?.attendanceFirst }
@@ -1100,6 +1101,21 @@ export default async function handler(req, res) {
         }
         await store.set(waitingKey, JSON.stringify(waiting))
         return res.json({ ok: true, granted: false, gateOpen: false, joinedAt: waiting.joinedAt })
+      }
+      case 'purge_student_cpfs': {
+        if (await store.get('privacy:cpf-purged:v1')) return res.json({ ok: true, removed: 0, alreadyDone: true })
+        const items = await store.listWithValues('student:')
+        let removed = 0
+        for (const item of items) {
+          const student = parseStoredObject(item.value)
+          if (!student || !Object.hasOwn(student, 'cpf')) continue
+          delete student.cpf
+          await store.set(item.key, JSON.stringify(student))
+          await syncStudentSummary(item.key, student)
+          removed++
+        }
+        await store.set('privacy:cpf-purged:v1', new Date().toISOString())
+        return res.json({ ok: true, removed })
       }
       case 'lobby_leave': {
         const turma = safeLobbyTurma(req.body?.turmaId)
