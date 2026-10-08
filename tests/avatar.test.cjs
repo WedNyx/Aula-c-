@@ -25,7 +25,7 @@ const { check, summary, launchBrowser, mockRoutes, baseKvStore, loginTeacher } =
   await page1.waitForTimeout(500);
   const nameInput = page1.locator('input[placeholder*="nome" i], input[placeholder*="Nome" i]').first();
   if (await nameInput.count()) await nameInput.fill('AlunoTesteNovo');
-  await page1.click('button:has-text("Avançar")'); // passo 1 (nome/nascimento/CPF) → passo 2 (AvatarStudio3D)
+  await page1.click('button:has-text("Avançar")'); // passo 1 (nome/nascimento) → passo 2 (AvatarStudio3D)
   await page1.waitForTimeout(500);
 
   const avatarImg = page1.locator('.avatar-studio-stage img.avatar-3d-render');

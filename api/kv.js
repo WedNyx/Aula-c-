@@ -24,10 +24,11 @@ const DELETE_PROTECTED_PREFIXES = ['student:', 'teachercode:', 'teachernotes:', 
 // (redactStudentValue) quando não autorizado — as outras três nunca guardam dado sensível.
 const PUBLIC_LIST_PREFIXES = ['student:', 'student-summary:', 'duel:', 'teamduel:', 'partner:']
 
-// Chaves privadas exigem autenticação. Cadastros públicos têm CPF/nascimento
+// Chaves privadas exigem autenticação. Cadastros públicos têm nascimento
 // removidos tanto na leitura individual quanto nas listagens.
 const GET_PROTECTED_PREFIXES = ['backup:', 'errorlog:', 'teachernotes:', 'teacherreminders:']
 function needsTeacherAuth(action, key) {
+  if (['lobby_list', 'lobby_set_gate', 'lobby_grant', 'purge_student_cpfs'].includes(action)) return true
   if (action === 'set_attendance') return true
   if (action === 'sync_replica') return true
   if (action === 'storage_health') return true
@@ -43,17 +44,17 @@ function needsTeacherAuth(action, key) {
   return false
 }
 
-// O servidor preserva CPF/nascimento em atualizações públicas. O cliente não
-// precisa receber esses campos para salvar progresso. Apenas o professor pode
-// alterar campos privados de um cadastro existente; o cadastro inicial continua permitido.
-const SENSITIVE_STUDENT_FIELDS = ['birthDate', 'cpf']
+// O nascimento continua privado. CPF não faz mais parte da plataforma: leituras o
+// removem inclusive para o professor e escritas antigas não conseguem reintroduzi-lo.
+const SENSITIVE_STUDENT_FIELDS = ['birthDate']
 function redactStudentValue(key, value, authorized) {
-  if (authorized || value == null || !String(key).startsWith('student:')) return value
+  if (value == null || !String(key).startsWith('student:')) return value
   try {
     const obj = studentObject(value)
     let changed = false
+    if (Object.hasOwn(obj, 'cpf')) { delete obj.cpf; changed = true }
     for (const f of SENSITIVE_STUDENT_FIELDS) {
-      if (Object.hasOwn(obj, f)) { delete obj[f]; changed = true }
+      if (!authorized && Object.hasOwn(obj, f)) { delete obj[f]; changed = true }
     }
     return changed ? JSON.stringify(obj) : value
   } catch {
@@ -99,6 +100,7 @@ async function saveStudentPrivate(key, value, authorized) {
     const raw = await store.get(key)
     const current = raw == null ? null : studentObject(raw)
     const next = { ...incoming }
+    delete next.cpf
     // Só a ação autenticada set_attendance pode criar ou remover decisões de chamada.
     next.attendanceOverrides = current?.attendanceOverrides || {}
     next.attendanceFirst = { ...incoming.attendanceFirst, ...current?.attendanceFirst }
@@ -875,6 +877,26 @@ function safeStudentName(name) {
   return String(name || '').trim().replace(/\s+/g, '_').replace(/["'\/\\:]/g, '').slice(0, 80)
 }
 
+const LOBBY_STALE_MS = 45_000
+function safeLobbyTurma(value) {
+  return String(value || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 80)
+}
+function lobbyStateKey(turma) { return `lobby:state:${turma}` }
+function lobbyWaitingKey(turma, student) { return `lobby:waiting:${turma}:${student}` }
+function lobbyAccessKey(turma, student) { return `lobby:access:${turma}:${student}` }
+function newLobbyCycle() { return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` }
+function parseStoredObject(raw) {
+  try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === 'object' ? value : null } catch { return null }
+}
+async function getLobbyState(turma) {
+  const saved = parseStoredObject(await store.get(lobbyStateKey(turma)))
+  if (saved?.cycleId) return { open: saved.open === true, cycleId: String(saved.cycleId), updatedAt: Number(saved.updatedAt) || 0 }
+  // Perfis especiais continuam entrando direto; as turmas de aula começam com os portões fechados.
+  const initial = { open: turma === 'teste' || turma === 'linguagens', cycleId: newLobbyCycle(), updatedAt: Date.now() }
+  await store.set(lobbyStateKey(turma), JSON.stringify(initial))
+  return initial
+}
+
 export async function canStudentUseMusic(turmaId, studentName) {
   const turma = String(turmaId || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 80)
   const student = safeStudentName(studentName)
@@ -924,7 +946,7 @@ export async function clearLoginFailures(bucketKey) {
 // mais antigos além do limite. Não é backup "fora do banco" (se o banco inteiro sumir, o backup
 // some junto), mas já protege contra bug/ação errada apagando ou corrompendo chaves específicas ──
 const BACKUP_PREFIX = 'backup:'
-const BACKUP_EXCLUDE = /^(ratelimit:|ai:health|loginfail:|backup:|errorlog:|adminlog:|student-summary:)/
+const BACKUP_EXCLUDE = /^(ratelimit:|ai:health|loginfail:|backup:|errorlog:|adminlog:|student-summary:|lobby:)/
 
 // ─── log de erros de JS não tratados, mandado sozinho por qualquer sessão (aluno ou professor) —
 // ver reportClientError em storage.js / o listener global em App.jsx. Uma lista só, capada nas
@@ -1053,6 +1075,107 @@ export default async function handler(req, res) {
 
   try {
     switch (action) {
+      case 'lobby_join': {
+        const withinLimit = await rateLimitCheck(`ratelimit:lobby:${ip}`, 900, 60)
+        if (!withinLimit) return res.status(429).json({ error: 'rate_limited' })
+        const turma = safeLobbyTurma(req.body?.turmaId)
+        const student = safeStudentName(req.body?.studentName)
+        if (!turma || !student) return res.status(400).json({ error: 'invalid_student' })
+        const state = await getLobbyState(turma)
+        const access = parseStoredObject(await store.get(lobbyAccessKey(turma, student)))
+        const granted = state.open || access?.cycleId === state.cycleId
+        const waitingKey = lobbyWaitingKey(turma, student)
+        if (granted) {
+          await store.delete(waitingKey)
+          return res.json({ ok: true, granted: true, gateOpen: state.open })
+        }
+        const previous = parseStoredObject(await store.get(waitingKey))
+        const now = Date.now()
+        const waiting = {
+          name: String(req.body?.studentName || '').trim().slice(0, 100),
+          turmaId: turma,
+          avatar: String(req.body?.avatar || '').slice(0, 80),
+          joinedAt: previous?.cycleId === state.cycleId ? Number(previous.joinedAt) || now : now,
+          lastSeen: now,
+          cycleId: state.cycleId,
+        }
+        await store.set(waitingKey, JSON.stringify(waiting))
+        return res.json({ ok: true, granted: false, gateOpen: false, joinedAt: waiting.joinedAt })
+      }
+      case 'purge_student_cpfs': {
+        if (await store.get('privacy:cpf-purged:v1')) return res.json({ ok: true, removed: 0, alreadyDone: true })
+        const items = await store.listWithValues('student:')
+        let removed = 0
+        for (const item of items) {
+          const student = parseStoredObject(item.value)
+          if (!student || !Object.hasOwn(student, 'cpf')) continue
+          delete student.cpf
+          await store.set(item.key, JSON.stringify(student))
+          await syncStudentSummary(item.key, student)
+          removed++
+        }
+        // Backups antigos também podem conter perfis completos. Regrava somente os valores de
+        // aluno removendo CPF, sem alterar presenças, notas, códigos ou outras chaves do snapshot.
+        const backups = await store.listWithValues('backup:')
+        let cleanedBackups = 0
+        for (const item of backups) {
+          const snapshot = parseStoredObject(item.value)
+          if (!snapshot) continue
+          let changed = false
+          for (const [snapshotKey, rawValue] of Object.entries(snapshot)) {
+            if (!snapshotKey.startsWith('student:')) continue
+            const student = parseStoredObject(rawValue)
+            if (!student || !Object.hasOwn(student, 'cpf')) continue
+            delete student.cpf
+            snapshot[snapshotKey] = JSON.stringify(student)
+            changed = true
+          }
+          if (changed) { await store.set(item.key, JSON.stringify(snapshot)); cleanedBackups++ }
+        }
+        await store.set('privacy:cpf-purged:v1', new Date().toISOString())
+        return res.json({ ok: true, removed, cleanedBackups })
+      }
+      case 'lobby_leave': {
+        const turma = safeLobbyTurma(req.body?.turmaId)
+        const student = safeStudentName(req.body?.studentName)
+        if (!turma || !student) return res.status(400).json({ error: 'invalid_student' })
+        await store.delete(lobbyWaitingKey(turma, student))
+        return res.json({ ok: true })
+      }
+      case 'lobby_list': {
+        const now = Date.now()
+        const items = await store.listWithValues('lobby:waiting:')
+        const waiting = items.map(item => parseStoredObject(item.value)).filter(item =>
+          item?.name && item?.turmaId && now - Number(item.lastSeen || 0) <= LOBBY_STALE_MS
+        ).sort((a, b) => Number(a.joinedAt) - Number(b.joinedAt))
+        const stateItems = await store.listWithValues('lobby:state:')
+        const states = {}
+        for (const item of stateItems) {
+          const turma = item.key.slice('lobby:state:'.length)
+          const state = parseStoredObject(item.value)
+          if (turma && state?.cycleId) states[turma] = { open: state.open === true, updatedAt: Number(state.updatedAt) || 0 }
+        }
+        return res.json({ waiting, states, serverNow: now })
+      }
+      case 'lobby_set_gate': {
+        const turma = safeLobbyTurma(req.body?.turmaId)
+        if (!turma) return res.status(400).json({ error: 'invalid_turma' })
+        const current = await getLobbyState(turma)
+        const next = req.body?.open === true
+          ? { ...current, open: true, updatedAt: Date.now() }
+          : { open: false, cycleId: newLobbyCycle(), updatedAt: Date.now() }
+        await store.set(lobbyStateKey(turma), JSON.stringify(next))
+        return res.json({ ok: true, state: { open: next.open, updatedAt: next.updatedAt } })
+      }
+      case 'lobby_grant': {
+        const turma = safeLobbyTurma(req.body?.turmaId)
+        const student = safeStudentName(req.body?.studentName)
+        if (!turma || !student) return res.status(400).json({ error: 'invalid_student' })
+        const state = await getLobbyState(turma)
+        await store.set(lobbyAccessKey(turma, student), JSON.stringify({ cycleId: state.cycleId, grantedAt: Date.now() }))
+        await store.delete(lobbyWaitingKey(turma, student))
+        return res.json({ ok: true })
+      }
       case 'storage_health': {
         return res.json(await loadStorageHealth())
       }

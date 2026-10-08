@@ -7,6 +7,33 @@ const TEACHER_NOTES_KEY = 'teachernotes:main'
 const TEACHER_REMINDERS_KEY = 'teacherreminders:main'
 const CLASS_REMINDERS_KEY = 'classreminders:main'
 
+// Sala de Embarque: o aluno só recebe acesso ao painel depois que o professor
+// abre a turma ou libera seu perfil individualmente.
+export async function joinClassroomLobby(turmaId, studentName, avatar) {
+  return kvCall({ action: 'lobby_join', turmaId, studentName, avatar })
+}
+
+export async function leaveClassroomLobby(turmaId, studentName) {
+  try { return await kvCall({ action: 'lobby_leave', turmaId, studentName }) }
+  catch { return { ok: false } }
+}
+
+export async function getClassroomLobby(auth) {
+  return kvCall({ action: 'lobby_list', auth })
+}
+
+export async function setClassroomLobbyGate(turmaId, open, auth) {
+  return kvCall({ action: 'lobby_set_gate', turmaId, open: !!open, auth })
+}
+
+export async function grantClassroomLobbyStudent(turmaId, studentName, auth) {
+  return kvCall({ action: 'lobby_grant', turmaId, studentName, auth })
+}
+
+export async function purgeStudentCpfs(auth) {
+  return kvCall({ action: 'purge_student_cpfs', auth })
+}
+
 async function kvCall(body) {
   const resp = await fetch('/api/kv', {
     method: 'POST',
@@ -310,7 +337,7 @@ export async function clearQuizRoom(turmaId, auth) {
 
 // backup completo: baixa TODAS as chaves do banco (menos as técnicas) num JSON —
 // seguro contra acidente e histórico permanente antes de resetar a turma de uma cidade.
-// precisa de auth: sem ela, o servidor esconde data de nascimento/CPF dos alunos da resposta
+// precisa de auth: sem ela, o servidor esconde a data de nascimento dos alunos da resposta
 export async function exportAllData(auth) {
   const r = await kvCall({ action: 'list_with_values', prefix: '', auth })
   const data = {}
@@ -610,8 +637,7 @@ export async function listTeamDuels(shift) {
   } catch { return [] }
 }
 
-// passa auth quando quem chama precisa dos campos sensíveis (data de nascimento/CPF, usados na
-// planilha pra gerar certificado) — sem isso o servidor esconde esses dois campos da resposta
+// passa auth quando quem chama precisa da data de nascimento, usada nos documentos da turma
 export async function listStudents(auth) {
   try {
     const r = await kvCall({ action: 'list_with_values', prefix: PREFIX, auth })

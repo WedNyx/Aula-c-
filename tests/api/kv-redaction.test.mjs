@@ -50,7 +50,7 @@ const studentValue = JSON.stringify({ name: 'Fulano', shift: 'matutino', score: 
   check('Listagem SEM senha mantém o resto (nome, nota)', parsed.name === 'Fulano' && parsed.score === 90);
 }
 
-// 2) list_with_values COM senha do professor → mantém tudo (planilha/certificado precisam disso)
+// 2) a senha libera nascimento, mas CPF deixou de existir até para o professor
 {
   const req = mockReq({ action: 'list_with_values', prefix: 'student:', auth: 'senha-de-teste-123' });
   const res = mockRes();
@@ -58,7 +58,7 @@ const studentValue = JSON.stringify({ name: 'Fulano', shift: 'matutino', score: 
   const item = res._body.items.find(i => i.key === 'student:matutino:Fulano');
   const parsed = JSON.parse(item.value);
   check('Listagem COM senha do professor mantém birthDate', parsed.birthDate === '2012-05-01');
-  check('Listagem COM senha do professor mantém cpf', parsed.cpf === '123.456.789-00');
+  check('Listagem COM senha do professor também remove cpf', parsed.cpf === undefined);
 }
 
 // 3) list_with_values com senha ERRADA → continua escondendo (não é só "auth presente", tem que ser válida)
@@ -97,7 +97,7 @@ const studentValue = JSON.stringify({ name: 'Fulano', shift: 'matutino', score: 
   const checkRes = mockRes();
   await kvHandler(checkReq, checkRes);
   const after = JSON.parse(checkRes._body.items.find(i => i.key === 'student:matutino:Fulano').value);
-  check('Depois de um patch comum (nota), birthDate/cpf continuam salvos (não foram apagados)', after.birthDate === '2012-05-01' && after.cpf === '123.456.789-00', JSON.stringify(after));
+  check('Depois de um patch comum, nascimento continua e CPF permanece removido', after.birthDate === '2012-05-01' && after.cpf === undefined, JSON.stringify(after));
   check('E o patch em si funcionou (nota atualizada)', after.score === 95);
 }
 
@@ -176,17 +176,17 @@ async function writeStudent(value, auth, key = studentKey) {
   const wrong = await readStudent(studentKey, 'senha-errada');
   check('Get com senha inválida oculta ambos os campos privados', !Object.hasOwn(wrong, 'cpf') && !Object.hasOwn(wrong, 'birthDate'));
   const original = await readStudent();
-  check('Get autenticado permite leitura dos dados privados', original.cpf === '123.456.789-00' && original.birthDate === '2012-05-01');
+  check('Get autenticado permite nascimento, mas nunca CPF', original.cpf === undefined && original.birthDate === '2012-05-01');
   await writeStudent({ ...original, cpf: '', birthDate: 'valor-forjado', score: 96 });
   const preserved = await readStudent();
-  check('Autosave público não apaga nem altera dados privados', preserved.cpf === original.cpf && preserved.birthDate === original.birthDate);
+  check('Autosave público preserva nascimento sem reintroduzir CPF', preserved.cpf === undefined && preserved.birthDate === original.birthDate);
   check('Autosave público ainda atualiza progresso', preserved.score === 96);
   await writeStudent({ name: 'Fulano', score: 97 }, teacher);
   const omitted = await readStudent();
-  check('Patch autenticado sem campos privados também os preserva', omitted.cpf === original.cpf && omitted.birthDate === original.birthDate);
+  check('Patch autenticado sem nascimento o preserva e não reintroduz CPF', omitted.cpf === undefined && omitted.birthDate === original.birthDate);
   await writeStudent({ ...omitted, cpf: 'cpf-ficticio-novo', birthDate: '2013-02-03' }, teacher);
   const changed = await readStudent();
-  check('Professor autenticado pode corrigir os dados privados', changed.cpf === 'cpf-ficticio-novo' && changed.birthDate === '2013-02-03');
+  check('Professor pode corrigir nascimento, mas não gravar CPF', changed.cpf === undefined && changed.birthDate === '2013-02-03');
   const results = await Promise.all([
     writeStudent({ ...original, score: 98 }),
     writeStudent({ ...changed, cpf: '', birthDate: '' }, teacher),
@@ -195,7 +195,7 @@ async function writeStudent(value, auth, key = studentKey) {
   check('Salvamentos concorrentes terminam com sucesso', results.every(r => r._body.ok === true));
   await writeStudent(original);
   const cleared = await readStudent();
-  check('Autosave antigo não restaura dados removidos pelo professor', cleared.cpf === '' && cleared.birthDate === '');
+  check('Autosave antigo não restaura nascimento removido nem CPF', cleared.cpf === undefined && cleared.birthDate === '');
   const publicRes = await call({ action: 'get', key: studentKey });
   const redacted = JSON.parse(publicRes._body.value);
   check('Campos privados vazios também são omitidos da resposta pública', !Object.hasOwn(redacted, 'cpf') && !Object.hasOwn(redacted, 'birthDate'));
@@ -204,7 +204,7 @@ async function writeStudent(value, auth, key = studentKey) {
   const key = 'student:vespertino:CadastroFicticio';
   const created = await writeStudent({ name: 'CadastroFicticio', cpf: 'cpf-ficticio', birthDate: '2012-01-01' }, undefined, key);
   check('Cadastro inicial sem senha continua permitido', created._body.ok === true);
-  check('Cadastro inicial mantém dados para o professor', (await readStudent(key)).cpf === 'cpf-ficticio');
+  check('Cadastro inicial descarta CPF até para o professor', (await readStudent(key)).cpf === undefined);
   const res = await call({ action: 'get', key });
   check('Cadastro inicial não expõe CPF na leitura pública', !Object.hasOwn(JSON.parse(res._body.value), 'cpf'));
   const emptyKey = 'student:vespertino:SemDados';
@@ -218,6 +218,30 @@ async function writeStudent(value, auth, key = studentKey) {
     check(`Cadastro inválido rejeitado: ${value}`, invalid._status === 400);
   }
   check('Escritas inválidas não corrompem cadastro existente', JSON.stringify(await readStudent(key)) === JSON.stringify(before));
+}
+
+// Migração única: remove CPFs que já estavam no banco antes desta versão.
+{
+  const legacyKey = 'student:matutino:CadastroAntigo';
+  await fetch(`${process.env.KV_REST_API_URL}/pipeline`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify([
+      ['SET', legacyKey, JSON.stringify({ name:'CadastroAntigo', birthDate:'2011-04-03', cpf:'cpf-legado' })],
+      ['SET', 'backup:antigo', JSON.stringify({ [legacyKey]:JSON.stringify({ name:'CadastroAntigo', birthDate:'2011-04-03', cpf:'cpf-no-backup' }), 'teachermeta:main':'{}' })],
+    ]),
+  });
+  const denied = await call({ action:'purge_student_cpfs' });
+  check('Limpeza de CPFs antigos exige senha do professor', denied._status === 403);
+  const purged = await call({ action:'purge_student_cpfs', auth:teacher });
+  check('Limpeza autenticada encontra e remove CPF antigo', purged._body.ok === true && purged._body.removed >= 1);
+  const legacy = await readStudent(legacyKey);
+  check('CPF antigo foi apagado e nascimento preservado', legacy.cpf === undefined && legacy.birthDate === '2011-04-03');
+  const backupResponse = await fetch(`${process.env.KV_REST_API_URL}/pipeline`, {
+    method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify([['GET','backup:antigo']]),
+  });
+  const backupRaw = (await backupResponse.json())[0].result;
+  const backupStudent = JSON.parse(JSON.parse(backupRaw)[legacyKey]);
+  check('CPF também foi removido dos backups antigos', backupStudent.cpf === undefined && backupStudent.birthDate === '2011-04-03');
 }
 
 console.log(`\n=== REDAÇÃO DE DADOS SENSÍVEIS EM /api/kv TEST: ${pass}/${pass + fail} passed ===`);

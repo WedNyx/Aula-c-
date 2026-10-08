@@ -158,7 +158,7 @@ export function ImpactPage() {
 }
 
 // ── portfólio público de um aluno (/portfolio/<turno>/<nome>) — só existe se o PRÓPRIO aluno
-// ligou o opt-in (portfolioPublic); mostra avatar/conquistas/progresso, nunca birthDate/cpf nem
+// ligou o opt-in (portfolioPublic); mostra avatar/conquistas/progresso, nunca birthDate nem
 // comparação com colegas (cada campo é escolhido a dedo, nunca um dump do registro inteiro) ──
 function usePortfolioData(shift, name) {
   const [state, setState] = useState({ loading: true, student: null, classDays: [] });
