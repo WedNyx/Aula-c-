@@ -303,8 +303,17 @@ function teamDuelKeyFor(shift, names) {
 }
 
 // ─── Supabase JS Client ───────────────────────────────────────────────────────
-const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '')
+// A integração atual da Vercel usa o prefixo AULAC para não sobrescrever
+// variáveis antigas. Preferimos as credenciais novas e mantemos compatibilidade
+// com os nomes usados pelas versões anteriores da plataforma.
+const SUPABASE_URL = (
+  process.env.AULAC_URL ||
+  process.env.SUPABASE_URL ||
+  ''
+).replace(/\/$/, '')
 const SUPABASE_KEY =
+  process.env.AULAC_SECRET_KEY ||
+  process.env.SUPABASE_SECRET_KEY ||
   process.env.SUPABASE_SERVICE_KEY ||
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   ''
@@ -316,8 +325,14 @@ const supabase = SUPABASE_URL && SUPABASE_KEY
 // ─── Postgres (cria a tabela automaticamente) ─────────────────────────────────
 // Aceita DATABASE_URL diretamente, ou deriva de SUPABASE_URL + DATABASE_PASSWORD
 function getPgUrl() {
+  if (process.env.AULAC_POSTGRES_URL) return process.env.AULAC_POSTGRES_URL
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL
-  const pass = process.env.DATABASE_PASSWORD || ''
+  if (process.env.POSTGRES_URL) return process.env.POSTGRES_URL
+  const pass =
+    process.env.AULAC_POSTGRES_PASSWORD ||
+    process.env.POSTGRES_PASSWORD ||
+    process.env.DATABASE_PASSWORD ||
+    ''
   const ref = SUPABASE_URL.match(/([a-z0-9]+)\.supabase\.co/)?.[1]
   if (ref && pass) return `postgresql://postgres:${encodeURIComponent(pass)}@db.${ref}.supabase.co:5432/postgres`
   return ''
