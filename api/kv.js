@@ -330,7 +330,14 @@ function firebaseServiceAccount() {
     : null
 }
 
-const FIREBASE_ACCOUNT = firebaseServiceAccount()
+let FIREBASE_ACCOUNT = null
+let FIREBASE_CONFIG_ERROR = ''
+try {
+  FIREBASE_ACCOUNT = firebaseServiceAccount()
+} catch (error) {
+  FIREBASE_CONFIG_ERROR = String(error?.message || error)
+  console.error('firebase_configuration_invalid')
+}
 const FIREBASE_PROJECT_ID = FIREBASE_ACCOUNT?.project_id || ''
 const FIREBASE_COLLECTION = process.env.FIREBASE_COLLECTION || TABLE
 const FIREBASE_DATABASE_ID = process.env.FIREBASE_DATABASE_ID || '(default)'
@@ -701,7 +708,7 @@ async function loadStorageHealth() {
     recordCount: null,
     collection: FIREBASE_COLLECTION,
     databaseId: FIREBASE_DATABASE_ID,
-    error: null,
+    error: FIREBASE_CONFIG_ERROR || null,
   }
   if (HAS_FIREBASE) {
     try {
