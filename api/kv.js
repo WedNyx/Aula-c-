@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { createSign } from 'node:crypto'
+import { createSign, randomUUID } from 'node:crypto'
 import { isValidTeacherPassword, teacherLoginFailBucket } from './_teacherAuth.js'
 import { clientIp } from './_ip.js'
 import { applyAttendanceOverrides } from '../src/lib/classroomUpdates.js'
@@ -389,8 +389,8 @@ function splitFirebaseValue(value) {
   return chunks
 }
 
-function firestoreChunkUrl(key, index) {
-  return `${firestoreDocument(key)}/chunks/${String(index).padStart(6, '0')}`
+function firestoreChunkUrl(key, generation, index) {
+  return `${firestoreDocument(key)}/chunks/${generation}-${String(index).padStart(6, '0')}`
 }
 
 async function firebaseAccessToken() {
@@ -442,19 +442,20 @@ async function firestoreValue(document, key = document?.fields?.key?.stringValue
   if (!document) return null
   if (document.fields?.chunked?.booleanValue !== true) return document.fields?.value?.stringValue ?? null
   const count = Number(document.fields?.chunkCount?.integerValue || 0)
+  const generation = document.fields?.chunkGeneration?.stringValue || 'legacy'
   const buffers = []
   for (let index = 0; index < count; index++) {
-    const response = await firestoreFetch(firestoreChunkUrl(key, index), { method: 'GET' })
+    const response = await firestoreFetch(firestoreChunkUrl(key, generation, index), { method: 'GET' })
     const chunk = await response.json()
     buffers.push(Buffer.from(chunk.fields?.data?.stringValue || '', 'base64'))
   }
   return Buffer.concat(buffers).toString('utf8')
 }
 
-async function deleteFirestoreChunks(key, count) {
+async function deleteFirestoreChunks(key, count, generation = 'legacy') {
   for (let offset = 0; offset < count; offset += 400) {
     await firestoreCommit(Array.from({ length: Math.min(400, count - offset) }, (_, index) => ({
-      delete: `${firestoreDocumentName(key)}/chunks/${String(offset + index).padStart(6, '0')}`,
+      delete: `${firestoreDocumentName(key)}/chunks/${generation}-${String(offset + index).padStart(6, '0')}`,
     })))
   }
 }
@@ -462,31 +463,36 @@ async function deleteFirestoreChunks(key, count) {
 async function firestoreSet(key, value, precondition = '') {
   const raw = String(value)
   if (Buffer.byteLength(raw, 'utf8') > FIREBASE_INLINE_VALUE_BYTES) {
-    if (precondition) throw new Error('firebase_large_value_cas_not_supported')
     const previousResponse = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
     const previous = previousResponse.status === 404 ? null : await previousResponse.json()
+    const generation = randomUUID()
     const chunks = splitFirebaseValue(raw)
     for (let index = 0; index < chunks.length; index++) {
-      await firestoreFetch(firestoreChunkUrl(key, index), {
+      await firestoreFetch(firestoreChunkUrl(key, generation, index), {
         method: 'PATCH',
         body: JSON.stringify({ fields: { data: { stringValue: chunks[index] } } }),
       })
     }
-    const root = await firestoreFetch(firestoreDocument(key), {
+    const url = new URL(firestoreDocument(key))
+    if (precondition === 'missing') url.searchParams.set('currentDocument.exists', 'false')
+    else if (precondition) url.searchParams.set('currentDocument.updateTime', precondition)
+    const root = await firestoreFetch(url.toString(), {
       method: 'PATCH',
       body: JSON.stringify({ fields: {
         key: { stringValue: String(key) },
         chunked: { booleanValue: true },
+        chunkGeneration: { stringValue: generation },
         chunkCount: { integerValue: String(chunks.length) },
         byteLength: { integerValue: String(Buffer.byteLength(raw, 'utf8')) },
         updatedAt: { timestampValue: new Date().toISOString() },
       } }),
-    })
-    const oldCount = Number(previous?.fields?.chunkCount?.integerValue || 0)
-    if (oldCount > chunks.length) {
-      for (let index = chunks.length; index < oldCount; index++) {
-        await firestoreFetch(firestoreChunkUrl(key, index), { method: 'DELETE' }, [404])
-      }
+    }, precondition ? [400, 409, 412] : [])
+    if (!root.ok) {
+      await deleteFirestoreChunks(key, chunks.length, generation)
+      return root
+    }
+    if (previous?.fields?.chunked?.booleanValue === true) {
+      await deleteFirestoreChunks(key, Number(previous.fields?.chunkCount?.integerValue || 0), previous.fields?.chunkGeneration?.stringValue || 'legacy')
     }
     return root
   }
@@ -501,7 +507,7 @@ async function firestoreSet(key, value, precondition = '') {
     body: JSON.stringify({ fields: firestoreFields(key, raw) }),
   }, precondition ? [400, 409, 412] : [])
   if (response.ok && previous?.fields?.chunked?.booleanValue === true) {
-    await deleteFirestoreChunks(key, Number(previous.fields?.chunkCount?.integerValue || 0))
+    await deleteFirestoreChunks(key, Number(previous.fields?.chunkCount?.integerValue || 0), previous.fields?.chunkGeneration?.stringValue || 'legacy')
   }
   return response
 }
@@ -611,7 +617,7 @@ const firebaseStore = {
     const response = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
     const document = response.status === 404 ? null : await response.json()
     if (document?.fields?.chunked?.booleanValue === true) {
-      await deleteFirestoreChunks(key, Number(document.fields?.chunkCount?.integerValue || 0))
+      await deleteFirestoreChunks(key, Number(document.fields?.chunkCount?.integerValue || 0), document.fields?.chunkGeneration?.stringValue || 'legacy')
     }
     await firestoreFetch(firestoreDocument(key), { method: 'DELETE' }, [404])
   },
@@ -1447,11 +1453,23 @@ async function migrateLegacyDataToFirebase() {
 
   // batchWrite avalia a precondição por documento: registros já atualizados pelo
   // dual-write são preservados em vez de serem substituídos pela cópia antiga.
-  for (let offset = 0; offset < inline.length; offset += 20) {
-    const result = await firestoreCreateMissing(inline.slice(offset, offset + 20))
+  let batch = []
+  let batchBytes = 0
+  const flushBatch = async () => {
+    if (!batch.length) return
+    const result = await firestoreCreateMissing(batch)
     migrated += result.migrated
     skipped += result.skipped
+    batch = []
+    batchBytes = 0
   }
+  for (const item of inline) {
+    const estimatedBytes = Buffer.byteLength(JSON.stringify(item), 'utf8') + 2048
+    if (batch.length >= 20 || batchBytes + estimatedBytes > 8 * 1024 * 1024) await flushBatch()
+    batch.push(item)
+    batchBytes += estimatedBytes
+  }
+  await flushBatch()
   return {
     ok: true,
     migrated,
