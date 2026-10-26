@@ -13,7 +13,11 @@ assert.ok(kv.includes("process.env.DATABASE_PRIMARY === 'firebase'"), 'a troca d
 assert.ok(kv.includes("case 'migrate_to_firebase'"), 'endpoint deve oferecer migração autenticada');
 assert.ok(kv.includes("if (action === 'migrate_to_firebase') return true"), 'migração deve exigir senha do professor');
 assert.ok(kv.includes(".range(from, from + 999)"), 'migração deve paginar mais de mil registros do Supabase');
-assert.ok(kv.includes("offset += 400"), 'gravações devem respeitar o limite de lote do Firestore');
+assert.ok(kv.includes("offset += 20"), 'migração deve usar lotes seguros do batchWrite');
+assert.ok(kv.includes("firestoreDocumentName(item.key)"), 'commits devem usar nomes de recurso do Firestore');
+assert.ok(kv.includes("SHADOW_FIREBASE"), 'transição deve manter gravação dupla até o corte');
+assert.ok(kv.includes("if (FIREBASE_PRIMARY) throw"), 'migração deve ser bloqueada depois do corte');
+assert.ok(kv.includes("FIREBASE_INLINE_VALUE_BYTES"), 'valores grandes devem ser fragmentados');
 assert.ok(kv.includes("currentDocument.updateTime"), 'compare-and-set deve preservar concorrência no Firestore');
 assert.ok(storage.includes("export async function migrateToFirebase"), 'cliente deve expor a migração protegida');
 assert.ok(app.includes("Copiar dados do Supabase para o Firebase"), 'painel deve oferecer a migração');
