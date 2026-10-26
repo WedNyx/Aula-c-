@@ -28,15 +28,16 @@ A operação:
 
 - exige a senha do professor;
 - lê o Supabase em páginas de 1.000 registros;
-- grava o Firestore em lotes de 400;
+- grava documentos comuns em lotes com precondição e fragmenta backups grandes;
+- preserva registros que já receberam uma versão mais nova pela gravação dupla;
 - pode ser repetida com segurança antes da troca;
 - não apaga o Supabase.
 
-Confirme a mensagem com a quantidade copiada.
+Enquanto o Supabase for o principal e as credenciais Firebase estiverem configuradas, novas gravações e exclusões são enviadas aos dois bancos. Confirme a mensagem com as quantidades copiadas e preservadas.
 
 ## 4. Ativar o Firebase
 
-Na Vercel, altere `DATABASE_PRIMARY` para `firebase` e faça outro deploy. Use **Verificar agora** no Painel do Professor. O cartão deve mostrar **Firebase conectado**.
+Na Vercel, altere `DATABASE_PRIMARY` para `firebase` e faça outro deploy. Depois do corte, o servidor bloqueia novas migrações vindas do Supabase e o botão desaparece, evitando substituir progresso recente por dados antigos. Use **Verificar agora** no Painel do Professor. O cartão deve mostrar **Firebase conectado**.
 
 ## Reversão
 
@@ -44,6 +45,6 @@ Para voltar temporariamente ao Supabase, altere `DATABASE_PRIMARY` para `supabas
 
 ## Arquitetura
 
-- Firebase/Firestore: banco principal após a ativação.
+- Firebase/Firestore: recebe gravação dupla durante a transição e vira o banco principal após a ativação.
 - Upstash Redis: reserva automática e sincronizada.
 - Supabase: fonte temporária da migração e possibilidade de reversão durante a transição.
