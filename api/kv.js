@@ -352,20 +352,45 @@ function firebaseDocId(key) {
   return base64Url(String(key))
 }
 
+function firestoreDatabaseName() {
+  return `projects/${FIREBASE_PROJECT_ID}/databases/${FIREBASE_DATABASE_ID}`
+}
+
 function firestoreRoot() {
-  return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(FIREBASE_PROJECT_ID)}/databases/${encodeURIComponent(FIREBASE_DATABASE_ID)}/documents`
+  return `https://firestore.googleapis.com/v1/${firestoreDatabaseName()}/documents`
+}
+
+function firestoreDocumentName(key) {
+  return `${firestoreDatabaseName()}/documents/${FIREBASE_COLLECTION}/${firebaseDocId(key)}`
 }
 
 function firestoreDocument(key) {
-  return `${firestoreRoot()}/${encodeURIComponent(FIREBASE_COLLECTION)}/${firebaseDocId(key)}`
+  return `https://firestore.googleapis.com/v1/${firestoreDocumentName(key)}`
 }
+
+const FIREBASE_INLINE_VALUE_BYTES = 700_000
+const FIREBASE_CHUNK_BYTES = 450_000
 
 function firestoreFields(key, value) {
   return {
     key: { stringValue: String(key) },
     value: { stringValue: String(value) },
+    chunked: { booleanValue: false },
     updatedAt: { timestampValue: new Date().toISOString() },
   }
+}
+
+function splitFirebaseValue(value) {
+  const buffer = Buffer.from(String(value), 'utf8')
+  const chunks = []
+  for (let offset = 0; offset < buffer.length; offset += FIREBASE_CHUNK_BYTES) {
+    chunks.push(buffer.subarray(offset, offset + FIREBASE_CHUNK_BYTES).toString('base64'))
+  }
+  return chunks
+}
+
+function firestoreChunkUrl(key, index) {
+  return `${firestoreDocument(key)}/chunks/${String(index).padStart(6, '0')}`
 }
 
 async function firebaseAccessToken() {
@@ -413,18 +438,80 @@ async function firestoreFetch(url, options = {}, allowed = []) {
   return response
 }
 
-function firestoreValue(document) {
-  return document?.fields?.value?.stringValue ?? null
+async function firestoreValue(document, key = document?.fields?.key?.stringValue || '') {
+  if (!document) return null
+  if (document.fields?.chunked?.booleanValue !== true) return document.fields?.value?.stringValue ?? null
+  const count = Number(document.fields?.chunkCount?.integerValue || 0)
+  const buffers = []
+  for (let index = 0; index < count; index++) {
+    const response = await firestoreFetch(firestoreChunkUrl(key, index), { method: 'GET' })
+    const chunk = await response.json()
+    buffers.push(Buffer.from(chunk.fields?.data?.stringValue || '', 'base64'))
+  }
+  return Buffer.concat(buffers).toString('utf8')
+}
+
+async function deleteFirestoreChunks(key, count) {
+  for (let offset = 0; offset < count; offset += 400) {
+    await firestoreCommit(Array.from({ length: Math.min(400, count - offset) }, (_, index) => ({
+      delete: `${firestoreDocumentName(key)}/chunks/${String(offset + index).padStart(6, '0')}`,
+    })))
+  }
 }
 
 async function firestoreSet(key, value, precondition = '') {
+  const raw = String(value)
+  if (Buffer.byteLength(raw, 'utf8') > FIREBASE_INLINE_VALUE_BYTES) {
+    if (precondition) throw new Error('firebase_large_value_cas_not_supported')
+    const previousResponse = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
+    const previous = previousResponse.status === 404 ? null : await previousResponse.json()
+    const chunks = splitFirebaseValue(raw)
+    for (let index = 0; index < chunks.length; index++) {
+      await firestoreFetch(firestoreChunkUrl(key, index), {
+        method: 'PATCH',
+        body: JSON.stringify({ fields: { data: { stringValue: chunks[index] } } }),
+      })
+    }
+    const root = await firestoreFetch(firestoreDocument(key), {
+      method: 'PATCH',
+      body: JSON.stringify({ fields: {
+        key: { stringValue: String(key) },
+        chunked: { booleanValue: true },
+        chunkCount: { integerValue: String(chunks.length) },
+        byteLength: { integerValue: String(Buffer.byteLength(raw, 'utf8')) },
+        updatedAt: { timestampValue: new Date().toISOString() },
+      } }),
+    })
+    const oldCount = Number(previous?.fields?.chunkCount?.integerValue || 0)
+    if (oldCount > chunks.length) {
+      for (let index = chunks.length; index < oldCount; index++) {
+        await firestoreFetch(firestoreChunkUrl(key, index), { method: 'DELETE' }, [404])
+      }
+    }
+    return root
+  }
+
+  const previousResponse = precondition ? null : await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
+  const previous = previousResponse?.status === 404 ? null : previousResponse ? await previousResponse.json() : null
   const url = new URL(firestoreDocument(key))
   if (precondition === 'missing') url.searchParams.set('currentDocument.exists', 'false')
   else if (precondition) url.searchParams.set('currentDocument.updateTime', precondition)
-  return firestoreFetch(url.toString(), {
+  const response = await firestoreFetch(url.toString(), {
     method: 'PATCH',
-    body: JSON.stringify({ fields: firestoreFields(key, value) }),
-  }, [409, 412])
+    body: JSON.stringify({ fields: firestoreFields(key, raw) }),
+  }, precondition ? [400, 409, 412] : [])
+  if (response.ok && previous?.fields?.chunked?.booleanValue === true) {
+    await deleteFirestoreChunks(key, Number(previous.fields?.chunkCount?.integerValue || 0))
+  }
+  return response
+}
+
+async function firestoreConflict(response) {
+  if (response.ok) return false
+  const payload = await response.json().catch(() => ({}))
+  const status = payload?.error?.status
+  if (['FAILED_PRECONDITION', 'ALREADY_EXISTS', 'ABORTED'].includes(status)) return true
+  throw new Error(`Firestore ${response.status}: ${JSON.stringify(payload).slice(0, 500)}`)
 }
 
 async function firestoreList(prefix) {
@@ -450,9 +537,13 @@ async function firestoreList(prefix) {
     body: JSON.stringify(query),
   })
   const rows = await response.json()
-  return (rows || []).filter(row => row.document).map(row => ({
-    key: row.document.fields?.key?.stringValue || '',
-    value: firestoreValue(row.document),
+  return Promise.all((rows || []).filter(row => row.document).map(async row => {
+    const key = row.document.fields?.key?.stringValue || ''
+    return {
+      key,
+      value: await firestoreValue(row.document, key),
+      _chunkCount: Number(row.document.fields?.chunkCount?.integerValue || 0),
+    }
   }))
 }
 
@@ -464,18 +555,47 @@ async function firestoreCommit(writes) {
   })
 }
 
+async function firestoreCreateMissing(items) {
+  if (!items.length) return { migrated: 0, skipped: 0 }
+  const response = await firestoreFetch(`${firestoreRoot()}:batchWrite`, {
+    method: 'POST',
+    body: JSON.stringify({
+      writes: items.map(item => ({
+        update: {
+          name: firestoreDocumentName(item.key),
+          fields: {
+            ...firestoreFields(item.key, item.value),
+            migratedFrom: { stringValue: 'supabase' },
+          },
+        },
+        currentDocument: { exists: false },
+      })),
+    }),
+  })
+  const payload = await response.json()
+  let migrated = 0
+  let skipped = 0
+  for (const status of payload.status || []) {
+    const code = Number(status?.code || 0)
+    if (!code) migrated++
+    else if (code === 6) skipped++ // ALREADY_EXISTS: dual-write gravou uma versão mais nova.
+    else throw new Error(`Firestore batchWrite: ${status?.message || code}`)
+  }
+  return { migrated, skipped }
+}
+
 const firebaseStore = {
   async compareAndSet(key, expected, value) {
     const currentResponse = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
     if (currentResponse.status === 404) {
       if (expected != null) return false
       const written = await firestoreSet(key, value, 'missing')
-      return written.ok
+      return !(await firestoreConflict(written))
     }
     const current = await currentResponse.json()
-    if (firestoreValue(current) !== expected) return false
+    if (await firestoreValue(current, key) !== expected) return false
     const written = await firestoreSet(key, value, current.updateTime)
-    return written.ok
+    return !(await firestoreConflict(written))
   },
   async set(key, value) {
     const response = await firestoreSet(key, value)
@@ -484,16 +604,23 @@ const firebaseStore = {
   async get(key) {
     const response = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
     if (response.status === 404) return null
-    return firestoreValue(await response.json())
+    return firestoreValue(await response.json(), key)
   },
   listWithValues: firestoreList,
   async delete(key) {
+    const response = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
+    const document = response.status === 404 ? null : await response.json()
+    if (document?.fields?.chunked?.booleanValue === true) {
+      await deleteFirestoreChunks(key, Number(document.fields?.chunkCount?.integerValue || 0))
+    }
     await firestoreFetch(firestoreDocument(key), { method: 'DELETE' }, [404])
   },
   async deleteByPrefix(prefix) {
     const items = await firestoreList(prefix)
-    for (let offset = 0; offset < items.length; offset += 400) {
-      await firestoreCommit(items.slice(offset, offset + 400).map(item => ({ delete: firestoreDocument(item.key) })))
+    for (const item of items.filter(entry => entry._chunkCount > 0)) await this.delete(item.key)
+    const inline = items.filter(entry => !entry._chunkCount)
+    for (let offset = 0; offset < inline.length; offset += 400) {
+      await firestoreCommit(inline.slice(offset, offset + 400).map(item => ({ delete: firestoreDocumentName(item.key) })))
     }
   },
 }
@@ -632,6 +759,9 @@ async function redis(...cmd) {
 const HAS_REDIS = !!(REDIS_URL && REDIS_TOKEN)
 const FIREBASE_PRIMARY = HAS_FIREBASE && (process.env.DATABASE_PRIMARY === 'firebase' || (!supabase && !getPgUrl()))
 const PRIMARY_BACKEND = FIREBASE_PRIMARY ? 'firebase' : supabase ? 'supabase' : getPgUrl() ? 'pg' : HAS_REDIS ? 'redis' : null
+// Enquanto Supabase ainda é o principal, toda alteração também vai para o Firebase.
+// Assim a cópia inicial pode acontecer com a plataforma online sem perder mudanças.
+const SHADOW_FIREBASE = HAS_FIREBASE && !FIREBASE_PRIMARY && !!(supabase || getPgUrl())
 const REPLICA_BACKEND = PRIMARY_BACKEND !== 'redis' && HAS_REDIS ? 'redis' : null
 const BACKEND = REPLICA_BACKEND ? `${PRIMARY_BACKEND}+redis` : PRIMARY_BACKEND
 const FAILOVER_DIRTY_SET = '__aula_csharp_failover_dirty__'
@@ -743,17 +873,22 @@ const primaryStore = {
         const { error } = await supabase.from(TABLE).insert({ key, value, updated_at: new Date().toISOString() })
         if (error?.code === '23505') return false
         if (error) throw new Error('student_write_failed')
+        if (SHADOW_FIREBASE) await firebaseStore.set(key, value)
         return true
       }
       const { data, error } = await supabase.from(TABLE).update({ value, updated_at: new Date().toISOString() }).eq('key', key).eq('value', expected).select('key')
       if (error) throw new Error('student_write_failed')
-      return data.length > 0
+      const changed = data.length > 0
+      if (changed && SHADOW_FIREBASE) await firebaseStore.set(key, value)
+      return changed
     }
     if (PRIMARY_BACKEND === 'pg') {
       const r = expected == null
         ? await withPg(c => c.query(`INSERT INTO ${TABLE}(key,value,updated_at) VALUES($1,$2,NOW()) ON CONFLICT DO NOTHING RETURNING key`, [key,value]))
         : await withPg(c => c.query(`UPDATE ${TABLE} SET value=$3,updated_at=NOW() WHERE key=$1 AND value=$2 RETURNING key`, [key,expected,value]))
-      return r.rowCount > 0
+      const changed = r.rowCount > 0
+      if (changed && SHADOW_FIREBASE) await firebaseStore.set(key, value)
+      return changed
     }
     return Number(await redis('EVAL', `-- student-cas
       local current = redis.call('GET', KEYS[1])
@@ -778,6 +913,7 @@ const primaryStore = {
     } else {
       await redis('SET', key, value)
     }
+    if (SHADOW_FIREBASE) await firebaseStore.set(key, value)
   },
 
   async get(key) {
@@ -824,6 +960,7 @@ const primaryStore = {
     } else {
       await redis('DEL', key)
     }
+    if (SHADOW_FIREBASE) await firebaseStore.delete(key)
   },
 
   async deleteByPrefix(prefix) {
@@ -838,6 +975,7 @@ const primaryStore = {
       const ks = await redis('KEYS', `${prefix}*`)
       if (ks?.length) await redis('DEL', ...ks)
     }
+    if (SHADOW_FIREBASE) await firebaseStore.deleteByPrefix(prefix)
   },
 }
 
@@ -1287,22 +1425,42 @@ async function listLegacySupabaseItems() {
 
 async function migrateLegacyDataToFirebase() {
   if (!HAS_FIREBASE) throw new Error('Configure o Firebase antes de iniciar a migração.')
+  if (FIREBASE_PRIMARY) throw new Error('Migração bloqueada: o Firebase já é o banco principal.')
   const items = await listLegacySupabaseItems()
   let migrated = 0
-  for (let offset = 0; offset < items.length; offset += 400) {
-    const writes = items.slice(offset, offset + 400).map(item => ({
-      update: {
-        name: firestoreDocument(item.key),
-        fields: {
-          ...firestoreFields(item.key, item.value),
-          migratedFrom: { stringValue: 'supabase' },
-        },
-      },
-    }))
-    await firestoreCommit(writes)
-    migrated += writes.length
+  let skipped = 0
+
+  const inline = []
+  for (const item of items) {
+    if (Buffer.byteLength(String(item.value), 'utf8') > FIREBASE_INLINE_VALUE_BYTES) {
+      const existing = await firestoreFetch(firestoreDocument(item.key), { method: 'GET' }, [404])
+      if (existing.status === 404) {
+        await firebaseStore.set(item.key, item.value)
+        migrated++
+      } else {
+        skipped++
+      }
+    } else {
+      inline.push(item)
+    }
   }
-  return { ok: true, migrated, source: 'supabase', destination: 'firebase' }
+
+  // batchWrite avalia a precondição por documento: registros já atualizados pelo
+  // dual-write são preservados em vez de serem substituídos pela cópia antiga.
+  for (let offset = 0; offset < inline.length; offset += 20) {
+    const result = await firestoreCreateMissing(inline.slice(offset, offset + 20))
+    migrated += result.migrated
+    skipped += result.skipped
+  }
+  return {
+    ok: true,
+    migrated,
+    skipped,
+    total: items.length,
+    dualWriteActive: SHADOW_FIREBASE,
+    source: 'supabase',
+    destination: 'firebase',
+  }
 }
 
 export default async function handler(req, res) {
