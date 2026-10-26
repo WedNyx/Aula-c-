@@ -4785,7 +4785,7 @@ function TeacherView({ onLogout, teacherAuth }) {
     setFirebaseMigration({ busy:true, message:"" });
     try {
       const result = await migrateToFirebase(teacherAuth);
-      setFirebaseMigration({ busy:false, message:`✅ ${result.migrated ?? 0} registros copiados para o Firebase.` });
+      setFirebaseMigration({ busy:false, message:`✅ ${result.migrated ?? 0} registros copiados e ${result.skipped ?? 0} já atualizados preservados no Firebase.` });
       setDiag(await diagnose(teacherAuth));
     } catch (error) {
       setFirebaseMigration({ busy:false, message:`❌ ${String(error?.message || error)}` });
@@ -7686,7 +7686,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                     );
                   })()}
 
-                  {diag.storageHealth?.firebase?.configured && diag.storageHealth?.supabase?.configured && (
+                  {diag.storageHealth?.firebase?.configured && diag.storageHealth?.supabase?.configured && diag.storageHealth?.activeBackend !== "firebase" && (
                     <div style={{ marginTop:8, padding:"9px 10px", background:"#171026", border:"1px solid #3b2a58", borderRadius:9 }}>
                       <button onClick={runFirebaseMigration} disabled={firebaseMigration.busy}
                         style={{ ...styles.btn("#f59e0b"), width:"100%", padding:"7px 10px", opacity:firebaseMigration.busy?0.7:1 }}>
