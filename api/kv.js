@@ -1464,8 +1464,9 @@ async function migrateLegacyDataToFirebase() {
     if (Buffer.byteLength(String(item.value), 'utf8') > FIREBASE_INLINE_VALUE_BYTES) {
       const existing = await firestoreFetch(firestoreDocument(item.key), { method: 'GET' }, [404])
       if (existing.status === 404) {
-        await firebaseStore.set(item.key, item.value)
-        migrated++
+        const written = await firestoreSet(item.key, item.value, 'missing', { sourceRevision: item.updatedAt || '' })
+        if (await firestoreConflict(written)) skipped++
+        else migrated++
       } else {
         skipped++
       }
