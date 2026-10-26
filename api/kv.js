@@ -895,13 +895,13 @@ const primaryStore = {
         const { error } = await supabase.from(TABLE).insert({ key, value, updated_at: new Date().toISOString() })
         if (error?.code === '23505') return false
         if (error) throw new Error('student_write_failed')
-        if (SHADOW_FIREBASE) await firebaseStore.set(key, value)
+        if (SHADOW_FIREBASE) await firestoreShadowWrite(key, value, `${new Date().toISOString()}-${randomUUID()}`)
         return true
       }
       const { data, error } = await supabase.from(TABLE).update({ value, updated_at: new Date().toISOString() }).eq('key', key).eq('value', expected).select('key')
       if (error) throw new Error('student_write_failed')
       const changed = data.length > 0
-      if (changed && SHADOW_FIREBASE) await firebaseStore.set(key, value)
+      if (changed && SHADOW_FIREBASE) await firestoreShadowWrite(key, value, `${new Date().toISOString()}-${randomUUID()}`)
       return changed
     }
     if (PRIMARY_BACKEND === 'pg') {
@@ -909,7 +909,7 @@ const primaryStore = {
         ? await withPg(c => c.query(`INSERT INTO ${TABLE}(key,value,updated_at) VALUES($1,$2,NOW()) ON CONFLICT DO NOTHING RETURNING key`, [key,value]))
         : await withPg(c => c.query(`UPDATE ${TABLE} SET value=$3,updated_at=NOW() WHERE key=$1 AND value=$2 RETURNING key`, [key,expected,value]))
       const changed = r.rowCount > 0
-      if (changed && SHADOW_FIREBASE) await firebaseStore.set(key, value)
+      if (changed && SHADOW_FIREBASE) await firestoreShadowWrite(key, value, `${new Date().toISOString()}-${randomUUID()}`)
       return changed
     }
     return Number(await redis('EVAL', `-- student-cas
@@ -935,7 +935,7 @@ const primaryStore = {
     } else {
       await redis('SET', key, value)
     }
-    if (SHADOW_FIREBASE) await firebaseStore.set(key, value)
+    if (SHADOW_FIREBASE) await firestoreShadowWrite(key, value, `${new Date().toISOString()}-${randomUUID()}`)
   },
 
   async get(key) {
@@ -982,22 +982,29 @@ const primaryStore = {
     } else {
       await redis('DEL', key)
     }
-    if (SHADOW_FIREBASE) await firebaseStore.delete(key)
+    if (SHADOW_FIREBASE) await firestoreShadowWrite(key, '', `${new Date().toISOString()}-${randomUUID()}`, true)
   },
 
   async deleteByPrefix(prefix) {
     if (PRIMARY_BACKEND === 'firebase') return firebaseStore.deleteByPrefix(prefix)
+    let deletedKeys = []
     if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
-      const { error } = await supabase.from(TABLE).delete().like('key', `${prefix}%`)
+      const { data, error } = await supabase.from(TABLE).delete().like('key', `${prefix}%`).select('key')
       if (error) throw new Error(`Supabase deleteByPrefix: ${error.message}`)
+      deletedKeys = (data || []).map(row => row.key)
     } else if (PRIMARY_BACKEND === 'pg') {
-      await withPg(c => c.query(`DELETE FROM ${TABLE} WHERE key LIKE $1`, [`${prefix}%`]))
+      const result = await withPg(c => c.query(`DELETE FROM ${TABLE} WHERE key LIKE $1 RETURNING key`, [`${prefix}%`]))
+      deletedKeys = result.rows.map(row => row.key)
     } else {
       const ks = await redis('KEYS', `${prefix}*`)
       if (ks?.length) await redis('DEL', ...ks)
+      deletedKeys = ks || []
     }
-    if (SHADOW_FIREBASE) await firebaseStore.deleteByPrefix(prefix)
+    if (SHADOW_FIREBASE) {
+      const revision = `${new Date().toISOString()}-${randomUUID()}`
+      for (const deletedKey of deletedKeys) await firestoreShadowWrite(deletedKey, '', revision, true)
+    }
   },
 }
 
