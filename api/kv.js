@@ -371,13 +371,16 @@ function firestoreDocument(key) {
 const FIREBASE_INLINE_VALUE_BYTES = 700_000
 const FIREBASE_CHUNK_BYTES = 450_000
 
-function firestoreFields(key, value) {
-  return {
+function firestoreFields(key, value, metadata = {}) {
+  const fields = {
     key: { stringValue: String(key) },
     value: { stringValue: String(value) },
     chunked: { booleanValue: false },
     updatedAt: { timestampValue: new Date().toISOString() },
   }
+  if (metadata.sourceRevision) fields.sourceRevision = { stringValue: String(metadata.sourceRevision) }
+  if (metadata.tombstone) fields.tombstone = { booleanValue: true }
+  return fields
 }
 
 function splitFirebaseValue(value) {
@@ -439,7 +442,7 @@ async function firestoreFetch(url, options = {}, allowed = []) {
 }
 
 async function firestoreValue(document, key = document?.fields?.key?.stringValue || '') {
-  if (!document) return null
+  if (!document || document.fields?.tombstone?.booleanValue === true) return null
   if (document.fields?.chunked?.booleanValue !== true) return document.fields?.value?.stringValue ?? null
   const count = Number(document.fields?.chunkCount?.integerValue || 0)
   const generation = document.fields?.chunkGeneration?.stringValue || 'legacy'
@@ -460,7 +463,7 @@ async function deleteFirestoreChunks(key, count, generation = 'legacy') {
   }
 }
 
-async function firestoreSet(key, value, precondition = '') {
+async function firestoreSet(key, value, precondition = '', metadata = {}) {
   const raw = String(value)
   if (Buffer.byteLength(raw, 'utf8') > FIREBASE_INLINE_VALUE_BYTES) {
     const previousResponse = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
@@ -485,6 +488,7 @@ async function firestoreSet(key, value, precondition = '') {
         chunkCount: { integerValue: String(chunks.length) },
         byteLength: { integerValue: String(Buffer.byteLength(raw, 'utf8')) },
         updatedAt: { timestampValue: new Date().toISOString() },
+        ...(metadata.sourceRevision ? { sourceRevision: { stringValue: String(metadata.sourceRevision) } } : {}),
       } }),
     }, precondition ? [400, 409, 412] : [])
     if (!root.ok) {
@@ -504,7 +508,7 @@ async function firestoreSet(key, value, precondition = '') {
   else if (precondition) url.searchParams.set('currentDocument.updateTime', precondition)
   const response = await firestoreFetch(url.toString(), {
     method: 'PATCH',
-    body: JSON.stringify({ fields: firestoreFields(key, raw) }),
+    body: JSON.stringify({ fields: firestoreFields(key, raw, metadata) }),
   }, precondition ? [400, 409, 412] : [])
   if (response.ok && previous?.fields?.chunked?.booleanValue === true) {
     await deleteFirestoreChunks(key, Number(previous.fields?.chunkCount?.integerValue || 0), previous.fields?.chunkGeneration?.stringValue || 'legacy')
@@ -518,6 +522,18 @@ async function firestoreConflict(response) {
   const status = payload?.error?.status
   if (['FAILED_PRECONDITION', 'ALREADY_EXISTS', 'ABORTED'].includes(status)) return true
   throw new Error(`Firestore ${response.status}: ${JSON.stringify(payload).slice(0, 500)}`)
+}
+
+async function firestoreShadowWrite(key, value, sourceRevision, tombstone = false) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const currentResponse = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
+    const current = currentResponse.status === 404 ? null : await currentResponse.json()
+    const existingRevision = current?.fields?.sourceRevision?.stringValue || ''
+    if (existingRevision && existingRevision >= sourceRevision) return false
+    const written = await firestoreSet(key, tombstone ? '' : value, current ? current.updateTime : 'missing', { sourceRevision, tombstone })
+    if (!(await firestoreConflict(written))) return true
+  }
+  throw new Error('Firebase shadow write contention.')
 }
 
 async function firestoreList(prefix) {
@@ -543,7 +559,7 @@ async function firestoreList(prefix) {
     body: JSON.stringify(query),
   })
   const rows = await response.json()
-  return Promise.all((rows || []).filter(row => row.document).map(async row => {
+  return Promise.all((rows || []).filter(row => row.document && row.document.fields?.tombstone?.booleanValue !== true).map(async row => {
     const key = row.document.fields?.key?.stringValue || ''
     return {
       key,
@@ -570,7 +586,7 @@ async function firestoreCreateMissing(items) {
         update: {
           name: firestoreDocumentName(item.key),
           fields: {
-            ...firestoreFields(item.key, item.value),
+            ...firestoreFields(item.key, item.value, { sourceRevision: item.updatedAt || '' }),
             migratedFrom: { stringValue: 'supabase' },
           },
         },
@@ -1413,18 +1429,18 @@ async function listLegacySupabaseItems() {
     for (let from = 0; ; from += 1000) {
       const { data, error } = await supabase
         .from(TABLE)
-        .select('key, value')
+        .select('key, value, updated_at')
         .order('key')
         .range(from, from + 999)
       if (error) throw new Error(`Supabase migration read: ${error.message}`)
-      items.push(...(data || []).map(row => ({ key: row.key, value: row.value })))
+      items.push(...(data || []).map(row => ({ key: row.key, value: row.value, updatedAt: row.updated_at || '' })))
       if (!data || data.length < 1000) break
     }
     return items
   }
   if (getPgUrl()) {
-    const result = await withPg(client => client.query(`SELECT key,value FROM ${TABLE} ORDER BY key`))
-    return result.rows.map(row => ({ key: row.key, value: row.value }))
+    const result = await withPg(client => client.query(`SELECT key,value,updated_at FROM ${TABLE} ORDER BY key`))
+    return result.rows.map(row => ({ key: row.key, value: row.value, updatedAt: row.updated_at?.toISOString?.() || String(row.updated_at || '') }))
   }
   throw new Error('Supabase antigo não está configurado; não há origem para a migração.')
 }
