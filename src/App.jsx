@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } fro
 import gsap from "gsap";
 import { Toaster, toast } from "sonner";
 import { listStudentSummaries } from "./storage.js";
-import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, getTeacherNotes, saveTeacherNotes, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTeacherResumoSnapshot, saveTeacherResumoSnapshot, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas, getTeacherScheduledReminders, saveTeacherScheduledReminders, getClassScheduledReminders, saveClassScheduledReminders, addClassMusicTrack, submitMusicSuggestion, purgeStudentCpfs } from "./storage.js";
+import { saveStudent, getStudent, setNudge, getNudge, listStudents, checkReset, resetAll, getTeacherMeta, saveTeacherMeta, getTeacherNotes, saveTeacherNotes, saveTeacherCode, getTeacherCode, setCodeSend, getCodeSend, clearCodeSend, reportAiHealth, getAiHealth, getAiHealthByProvider, diagnose, getExamState, setExamState, getExamStateForStudent, gradeExam, gradeTourneyRound, setDuel, getDuel, clearDuel, listDuels, getNyxLocks, setNyxLocks, patchStudent, deleteStudentProfile, setKick, checkKick, setScoreFix, getScoreFix, clearScoreFix, getAccessMode, setAccessMode, getSupport, setSupport, listAllSupport, exportAllData, triggerBackupNow, getBackupList, getTeacherLessons, saveTeacherLessons, getBoss, setBoss, clearBoss, getKeyboardLock, setKeyboardLock, getResumoTrigger, setResumoTrigger, getTeacherResumoHistory, saveTeacherResumoHistory, getTeacherResumoSnapshot, saveTeacherResumoSnapshot, getTourney, setTourney, clearTourney, getInspection, setInspection, getHallOfFame, getOwnHallOfFame, saveHallOfFame, setKeyboardLaunch, getKeyboardLaunch, setPartner, clearPartner, listPartners, getQuizThemes, saveQuizThemes, getQuizRoom, setQuizRoom, clearQuizRoom, setCheckin, getCheckin, listCheckinsForDate, setTeamDuel, getTeamDuel, clearTeamDuel, listTeamDuels, reportClientError, getRecentErrors, getAdminLog, getTurmas, saveTurmas, getTeacherScheduledReminders, saveTeacherScheduledReminders, getClassScheduledReminders, saveClassScheduledReminders, addClassMusicTrack, submitMusicSuggestion, purgeStudentCpfs, migrateToFirebase } from "./storage.js";
 import { xlsxBlob, colLetter } from "./xlsx.js";
 import { hexToRgb, shade, isLight, shadeHex } from "./lib/colors.ts";
 import { FONT, PAGE_BG, LIGHT_BG, SPARTAN_BG, customBg, pageBgFor } from "./lib/theme.ts";
@@ -4780,6 +4780,17 @@ function TeacherView({ onLogout, teacherAuth }) {
   const [resetMsg, setResetMsg] = useState("");
   const [lastUpdate, setLastUpdate] = useState(null);
   const [diag, setDiag] = useState(null);
+  const [firebaseMigration, setFirebaseMigration] = useState({ busy:false, message:"" });
+  const runFirebaseMigration = async () => {
+    setFirebaseMigration({ busy:true, message:"" });
+    try {
+      const result = await migrateToFirebase(teacherAuth);
+      setFirebaseMigration({ busy:false, message:`✅ ${result.migrated ?? 0} registros copiados e ${result.skipped ?? 0} já atualizados preservados no Firebase.` });
+      setDiag(await diagnose(teacherAuth));
+    } catch (error) {
+      setFirebaseMigration({ busy:false, message:`❌ ${String(error?.message || error)}` });
+    }
+  };
   // 🚨 erros de JS capturados sozinhos nas sessões dos alunos/professor (ver reportClientError em
   // storage.js e o listener global em App.jsx) — carrega só quando o card é aberto pela 1ª vez
   const [recentErrors, setRecentErrors] = useState(null);
@@ -7618,7 +7629,7 @@ function TeacherView({ onLogout, teacherAuth }) {
               </button>
             </div>
 
-            <CollapsibleCard title="🔧 Conexão" alertOpen={!!diag && (diag.hasStorage === false || diag.hasAI === false || Number(diag.storageHealth?.supabase?.percent) >= 85)}>
+            <CollapsibleCard title="🔧 Conexão" alertOpen={!!diag && (diag.hasStorage === false || diag.hasAI === false || (diag.storageHealth?.activeBackend === "firebase" ? diag.storageHealth?.firebase?.available === false : Number(diag.storageHealth?.supabase?.percent) >= 85))}>
               {diag ? (
                 <div style={{ color:"#d6c9ec", lineHeight:1.7 }}>
                   <div>
@@ -7628,7 +7639,8 @@ function TeacherView({ onLogout, teacherAuth }) {
                   <div>Nyx (IA): <b style={{ color:diag.hasAI===true?"#34d399":diag.hasAI===false?"#f87171":"#a99ac9" }}>{diag.hasAI===true?"OK":diag.hasAI===false?"NÃO":"—"}</b></div>
 
                   {(() => {
-                    const health = diag.storageHealth?.supabase;
+                    const usingFirebase = diag.storageHealth?.activeBackend === "firebase";
+                    const health = usingFirebase ? diag.storageHealth?.firebase : diag.storageHealth?.supabase;
                     if (!health) return null;
                     if (diag.storageHealth?.error) {
                       return <p style={{ color:"#fbbf24", fontSize:11.5, margin:"8px 0 0" }}>⚠ Não foi possível carregar a capacidade agora.</p>;
@@ -7646,24 +7658,44 @@ function TeacherView({ onLogout, teacherAuth }) {
                     return (
                       <div style={{ background:"#171026", border:`1px solid ${color}66`, borderRadius:10, padding:"10px 12px", marginTop:10 }} data-testid="storage-capacity-monitor">
                         <div style={{ display:"flex", justifyContent:"space-between", gap:10, alignItems:"baseline" }}>
-                          <b style={{ color:"#f0e9fb", fontSize:12.5 }}>🗄️ Capacidade do Supabase</b>
-                          <b style={{ color, fontSize:12.5 }}>{percent == null ? "medição indisponível" : `${percent.toFixed(1)}%`}</b>
+                          <b style={{ color:"#f0e9fb", fontSize:12.5 }}>🗄️ {usingFirebase ? "Firebase" : "Capacidade do Supabase"}</b>
+                          <b style={{ color, fontSize:12.5 }}>{usingFirebase ? (health.available ? "conectado" : "indisponível") : percent == null ? "medição indisponível" : `${percent.toFixed(1)}%`}</b>
                         </div>
-                        <div role="progressbar" aria-label="Uso do banco Supabase" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent == null ? undefined : Math.round(percent)}
+                        <div role="progressbar" aria-label={usingFirebase ? "Conexão com o Firebase" : "Uso do banco Supabase"} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent == null ? undefined : Math.round(percent)}
                           style={{ height:10, background:"#2a1d3e", borderRadius:999, overflow:"hidden", marginTop:7 }}>
                           <div style={{ width:`${percent == null ? 0 : percent}%`, height:"100%", background:color, borderRadius:999, transition:"width .4s ease" }}/>
                         </div>
                         <div style={{ display:"flex", justifyContent:"space-between", gap:10, marginTop:5, color:"#a99ac9", fontSize:11 }}>
-                          <span>{formatBytes(health.usedBytes)} usados</span>
-                          <span>limite: {formatBytes(health.limitBytes)}</span>
+                          {usingFirebase ? (
+                            <>
+                              <span>{health.recordCount == null ? "Banco Firestore pronto" : `${health.recordCount} registros`}</span>
+                              <span>{health.databaseId || "(default)"}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>{formatBytes(health.usedBytes)} usados</span>
+                              <span>limite: {formatBytes(health.limitBytes)}</span>
+                            </>
+                          )}
                         </div>
                         {percent != null && percent >= 85 && <p role="alert" style={{ color:"#fca5a5", fontSize:11.5, margin:"7px 0 0" }}>🚨 Banco quase cheio. Faça um backup e libere espaço ou aumente o plano.</p>}
                         {percent != null && percent >= 70 && percent < 85 && <p style={{ color:"#fde68a", fontSize:11.5, margin:"7px 0 0" }}>⚠ O uso está aumentando. Vale revisar arquivos e dados antigos.</p>}
                         {!health.available && health.error && <p style={{ color:"#fbbf24", fontSize:11, margin:"7px 0 0" }}>{health.error}</p>}
-                        {health.limitSource === "free-plan-default" && <p style={{ color:"#776798", fontSize:10.5, margin:"6px 0 0" }}>Referência atual do plano grátis: 500 MB. Em outro plano, configure SUPABASE_DATABASE_LIMIT_MB na Vercel.</p>}
+                        {!usingFirebase && health.limitSource === "free-plan-default" && <p style={{ color:"#776798", fontSize:10.5, margin:"6px 0 0" }}>Referência atual do plano grátis: 500 MB. Em outro plano, configure SUPABASE_DATABASE_LIMIT_MB na Vercel.</p>}
                       </div>
                     );
                   })()}
+
+                  {diag.storageHealth?.firebase?.configured && diag.storageHealth?.supabase?.configured && diag.storageHealth?.activeBackend !== "firebase" && (
+                    <div style={{ marginTop:8, padding:"9px 10px", background:"#171026", border:"1px solid #3b2a58", borderRadius:9 }}>
+                      <button onClick={runFirebaseMigration} disabled={firebaseMigration.busy}
+                        style={{ ...styles.btn("#f59e0b"), width:"100%", padding:"7px 10px", opacity:firebaseMigration.busy?0.7:1 }}>
+                        {firebaseMigration.busy ? "⏳ Copiando dados..." : "🔥 Copiar dados do Supabase para o Firebase"}
+                      </button>
+                      {firebaseMigration.message && <p role="status" style={{ margin:"7px 0 0", fontSize:11.5, color:firebaseMigration.message.startsWith("✅")?"#34d399":"#f87171" }}>{firebaseMigration.message}</p>}
+                      {diag.storageHealth.activeBackend !== "firebase" && <p style={{ color:"#a99ac9", fontSize:10.5, margin:"6px 0 0" }}>Depois da cópia, defina DATABASE_PRIMARY=firebase na Vercel e faça um novo deploy.</p>}
+                    </div>
+                  )}
 
                   {diag.storageHealth?.reserve && (
                     <div style={{ display:"flex", justifyContent:"space-between", gap:10, marginTop:8, padding:"8px 10px", background:"#171026", border:"1px solid #3b2a58", borderRadius:9, fontSize:11.5 }}>
@@ -7676,7 +7708,7 @@ function TeacherView({ onLogout, teacherAuth }) {
                     </div>
                   )}
 
-                  {!diag.hasStorage && diag.writeRead === "erro" && diag.quotaSuspect && (
+                  {!diag.hasStorage && diag.storageHealth?.activeBackend !== "firebase" && diag.writeRead === "erro" && diag.quotaSuspect && (
                     <div style={{ background:"#fbbf2415", border:"1px solid #fbbf24", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.9 }}>
                       <b style={{ color:"#fbbf24" }}>⚠ Parece ter estourado a cota do plano grátis</b><br/>
                       <span style={{ color:"#a99ac9" }}>
@@ -7687,13 +7719,24 @@ function TeacherView({ onLogout, teacherAuth }) {
                     </div>
                   )}
 
-                  {!diag.hasStorage && diag.writeRead === "erro" && !diag.quotaSuspect && (
+                  {!diag.hasStorage && diag.storageHealth?.activeBackend !== "firebase" && diag.writeRead === "erro" && !diag.quotaSuspect && (
                     <div style={{ background:"#f8717115", border:"1px solid #f87171", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.9 }}>
                       <b style={{ color:"#f87171" }}>❌ Não consegui conectar no banco</b><br/>
                       <span style={{ color:"#a99ac9" }}>
                         Como já funcionava antes, o mais provável é o banco ter <b style={{color:"#f0e9fb"}}>pausado sozinho</b> (comum no plano grátis do Supabase depois de alguns dias sem uso) — os dados continuam salvos, só precisa "acordar" ele:<br/>
                         &nbsp;• Entre em <b style={{color:"#f0e9fb"}}>supabase.com</b>, abra o projeto e clique em <b style={{color:"#34d399"}}>Restore/Resume project</b><br/>
                         &nbsp;• Se não estiver pausado, confira no Vercel → Settings → Environment Variables se <code style={{color:"#60a5fa"}}>SUPABASE_URL</code> e <code style={{color:"#60a5fa"}}>SUPABASE_SERVICE_KEY</code> continuam lá<br/>
+                        Depois clique <b style={{color:"#34d399"}}>↻ Verificar agora</b> abaixo.
+                      </span>
+                      {diag.err && <div style={{ marginTop:8, paddingTop:8, borderTop:"1px solid #f8717133", color:"#c9a5a5", fontSize:11, fontFamily:"monospace", wordBreak:"break-word" }}>Erro técnico: {diag.err}</div>}
+                    </div>
+                  )}
+
+                  {!diag.hasStorage && diag.storageHealth?.activeBackend === "firebase" && (
+                    <div style={{ background:"#f8717115", border:"1px solid #f87171", borderRadius:8, padding:"10px 12px", marginTop:8, lineHeight:1.9 }}>
+                      <b style={{ color:"#f87171" }}>❌ Não consegui conectar ao Firebase</b><br/>
+                      <span style={{ color:"#a99ac9" }}>
+                        Confira na Vercel se <code style={{color:"#60a5fa"}}>FIREBASE_SERVICE_ACCOUNT_JSON</code> está completo e se <code style={{color:"#60a5fa"}}>DATABASE_PRIMARY</code> está como <b style={{color:"#f0e9fb"}}>firebase</b>. Confirme também que o Cloud Firestore foi criado no projeto Firebase.<br/>
                         Depois clique <b style={{color:"#34d399"}}>↻ Verificar agora</b> abaixo.
                       </span>
                       {diag.err && <div style={{ marginTop:8, paddingTop:8, borderTop:"1px solid #f8717133", color:"#c9a5a5", fontSize:11, fontFamily:"monospace", wordBreak:"break-word" }}>Erro técnico: {diag.err}</div>}

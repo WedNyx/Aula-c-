@@ -1001,6 +1001,11 @@ function looksLikeQuotaIssue(errText) {
   return QUOTA_HINTS.some(re => re.test(s))
 }
 
+export async function migrateToFirebase(auth = '') {
+  if (!auth) throw new Error('A senha do professor é obrigatória para migrar o banco.')
+  return kvCall({ action: 'migrate_to_firebase', auth })
+}
+
 export async function diagnose(auth = '') {
   const out = { hasStorage: true, configured: true, writeRead: '—', listOk: false, keys: [], err: '', hasAI: null, quotaSuspect: false, backend: null, failoverReady: false, pendingSync: null, lastPrimaryFailureAt: null, storageHealth: null }
 
@@ -1015,7 +1020,7 @@ export async function diagnose(auth = '') {
       out.hasStorage = false
       out.configured = false
       out.writeRead = 'não configurado'
-      out.err = 'Banco não configurado. Adicione SUPABASE_URL + SUPABASE_SERVICE_KEY + DATABASE_PASSWORD no Vercel.'
+      out.err = 'Banco não configurado. Adicione as credenciais do Firebase ou do Supabase nas variáveis da Vercel.'
     }
   } catch (e) {
     out.hasStorage = false

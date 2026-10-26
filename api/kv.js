@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { createSign, randomUUID } from 'node:crypto'
 import { isValidTeacherPassword, teacherLoginFailBucket } from './_teacherAuth.js'
 import { clientIp } from './_ip.js'
 import { applyAttendanceOverrides } from '../src/lib/classroomUpdates.js'
@@ -31,6 +32,7 @@ function needsTeacherAuth(action, key) {
   if (['lobby_list', 'lobby_set_gate', 'lobby_grant', 'purge_student_cpfs'].includes(action)) return true
   if (action === 'set_attendance') return true
   if (action === 'sync_replica') return true
+  if (action === 'migrate_to_firebase') return true
   if (action === 'storage_health') return true
   if (action === 'list_music_suggestions' || action === 'resolve_music_suggestion') return true
   if (action === 'delete_by_prefix') return true // apaga em massa — sempre só-do-professor
@@ -302,6 +304,349 @@ function teamDuelKeyFor(shift, names) {
   return `teamduel:${shift || 'sem-turno'}:${sorted.join('__')}`
 }
 
+// ─── Firebase / Cloud Firestore ──────────────────────────────────────────────
+// O Firebase vira o banco principal quando as credenciais abaixo estão presentes.
+// A comunicação é feita pela API oficial do Firestore no servidor, sem expor a
+// conta de serviço ao navegador e sem acrescentar um SDK grande ao pacote.
+function firebaseServiceAccount() {
+  const packed = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || ''
+  if (packed) {
+    try {
+      const json = packed.trim().startsWith('{')
+        ? packed
+        : Buffer.from(packed, 'base64').toString('utf8')
+      const account = JSON.parse(json)
+      if (account.private_key) account.private_key = account.private_key.replace(/\\n/g, '\n')
+      return account
+    } catch {
+      throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON inválido.')
+    }
+  }
+  const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || ''
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || ''
+  const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n')
+  return projectId && clientEmail && privateKey
+    ? { project_id: projectId, client_email: clientEmail, private_key: privateKey }
+    : null
+}
+
+let FIREBASE_ACCOUNT = null
+let FIREBASE_CONFIG_ERROR = ''
+try {
+  FIREBASE_ACCOUNT = firebaseServiceAccount()
+} catch (error) {
+  FIREBASE_CONFIG_ERROR = String(error?.message || error)
+  console.error('firebase_configuration_invalid')
+}
+const FIREBASE_PROJECT_ID = FIREBASE_ACCOUNT?.project_id || ''
+const FIREBASE_COLLECTION = process.env.FIREBASE_COLLECTION || TABLE
+const FIREBASE_DATABASE_ID = process.env.FIREBASE_DATABASE_ID || '(default)'
+const HAS_FIREBASE = !!(FIREBASE_PROJECT_ID && FIREBASE_ACCOUNT?.client_email && FIREBASE_ACCOUNT?.private_key)
+let firebaseTokenCache = null
+
+function base64Url(value) {
+  return Buffer.from(value).toString('base64url')
+}
+
+function firebaseDocId(key) {
+  return base64Url(String(key))
+}
+
+function firestoreDatabaseName() {
+  return `projects/${FIREBASE_PROJECT_ID}/databases/${FIREBASE_DATABASE_ID}`
+}
+
+function firestoreRoot() {
+  return `https://firestore.googleapis.com/v1/${firestoreDatabaseName()}/documents`
+}
+
+function firestoreDocumentName(key) {
+  return `${firestoreDatabaseName()}/documents/${FIREBASE_COLLECTION}/${firebaseDocId(key)}`
+}
+
+function firestoreDocument(key) {
+  return `https://firestore.googleapis.com/v1/${firestoreDocumentName(key)}`
+}
+
+const FIREBASE_INLINE_VALUE_BYTES = 700_000
+const FIREBASE_CHUNK_BYTES = 450_000
+
+function firestoreFields(key, value, metadata = {}) {
+  const fields = {
+    key: { stringValue: String(key) },
+    value: { stringValue: String(value) },
+    chunked: { booleanValue: false },
+    updatedAt: { timestampValue: new Date().toISOString() },
+  }
+  if (metadata.sourceRevision) fields.sourceRevision = { stringValue: String(metadata.sourceRevision) }
+  if (metadata.tombstone) fields.tombstone = { booleanValue: true }
+  return fields
+}
+
+function splitFirebaseValue(value) {
+  const buffer = Buffer.from(String(value), 'utf8')
+  const chunks = []
+  for (let offset = 0; offset < buffer.length; offset += FIREBASE_CHUNK_BYTES) {
+    chunks.push(buffer.subarray(offset, offset + FIREBASE_CHUNK_BYTES).toString('base64'))
+  }
+  return chunks
+}
+
+function firestoreChunkUrl(key, generation, index) {
+  return `${firestoreDocument(key)}/chunks/${generation}-${String(index).padStart(6, '0')}`
+}
+
+async function firebaseAccessToken() {
+  if (!HAS_FIREBASE) throw new Error('Firebase não configurado. Adicione as credenciais FIREBASE_* na Vercel.')
+  if (firebaseTokenCache && firebaseTokenCache.expiresAt > Date.now() + 60_000) return firebaseTokenCache.token
+  const now = Math.floor(Date.now() / 1000)
+  const header = base64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+  const claims = base64Url(JSON.stringify({
+    iss: FIREBASE_ACCOUNT.client_email,
+    sub: FIREBASE_ACCOUNT.client_email,
+    aud: 'https://oauth2.googleapis.com/token',
+    scope: 'https://www.googleapis.com/auth/datastore',
+    iat: now,
+    exp: now + 3600,
+  }))
+  const unsigned = `${header}.${claims}`
+  const signer = createSign('RSA-SHA256')
+  signer.update(unsigned)
+  signer.end()
+  const assertion = `${unsigned}.${signer.sign(FIREBASE_ACCOUNT.private_key).toString('base64url')}`
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion,
+    }),
+  })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok || !payload.access_token) throw new Error(`Firebase auth ${response.status}: ${payload.error_description || payload.error || 'falhou'}`)
+  firebaseTokenCache = { token: payload.access_token, expiresAt: Date.now() + Number(payload.expires_in || 3600) * 1000 }
+  return firebaseTokenCache.token
+}
+
+async function firestoreFetch(url, options = {}, allowed = []) {
+  const token = await firebaseAccessToken()
+  const response = await fetch(url, {
+    ...options,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(options.headers || {}) },
+  })
+  if (!response.ok && !allowed.includes(response.status)) {
+    const message = await response.text().catch(() => '')
+    throw new Error(`Firestore ${response.status}: ${message.slice(0, 500)}`)
+  }
+  return response
+}
+
+async function firestoreValue(document, key = document?.fields?.key?.stringValue || '') {
+  if (!document || document.fields?.tombstone?.booleanValue === true) return null
+  if (document.fields?.chunked?.booleanValue !== true) return document.fields?.value?.stringValue ?? null
+  const count = Number(document.fields?.chunkCount?.integerValue || 0)
+  const generation = document.fields?.chunkGeneration?.stringValue || 'legacy'
+  const buffers = []
+  for (let index = 0; index < count; index++) {
+    const response = await firestoreFetch(firestoreChunkUrl(key, generation, index), { method: 'GET' })
+    const chunk = await response.json()
+    buffers.push(Buffer.from(chunk.fields?.data?.stringValue || '', 'base64'))
+  }
+  return Buffer.concat(buffers).toString('utf8')
+}
+
+async function deleteFirestoreChunks(key, count, generation = 'legacy') {
+  for (let offset = 0; offset < count; offset += 400) {
+    await firestoreCommit(Array.from({ length: Math.min(400, count - offset) }, (_, index) => ({
+      delete: `${firestoreDocumentName(key)}/chunks/${generation}-${String(offset + index).padStart(6, '0')}`,
+    })))
+  }
+}
+
+async function firestoreSet(key, value, precondition = '', metadata = {}) {
+  const raw = String(value)
+  if (Buffer.byteLength(raw, 'utf8') > FIREBASE_INLINE_VALUE_BYTES) {
+    const previousResponse = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
+    const previous = previousResponse.status === 404 ? null : await previousResponse.json()
+    const generation = randomUUID()
+    const chunks = splitFirebaseValue(raw)
+    for (let index = 0; index < chunks.length; index++) {
+      await firestoreFetch(firestoreChunkUrl(key, generation, index), {
+        method: 'PATCH',
+        body: JSON.stringify({ fields: { data: { stringValue: chunks[index] } } }),
+      })
+    }
+    const url = new URL(firestoreDocument(key))
+    if (precondition === 'missing') url.searchParams.set('currentDocument.exists', 'false')
+    else if (precondition) url.searchParams.set('currentDocument.updateTime', precondition)
+    const root = await firestoreFetch(url.toString(), {
+      method: 'PATCH',
+      body: JSON.stringify({ fields: {
+        key: { stringValue: String(key) },
+        chunked: { booleanValue: true },
+        chunkGeneration: { stringValue: generation },
+        chunkCount: { integerValue: String(chunks.length) },
+        byteLength: { integerValue: String(Buffer.byteLength(raw, 'utf8')) },
+        updatedAt: { timestampValue: new Date().toISOString() },
+        ...(metadata.sourceRevision ? { sourceRevision: { stringValue: String(metadata.sourceRevision) } } : {}),
+      } }),
+    }, precondition ? [400, 409, 412] : [])
+    if (!root.ok) {
+      await deleteFirestoreChunks(key, chunks.length, generation)
+      return root
+    }
+    if (previous?.fields?.chunked?.booleanValue === true) {
+      await deleteFirestoreChunks(key, Number(previous.fields?.chunkCount?.integerValue || 0), previous.fields?.chunkGeneration?.stringValue || 'legacy')
+    }
+    return root
+  }
+
+  const previousResponse = precondition ? null : await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
+  const previous = previousResponse?.status === 404 ? null : previousResponse ? await previousResponse.json() : null
+  const url = new URL(firestoreDocument(key))
+  if (precondition === 'missing') url.searchParams.set('currentDocument.exists', 'false')
+  else if (precondition) url.searchParams.set('currentDocument.updateTime', precondition)
+  const response = await firestoreFetch(url.toString(), {
+    method: 'PATCH',
+    body: JSON.stringify({ fields: firestoreFields(key, raw, metadata) }),
+  }, precondition ? [400, 409, 412] : [])
+  if (response.ok && previous?.fields?.chunked?.booleanValue === true) {
+    await deleteFirestoreChunks(key, Number(previous.fields?.chunkCount?.integerValue || 0), previous.fields?.chunkGeneration?.stringValue || 'legacy')
+  }
+  return response
+}
+
+async function firestoreConflict(response) {
+  if (response.ok) return false
+  const payload = await response.json().catch(() => ({}))
+  const status = payload?.error?.status
+  if (['FAILED_PRECONDITION', 'ALREADY_EXISTS', 'ABORTED'].includes(status)) return true
+  throw new Error(`Firestore ${response.status}: ${JSON.stringify(payload).slice(0, 500)}`)
+}
+
+async function firestoreShadowWrite(key, value, sourceRevision, tombstone = false) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const currentResponse = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
+    const current = currentResponse.status === 404 ? null : await currentResponse.json()
+    const existingRevision = current?.fields?.sourceRevision?.stringValue || ''
+    if (existingRevision && existingRevision >= sourceRevision) return false
+    const written = await firestoreSet(key, tombstone ? '' : value, current ? current.updateTime : 'missing', { sourceRevision, tombstone })
+    if (!(await firestoreConflict(written))) return true
+  }
+  throw new Error('Firebase shadow write contention.')
+}
+
+async function firestoreList(prefix) {
+  const query = {
+    structuredQuery: {
+      from: [{ collectionId: FIREBASE_COLLECTION }],
+      orderBy: [{ field: { fieldPath: 'key' }, direction: 'ASCENDING' }],
+    },
+  }
+  if (prefix) {
+    query.structuredQuery.where = {
+      compositeFilter: {
+        op: 'AND',
+        filters: [
+          { fieldFilter: { field: { fieldPath: 'key' }, op: 'GREATER_THAN_OR_EQUAL', value: { stringValue: prefix } } },
+          { fieldFilter: { field: { fieldPath: 'key' }, op: 'LESS_THAN', value: { stringValue: prefix + '\uf8ff' } } },
+        ],
+      },
+    }
+  }
+  const response = await firestoreFetch(`${firestoreRoot()}:runQuery`, {
+    method: 'POST',
+    body: JSON.stringify(query),
+  })
+  const rows = await response.json()
+  return Promise.all((rows || []).filter(row => row.document && row.document.fields?.tombstone?.booleanValue !== true).map(async row => {
+    const key = row.document.fields?.key?.stringValue || ''
+    return {
+      key,
+      value: await firestoreValue(row.document, key),
+      _chunkCount: Number(row.document.fields?.chunkCount?.integerValue || 0),
+    }
+  }))
+}
+
+async function firestoreCommit(writes) {
+  if (!writes.length) return
+  await firestoreFetch(`${firestoreRoot()}:commit`, {
+    method: 'POST',
+    body: JSON.stringify({ writes }),
+  })
+}
+
+async function firestoreCreateMissing(items) {
+  if (!items.length) return { migrated: 0, skipped: 0 }
+  const response = await firestoreFetch(`${firestoreRoot()}:batchWrite`, {
+    method: 'POST',
+    body: JSON.stringify({
+      writes: items.map(item => ({
+        update: {
+          name: firestoreDocumentName(item.key),
+          fields: {
+            ...firestoreFields(item.key, item.value, { sourceRevision: item.updatedAt || '' }),
+            migratedFrom: { stringValue: 'supabase' },
+          },
+        },
+        currentDocument: { exists: false },
+      })),
+    }),
+  })
+  const payload = await response.json()
+  let migrated = 0
+  let skipped = 0
+  for (const status of payload.status || []) {
+    const code = Number(status?.code || 0)
+    if (!code) migrated++
+    else if (code === 6) skipped++ // ALREADY_EXISTS: dual-write gravou uma versão mais nova.
+    else throw new Error(`Firestore batchWrite: ${status?.message || code}`)
+  }
+  return { migrated, skipped }
+}
+
+const firebaseStore = {
+  async compareAndSet(key, expected, value) {
+    const currentResponse = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
+    if (currentResponse.status === 404) {
+      if (expected != null) return false
+      const written = await firestoreSet(key, value, 'missing')
+      return !(await firestoreConflict(written))
+    }
+    const current = await currentResponse.json()
+    if (await firestoreValue(current, key) !== expected) return false
+    const written = await firestoreSet(key, value, current.updateTime)
+    return !(await firestoreConflict(written))
+  },
+  async set(key, value) {
+    const response = await firestoreSet(key, value)
+    if (!response.ok) throw new Error('Firebase set falhou.')
+  },
+  async get(key) {
+    const response = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
+    if (response.status === 404) return null
+    return firestoreValue(await response.json(), key)
+  },
+  listWithValues: firestoreList,
+  async delete(key) {
+    const response = await firestoreFetch(firestoreDocument(key), { method: 'GET' }, [404])
+    const document = response.status === 404 ? null : await response.json()
+    if (document?.fields?.chunked?.booleanValue === true) {
+      await deleteFirestoreChunks(key, Number(document.fields?.chunkCount?.integerValue || 0), document.fields?.chunkGeneration?.stringValue || 'legacy')
+    }
+    await firestoreFetch(firestoreDocument(key), { method: 'DELETE' }, [404])
+  },
+  async deleteByPrefix(prefix) {
+    const items = await firestoreList(prefix)
+    for (const item of items.filter(entry => entry._chunkCount > 0)) await this.delete(item.key)
+    const inline = items.filter(entry => !entry._chunkCount)
+    for (let offset = 0; offset < inline.length; offset += 400) {
+      await firestoreCommit(inline.slice(offset, offset + 400).map(item => ({ delete: firestoreDocumentName(item.key) })))
+    }
+  },
+}
+
 // ─── Supabase JS Client ───────────────────────────────────────────────────────
 // A integração atual da Vercel usa o prefixo AULAC para não sobrescrever
 // variáveis antigas. Preferimos as credenciais novas e mantemos compatibilidade
@@ -434,7 +779,11 @@ async function redis(...cmd) {
 // DATABASE_URL derivada do próprio projeto Supabase NÃO é reserva: ela aponta para
 // o mesmo banco. Por isso o único standby independente aqui é o Redis/Upstash.
 const HAS_REDIS = !!(REDIS_URL && REDIS_TOKEN)
-const PRIMARY_BACKEND = supabase ? 'supabase' : getPgUrl() ? 'pg' : HAS_REDIS ? 'redis' : null
+const FIREBASE_PRIMARY = HAS_FIREBASE && (process.env.DATABASE_PRIMARY === 'firebase' || (!supabase && !getPgUrl()))
+const PRIMARY_BACKEND = FIREBASE_PRIMARY ? 'firebase' : supabase ? 'supabase' : getPgUrl() ? 'pg' : HAS_REDIS ? 'redis' : null
+// Enquanto Supabase ainda é o principal, toda alteração também vai para o Firebase.
+// Assim a cópia inicial pode acontecer com a plataforma online sem perder mudanças.
+const SHADOW_FIREBASE = HAS_FIREBASE && !FIREBASE_PRIMARY && !!(supabase || getPgUrl())
 const REPLICA_BACKEND = PRIMARY_BACKEND !== 'redis' && HAS_REDIS ? 'redis' : null
 const BACKEND = REPLICA_BACKEND ? `${PRIMARY_BACKEND}+redis` : PRIMARY_BACKEND
 const FAILOVER_DIRTY_SET = '__aula_csharp_failover_dirty__'
@@ -505,8 +854,27 @@ async function loadStorageHealth() {
     }
   }
 
+  const firebaseHealth = {
+    configured: HAS_FIREBASE,
+    available: false,
+    recordCount: null,
+    collection: FIREBASE_COLLECTION,
+    databaseId: FIREBASE_DATABASE_ID,
+    error: FIREBASE_CONFIG_ERROR || null,
+  }
+  if (HAS_FIREBASE) {
+    try {
+      await firebaseStore.get('__aula_csharp_health_probe__')
+      firebaseHealth.available = true
+    } catch (error) {
+      firebaseHealth.error = String(error?.message || error)
+    }
+  }
+
   const value = {
     checkedAt: new Date().toISOString(),
+    activeBackend: PRIMARY_BACKEND,
+    firebase: firebaseHealth,
     supabase: supabaseHealth,
     reserve: reserveHealth,
   }
@@ -520,23 +888,29 @@ function tombstoneKey(key) {
 
 const primaryStore = {
   async compareAndSet(key, expected, value) {
+    if (PRIMARY_BACKEND === 'firebase') return firebaseStore.compareAndSet(key, expected, value)
     if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
       if (expected == null) {
         const { error } = await supabase.from(TABLE).insert({ key, value, updated_at: new Date().toISOString() })
         if (error?.code === '23505') return false
         if (error) throw new Error('student_write_failed')
+        if (SHADOW_FIREBASE) await firestoreShadowWrite(key, value, `${new Date().toISOString()}-${randomUUID()}`)
         return true
       }
       const { data, error } = await supabase.from(TABLE).update({ value, updated_at: new Date().toISOString() }).eq('key', key).eq('value', expected).select('key')
       if (error) throw new Error('student_write_failed')
-      return data.length > 0
+      const changed = data.length > 0
+      if (changed && SHADOW_FIREBASE) await firestoreShadowWrite(key, value, `${new Date().toISOString()}-${randomUUID()}`)
+      return changed
     }
     if (PRIMARY_BACKEND === 'pg') {
       const r = expected == null
         ? await withPg(c => c.query(`INSERT INTO ${TABLE}(key,value,updated_at) VALUES($1,$2,NOW()) ON CONFLICT DO NOTHING RETURNING key`, [key,value]))
         : await withPg(c => c.query(`UPDATE ${TABLE} SET value=$3,updated_at=NOW() WHERE key=$1 AND value=$2 RETURNING key`, [key,expected,value]))
-      return r.rowCount > 0
+      const changed = r.rowCount > 0
+      if (changed && SHADOW_FIREBASE) await firestoreShadowWrite(key, value, `${new Date().toISOString()}-${randomUUID()}`)
+      return changed
     }
     return Number(await redis('EVAL', `-- student-cas
       local current = redis.call('GET', KEYS[1])
@@ -546,6 +920,7 @@ const primaryStore = {
       return 0`, 1, key, expected == null ? 'missing' : 'present', expected ?? '', value)) === 1
   },
   async set(key, value) {
+    if (PRIMARY_BACKEND === 'firebase') return firebaseStore.set(key, value)
     if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
       const { error } = await supabase
@@ -560,9 +935,11 @@ const primaryStore = {
     } else {
       await redis('SET', key, value)
     }
+    if (SHADOW_FIREBASE) await firestoreShadowWrite(key, value, `${new Date().toISOString()}-${randomUUID()}`)
   },
 
   async get(key) {
+    if (PRIMARY_BACKEND === 'firebase') return firebaseStore.get(key)
     if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
       const { data, error } = await supabase.from(TABLE).select('value').eq('key', key).maybeSingle()
@@ -577,6 +954,7 @@ const primaryStore = {
   },
 
   async listWithValues(prefix) {
+    if (PRIMARY_BACKEND === 'firebase') return firebaseStore.listWithValues(prefix)
     if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
       const { data, error } = await supabase.from(TABLE).select('key, value').like('key', `${prefix}%`)
@@ -594,6 +972,7 @@ const primaryStore = {
   },
 
   async delete(key) {
+    if (PRIMARY_BACKEND === 'firebase') return firebaseStore.delete(key)
     if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
       const { error } = await supabase.from(TABLE).delete().eq('key', key)
@@ -603,18 +982,28 @@ const primaryStore = {
     } else {
       await redis('DEL', key)
     }
+    if (SHADOW_FIREBASE) await firestoreShadowWrite(key, '', `${new Date().toISOString()}-${randomUUID()}`, true)
   },
 
   async deleteByPrefix(prefix) {
+    if (PRIMARY_BACKEND === 'firebase') return firebaseStore.deleteByPrefix(prefix)
+    let deletedKeys = []
     if (PRIMARY_BACKEND === 'supabase') {
       await ensureTable()
-      const { error } = await supabase.from(TABLE).delete().like('key', `${prefix}%`)
+      const { data, error } = await supabase.from(TABLE).delete().like('key', `${prefix}%`).select('key')
       if (error) throw new Error(`Supabase deleteByPrefix: ${error.message}`)
+      deletedKeys = (data || []).map(row => row.key)
     } else if (PRIMARY_BACKEND === 'pg') {
-      await withPg(c => c.query(`DELETE FROM ${TABLE} WHERE key LIKE $1`, [`${prefix}%`]))
+      const result = await withPg(c => c.query(`DELETE FROM ${TABLE} WHERE key LIKE $1 RETURNING key`, [`${prefix}%`]))
+      deletedKeys = result.rows.map(row => row.key)
     } else {
       const ks = await redis('KEYS', `${prefix}*`)
       if (ks?.length) await redis('DEL', ...ks)
+      deletedKeys = ks || []
+    }
+    if (SHADOW_FIREBASE) {
+      const revision = `${new Date().toISOString()}-${randomUUID()}`
+      for (const deletedKey of deletedKeys) await firestoreShadowWrite(deletedKey, '', revision, true)
     }
   },
 }
@@ -1040,6 +1429,82 @@ async function checkKvRateLimit(res, bucket, ip) {
 }
 
 // ─── Handler ─────────────────────────────────────────────────────────────────
+async function listLegacySupabaseItems() {
+  if (supabase) {
+    await ensureTable()
+    const items = []
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select('key, value, updated_at')
+        .order('key')
+        .range(from, from + 999)
+      if (error) throw new Error(`Supabase migration read: ${error.message}`)
+      items.push(...(data || []).map(row => ({ key: row.key, value: row.value, updatedAt: row.updated_at || '' })))
+      if (!data || data.length < 1000) break
+    }
+    return items
+  }
+  if (getPgUrl()) {
+    const result = await withPg(client => client.query(`SELECT key,value,updated_at FROM ${TABLE} ORDER BY key`))
+    return result.rows.map(row => ({ key: row.key, value: row.value, updatedAt: row.updated_at?.toISOString?.() || String(row.updated_at || '') }))
+  }
+  throw new Error('Supabase antigo não está configurado; não há origem para a migração.')
+}
+
+async function migrateLegacyDataToFirebase() {
+  if (!HAS_FIREBASE) throw new Error('Configure o Firebase antes de iniciar a migração.')
+  if (FIREBASE_PRIMARY) throw new Error('Migração bloqueada: o Firebase já é o banco principal.')
+  const items = await listLegacySupabaseItems()
+  let migrated = 0
+  let skipped = 0
+
+  const inline = []
+  for (const item of items) {
+    if (Buffer.byteLength(String(item.value), 'utf8') > FIREBASE_INLINE_VALUE_BYTES) {
+      const existing = await firestoreFetch(firestoreDocument(item.key), { method: 'GET' }, [404])
+      if (existing.status === 404) {
+        const written = await firestoreSet(item.key, item.value, 'missing', { sourceRevision: item.updatedAt || '' })
+        if (await firestoreConflict(written)) skipped++
+        else migrated++
+      } else {
+        skipped++
+      }
+    } else {
+      inline.push(item)
+    }
+  }
+
+  // batchWrite avalia a precondição por documento: registros já atualizados pelo
+  // dual-write são preservados em vez de serem substituídos pela cópia antiga.
+  let batch = []
+  let batchBytes = 0
+  const flushBatch = async () => {
+    if (!batch.length) return
+    const result = await firestoreCreateMissing(batch)
+    migrated += result.migrated
+    skipped += result.skipped
+    batch = []
+    batchBytes = 0
+  }
+  for (const item of inline) {
+    const estimatedBytes = Buffer.byteLength(JSON.stringify(item), 'utf8') + 2048
+    if (batch.length >= 20 || batchBytes + estimatedBytes > 8 * 1024 * 1024) await flushBatch()
+    batch.push(item)
+    batchBytes += estimatedBytes
+  }
+  await flushBatch()
+  return {
+    ok: true,
+    migrated,
+    skipped,
+    total: items.length,
+    dualWriteActive: SHADOW_FIREBASE,
+    source: 'supabase',
+    destination: 'firebase',
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
@@ -1193,6 +1658,9 @@ export default async function handler(req, res) {
       }
       case 'storage_health': {
         return res.json(await loadStorageHealth())
+      }
+      case 'migrate_to_firebase': {
+        return res.json(await migrateLegacyDataToFirebase())
       }
       case 'sync_replica': {
         const result = await syncReplicaFromPrimary()
