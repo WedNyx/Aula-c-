@@ -1,5 +1,11 @@
 // Uma versão por atualização publicada, não por salvamento nem por build.
 export const RELEASES = [
+  { version: '1.6.3', title: 'Oficina de Código', date: '2026-11-04', changes: [
+    'A tela de entrada ganhou um atalho para abrir o Visual Studio Code instalado no computador.',
+    'A plataforma oferece o link oficial para instalar o VS Code quando necessário.',
+  ], highlights: [
+    'Acesso rápido ao VS Code sem depender de criação de pastas pelo navegador.',
+  ] },
   { version: '1.6.2', title: 'Sala de Embarque', date: '2026-10-07', changes: [
     'Antes de entrar no painel, o aluno agora chega a uma sala de espera acolhedora e personalizada.',
     'O professor acompanha quem chegou, o horário de entrada e pode liberar cada aluno ou abrir os portões para a turma inteira.',

@@ -1,20 +1,9 @@
 import { useState } from "react";
 
 const DESKTOP_APPS = [
-  {
-    id: "roblox",
-    name: "Roblox",
-    icon: "◼",
-    scheme: "roblox://",
-    accent: "#f0e9fb",
-  },
-  {
-    id: "unity",
-    name: "Unity Hub",
-    icon: "◆",
-    scheme: "unityhub://",
-    accent: "#22d3ee",
-  },
+  { id: "roblox", name: "Roblox", icon: "◼", scheme: "roblox://", accent: "#f0e9fb" },
+  { id: "unity", name: "Unity Hub", icon: "◆", scheme: "unityhub://", accent: "#22d3ee" },
+  { id: "vscode", name: "VS Code", icon: "⌘", scheme: "vscode://", accent: "#38bdf8" },
 ];
 
 export function DesktopAppLauncher() {
@@ -37,7 +26,7 @@ export function DesktopAppLauncher() {
             key={app.id}
             type="button"
             onClick={() => launch(app)}
-            style={{ "--app-accent":app.accent }}
+            style={{ "--app-accent": app.accent }}
             aria-label={`Abrir ${app.name} no computador`}
           >
             <span aria-hidden="true">{app.icon}</span>
@@ -45,6 +34,7 @@ export function DesktopAppLauncher() {
           </button>
         ))}
       </div>
+      <small>Se não tiver o programa, <a href="https://code.visualstudio.com/download" target="_blank" rel="noopener noreferrer">instale o VS Code</a>.</small>
       {message && <p role="status">{message}</p>}
     </section>
   );
