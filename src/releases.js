@@ -2,10 +2,9 @@
 export const RELEASES = [
   { version: '1.6.3', title: 'Oficina de Código', date: '2026-11-04', changes: [
     'A tela de entrada ganhou um atalho para abrir o Visual Studio Code instalado no computador.',
-    'Alunos podem informar seu nome e criar uma pasta local de programação após escolher e autorizar o local no navegador.',
-    'A plataforma explica como abrir a pasta criada no VS Code e oferece o link oficial de instalação.',
+    'A plataforma oferece o link oficial para instalar o VS Code quando necessário.',
   ], highlights: [
-    'Criação de pastas locais por aluno com autorização do navegador e acesso rápido ao VS Code.',
+    'Acesso rápido ao VS Code sem depender de criação de pastas pelo navegador.',
   ] },
   { version: '1.6.2', title: 'Sala de Embarque', date: '2026-10-07', changes: [
     'Antes de entrar no painel, o aluno agora chega a uma sala de espera acolhedora e personalizada.',
