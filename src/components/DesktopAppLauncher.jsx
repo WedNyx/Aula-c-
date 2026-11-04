@@ -7,7 +7,7 @@ const DESKTOP_APPS = [
 ];
 
 const cleanFolderName = value => value.trim().replace(/[<>:"/\\|?*\x00-\x1f]/g, "").replace(/[. ]+$/g, "").slice(0, 80);
-
+const cleanFolderName = value => Array.from(value.trim()).filter(ch => ch.charCodeAt(0) >= 32 && ![60, 62, 58, 34, 47, 92, 124, 63, 42].includes(ch.charCodeAt(0))).join("").replace(/[. ]+$/g, "").slice(0, 80);
 export function DesktopAppLauncher() {
   const [message, setMessage] = useState("");
   const [studentName, setStudentName] = useState("");
