@@ -28,12 +28,12 @@ const { build } = require('esbuild');
     }
     return null;
   }
-  function press(value, start, key, end = start) {
+  function press(value, start, key, end = start, extra = {}) {
     let next = value, prevented = false;
     const ta = findTextarea(mod.exports.VSEditor({ value, onChange: v => { next = v; } }));
     const dom = { value, selectionStart: start, selectionEnd: end, setSelectionRange(a, b) { this.selectionStart = a; this.selectionEnd = b; } };
     ta.props.ref.current = dom;
-    ta.props.onKeyDown({ key, preventDefault() { prevented = true; } });
+    ta.props.onKeyDown({ key, ...extra, preventDefault() { prevented = true; } });
     return { next, prevented, cursor: dom.selectionStart };
   }
   assert.equal(press('', 0, '(').next, '()');
@@ -44,5 +44,19 @@ const { build } = require('esbuild');
   assert.equal(press('{}', 1, 'Enter').next, '{\n    \n}');
   assert.equal(press('', 0, 'Tab').next, '    ');
   assert.equal(press('(x)', 2, 'Backspace').prevented, false);
-  console.log('8 testes de comportamento: pares, Backspace, aspas, seleção, Enter e Tab aprovados.');
+  // Shift+Tab desindenta (antes indentava), na linha atual e em várias linhas selecionadas
+  assert.equal(press('    x', 5, 'Tab', 5, { shiftKey: true }).next, 'x');
+  assert.equal(press('    a\n    b', 0, 'Tab', 11, { shiftKey: true }).next, 'a\nb');
+  assert.equal(press('a\nb', 0, 'Tab', 3).next, '    a\n    b');
+  // "}" numa linha só com espaços volta 4 espaços, alinhando com quem abriu o bloco
+  assert.equal(press('{\n    ', 6, '}').next, '{\n}');
+  // não fecha par colado antes de uma palavra, nem apóstrofo no meio de palavra
+  assert.equal(press('x', 0, '(').prevented, false);
+  assert.equal(press('d', 1, "'").prevented, false);
+  // $" e @" do C# continuam fechando as aspas
+  assert.equal(press('$', 1, '"').next, '$""');
+  assert.equal(press('@', 1, '"').next, '@""');
+  // Enter entre parênteses abre o bloco igual às chaves
+  assert.equal(press('f()', 2, 'Enter').next, 'f(\n    \n)');
+  console.log('18 testes de comportamento: pares, Backspace, aspas, seleção, Enter, Tab, Shift+Tab e } aprovados.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

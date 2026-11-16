@@ -15,14 +15,30 @@ export function highlight(code, errorLines, filename) {
 }
 
 export function highlightCSharp(code, errorLines) {
-  const keywords = ["using","namespace","class","static","void","public","private","protected","internal","int","long","short","string","bool","double","float","char","decimal","byte","return","if","else","for","while","foreach","do","in","new","var","true","false","null","this","base","override","virtual","abstract","sealed","readonly","const","try","catch","finally","throw","switch","case","break","continue","default","get","set","using","enum","struct","interface","async","await"];
+  const keywords = ["using","namespace","class","static","void","public","private","protected","internal","int","long","short","string","bool","double","float","char","decimal","byte","return","if","else","for","while","foreach","do","in","new","var","true","false","null","this","base","override","virtual","abstract","sealed","readonly","const","try","catch","finally","throw","switch","case","break","continue","default","get","set","using","enum","struct","interface","async","await","out","ref","params","is","as","object","uint","ulong","ushort","sbyte","typeof","nameof","lock","record","init","when","where","yield","goto","operator","implicit","explicit","event","delegate","partial","dynamic","checked","unchecked","sizeof","not","and","or"];
   let depth = 0; // profundidade de colchetes acumulada entre linhas
   const lines = code.split("\n");
   const errSet = new Set(errorLines || []);
+  let inBlockComment = false; // comentário /* ... */ que atravessa linhas
   return lines.map((line, li) => {
     const tokens = [];
     let i = 0;
+    if (inBlockComment) {
+      const close = line.indexOf("*/");
+      const stop = close === -1 ? line.length : close + 2;
+      tokens.push(<span key="bc" style={{color:"#6a9955"}}>{line.slice(0, stop)}</span>);
+      i = stop;
+      inBlockComment = close === -1;
+    }
     while (i < line.length) {
+      // comentário de bloco /* ... */
+      if (line[i] === "/" && line[i+1] === "*") {
+        const close = line.indexOf("*/", i + 2);
+        const stop = close === -1 ? line.length : close + 2;
+        tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i, stop)}</span>);
+        inBlockComment = close === -1;
+        i = stop; continue;
+      }
       // comentário de linha
       if (line[i] === "/" && line[i+1] === "/") {
         tokens.push(<span key={i} style={{color:"#6a9955"}}>{line.slice(i)}</span>);
@@ -37,6 +53,7 @@ export function highlightCSharp(code, errorLines) {
         let runStart = i;
         const flushRun = (end) => { if (end > runStart) tokens.push(<span key={runStart} style={{color:"#ce9178"}}>{line.slice(runStart, end)}</span>); };
         while (i < line.length && line[i] !== '"') {
+          if (line[i] === "\\") { i += 2; continue; } // \" e outras sequências de escape continuam dentro da string
           if (line[i] === "{" && line[i+1] === "{") { i += 2; continue; } // {{ escapado: chave literal, continua como texto
           if (line[i] === "}" && line[i+1] === "}") { i += 2; continue; } // }} escapado
           if (line[i] === "{") {
@@ -62,12 +79,28 @@ export function highlightCSharp(code, errorLines) {
         if (line[i] === '"') { tokens.push(<span key={i} style={{color:"#ce9178"}}>{'"'}</span>); i++; }
         continue;
       }
-      // string
-      if (line[i] === '"') {
+      // string literal @"..." (aspas dobradas "" são aspas dentro do texto; \ é só uma barra)
+      if (line[i] === "@" && line[i+1] === '"') {
+        let j = i+2;
+        while (j < line.length) {
+          if (line[j] === '"' && line[j+1] === '"') { j += 2; continue; }
+          if (line[j] === '"') break;
+          j++;
+        }
+        const stop = Math.min(line.length, j+1);
+        tokens.push(<span key={i} style={{color:"#ce9178"}}>{line.slice(i, stop)}</span>);
+        i = stop; continue;
+      }
+      // string "..." e caractere 'c' — respeita escapes (\" não fecha a string) e NUNCA desenha
+      // uma aspa que não existe no texto: antes, uma string ainda sem fechar (ou com \") ganhava
+      // uma aspa fantasma na camada colorida, diferente do que o aluno digitou de verdade
+      if (line[i] === '"' || line[i] === "'") {
+        const q = line[i];
         let j = i+1;
-        while (j < line.length && line[j] !== '"') j++;
-        tokens.push(<span key={i} style={{color:"#ce9178"}}>{'"'+line.slice(i+1,j)+'"'}</span>);
-        i = j+1; continue;
+        while (j < line.length && line[j] !== q) j += line[j] === "\\" ? 2 : 1;
+        const stop = Math.min(line.length, j+1);
+        tokens.push(<span key={i} style={{color:"#ce9178"}}>{line.slice(i, stop)}</span>);
+        i = stop; continue;
       }
       // palavra
       if (/[a-zA-Z_]/.test(line[i])) {

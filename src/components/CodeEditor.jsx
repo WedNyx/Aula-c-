@@ -64,6 +64,32 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
     onChange(newValue);
   };
 
+  // Substitui o trecho [from, to) por `text` e coloca o cursor em [caretStart, caretEnd].
+  // Usa execCommand("insertText") sempre que possível: é o único jeito de editar um textarea
+  // por código SEM destruir o histórico do Ctrl+Z/Ctrl+Y do navegador. Antes, toda edição
+  // automática (fechar par, Tab, Enter com indentação) trocava o value direto pelo React e o
+  // Ctrl+Z seguinte desfazia coisas aleatórias ou parava de funcionar.
+  const replaceRange = (from, to, text, caretStart, caretEnd = caretStart) => {
+    const ta = textareaRef.current;
+    const v = ta?.value ?? value;
+    const expected = v.slice(0, from) + text + v.slice(to);
+    const doc = ta?.ownerDocument;
+    if (doc && typeof doc.execCommand === "function") {
+      try {
+        if (doc.activeElement !== ta) ta.focus();
+        ta.setSelectionRange(from, to);
+        const ok = text ? doc.execCommand("insertText", false, text) : doc.execCommand("delete", false);
+        if (ok && ta.value === expected) {
+          ta.setSelectionRange(caretStart, caretEnd);
+          selectionRef.current = { start:caretStart, end:caretEnd, direction:"none" };
+          pendingSelectionRef.current = { start:caretStart, end:caretEnd, direction:"none" };
+          return;
+        }
+      } catch { /* navegador sem suporte: cai no caminho controlado abaixo */ }
+    }
+    commitEdit(expected, caretStart, caretEnd);
+  };
+
   const rememberSelection = (target = textareaRef.current) => {
     if (!target) return;
     selectionRef.current = {
@@ -103,6 +129,7 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
     // Não intercepta atalhos do sistema (AltGraph continua permitido para símbolos).
     if (e.metaKey || (e.ctrlKey && !e.getModifierState?.("AltGraph"))) return;
     const pairs = { "{":"}","(":")",'"':'"',"[":"]","'":"'" };
+    const isWord = (ch) => !!ch && /[\p{L}\p{N}_]/u.test(ch);
     if (start === end && [")", "]", "}", '"', "'"].includes(e.key) && v[start] === e.key) {
       e.preventDefault();
       ta.setSelectionRange(start + 1, start + 1);
@@ -110,51 +137,84 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
       return;
     }
     if (pairs[e.key]) {
-      e.preventDefault();
       if (start !== end) {
         // tem texto selecionado: ENVOLVE a seleção com o par (igual ao VS Code), em vez de apagar
         // o que tava selecionado e sobrar só um par vazio no lugar
+        e.preventDefault();
         const selected = v.slice(start, end);
-        const newVal = v.slice(0,start) + e.key + selected + pairs[e.key] + v.slice(end);
-        commitEdit(newVal, start+1, end+1);
+        replaceRange(start, end, e.key + selected + pairs[e.key], start+1, end+1);
         return;
       }
-      const newVal = v.slice(0,start) + e.key + pairs[e.key] + v.slice(end);
-      commitEdit(newVal, start+1);
+      // Igual ao VS Code: só fecha o par sozinho quando NÃO há uma palavra logo depois do cursor
+      // (digitar ( antes de "x" vira "(x", não "()x"), e aspas/apóstrofo não fecham colados no
+      // fim de uma palavra (d'água, "it's" e o $"/@" do C# continuam funcionando).
+      const next = v[start], prev = v[start-1];
+      const quote = e.key === '"' || e.key === "'";
+      if (isWord(next) || (quote && isWord(prev) && !(e.key === '"' && /[$@]/.test(prev || "")))) return;
+      e.preventDefault();
+      replaceRange(start, end, e.key + pairs[e.key], start+1);
       return;
+    }
+    if (e.key === "}" && start === end) {
+      // "}" digitado numa linha só com espaços: recua 4 espaços antes (fecha o bloco alinhado
+      // com a linha que abriu a chave), como no VS Code.
+      const lineStart = v.lastIndexOf("\n", start-1)+1;
+      const before = v.slice(lineStart, start);
+      if (before.length >= 4 && /^ +$/.test(before)) {
+        e.preventDefault();
+        const newIndent = before.slice(0, before.length - 4);
+        replaceRange(lineStart, start, newIndent + "}", lineStart + newIndent.length + 1);
+        return;
+      }
     }
     if (e.key === "Tab") {
       e.preventDefault();
-      if (start !== end && v.slice(start, end).includes("\n")) {
-        // seleção espalha por mais de uma linha: indenta CADA linha inteira (igual ao VS Code),
-        // em vez de apagar todo o bloco selecionado e trocar por um único bloco de 4 espaços
+      const multiLine = start !== end && v.slice(start, end).includes("\n");
+      if (e.shiftKey || multiLine) {
+        // indenta/desindenta CADA linha tocada pela seleção (Shift+Tab desindenta mesmo sem
+        // seleção). Antes, Shift+Tab indentava em vez de recuar.
         const selStartLine = v.lastIndexOf("\n", start-1)+1;
         let selEndLine = end;
-        if (end > selStartLine && v[end-1] === "\n") selEndLine = end-1; // seleção que termina bem na quebra de linha não indenta a linha seguinte, que o aluno nem tocou
-        const before = v.slice(0, selStartLine);
-        const middle = v.slice(selStartLine, selEndLine);
-        const after = v.slice(selEndLine);
-        const indented = middle.split("\n").map(line => "    " + line).join("\n");
-        const addedTotal = indented.length - middle.length;
-        commitEdit(before + indented + after, start+4, end+addedTotal);
+        if (end > selStartLine && end > start && v[end-1] === "\n") selEndLine = end-1; // seleção que termina bem na quebra de linha não mexe na linha seguinte, que o aluno nem tocou
+        const lineEndIdx = v.indexOf("\n", selEndLine);
+        const blockEnd = lineEndIdx === -1 ? v.length : lineEndIdx;
+        const block = v.slice(selStartLine, blockEnd);
+        const lines = block.split("\n");
+        let changedFirst = 0, total = 0;
+        const out = lines.map((line, idx) => {
+          let delta;
+          let res;
+          if (e.shiftKey) {
+            const m = line.match(/^( {1,4}|\t)/);
+            const cut = m ? m[0].length : 0;
+            res = line.slice(cut); delta = -cut;
+          } else { res = "    " + line; delta = 4; }
+          if (idx === 0) changedFirst = delta;
+          total += delta;
+          return res;
+        }).join("\n");
+        if (out === block) return;
+        const firstLineCol = start - selStartLine;
+        const newStart = selStartLine + Math.max(0, firstLineCol + changedFirst);
+        const newEnd = start === end ? newStart : Math.max(newStart, end + total);
+        replaceRange(selStartLine, blockEnd, out, newStart, newEnd);
         return;
       }
-      const newVal = v.slice(0,start) + "    " + v.slice(end);
-      commitEdit(newVal, start+4);
+      replaceRange(start, end, "    ", start+4);
       return;
     }
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       const lineStart = v.lastIndexOf("\n", start-1)+1;
-      const indent = v.slice(lineStart, start).match(/^(\s*)/)[1];
-      const prevChar = v[start-1], nextChar = v[start];
-      if (prevChar === "{" && nextChar === "}") {
-        const newVal = v.slice(0,start) + "\n" + indent+"    " + "\n" + indent + v.slice(end);
-        commitEdit(newVal, start+1+indent.length+4);
+      const indent = v.slice(lineStart, start).match(/^([ \t]*)/)[1];
+      const prevChar = v[start-1], nextChar = v[end];
+      if ((prevChar === "{" && nextChar === "}") || (prevChar === "(" && nextChar === ")") || (prevChar === "[" && nextChar === "]")) {
+        const text = "\n" + indent + "    " + "\n" + indent;
+        replaceRange(start, end, text, start+1+indent.length+4);
       } else {
         const extra = prevChar === "{" ? "    " : "";
-        const newVal = v.slice(0,start) + "\n" + indent + extra + v.slice(end);
-        commitEdit(newVal, start+1+indent.length+extra.length);
+        const text = "\n" + indent + extra;
+        replaceRange(start, end, text, start+text.length);
       }
       return;
     }
@@ -163,8 +223,7 @@ export function VSEditor({ value, onChange, onPasteText, filename, errorLines, l
       const pairs2 = {"(":")","{":"}","[":"]",'"':'"',"'":"'"};
       if (pairs2[prev] === next) {
         e.preventDefault();
-        const newVal = v.slice(0,start-1) + v.slice(start+1);
-        commitEdit(newVal, start-1);
+        replaceRange(start-1, start+1, "", start-1);
       }
     }
   };
